@@ -1,0 +1,101 @@
+---
+title: "Grabbing stats of the pipeline"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## clumpify tsv file
+
+```{r}
+clumpify_logs <- list.files('../data/logs/', 'dedupe_stats.txt$', full.names = T)   
+
+clump <- clumpify_logs %>% 
+  set_names(clumpify_logs) %>% 
+  map(~ suppressWarnings(read_tsv(., col_names = F, col_types = 'c')) %>% 
+        tail(10) %>% 
+        rename(clumpify = names(.)[1]) %>% 
+        filter(str_detect(clumpify, 'Reads In|Reads Out')) %>% 
+        separate(clumpify, into = c('type','Num'), sep = ': ', convert = T) %>% 
+        spread(key = 'type', value = 'Num') %>% 
+        rename_all(funs(str_replace(., ' ','_'))) %>%  
+        mutate(dup_num = Reads_In - Reads_Out)) %>% 
+  bind_rows(.id = 'sampleid')  %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/logs//',''),
+         sampleid = str_replace(sampleid, '_dedupe_stats.txt',''))
+
+
+  
+```
+
+## bbmap 
+
+```{r}
+bbmap_logs <- list.files('../data/logs/', '_trimmingAQ.txt$', full.names = T)
+
+bb <- bbmap_logs %>% 
+  set_names(bbmap_logs) %>% 
+  map(~ suppressWarnings(read_tsv(., col_names = F, col_types = 'cdc')) %>% 
+        head(3) %>% 
+        rename(content = names(.)[1],
+               trim_Num = names(.)[2]) %>% 
+        filter(str_detect(content, 'Match')) %>% 
+        select(trim_Num) ) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/logs//',''),
+         sampleid = str_replace(sampleid, '_trimmingAQ.txt',''))
+
+```
+
+## kneaddata
+
+```{r}
+kneaddata_logs <- list.files('../data/logs/', '_kneaddata.log$', full.names = T)
+
+knead <- kneaddata_logs %>% 
+  set_names(kneaddata_logs) %>% 
+  map(~ suppressWarnings(read_table(., col_names = F, col_types = 'c')) %>% 
+        rename(content = names(.)[1]) %>% 
+        filter(str_detect(content, 'Total contaminate sequences in file')) %>% 
+        transmute(knead_num = str_extract(content, 'Total contaminate sequences in file.+$')) %>% 
+        mutate(knead_num = as.numeric(str_replace(knead_num,'^.+: ',''))) %>% 
+        head(1)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/logs//',''),
+         sampleid = str_replace(sampleid, '_kneaddata.log',''))
+```
+
+## join
+
+```{r}
+stats <- bb %>% 
+  full_join(knead, by = 'sampleid') %>% 
+  left_join(clump, by  = 'sampleid') %>% 
+  select(sampleid, Reads_In, dup_num, trim_Num, knead_num) %>% 
+  mutate(dup_per = round(dup_num/Reads_In*100,2),
+         trim_per = round(trim_Num/Reads_In*100,2),
+         knead_per = round(knead_num/Reads_In*100,2))
+```
+ 
+## Pie 
+ 
+```{r}
+# randomly pick one sample 
+set.seed(111)
+pie_df <- stats %>% 
+  filter(sampleid == sample(stats$sampleid, 1)) %>% 
+  select(ends_with('per')) %>% 
+  mutate(keep = 100 - dup_per - trim_per - knead_per) %>% 
+  gather(key = 'step', value = 'perc') %>% 
+  mutate(annot = case_when(
+    step == 'dup_per' ~ 'Duplicated reads',
+    step == 'trim_per' ~ 'Adapters and low quality reads',
+    step == 'knead_per' ~ 'Contaminating human reads',
+    step == 'keep' ~ 'Valid microbiome reads',
+  ))
+
+```
+ 
