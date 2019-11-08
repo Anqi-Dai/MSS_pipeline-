@@ -6,6 +6,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(RColorBrewer)
 ```
 
 ## clumpify tsv file
@@ -80,22 +81,60 @@ stats <- bb %>%
          knead_per = round(knead_num/Reads_In*100,2))
 ```
  
+## box
+
+```{r}
+stats %>% 
+  select(ends_with('_per')) %>% 
+  gather(key = 'step', value = 'perc') %>% 
+  mutate(step = str_replace(step, '_per','')) %>% 
+  ggboxplot(x = 'step', y ='perc', palette = 'jco', color = 'step') +
+  labs(y = 'Percent', 
+       title = 'Percent reads removed in the preprocessing') +
+  ggsave('../figs/box.jpg', width = 5, height = 5, dpi = 300)
+```
+
+
+ 
 ## Pie 
  
 ```{r}
 # randomly pick one sample 
-set.seed(111)
+
 pie_df <- stats %>% 
-  filter(sampleid == sample(stats$sampleid, 1)) %>% 
+  filter(sampleid == '1403F') %>% 
   select(ends_with('per')) %>% 
-  mutate(keep = 100 - dup_per - trim_per - knead_per) %>% 
+  mutate(valid = 100 - dup_per - trim_per - knead_per) %>% 
   gather(key = 'step', value = 'perc') %>% 
   mutate(annot = case_when(
     step == 'dup_per' ~ 'Duplicated reads',
     step == 'trim_per' ~ 'Adapters and low quality reads',
     step == 'knead_per' ~ 'Contaminating human reads',
-    step == 'keep' ~ 'Valid microbiome reads',
-  ))
+    step == 'valid' ~ 'Valid microbiome reads',
+  )) %>% 
+  mutate(lbl = str_glue('{perc}%\n{step}'),
+         lbl = str_replace(lbl, '_per','')) 
+
+factor_levels <- c('Duplicated reads','Adapters and low quality reads','Contaminating human reads','Valid microbiome reads')
+
+pie_df
+```
+
+```{r}
+pie_df %>%  
+  mutate(annot = factor(annot, levels = factor_levels)) %>% 
+  ggpie(x = 'perc',
+        label = 'lbl',
+        color = 'white',   
+        size = 2,
+        fill = 'annot', palette = 'jco')  + 
+  theme(legend.position = 'right',
+        legend.title = element_blank()) +
+  labs(title = 'Preprocessing stats of sample 1403F') +
+  ggsave('../figs/pie.jpg', width = 10, height = 8, dpi = 300) 
+
+```
+```{r}
 
 ```
  
