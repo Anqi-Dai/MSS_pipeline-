@@ -84,6 +84,24 @@ stats <- bb %>%
 ## box
 
 ```{r}
+# how many total reads in the raw data 
+stats %>%
+  select(Reads_In) %>% 
+  mutate(Group = 'Raw') %>% 
+  ggplot(aes(x = Group, y = Reads_In)) +
+  geom_boxplot() +
+  geom_jitter(col = 'red', fill = 'red', alpha = 0.6) +
+
+  theme_light() + 
+  labs(x = '',
+       y = 'Number of reads',
+       title = 'Distribution of the\ntotal number of raw reads\nin the samples') +
+  ggsave('../figs/raw_total.jpg', width = 3, height = 5, dpi = 300)
+
+```
+
+
+```{r}
 stats %>% 
   select(ends_with('_per')) %>% 
   gather(key = 'step', value = 'perc') %>% 
@@ -134,7 +152,34 @@ pie_df %>%
   ggsave('../figs/pie.jpg', width = 10, height = 8, dpi = 300) 
 
 ```
+
+## humann2 run time logs
+
 ```{r}
+humann_log <- list.files('../data/logs/humann2_run/', 'out', full.names = T)
+
+time_log <- humann_log %>% 
+  set_names(humann_log) %>% 
+  map(~ suppressWarnings(read_table(., col_names = F, col_types = 'c')) %>% 
+  rename(content = names(.)[1]) %>% 
+  filter(str_detect(content, 'CPU time|Run time')) %>% 
+  separate(content , into = c('Group','time_h'), sep = ' : ') %>% 
+  mutate(time_h =  as.numeric(str_replace(time_h, ' sec.','')),
+         time_h =  round(time_h/3600, 2)) %>% 
+  spread(key = 'Group', value = 'time_h')) %>% 
+  bind_rows(.id = 'sampleid')
+
+memory_log <-  humann_log %>% 
+  set_names(humann_log) %>% 
+  map(~ suppressWarnings(read_table(., col_names = F, col_types = 'c')) %>% 
+  rename(content = names(.)[1]) %>% 
+  filter(str_detect(content, 'Max Memory')) %>% 
+  separate(content , into = c('Group','memory'), sep = ' : ') %>% 
+  mutate(memory =  as.numeric(str_replace(memory, ' GB',''))) %>% 
+  spread(key = 'Group', value = 'memory')) %>% 
+  bind_rows(.id = 'sampleid')
+
 
 ```
+
  
