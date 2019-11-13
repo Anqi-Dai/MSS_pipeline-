@@ -7,6 +7,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(RColorBrewer)
+library(ggpubr)
+library(kableExtra)
 ```
 
 ## clumpify tsv file
@@ -69,6 +71,47 @@ knead <- kneaddata_logs %>%
          sampleid = str_replace(sampleid, '_kneaddata.log',''))
 ```
 
+## humann2 results log
+
+```{r}
+hm2 <- list.files('../data/logs/humann2_log/', full.names = T)
+
+hm2_metric <- hm2 %>% 
+  set_names(hm2) %>% 
+  map(~ suppressWarnings(read_table(., col_names = F, col_types = 'c')) %>% 
+  rename(content = names(.)[1]) %>% 
+  filter(str_detect(content, 'INFO: Unaligned')) %>% 
+  transmute(hm_perc = str_extract(content, 'after.+$')) %>% 
+  mutate(hm_perc = str_replace(hm_perc, 'after ','')) %>% 
+  separate(hm_perc, into = c('type','perc'), sep = ': ') %>% 
+  mutate(type = str_replace(type, ' ','_'),
+         perc = as.numeric(str_replace(perc, ' %',''))) %>% 
+  spread(key = 'type', value = 'perc')) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  # filter out the rows that have NA in translated column
+  filter(!is.na(translated_alignment)) %>% 
+  arrange(nucleotide_alignment)
+
+
+# cuz I want put the two perc side by side
+hm2_metric %>% 
+  gather(key = 'type', value = 'perc', names(.)[2]:names(.)[3]) %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/logs/humann2_log//',''),
+         sampleid = str_replace(sampleid, '_humann2.log','')) %>% 
+  mutate(type = factor(type)) %>% 
+  ggplot(aes(x = reorder(sampleid, - perc), y = perc, col = type, fill = type)) +
+  geom_bar(stat = 'identity', position = "identity", alpha = 0.8) +
+  theme_light() +
+  scale_color_manual(values = c('#E64B35B2', '#3C5488B2'))  +
+  scale_fill_manual(values = c('#E64B35B2', '#3C5488B2'))  +
+  labs(x = 'Samples',
+       y = 'Unaligned reads (%)',
+       title = '% of unaligned reads after two step alignment') +
+  theme(axis.text.x = element_blank()) +
+  ggsave('../figs/hm_metric.jpg', width = 12, height = 8, dpi = 300)  
+```
+
+
 ## join
 
 ```{r}
@@ -79,6 +122,12 @@ stats <- bb %>%
   mutate(dup_per = round(dup_num/Reads_In*100,2),
          trim_per = round(trim_Num/Reads_In*100,2),
          knead_per = round(knead_num/Reads_In*100,2))
+```
+ 
+```{r}
+# output the stats
+stats %>% 
+  write_csv('../output/current_240_sample_preprocessing_stats.csv')
 ```
  
 ## box
@@ -111,7 +160,6 @@ stats %>%
        title = 'Percent reads removed in the preprocessing') +
   ggsave('../figs/box.jpg', width = 5, height = 5, dpi = 300)
 ```
-
 
  
 ## Pie 
@@ -152,7 +200,7 @@ pie_df %>%
   ggsave('../figs/pie.jpg', width = 10, height = 8, dpi = 300) 
 
 ```
-
+  
 ## humann2 run time logs
 
 ```{r}
@@ -180,6 +228,19 @@ memory_log <-  humann_log %>%
   bind_rows(.id = 'sampleid')
 
 
-```
+huge_all <- time_log %>% 
+  full_join(memory_log, by  = 'sampleid') %>% 
+  arrange(desc(`Max Memory`)) %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/logs/humann2_run//12227512','sample'),
+         sampleid = str_replace(sampleid, '.stdout','')) %>% 
+  rename(`CPU time (h)` = names(.)[2],
+         `Run time (h)` = names(.)[3],
+         `Max Memory (GB)` = names(.)[4]) %>% 
+  head(5)
 
- 
+huge_all %>% 
+  kable(caption = 'Glimpse of humann2 run metric') %>% 
+  kable_styling(full_width = F) %>%
+  save_kable(file = "../output/sample_run_metric.html", self_contained = T)
+
+```
