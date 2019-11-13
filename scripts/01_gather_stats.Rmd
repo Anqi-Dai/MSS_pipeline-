@@ -107,8 +107,9 @@ hm2_metric %>%
   labs(x = 'Samples',
        y = 'Unaligned reads (%)',
        title = '% of unaligned reads after two step alignment') +
-  theme(axis.text.x = element_blank()) +
-  ggsave('../figs/hm_metric.jpg', width = 12, height = 8, dpi = 300)  
+  theme(axis.text.x = element_blank(),
+        legend.position="bottom") +
+  ggsave('../figs/hm_metric.jpg', width = 15, height = 8, dpi = 300)  
 ```
 
 ```{r}
@@ -119,12 +120,16 @@ hm2_metric %>%
          sampleid = str_replace(sampleid, '_humann2.log','')) %>% 
   mutate(type = factor(type))  %>% 
   group_by(type) %>% 
-  summarise(med = median(perc),
-            ave = mean(perc),
-            sd = sd(perc))
+  summarise(ave = mean(perc),
+            sd = sd(perc)) %>% 
+  rename(`mean (%)` = names(.)[2],
+         `SD (%)` = names(.)[3]) %>% 
+  kable() %>% 
+  kable_styling(full_width = F) %>% 
+  save_kable('../output/sample_unalign_metric.html', self_contained = T)
 
 
-hm2_metric %>% 
+g <- hm2_metric %>% 
    gather(key = 'type', value = 'perc', names(.)[2]:names(.)[3]) %>% 
    mutate(sampleid = str_replace(sampleid, '../data/logs/humann2_log//',''),
           sampleid = str_replace(sampleid, '_humann2.log','')) %>% 
