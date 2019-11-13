@@ -101,7 +101,7 @@ hm2_metric %>%
   mutate(type = factor(type)) %>% 
   ggplot(aes(x = reorder(sampleid, - perc), y = perc, col = type, fill = type)) +
   geom_bar(stat = 'identity', position = "identity", alpha = 0.8) +
-  theme_light() +
+  theme_classic() +
   scale_color_manual(values = c('#E64B35B2', '#3C5488B2'))  +
   scale_fill_manual(values = c('#E64B35B2', '#3C5488B2'))  +
   labs(x = 'Samples',
@@ -109,6 +109,29 @@ hm2_metric %>%
        title = '% of unaligned reads after two step alignment') +
   theme(axis.text.x = element_blank()) +
   ggsave('../figs/hm_metric.jpg', width = 12, height = 8, dpi = 300)  
+```
+
+```{r}
+## the unalingned % stats mean and sd
+hm2_metric %>% 
+  gather(key = 'type', value = 'perc', names(.)[2]:names(.)[3]) %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/logs/humann2_log//',''),
+         sampleid = str_replace(sampleid, '_humann2.log','')) %>% 
+  mutate(type = factor(type))  %>% 
+  group_by(type) %>% 
+  summarise(med = median(perc),
+            ave = mean(perc),
+            sd = sd(perc))
+
+
+hm2_metric %>% 
+   gather(key = 'type', value = 'perc', names(.)[2]:names(.)[3]) %>% 
+   mutate(sampleid = str_replace(sampleid, '../data/logs/humann2_log//',''),
+          sampleid = str_replace(sampleid, '_humann2.log','')) %>% 
+   mutate(type = factor(type)) %>% 
+   ggplot(aes(x = type, y = perc, col = type)) +
+   geom_boxplot() +
+   theme_classic2() 
 ```
 
 
@@ -140,8 +163,7 @@ stats %>%
   ggplot(aes(x = Group, y = Reads_In)) +
   geom_boxplot() +
   geom_jitter(col = 'red', fill = 'red', alpha = 0.6) +
-
-  theme_light() + 
+  theme_classic() + 
   labs(x = '',
        y = 'Number of reads',
        title = 'Distribution of the\ntotal number of raw reads\nin the samples') +
