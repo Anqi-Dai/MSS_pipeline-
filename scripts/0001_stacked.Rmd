@@ -23,7 +23,8 @@ ASV_annotated<-read.table("/Volumes/vandenBrinkLab//Oriana/NB/Sequencing request
 ASV_naming<-read.table("/Volumes/vandenBrinkLab//Oriana/NB/Sequencing requests/10_18_19/seqtab_noprior_ASVnaming.txt")
 
 # the list of mrns that O is interested in
-target <- read_csv('/Volumes/vandenBrinkLab/Oriana/Shiny/NBpts.csv')
+target <- read_csv('/Volumes/vandenBrinkLab/Oriana/Shiny/NBpts.csv') %>% 
+  pull(MRN)
 
 # the PCR info that specifies the total quantity of the microbiome
 qpcr <- read_excel('/Volumes/vandenBrinkLab/Oriana/NB/Data/PCR/qPCR_Results.xlsx')
@@ -62,5 +63,39 @@ temp <- nb.temperature %>%
   mutate(if_fever = if_else(`Temp.F` >= 100.4, T, F))
 
 # the butyrate producer and anarobic info (to do)
+```
+
+## Select one patient as example 
+
+```{r}
+# 38046424
+input_df_list <- list(bculture, cbc, cdiff, gipcr, meds, respcr, temp %>% filter(if_fever == T))
+
+# wanna see if there is a patient that has records in every those table
+tally_res <- input_df_list %>% 
+  map_dfr(function(df){
+    target %>% 
+      set_names(target) %>% 
+      map(function(mrn){
+        df %>% 
+            filter(MRN == mrn) %>% 
+            nrow
+      })
+  }) 
+  
+# which patient has records in every table?
+tar_pat <- apply(tally_res, 2, function(colu){ all(colu != 0) })
+  
+tar_pat <- names(tar_pat[tar_pat == TRUE])
+  
+# better yet this patient also has some event
+test_mrn <- event %>% 
+  filter(!is.na(MRN) & !is.na(`Event Start`) & !is.na(`Event Stop`) & !is.na(`Event Type`)) %>% 
+  distinct(MRN) %>% 
+  pull(MRN) %>% 
+  intersect(tar_pat)
+  
+
+
 ```
 
