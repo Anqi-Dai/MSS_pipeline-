@@ -1,0 +1,66 @@
+---
+title: "stacked plot"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+```
+
+*This is the stacked plot for Oriana's neuroblastoma project*
+
+# load the necessary data for the plotting
+
+```{r}
+# Ying pull out the clinical info 
+load("/Volumes/castoricenter/Ying.Taur/neuroblastoma_oriana/nb_oriana(2019-09-04).RData")
+
+# the microbiome related info
+load("/Volumes/vandenBrinkLab/Oriana/NB/RData/dada2_full_pipeline.RData")
+ASV_annotated<-read.table("/Volumes/vandenBrinkLab//Oriana/NB/Sequencing requests/10_18_19/ASV_annotated.txt")
+ASV_naming<-read.table("/Volumes/vandenBrinkLab//Oriana/NB/Sequencing requests/10_18_19/seqtab_noprior_ASVnaming.txt")
+
+# the list of mrns that O is interested in
+target <- read_csv('/Volumes/vandenBrinkLab/Oriana/Shiny/NBpts.csv')
+
+# the PCR info that specifies the total quantity of the microbiome
+qpcr <- read_excel('/Volumes/vandenBrinkLab/Oriana/NB/Data/PCR/qPCR_Results.xlsx')
+
+# the event table 
+event <- read_excel('/Volumes/vandenBrinkLab/Oriana/NB/Data/Supplemental_event_table.xlsx')
+```
+
+# select the interested columns out of many ones from each table
+
+```{r}
+bculture <- nb.bloodcultures %>% 
+  select(MRN, test_date, result_full)
+
+cbc <- nb.cbc %>% 
+  select(MRN, test_datetime, Abs.Neut, WBC)
+
+cdiff <- nb.cdiff %>% 
+  select(MRN, test_date, result_full)
+
+gipcr <- nb.gipcr %>% 
+  select(MRN, test_date, result)
+
+meds <- nb.meds  %>% 
+  select(MRN, order_name, med_class1, start_date)
+  
+patients <- nb.patients %>% 
+  select(MRN, dob, death_date)
+
+respcr <- nb.resppcr %>% 
+  select(MRN, test_date, result)
+
+temp <- nb.temperature %>% 
+  # one patient may take multiple temperature a day
+  select(MRN, service_datetime, Temp.F) %>% 
+  mutate(if_fever = if_else(`Temp.F` >= 100.4, T, F))
+
+# the butyrate producer and anarobic info (to do)
+```
+
