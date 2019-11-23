@@ -40,22 +40,29 @@ bculture <- nb.bloodcultures %>%
   select(MRN, test_date, result_full)
 
 cbc <- nb.cbc %>% 
-  select(MRN, test_datetime, Abs.Neut, WBC)
+  select(MRN, test_datetime, Abs.Neut, WBC) %>% 
+  # the WBC column is character cuz there are things like "<0.1", which will turn into NA when converting but its fine cuz we only care about WBC > 0.5
+  mutate(WBC = as.numeric(WBC),
+         Abs.Neut = as.numeric(Abs.Neut)) %>%  
+  # define neutropenic period 
+  mutate(is_neutrop = if_else(WBC > 0.5 & (Abs.Neut < 0.5 | is.na(Abs.Neut)), T, F))
 
 cdiff <- nb.cdiff %>% 
   select(MRN, test_date, result_full)
 
 gipcr <- nb.gipcr %>% 
-  select(MRN, test_date, result)
+  select(MRN, test_date, result) %>% 
+  mutate(result = factor(result))
+
+respcr <- nb.resppcr %>% 
+  select(MRN, test_date, result) %>% 
+  mutate(result = factor(result))
 
 meds <- nb.meds  %>% 
   select(MRN, order_name, med_class1, start_date)
   
 patients <- nb.patients %>% 
   select(MRN, dob, death_date)
-
-respcr <- nb.resppcr %>% 
-  select(MRN, test_date, result)
 
 temp <- nb.temperature %>% 
   # one patient may take multiple temperature a day
@@ -68,8 +75,19 @@ temp <- nb.temperature %>%
 ## Select one patient as example 
 
 ```{r}
-# 38046424
-input_df_list <- list(bculture, cbc, cdiff, gipcr, meds, respcr, temp %>% filter(if_fever == T))
+# trying to find target has all the interesting attributes
+input_df_list <- list(bculture %>% 
+                        # that has positive detected some organism
+                        filter(!str_detect(result_full, 'Negative')), 
+                      cbc, 
+                      cdiff, 
+                      gipcr, 
+                      meds %>% 
+                        # used this vaccine that we are interested in
+                        filter(str_detect(order_name, 'GD2L')), 
+                      respcr, 
+                      # that has fever
+                      temp %>% filter(if_fever == T))
 
 # wanna see if there is a patient that has records in every those table
 tally_res <- input_df_list %>% 
@@ -95,7 +113,33 @@ test_mrn <- event %>%
   pull(MRN) %>% 
   intersect(tar_pat)
   
+set.seed(134)
+sample(test_mrn, 1)
+# 35553875
+```
 
+```{r}
+tally_res %>% 
+  select('35553875')
 
+ttt <- input_df_list %>% 
+  map_dfr(function(df){
+        df %>% 
+            filter(MRN == '35553875')
+      })
+```
+
+```{r}
+# the different things that need to be cleaned in the gi and respcr table
+clean_name <- list(gi = gipcr,
+     resp = respcr) %>% 
+  map(function(df){
+    table(df$result) %>% 
+      as.data.frame() 
+  }) %>% 
+  bind_rows(.id = 'type')
+
+clean_name %>% 
+  write_csv('../data/oriana/pcr_name_to_be_cleaned.csv')
 ```
 
