@@ -1,0 +1,37 @@
+---
+title: "Prepare for oriana lefse run"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## vrelapse
+
+```{r}
+pheno <- read_csv('/Volumes/vandenBrinkLab/Oriana/NB/Data/lefse/Vrelapse/pheno_baseline_VRelapse.csv')
+
+cts <- read_csv('/Volumes/vandenBrinkLab/Oriana/NB/Data/lefse/Vrelapse/otu_baseline_VRelapse.csv')
+
+cts <- cts %>% 
+  mutate(spp = str_glue('{phylum}_{class}_{order}_{family}_{genus}_{species}')) %>% 
+  select(sampleid, spp, relab) %>% 
+  distinct(sampleid, spp, .keep_all = T) %>% 
+  spread(key = 'sampleid', value = 'relab', fill = 0)
+
+cts <- bind_cols(cts[,1],cts[,pheno$sampleid])
+
+all.equal(colnames(cts)[2:ncol(cts)], pheno$sampleid)
+
+cts %>% 
+  write_tsv('../../data/oriana/input_lefse_cts.tsv')
+
+pheno %>% 
+  select(VRelapse) %>% 
+  t %>% 
+  write.table('../../data/oriana/input_lefse_pheno.tsv', sep = '\t', quote = F, row.names = T, col.names = F )
+
+```
+
