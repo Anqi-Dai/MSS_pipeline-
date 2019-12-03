@@ -20,7 +20,9 @@ cts <- cts %>%
   select(sampleid, spp, relab) %>% 
   group_by(sampleid, spp) %>% 
   summarise(Relab = sum(relab)) %>% 
-  spread(key = 'sampleid', value = 'Relab', fill = 0)
+  spread(key = 'sampleid', value = 'Relab', fill = 0) %>% 
+  gather(key = 'sampleid', value = 'Relab', names(.)[2]:names(.)[ncol(.)])
+
 
 cts <- bind_cols(cts[,1],cts[,pheno$sampleid])
 

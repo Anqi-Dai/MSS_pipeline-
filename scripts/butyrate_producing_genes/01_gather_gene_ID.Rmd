@@ -1,0 +1,49 @@
+---
+title: "gather IMG gene ID for butyrate production"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(seqinr)
+```
+
+```{r}
+pyru <- read_excel('butyrate_producer_genes.xlsx') %>% 
+  gather(key = 'gene', value = 'ID') %>% 
+  filter(!is.na(ID)) %>% 
+  select(ID)
+
+# there are 4 tabs in this spreadsheet
+buty <- seq(1,4) %>% 
+  map_dfr(~ read_excel('butyrate_producer_genes.xlsx', sheet = .) %>% 
+  gather(key = 'gene', value = 'ID') %>% 
+  filter(!is.na(ID)) %>% 
+  select(ID))
+
+# hwo many genes in total
+buty %>% 
+  nrow
+
+# collapse them to be a comma separated string
+
+# to break to small dfs with max 1000 rows, there's gonna be 4 of them
+seq(1,4) %>% 
+  map(function(Num){
+    buty %>% 
+          split(cut_width(1:nrow(.), 1000, boundary=0)) %>% 
+          pluck(Num) %>% 
+          summarise(all = paste0(ID, collapse = ',')) %>% 
+          write_tsv(str_glue('all_buty_gene_comma_{Num}.tsv'), col_names = F)
+  } )
+```
+
+Then manually copy the gene list to the website and put the retrieved genes in cart and then export the fasta aa seqs
+
+```{r}
+# see the resulted fa file
+but <- read.fasta(file = 'butyrate_pw_genes_aa_seqs.fa')
+```
+
