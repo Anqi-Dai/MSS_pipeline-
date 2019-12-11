@@ -1,0 +1,40 @@
+---
+title: "Upload test"
+output: html_document
+---
+
+This script will create the sra metadata form to upload the sra tar file.
+The major work is to add the accession number generated from uploading the biosample meta data 
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+acc <- read_tsv('data/attributes.tsv') %>% 
+  dplyr::select(biosample_accession = accession,
+                library_ID = sample_name) 
+  
+
+sra_meta <- acc %>% 
+  mutate(bioproject_accession = 'PRJNA545312',
+         title = 'Stool sample of allo-HCT patient',
+         library_strategy = 'amplicon',
+         library_source = 'GENOMIC',
+         library_selection = 'PCR',
+         library_layout = 'paired',
+         platform = 'ILLUMINA',
+         instrument_model = 'Illumina MiSeq',
+         design_description = 'PCR amplification of 16S V4-V5 regions; Bead-beating, phenol chloroform DNA extraction',
+         filetype = 'fastq',
+         filename = str_glue('{library_ID}_R1.fastq.gz'),
+         filename2 = str_glue('{library_ID}_R2.fastq.gz'))
+
+sra_meta %>% 
+  write_tsv('data/sra_meta_242.tsv')
+``` 
+
+
+

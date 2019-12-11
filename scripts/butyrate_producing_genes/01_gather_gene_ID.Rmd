@@ -14,14 +14,14 @@ library(seqinr)
 pyru <- read_excel('butyrate_producer_genes.xlsx') %>% 
   gather(key = 'gene', value = 'ID') %>% 
   filter(!is.na(ID)) %>% 
-  select(ID)
+  dplyr::select(ID)
 
 # there are 4 tabs in this spreadsheet
 buty <- seq(1,4) %>% 
   map_dfr(~ read_excel('butyrate_producer_genes.xlsx', sheet = .) %>% 
   gather(key = 'gene', value = 'ID') %>% 
   filter(!is.na(ID)) %>% 
-  select(ID))
+  dplyr::select(ID))
 
 # hwo many genes in total
 buty %>% 

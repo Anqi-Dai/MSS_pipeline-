@@ -1,0 +1,243 @@
+accession	message	sample_name	sample_title	bioproject_number	organism	collection_date	env_broad_scale	env_local_scale	env_medium	geo_loc_name	host	lat_lon	isolation_source	sample_id_unique
+SAMN13502273	Successfully loaded	01.tp.09	01.tp.09	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	01.tp.09
+SAMN13502274	Successfully loaded	01.tp.42	01.tp.42	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	01.tp.42
+SAMN13502275	Successfully loaded	02.tp.19	02.tp.19	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	Germany:Regensburg	Homo sapiens	49 N 12 E	stool	02.tp.19
+SAMN13502276	Successfully loaded	02.tp.20	02.tp.20	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	Germany:Regensburg	Homo sapiens	49 N 12 E	stool	02.tp.20
+SAMN13502277	Successfully loaded	05.aes.472	05.aes.472	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	05.aes.472
+SAMN13502278	Successfully loaded	10.aes.139	10.aes.139	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	Japan:Hokkaido	Homo sapiens	43 N 142 E	stool	10.aes.139
+SAMN13502279	Successfully loaded	1021C	1021C	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1021C
+SAMN13502280	Successfully loaded	1029E	1029E	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1029E
+SAMN13502281	Successfully loaded	1202S	1202S	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1202S
+SAMN13502282	Successfully loaded	1234A	1234A	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1234A
+SAMN13502283	Successfully loaded	1234B	1234B	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1234B
+SAMN13502284	Successfully loaded	13.aes.05	13.aes.05	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.05
+SAMN13502285	Successfully loaded	13.aes.06	13.aes.06	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.06
+SAMN13502286	Successfully loaded	13.aes.07	13.aes.07	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.07
+SAMN13502287	Successfully loaded	13.aes.08	13.aes.08	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.08
+SAMN13502288	Successfully loaded	13.aes.09	13.aes.09	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.09
+SAMN13502289	Successfully loaded	13.aes.10	13.aes.10	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.10
+SAMN13502290	Successfully loaded	13.aes.101	13.aes.101	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.101
+SAMN13502291	Successfully loaded	13.aes.102	13.aes.102	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.102
+SAMN13502292	Successfully loaded	13.aes.103	13.aes.103	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.103
+SAMN13502293	Successfully loaded	13.aes.104	13.aes.104	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.104
+SAMN13502294	Successfully loaded	13.aes.106	13.aes.106	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.106
+SAMN13502295	Successfully loaded	13.aes.108	13.aes.108	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.108
+SAMN13502296	Successfully loaded	13.aes.109	13.aes.109	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.109
+SAMN13502297	Successfully loaded	13.aes.114	13.aes.114	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.114
+SAMN13502298	Successfully loaded	13.aes.115	13.aes.115	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.115
+SAMN13502299	Successfully loaded	13.aes.116	13.aes.116	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.116
+SAMN13502300	Successfully loaded	13.aes.117	13.aes.117	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.117
+SAMN13502301	Successfully loaded	13.aes.118	13.aes.118	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.118
+SAMN13502302	Successfully loaded	13.aes.119	13.aes.119	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.119
+SAMN13502303	Successfully loaded	13.aes.120	13.aes.120	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.120
+SAMN13502304	Successfully loaded	13.aes.121	13.aes.121	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.121
+SAMN13502305	Successfully loaded	13.aes.128	13.aes.128	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.128
+SAMN13502306	Successfully loaded	13.aes.129	13.aes.129	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.129
+SAMN13502307	Successfully loaded	13.aes.130	13.aes.130	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.130
+SAMN13502308	Successfully loaded	13.aes.131	13.aes.131	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.131
+SAMN13502309	Successfully loaded	13.aes.132	13.aes.132	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.132
+SAMN13502310	Successfully loaded	13.aes.133	13.aes.133	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.133
+SAMN13502311	Successfully loaded	13.aes.134	13.aes.134	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.134
+SAMN13502312	Successfully loaded	13.aes.135	13.aes.135	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.135
+SAMN13502313	Successfully loaded	13.aes.137	13.aes.137	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.137
+SAMN13502314	Successfully loaded	13.aes.145	13.aes.145	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.145
+SAMN13502315	Successfully loaded	13.aes.146	13.aes.146	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.146
+SAMN13502316	Successfully loaded	13.aes.15	13.aes.15	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.15
+SAMN13502317	Successfully loaded	13.aes.155	13.aes.155	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.155
+SAMN13502318	Successfully loaded	13.aes.16	13.aes.16	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.16
+SAMN13502319	Successfully loaded	13.aes.165	13.aes.165	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.165
+SAMN13502320	Successfully loaded	13.aes.166	13.aes.166	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.166
+SAMN13502321	Successfully loaded	13.aes.167	13.aes.167	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.167
+SAMN13502322	Successfully loaded	13.aes.168	13.aes.168	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.168
+SAMN13502323	Successfully loaded	13.aes.17	13.aes.17	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.17
+SAMN13502324	Successfully loaded	13.aes.170	13.aes.170	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.170
+SAMN13502325	Successfully loaded	13.aes.171	13.aes.171	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.171
+SAMN13502326	Successfully loaded	13.aes.172	13.aes.172	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.172
+SAMN13502327	Successfully loaded	13.aes.18	13.aes.18	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.18
+SAMN13502328	Successfully loaded	13.aes.181	13.aes.181	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.181
+SAMN13502329	Successfully loaded	13.aes.182	13.aes.182	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.182
+SAMN13502330	Successfully loaded	13.aes.183	13.aes.183	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.183
+SAMN13502331	Successfully loaded	13.aes.184	13.aes.184	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.184
+SAMN13502332	Successfully loaded	13.aes.185	13.aes.185	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.185
+SAMN13502333	Successfully loaded	13.aes.187	13.aes.187	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.187
+SAMN13502334	Successfully loaded	13.aes.188	13.aes.188	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.188
+SAMN13502335	Successfully loaded	13.aes.20	13.aes.20	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.20
+SAMN13502336	Successfully loaded	13.aes.21	13.aes.21	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.21
+SAMN13502337	Successfully loaded	13.aes.22	13.aes.22	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.22
+SAMN13502338	Successfully loaded	13.aes.23	13.aes.23	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.23
+SAMN13502339	Successfully loaded	13.aes.25	13.aes.25	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.25
+SAMN13502340	Successfully loaded	13.aes.26	13.aes.26	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.26
+SAMN13502341	Successfully loaded	13.aes.27	13.aes.27	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.27
+SAMN13502342	Successfully loaded	13.aes.28	13.aes.28	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.28
+SAMN13502343	Successfully loaded	13.aes.33	13.aes.33	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.33
+SAMN13502344	Successfully loaded	13.aes.34	13.aes.34	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.34
+SAMN13502345	Successfully loaded	13.aes.36	13.aes.36	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.36
+SAMN13502346	Successfully loaded	13.aes.37	13.aes.37	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.37
+SAMN13502347	Successfully loaded	13.aes.38	13.aes.38	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.38
+SAMN13502348	Successfully loaded	13.aes.39	13.aes.39	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.39
+SAMN13502349	Successfully loaded	13.aes.47	13.aes.47	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.47
+SAMN13502350	Successfully loaded	13.aes.48	13.aes.48	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.48
+SAMN13502351	Successfully loaded	13.aes.50	13.aes.50	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.50
+SAMN13502352	Successfully loaded	13.aes.51	13.aes.51	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.51
+SAMN13502353	Successfully loaded	13.aes.52	13.aes.52	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.52
+SAMN13502354	Successfully loaded	13.aes.60	13.aes.60	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.60
+SAMN13502355	Successfully loaded	13.aes.61	13.aes.61	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.61
+SAMN13502356	Successfully loaded	13.aes.62	13.aes.62	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.62
+SAMN13502357	Successfully loaded	13.aes.63	13.aes.63	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.63
+SAMN13502358	Successfully loaded	13.aes.64	13.aes.64	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.64
+SAMN13502359	Successfully loaded	13.aes.72	13.aes.72	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.72
+SAMN13502360	Successfully loaded	13.aes.73	13.aes.73	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.73
+SAMN13502361	Successfully loaded	13.aes.74	13.aes.74	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.74
+SAMN13502362	Successfully loaded	13.aes.75	13.aes.75	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.75
+SAMN13502363	Successfully loaded	13.aes.80	13.aes.80	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.80
+SAMN13502364	Successfully loaded	13.aes.81	13.aes.81	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.81
+SAMN13502365	Successfully loaded	13.aes.83	13.aes.83	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.83
+SAMN13502366	Successfully loaded	13.aes.84	13.aes.84	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.84
+SAMN13502367	Successfully loaded	13.aes.85	13.aes.85	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.85
+SAMN13502368	Successfully loaded	13.aes.86	13.aes.86	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.86
+SAMN13502369	Successfully loaded	13.aes.87	13.aes.87	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.87
+SAMN13502370	Successfully loaded	13.aes.88	13.aes.88	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.88
+SAMN13502371	Successfully loaded	13.aes.89	13.aes.89	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.89
+SAMN13502372	Successfully loaded	13.aes.98	13.aes.98	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.aes.98
+SAMN13502373	Successfully loaded	13.tp.198	13.tp.198	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.198
+SAMN13502374	Successfully loaded	13.tp.199	13.tp.199	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.199
+SAMN13502375	Successfully loaded	13.tp.200	13.tp.200	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.200
+SAMN13502376	Successfully loaded	13.tp.201	13.tp.201	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.201
+SAMN13502377	Successfully loaded	13.tp.211	13.tp.211	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.211
+SAMN13502378	Successfully loaded	13.tp.219	13.tp.219	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.219
+SAMN13502379	Successfully loaded	13.tp.223	13.tp.223	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.223
+SAMN13502380	Successfully loaded	13.tp.229	13.tp.229	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.229
+SAMN13502381	Successfully loaded	13.tp.232	13.tp.232	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.232
+SAMN13502382	Successfully loaded	13.tp.242	13.tp.242	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.242
+SAMN13502383	Successfully loaded	13.tp.253	13.tp.253	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.253
+SAMN13502384	Successfully loaded	13.tp.255	13.tp.255	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.255
+SAMN13502385	Successfully loaded	13.tp.260	13.tp.260	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.260
+SAMN13502386	Successfully loaded	13.tp.261	13.tp.261	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.261
+SAMN13502387	Successfully loaded	13.tp.263	13.tp.263	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.263
+SAMN13502388	Successfully loaded	13.tp.273	13.tp.273	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.273
+SAMN13502389	Successfully loaded	13.tp.274	13.tp.274	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.274
+SAMN13502390	Successfully loaded	13.tp.275	13.tp.275	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.275
+SAMN13502391	Successfully loaded	13.tp.284	13.tp.284	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.284
+SAMN13502392	Successfully loaded	13.tp.287	13.tp.287	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.287
+SAMN13502393	Successfully loaded	13.tp.289	13.tp.289	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.289
+SAMN13502394	Successfully loaded	13.tp.290	13.tp.290	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.290
+SAMN13502395	Successfully loaded	13.tp.305	13.tp.305	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.305
+SAMN13502396	Successfully loaded	13.tp.307	13.tp.307	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.307
+SAMN13502397	Successfully loaded	13.tp.319	13.tp.319	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.319
+SAMN13502398	Successfully loaded	13.tp.321	13.tp.321	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.321
+SAMN13502399	Successfully loaded	13.tp.322	13.tp.322	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.322
+SAMN13502400	Successfully loaded	13.tp.329	13.tp.329	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.329
+SAMN13502401	Successfully loaded	13.tp.332	13.tp.332	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.332
+SAMN13502402	Successfully loaded	13.tp.334	13.tp.334	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.334
+SAMN13502403	Successfully loaded	13.tp.335	13.tp.335	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.335
+SAMN13502404	Successfully loaded	13.tp.338	13.tp.338	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.338
+SAMN13502405	Successfully loaded	13.tp.340	13.tp.340	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.340
+SAMN13502406	Successfully loaded	13.tp.341	13.tp.341	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.341
+SAMN13502407	Successfully loaded	13.tp.347	13.tp.347	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.347
+SAMN13502408	Successfully loaded	13.tp.348	13.tp.348	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.348
+SAMN13502409	Successfully loaded	13.tp.349	13.tp.349	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.349
+SAMN13502410	Successfully loaded	13.tp.351	13.tp.351	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.351
+SAMN13502411	Successfully loaded	13.tp.354	13.tp.354	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.354
+SAMN13502412	Successfully loaded	13.tp.356	13.tp.356	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.356
+SAMN13502413	Successfully loaded	13.tp.357	13.tp.357	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:Durham	Homo sapiens	36 N 79 W	stool	13.tp.357
+SAMN13502414	Successfully loaded	1303I	1303I	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1303I
+SAMN13502415	Successfully loaded	1452M	1452M	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452M
+SAMN13502416	Successfully loaded	1452N	1452N	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452N
+SAMN13502417	Successfully loaded	1452O	1452O	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452O
+SAMN13502418	Successfully loaded	1452P	1452P	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452P
+SAMN13502419	Successfully loaded	1452Q	1452Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452Q
+SAMN13502420	Successfully loaded	1452R	1452R	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452R
+SAMN13502421	Successfully loaded	1452S	1452S	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452S
+SAMN13502422	Successfully loaded	1452T	1452T	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452T
+SAMN13502423	Successfully loaded	1452U	1452U	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	1452U
+SAMN13502424	Successfully loaded	FMT.0001D	FMT.0001D	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0001D
+SAMN13502425	Successfully loaded	FMT.0041E	FMT.0041E	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0041E
+SAMN13502426	Successfully loaded	FMT.0046F	FMT.0046F	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0046F
+SAMN13502427	Successfully loaded	FMT.0046G	FMT.0046G	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0046G
+SAMN13502428	Successfully loaded	FMT.0046H	FMT.0046H	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0046H
+SAMN13502429	Successfully loaded	FMT.0076Q	FMT.0076Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0076Q
+SAMN13502430	Successfully loaded	FMT.0080Q	FMT.0080Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0080Q
+SAMN13502431	Successfully loaded	FMT.0092CC	FMT.0092CC	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0092CC
+SAMN13502432	Successfully loaded	FMT.0106P	FMT.0106P	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0106P
+SAMN13502433	Successfully loaded	FMT.0106R	FMT.0106R	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0106R
+SAMN13502434	Successfully loaded	FMT.0106U	FMT.0106U	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0106U
+SAMN13502435	Successfully loaded	FMT.0118H	FMT.0118H	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0118H
+SAMN13502436	Successfully loaded	FMT.0120N	FMT.0120N	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0120N
+SAMN13502437	Successfully loaded	FMT.0126X	FMT.0126X	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0126X
+SAMN13502438	Successfully loaded	FMT.0154J	FMT.0154J	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0154J
+SAMN13502439	Successfully loaded	FMT.0154K	FMT.0154K	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0154K
+SAMN13502440	Successfully loaded	FMT.0154L	FMT.0154L	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0154L
+SAMN13502441	Successfully loaded	FMT.0154M	FMT.0154M	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0154M
+SAMN13502442	Successfully loaded	FMT.0154N	FMT.0154N	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0154N
+SAMN13502443	Successfully loaded	FMT.0154P	FMT.0154P	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0154P
+SAMN13502444	Successfully loaded	FMT.0154Q	FMT.0154Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0154Q
+SAMN13502445	Successfully loaded	FMT.0160Q	FMT.0160Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0160Q
+SAMN13502446	Successfully loaded	FMT.0160R	FMT.0160R	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0160R
+SAMN13502447	Successfully loaded	FMT.0160S	FMT.0160S	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0160S
+SAMN13502448	Successfully loaded	FMT.0160T	FMT.0160T	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0160T
+SAMN13502449	Successfully loaded	FMT.0171U	FMT.0171U	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0171U
+SAMN13502450	Successfully loaded	FMT.0171V	FMT.0171V	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0171V
+SAMN13502451	Successfully loaded	FMT.0171W	FMT.0171W	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0171W
+SAMN13502452	Successfully loaded	FMT.0173O	FMT.0173O	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0173O
+SAMN13502453	Successfully loaded	FMT.0173P	FMT.0173P	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0173P
+SAMN13502454	Successfully loaded	FMT.0173Q	FMT.0173Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0173Q
+SAMN13502455	Successfully loaded	FMT.0173R	FMT.0173R	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0173R
+SAMN13502456	Successfully loaded	FMT.0176S	FMT.0176S	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0176S
+SAMN13502457	Successfully loaded	FMT.0176T	FMT.0176T	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0176T
+SAMN13502458	Successfully loaded	FMT.0176U	FMT.0176U	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0176U
+SAMN13502459	Successfully loaded	FMT.0176V	FMT.0176V	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0176V
+SAMN13502460	Successfully loaded	FMT.0176W	FMT.0176W	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0176W
+SAMN13502461	Successfully loaded	FMT.0176X	FMT.0176X	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0176X
+SAMN13502462	Successfully loaded	FMT.0178AA	FMT.0178AA	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0178AA
+SAMN13502463	Successfully loaded	FMT.0178X	FMT.0178X	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0178X
+SAMN13502464	Successfully loaded	FMT.0178Y	FMT.0178Y	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0178Y
+SAMN13502465	Successfully loaded	FMT.0178Z	FMT.0178Z	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0178Z
+SAMN13502466	Successfully loaded	FMT.0182J	FMT.0182J	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0182J
+SAMN13502467	Successfully loaded	FMT.0182K	FMT.0182K	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0182K
+SAMN13502468	Successfully loaded	FMT.0182L	FMT.0182L	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0182L
+SAMN13502469	Successfully loaded	FMT.0191O	FMT.0191O	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0191O
+SAMN13502470	Successfully loaded	FMT.0191P	FMT.0191P	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0191P
+SAMN13502471	Successfully loaded	FMT.0191Q	FMT.0191Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0191Q
+SAMN13502472	Successfully loaded	FMT.0207N	FMT.0207N	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0207N
+SAMN13502473	Successfully loaded	FMT.0207O	FMT.0207O	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0207O
+SAMN13502474	Successfully loaded	FMT.0207P	FMT.0207P	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0207P
+SAMN13502475	Successfully loaded	FMT.0207Q	FMT.0207Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0207Q
+SAMN13502476	Successfully loaded	FMT.0207R	FMT.0207R	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0207R
+SAMN13502477	Successfully loaded	FMT.0224O	FMT.0224O	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0224O
+SAMN13502478	Successfully loaded	FMT.0224P	FMT.0224P	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0224P
+SAMN13502479	Successfully loaded	FMT.0224Q	FMT.0224Q	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0224Q
+SAMN13502480	Successfully loaded	FMT.0224R	FMT.0224R	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0224R
+SAMN13502481	Successfully loaded	FMT.0224S	FMT.0224S	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0224S
+SAMN13502482	Successfully loaded	FMT.0225B	FMT.0225B	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0225B
+SAMN13502483	Successfully loaded	FMT.0226C	FMT.0226C	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0226C
+SAMN13502484	Successfully loaded	FMT.0226D	FMT.0226D	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0226D
+SAMN13502485	Successfully loaded	FMT.0226E	FMT.0226E	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0226E
+SAMN13502486	Successfully loaded	FMT.0228B	FMT.0228B	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0228B
+SAMN13502487	Successfully loaded	FMT.0228C	FMT.0228C	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0228C
+SAMN13502488	Successfully loaded	FMT.0230C	FMT.0230C	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0230C
+SAMN13502489	Successfully loaded	FMT.0230D	FMT.0230D	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0230D
+SAMN13502490	Successfully loaded	FMT.0232C	FMT.0232C	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0232C
+SAMN13502491	Successfully loaded	FMT.0232E	FMT.0232E	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0232E
+SAMN13502492	Successfully loaded	FMT.0232F	FMT.0232F	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0232F
+SAMN13502493	Successfully loaded	FMT.0232G	FMT.0232G	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0232G
+SAMN13502494	Successfully loaded	FMT.0232H	FMT.0232H	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0232H
+SAMN13502495	Successfully loaded	FMT.0232I	FMT.0232I	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0232I
+SAMN13502496	Successfully loaded	FMT.0232J	FMT.0232J	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0232J
+SAMN13502497	Successfully loaded	FMT.0236L	FMT.0236L	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0236L
+SAMN13502498	Successfully loaded	FMT.0236M	FMT.0236M	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0236M
+SAMN13502499	Successfully loaded	FMT.0236N	FMT.0236N	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0236N
+SAMN13502500	Successfully loaded	FMT.0236O	FMT.0236O	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0236O
+SAMN13502501	Successfully loaded	FMT.0237C	FMT.0237C	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0237C
+SAMN13502502	Successfully loaded	FMT.0237D	FMT.0237D	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0237D
+SAMN13502503	Successfully loaded	FMT.0237E	FMT.0237E	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0237E
+SAMN13502504	Successfully loaded	FMT.0237G	FMT.0237G	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0237G
+SAMN13502505	Successfully loaded	FMT.0237H	FMT.0237H	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0237H
+SAMN13502506	Successfully loaded	FMT.0237I	FMT.0237I	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0237I
+SAMN13502507	Successfully loaded	FMT.0245B	FMT.0245B	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245B
+SAMN13502508	Successfully loaded	FMT.0245D	FMT.0245D	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245D
+SAMN13502509	Successfully loaded	FMT.0245E	FMT.0245E	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245E
+SAMN13502510	Successfully loaded	FMT.0245G	FMT.0245G	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245G
+SAMN13502511	Successfully loaded	FMT.0245H	FMT.0245H	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245H
+SAMN13502512	Successfully loaded	FMT.0245I	FMT.0245I	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245I
+SAMN13502513	Successfully loaded	FMT.0245J	FMT.0245J	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245J
+SAMN13502514	Successfully loaded	FMT.0245K	FMT.0245K	PRJNA545312	human gut metagenome	NA	NA	ENVO:0000903	NA	USA:New York	Homo sapiens	40.7641 N 73.9568 W	stool	FMT.0245K
