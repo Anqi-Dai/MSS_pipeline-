@@ -52,7 +52,8 @@ res %>%
     df %>% 
       ggboxplot( x = 'Toxicity', y = 'cpm', color = 'Toxicity', palette = 'lancet') +
       geom_jitter(col = 'Toxicity', fill = 'Toxicity', alpha = 0.6)  +
-      ggsave(str_glue('figs/box_cpm_sig_pw_{df$pw}.pdf'), device = 'pdf', width = 7, height = 6)
+      labs(title = str_glue('{df$pw}')) +
+      ggsave(str_glue('figs/box_cpm_sig_pw_{df$pw}.pdf'), device = 'pdf', width = 5, height = 4)
   })
   
   
