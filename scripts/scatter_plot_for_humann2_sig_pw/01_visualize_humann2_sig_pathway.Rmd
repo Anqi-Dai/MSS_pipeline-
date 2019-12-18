@@ -45,17 +45,33 @@ res <- sig %>%
 ```
 
 ```{r}
-# plot 
+# plot sig pw in each group : CR or toxicity
 res %>% 
+  filter(group == 'Toxicity') %>% 
   split(.$pw) %>% 
   map(function(df){
     df %>% 
-      ggboxplot( x = 'Toxicity', y = 'cpm', color = 'Toxicity', palette = 'lancet') +
-      geom_jitter(col = 'Toxicity', fill = 'Toxicity', alpha = 0.6)  +
-      labs(title = str_glue('{df$pw}')) +
-      ggsave(str_glue('figs/box_cpm_sig_pw_{df$pw}.pdf'), device = 'pdf', width = 5, height = 4)
+      ggboxplot( x = 'Toxicity', y = 'cpm', color = 'Toxicity', palette = 'lancet', add = 'dotplot') +
+      labs(title = str_glue('{df$pathway}')) +
+      stat_compare_means(comparisons = list(c('Y', 'N')), 
+                         label = "p.signif",
+                         method = 'wilcox.test') +
+      ggsave(str_glue('/Volumes/castoricenter/CAR-Tcell_and_Microbiota/humann2_shotgun/figs/pathway_abundance_cpm_box/Toxicity/box_cpm_sig_pw_{df$pw}.pdf'), device = 'pdf', width = 8, height = 7)
   })
-  
-  
+
+
+
+res %>% 
+  filter(group == 'CR') %>% 
+  split(.$pw) %>% 
+  map(function(df){
+    df %>% 
+      ggboxplot( x = 'CR', y = 'cpm', color = 'CR', palette = 'lancet', add = 'dotplot') +
+      labs(title = str_glue('{df$pathway}')) +
+      stat_compare_means(comparisons = list(c('Y', 'N')), 
+                         label = "p.signif",
+                         method = 'wilcox.test') +
+      ggsave(str_glue('/Volumes/castoricenter/CAR-Tcell_and_Microbiota/humann2_shotgun/figs/pathway_abundance_cpm_box/CR/box_cpm_sig_pw_{df$pw}.pdf'), device = 'pdf', width = 8, height = 7)
+  })
 ```
 

@@ -4,5 +4,5 @@
 /data
 *.DS_Store
 /scripts/*html
-/scripts/*/figs
-/scripts/*/data
+/scripts/*/figs/*
+/scripts/*/data/*
