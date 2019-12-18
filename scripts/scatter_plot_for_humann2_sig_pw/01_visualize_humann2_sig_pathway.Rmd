@@ -1,0 +1,60 @@
+---
+title: "scatter plot or box plot to visualize the sig pw"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+The input will be a table called 'unique_sig_pathway.csv' from the 06 script and the normalized count data from the humann2
+and visualize the normalized data based on the var:
+scatterplot if for continuous variable,
+boxplot if for categorical variable.
+
+```{r}
+# load the pheno table cuz we wanna know the phenotype of the samples 
+pheno <- read_csv('../../../CART_microbiome/data/cleaned_pheno/final_pheno.csv')
+
+sig <- read_csv('../../../CART_microbiome/data/unique_sig_pathway.csv') %>% 
+  # extract the pw id part
+  mutate(pw = str_extract(pathway, '^.+_PWY|^PWY.+\\d{3,4}'))  %>% 
+  mutate(pw = str_replace_all(pw, '_', '-')) 
+
+cts <- read_tsv('../../../CART_microbiome/data/humann2_res/humann2_final_out/humann2_pathabundance_cpm_unstratified.tsv') %>% 
+  dplyr::rename(pw = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance$',''))) %>% 
+  mutate(pw = str_replace(pw, ':.+$','')) 
+ 
+```
+
+```{r}
+# join the above tables together to have sig pw name and the counts together
+res <- sig %>% 
+  dplyr::select(-score) %>% 
+  inner_join(cts, by = 'pw') %>% 
+  gather(key = 'sampleid', value = 'cpm', names(.)[5]:names(.)[ncol(.)]) %>% 
+  mutate(group = factor(group),
+         direction = factor(direction)) %>% 
+  # join with the pheno types of the CR and Tox in the pheno table
+  left_join(pheno %>% 
+              dplyr::select(sampleid, CR, Toxicity), by  = 'sampleid')
+
+```
+
+```{r}
+# plot 
+res %>% 
+  split(.$pw) %>% 
+  map(function(df){
+    df %>% 
+      ggboxplot( x = 'Toxicity', y = 'cpm', color = 'Toxicity', palette = 'lancet') +
+      geom_jitter(col = 'Toxicity', fill = 'Toxicity', alpha = 0.6)  +
+      ggsave(str_glue('figs/box_cpm_sig_pw_{df$pw}.pdf'), device = 'pdf', width = 7, height = 6)
+  })
+  
+  
+```
+
