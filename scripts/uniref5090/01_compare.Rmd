@@ -1,10 +1,16 @@
 ---
 title: "Compare uniref50 and 90 data"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 library(tidyverse)
 library(ggpubr)   
 ```
@@ -79,8 +85,11 @@ res_all %>%
   ggboxplot(x = 'uniref', y = 'ali_per', color = 'uniref', palette = 'lancet', add = 'dotplot') +
   facet_wrap(type ~ .) +
   stat_compare_means(comparisons = list(c('u50', 'u90')), 
-                         label = "p.signif",
-                         method = 'wilcox.test',
-                     correct=FALSE)
+                     label = "p.signif",
+                     method = 'wilcox.test',
+                     correct=FALSE) +
+  labs(x = 'Uniref cluster',
+       y = '% aligned',
+       title = 'boxplot of % aligned in two uniref clusters')
 ```
 
