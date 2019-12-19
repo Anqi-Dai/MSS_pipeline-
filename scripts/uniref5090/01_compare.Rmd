@@ -1,0 +1,86 @@
+---
+title: "Compare uniref50 and 90 data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)   
+```
+
+```{r}
+u90 <- list.files('data/', full.names = T, pattern = 'humann2_uniref90.log')
+
+u90_metric <- u90 %>% 
+  set_names(u90) %>% 
+  map(~ suppressWarnings(read_table(., col_names = F, col_types = 'c')) %>% 
+  rename(content = names(.)[1]) %>% 
+  filter(str_detect(content, 'INFO: Unaligned')) %>% 
+  transmute(hm_perc = str_extract(content, 'after.+$')) %>% 
+  mutate(hm_perc = str_replace(hm_perc, 'after ','')) %>% 
+  separate(hm_perc, into = c('type','perc'), sep = ': ') %>% 
+  mutate(type = str_replace(type, ' ','_'),
+         perc = as.numeric(str_replace(perc, ' %',''))) %>% 
+  spread(key = 'type', value = 'perc')) %>% 
+  bind_rows(.id = 'sampleid') 
+```
+
+```{r}
+res <- list(
+  u50 = list.files('data/', full.names = T, pattern = 'humann2.log'),
+  u90 = list.files('data/', full.names = T, pattern = 'humann2_uniref90.log')
+)
+
+res_all <- res %>% 
+  map(function(i){
+    i %>% 
+      set_names(i) %>% 
+      map(~ suppressWarnings(read_table(., col_names = F, col_types = 'c')) %>% 
+      rename(content = names(.)[1]) %>% 
+      filter(str_detect(content, 'INFO: Unaligned')) %>% 
+      transmute(hm_perc = str_extract(content, 'after.+$')) %>% 
+      mutate(hm_perc = str_replace(hm_perc, 'after ','')) %>% 
+      separate(hm_perc, into = c('type','perc'), sep = ': ') %>% 
+      mutate(type = str_replace(type, ' ','_'),
+             perc = as.numeric(str_replace(perc, ' %',''))) %>% 
+      spread(key = 'type', value = 'perc')) %>% 
+      bind_rows(.id = 'sampleid') 
+  }) %>% 
+  bind_rows(.id = 'uniref') %>% 
+  mutate(uniref = factor(uniref)) %>% 
+  gather(key = 'type', value = 'unali_per', names(.)[3]:names(.)[ncol(.)]) %>% 
+  mutate(type =  factor(type)) %>% 
+  mutate(unali_per = round(unali_per, 0)) %>% 
+  mutate(sampleid = str_replace(sampleid, 'data//',''),
+         sampleid = str_replace(sampleid, '_humann2.log$',''),
+         sampleid = str_replace(sampleid, '_humann2_uniref90.log$','')) %>% 
+  # makes more sense to plot the % aligned
+  mutate(ali_per = 100 - unali_per)
+```
+
+
+```{r}
+res_all %>% 
+  #filter(type == 'nucleotide_alignment') %>% 
+  ggplot(aes(x = sampleid, y  = ali_per, fill = uniref)) +
+  geom_bar(stat = 'identity', width=0.5, position = position_dodge(width=0.5)) +
+  facet_grid(type ~ .) +
+  theme(axis.text.x = element_text(angle = 45)) +
+  scale_fill_brewer(palette="Set1") +
+  labs(x = '',
+       y = '% reads aligned' ,
+       title = '% reads aligned in nucleotide and protein alignment with uniref50 and uniref90') +
+  ggsave('figs/compare.jpg', width = 15, height = 8)
+```
+```{r}
+# to plot the boxplot and be more direct of the data itself
+res_all %>% 
+  ggboxplot(x = 'uniref', y = 'ali_per', color = 'uniref', palette = 'lancet', add = 'dotplot') +
+  facet_wrap(type ~ .) +
+  stat_compare_means(comparisons = list(c('u50', 'u90')), 
+                         label = "p.signif",
+                         method = 'wilcox.test',
+                     correct=FALSE)
+```
+

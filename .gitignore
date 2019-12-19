@@ -6,3 +6,4 @@
 /scripts/*html
 /scripts/*/figs/*
 /scripts/*/data/*
+/scripts/*/*html
