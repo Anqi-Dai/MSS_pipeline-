@@ -1,0 +1,146 @@
+---
+title: "Get the count matrix from the db"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(jsonlite)
+source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
+dbListTables(con) %>% data.frame() %>% filter(grepl("_ag",.) & grepl("asv",.))
+```
+
+For Jonas project samples, get the count matrix of the ASV and then get the total relative abundance of butyrate producing taxa, and then correlate with shortbred results.
+
+## Load the table from database
+
+```{r}
+# the samples in Jonas project
+samps <- data_frame(fid =  fromJSON('data/Jonas_samples.json') %>% 
+  names)
+
+# get the corresponding sampleid from shotgun lookup table
+sg <- get_data_from_query_OTU(0, 'shotgun_lookup_ad') 
+
+samps <- samps %>% 
+  left_join(sg, by  = 'fid') %>% 
+  distinct(sampleid, .keep_all = T)
+
+
+cts <- get_data_from_query_OTU(0,'asv_counts_ag')
+
+# find cts of the samps
+CTS <- cts %>% 
+  filter(sampleid %in% samps$sampleid)
+
+# verify that the ASV list is complete by adding the count to see if it's the count_total
+CTS %>% 
+  count(sampleid)
+
+
+CTS %>% 
+  distinct(sampleid, count_total) %>% 
+  full_join(CTS %>% 
+              group_by(sampleid) %>% 
+              summarise(sum_cnt = sum(count)), by = 'sampleid') %>% 
+              filter(count_total != sum_cnt)
+# yes they are complete asv
+
+
+# get the relative abundance of the ASV
+CTS <- CTS %>% 
+  mutate(relab = round(count/count_total,3))
+  
+# load the silver annotation for the asv
+silver <- get_data_from_query_OTU(0, 'asv_annotation_silva_ag') 
+
+# the final table with relab and annotation
+all <- CTS %>% 
+  left_join(silver %>% 
+              select(asv_key : species), by = 'asv_key') %>% 
+  select(sampleid, relab : species)
+```
+
+
+## Get the butyrate related taxa
+
+```{r}
+list <- c(
+  "g__Faecalibacterium",
+  "g__Anaerofustis",
+  "g__Anaerotruncus",
+  "g__Butyrivibrio",
+  "g__Coprococcus",
+  "Eubacterium_limosum",
+  "s__Eubacterium_dolichum",
+  "s__Eubacterium_biforme",
+  "s__Eubacterium_yurii_subsp._schtitka",
+  "s__Eubacterium_yurii_subsp._yurii",
+  "s__Clostridium_symbiosum",
+  "s__Clostridium_botulinum",
+  "s__Clostridium_difficile", 
+  "s__Clostridium_difficile_630",
+  "Clostridium_sporogenes",
+  "s__Clostridium_sticklandii",
+  "Lactobacillus_fermentum",
+  "Porphyromonas_endodontalis",
+  "Fusobacterium_nucleatum",
+  "Fusobacterium_varium",
+  "s__Treponema_phagedenis",
+  "s__Anaerococcus_hydrogenalis",
+  "Anaerococcus_prevotii",
+  "Propionibacterium_acidifaciens",
+  "Megasphaera_micronuciformis", 
+  "Eubacterium_rectale",
+  "Eubacterium_ventriosum",
+  "Eubacterium_saphenum",
+  "Odoribacter_splanchnicus",                                                                                                
+  "Clostridium_butyricum",
+  "Eubacterium_desmolans",
+  "Alistipes_putredinis",
+  "Roseburia_intestinalis",
+  "Roseburia_hominis",
+  "Roseburia_inulinivorans",
+  "Porphyromonas_asaccharolytica",
+  "Porphyromonas_gingivalis",
+  "Pseudoramibacter_alactolyticus",
+  "Anaerostipes_caccae",
+  "Fusobacterium_mortiferum",
+  "Brachyspira_pilosicoli",
+  "Treponema_pedis",# Substituted Treponema_phagedenis for Treponema_pedis (which is the name on the blast)
+  "Anaerococcus_vaginalis", # Substituted Anaerococcus_hydrogenalis for Anaerococcus_vaginalis (which is the name on the blast)   
+  "Anaerococcus_prevotii",
+  "Peptoniphilus_duerdenii",
+  "Peptoniphilus_harei",
+  "Peptoniphilus_lacrimalis",
+  "Shuttleworthia_satelles",
+  "Anaerofustis_stercorihominis",
+  "Subdoligranulum_variabile")
+colnames(all)
+```
+
+```{r}
+# a really stupid way of doing this
+allnos <- all %>% 
+  mutate(taxa = str_glue('{domain}{phylum}{class}{ordr}{family}{genus}{species}'),
+         taxa =  str_to_lower(taxa))
+
+target <- data_frame(taxa = list) %>% 
+  mutate(taxa = str_replace(taxa, 'g__|s__',''),
+         taxa = str_replace(taxa, '_',''),
+         taxa =  str_to_lower(taxa))
+  
+
+# see detection of each string in the target
+detect <- target %>% 
+  pull(taxa) %>% 
+  map(function(ta){ 
+    allnos %>% 
+              filter(str_detect(taxa, pattern = ta)) %>% 
+              nrow
+    }) %>% 
+  bind_cols() %>% 
+  gather(key = 'ta', value = 'num')
+```
+
