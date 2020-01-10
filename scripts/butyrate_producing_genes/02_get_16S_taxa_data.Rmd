@@ -7,6 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(jsonlite)
+library(readxl)
 source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
 dbListTables(con) %>% data.frame() %>% filter(grepl("_ag",.) & grepl("asv",.))
 ```
@@ -53,13 +54,21 @@ CTS <- CTS %>%
   mutate(relab = round(count/count_total,3))
   
 # load the silver annotation for the asv
-silver <- get_data_from_query_OTU(0, 'asv_annotation_silva_ag') 
+blast <- get_data_from_query_OTU(0, 'asv_annotation_blast_detailed_ag') 
 
 # the final table with relab and annotation
 all <- CTS %>% 
-  left_join(silver %>% 
+  left_join(blast %>% 
               select(asv_key : species), by = 'asv_key') %>% 
-  select(sampleid, relab : species)
+  select(sampleid, relab : species) %>% 
+  # remove special characters
+  mutate(species = str_replace_all(species, '\\[|\\]','')) 
+
+all %>% 
+  filter(str_detect(species, 'Clostridium')) %>% 
+  arrange(species) %>% 
+  distinct(species) %>% 
+  pull(species)
 ```
 
 
@@ -72,7 +81,6 @@ list <- c(
   "g__Anaerotruncus",
   "g__Butyrivibrio",
   "g__Coprococcus",
-  "Eubacterium_limosum",
   "s__Eubacterium_dolichum",
   "s__Eubacterium_biforme",
   "s__Eubacterium_yurii_subsp._schtitka",
@@ -81,21 +89,22 @@ list <- c(
   "s__Clostridium_botulinum",
   "s__Clostridium_difficile", 
   "s__Clostridium_difficile_630",
-  "Clostridium_sporogenes",
   "s__Clostridium_sticklandii",
+  "s__Treponema_phagedenis",
+  "s__Anaerococcus_hydrogenalis",
+  "Clostridium_sporogenes",
   "Lactobacillus_fermentum",
   "Porphyromonas_endodontalis",
   "Fusobacterium_nucleatum",
   "Fusobacterium_varium",
-  "s__Treponema_phagedenis",
-  "s__Anaerococcus_hydrogenalis",
   "Anaerococcus_prevotii",
   "Propionibacterium_acidifaciens",
   "Megasphaera_micronuciformis", 
   "Eubacterium_rectale",
   "Eubacterium_ventriosum",
   "Eubacterium_saphenum",
-  "Odoribacter_splanchnicus",                                                                                                
+  "Odoribacter_splanchnicus",   
+  "Eubacterium_limosum",
   "Clostridium_butyricum",
   "Eubacterium_desmolans",
   "Alistipes_putredinis",
@@ -142,5 +151,69 @@ detect <- target %>%
     }) %>% 
   bind_cols() %>% 
   gather(key = 'ta', value = 'num')
+
+blast %>% 
+  filter(str_detect(name, 'botulinum'))
+
+
+bbb <- get_data_from_query_OTU(0, 'asv_annotation_blast_ag') 
+
+bbb %>% 
+  filter(str_detect(species, 'botulinum'))
+```
+
+```{r}
+# see the overlap between the target list and the blast all results
+target_spp <- data_frame(taxa = list) %>% 
+  # the species ones
+  mutate(taxa = str_replace(taxa, 's__','')) %>% 
+  # get all the spp ones 
+  filter(!str_detect(taxa, '^g__')) %>% 
+  rename(species = taxa)
+
+spp_has <- all %>% 
+
+  inner_join(target_spp, by = 'species') %>% 
+  distinct(species) 
+# 22/45
+
+spp_no <- target_spp %>% 
+  filter(!species %in% spp_has$species)
+```
+
+
+```{r}
+all_spp <- all %>% 
+  select(species)
+
+spp_no
+
+onlysppno <- spp_no %>% 
+  mutate(species = str_replace(species, '^.+_',''))
+```
+
+```{r}
+test <- all_spp %>% 
+  filter(str_detect(species, '^Clostridium')) %>% 
+  distinct(species)
+
+
+```
+
+```{r}
+# the supp table from that paper
+supple <- read_excel('data/inline-supplementary-material-1.xlsx', sheet = 2, skip = 2) %>% 
+  select(genus = Genus) %>% 
+  distinct(genus) 
+
+supple %>% 
+  inner_join(all %>% 
+               distinct(genus), by = 'genus')
+
+
+
+setdiff(supple$genus, all %>% 
+               distinct(genus) %>% 
+          pull(genus))
 ```
 
