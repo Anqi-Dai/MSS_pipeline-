@@ -1,0 +1,44 @@
+---
+title: "samples for bile acid"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+dbListTables(con) %>% data.frame() %>% filter(grepl("_ag",.))
+```
+
+
+I am attaching the list of 146 patients (one pt transplanted twice) that we have shotgun sequencing with stool samples between day -30 and day +90, and GvHD data: 76 GVHD+ (skin/GI/liver), 70 patients GVHD-.
+
+I know you identified 6 genes in the bile acid pathway. Could you evaluate these genes in the list of 146 patients?
+
+
+```{r}
+castori <- get_data_from_query_OTU(0,'samples_castori_ag') %>% 
+  filter(str_detect(sampletype, fixed('stool', ignore_case = T)))  %>% 
+  select(sampleid, mrn, datecollection)
+
+sg <- get_data_from_query_OTU(0,'shotgun_lookup_ad') 
+  
+
+all <- read_csv('../data/mrn_list.csv') %>% 
+  left_join(castori, by = 'mrn') %>% 
+  mutate(collectionday = datecollection -  hct) %>% 
+  filter(collectionday >= -30 & collectionday <= 90) %>% 
+  inner_join(sg, by  = 'sampleid')
+
+all %>% 
+  select(sampleid, directory) %>% 
+  distinct(sampleid, .keep_all = T) 
+  
+  
+
+all %>% 
+  count(mrn)
+
+all %>% 
+  filter(sampleid %in% sg$sampleid)
+```
+

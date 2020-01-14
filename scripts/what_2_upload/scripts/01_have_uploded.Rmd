@@ -1,0 +1,36 @@
+---
+title: "What have been uploaded"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# current uploaded samples on the cluster all of them
+
+currents <- list.files('../data/', '^current', full.names = T)
+
+current_fid <- currents %>% 
+  map_dfr(~ read_table(., col_names = F) %>% 
+  select(X9) %>% 
+  transmute(fid = str_extract(X9, 'Sample_.+IGO'),
+            fid = str_replace(fid, 'Sample_',''),
+            fid = str_replace(fid, '_IGO','')) )
+
+current_fid %>% 
+  distinct(fid)
+```
+
+
+```{r}
+# new samples to be uploaded for bile acid for Oriana
+Ori <- read_csv('../../bile_acids/data/all_data_samplelist_from_O.csv') %>% 
+  select(fid, directory) %>% 
+  distinct(fid, .keep_all = T) %>% 
+  mutate(uploaded = if_else(fid %in% current_fid$fid, T, F))
+
+
+```
+
