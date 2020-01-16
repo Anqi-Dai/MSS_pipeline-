@@ -4,10 +4,13 @@
 # This script has to be run in a conda environment that has lefse and all the dependencies installed
 # 1. pheno table that already transposed to horizontal position
 # 2. cts table that have sample names correctly sorted according to the pheno table
+# And this command only take one class var(not including subclass)
 
 pheno=$1
 cts=$2
 outdir=$3
+
+mkdir -p $outdir
 
 cat $pheno $cts > $outdir/lefse_input_table.tsv
 

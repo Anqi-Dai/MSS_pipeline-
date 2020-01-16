@@ -29,8 +29,18 @@ current_fid %>%
 Ori <- read_csv('../../bile_acids/data/all_data_samplelist_from_O.csv') %>% 
   select(fid, directory) %>% 
   distinct(fid, .keep_all = T) %>% 
-  mutate(uploaded = if_else(fid %in% current_fid$fid, T, F))
+  mutate(uploaded = if_else(fid %in% current_fid$fid, T, F)) 
 
+tobeuploaded <- Ori %>% 
+  filter(uploaded == FALSE) %>% 
+  transmute(cmd = str_glue('rsync --progress --partial -avz {directory} daia1@lilac.mskcc.org:~/my_workdir/samples/')) %>% 
+  write_csv('../data/upload_script.sh', col_names = F)
 
+in_bile_acid <- Ori %>% 
+  filter(uploaded == T)
+
+in_bile_acid %>% 
+  select(fid) %>% 
+  write_csv('../../bile_acids/data/current_uploaded_in_bile_acid.csv', col_names = F)
 ```
 
