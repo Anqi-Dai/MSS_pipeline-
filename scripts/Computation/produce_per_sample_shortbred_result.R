@@ -2,7 +2,10 @@
 'Write out csv file of per sample RPKM
 Usage:
   produce_per_sample_shortbred_result.R <input_path> <output_fn>
-
+  
+Options:
+  -h --help  Show this screen.
+  
 Arguments:
   <input_path> a folder path that is the quantification result from shortbred with the path
   <output_fn> a csv file with two columns, the fid and the RPKM in a path
@@ -28,12 +31,14 @@ fns <- list.files(inpath, full.names = T)
 
 all <- fns %>% 
   set_names(fns) %>% 
-  map(~ read_tsv(.)) %>% 
+  map(~ read_tsv(., col_types = 'cddd')) %>% 
   bind_rows(.id = 'sampleid') %>% 
   mutate(sampleid = str_replace(sampleid, '.+//',''),
          sampleid = str_replace(sampleid, '_short.+$','')) %>% 
   group_by(sampleid) %>% 
-  summarise(RPKM = sum(Count))
+  summarise(RPKM = sum(Count)) %>% 
+  arrange(desc(RPKM))
+  
 
 all %>% 
   write_csv(outfn)
