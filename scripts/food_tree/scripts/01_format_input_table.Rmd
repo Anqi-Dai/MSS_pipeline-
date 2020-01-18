@@ -1,0 +1,76 @@
+---
+title: "Make the input tables form"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+uni <- read_excel('/Volumes/vandenBrinkLab/Peter/Computrition -- FNDDS/eaten_FNDDS.xlsx', sheet = 1)
+
+uni_rm <- read_excel('/Volumes/vandenBrinkLab/Peter/Computrition -- FNDDS/eaten_FNDDS.xlsx', sheet = 2, col_names = F)
+
+uniq_food <- uni %>% 
+  distinct(item1_value_raw_raw,  .keep_all = T)
+
+# The all table with all the records
+all <- read_excel('/Volumes/vandenBrinkLab/Peter/Computrition -- FNDDS/new_list.xls') %>% 
+  filter(!Food_NSC %in% uni_rm$...1)
+
+two_list <- Venn(list(All = all$Food_NSC,
+                 uni = uniq_food$item1_value_raw_raw))
+ 
+ggvenn(two_list)
+# yeah all are located
+```
+```{r}
+# join the FNDDS code to the all table to produce this master list
+master <- all %>% 
+  left_join(uniq_food %>% 
+              select(-item1_index) %>% 
+              rename(Food_NSC = item1_value_raw_raw), by  = 'Food_NSC') %>% 
+  rename(Food_code = Food.Code)
+
+master %>% 
+  filter(is.na(Food_code))   %>% 
+  nrow
+  
+# FNDDS ref table with energy info
+engy <- read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1) %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  select(Food_code, Energy_kcal, Water_g)
+
+Master <- master %>% 
+  left_join(engy, by  = 'Food_code') %>% 
+  mutate(Calories_kcal = as.numeric(Calories_kcal))
+
+colnames(final)
+```
+
+```{r}
+final <- Master %>% 
+  mutate(total_weight = Calories_kcal/Energy_kcal*100) %>% 
+  mutate(dehydrated_weight = total_weight*Water_g/100) %>% 
+  select(- ...1) %>% 
+  rename(FoodID = Food_code,
+         Main.food.description = Food_NSC)
+
+final %>% 
+  write_tsv('../data/source/final_master_list.tsv')
+
+```
+
+```{r}
+FINAL <- final %>% 
+  select(MRN, FoodID, dehydrated_weight) %>% 
+  group_by(MRN, FoodID) %>% 
+  summarise(total_de_wei = sum(dehydrated_weight)) %>% 
+  spread(key = 'MRN', value = 'total_de_wei', fill = 0)
+```
+
+
