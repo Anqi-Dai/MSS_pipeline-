@@ -13,3 +13,120 @@ library(tidyr)
 library(reshape2)
 ```
 
+```{r}
+make.food.tree <- function(nodes_fn, food_database_fn, addl_foods_fn=NULL, output_tree_fn, output_taxonomy_fn, num.levels=5)
+{
+    fdata <- read.table(food_database_fn, header = TRUE, sep="\t", colClasses="character", fill = TRUE , quote="", strip.white=T)
+    nodes <- read.table(nodes_fn, header = TRUE, sep="\t", fill = TRUE , colClasses="character")
+
+    main <- fdata[,c("FoodID", "Main.food.description")]
+
+    # add additional food codes
+    if(!is.null(addl_foods_fn))
+        for(i in 1:length(addl_foods_fn)){
+            new.foods <- read.table(addl_foods_fn[i], header=T, sep="\t", colClasses="character")
+            main <- rbind(main, new.foods[,c("FoodID", "Main.food.description")])
+        }
+    # if there happen to be duplicate FoodIDs in main, remove them
+    main <- main[!duplicated(main$FoodID),]
+
+    flevels <- NULL
+    for(i in 1:num.levels)
+        flevels <- cbind(flevels, I(substr(main$FoodID, 1, i)))
+    colnames(flevels) <- paste0("L",1:num.levels)
+    main <- data.frame(main, flevels, stringsAsFactors=F)
+    
+    # melt the data, merge to get the node names, then cast back
+    main.melt <- melt(main, id.vars = "FoodID", variable.name = "Level", value.name = "Level.code")
+    main.merge <- merge(main.melt, nodes, by = "Level.code")
+    main.cast <- dcast(main.merge, FoodID ~ Level, value.var = "Main.food.description")
+
+    # prepend level to all level descriptions
+    main.cast[is.na(main.cast)] <- ""
+    main.cast[,colnames(main.cast)[-1]] <- sapply(colnames(main.cast)[-1], function(colname) paste(colname, main.cast[,colname], sep="_"))
+
+    # merge back with original table to grab Food Description
+    main.join <- merge(main.cast, main[,c("FoodID","Main.food.description")], by="FoodID")
+
+    # create a proper newick string for the tree
+    newickstring <- paste("foodtreeroot", apply(main.join, 1, function(xx) paste(xx[-1], collapse="/")), sep="/")
+    # create a proper taxonomy string for QIIME
+    taxonomy <- apply(main.join, 1, function(xx) paste(xx[-1], collapse=";"))
+
+    final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F)
+
+    #### Make and export the tree ####
+    foodTree <- as.Node(final.table, pathName = "newickstring")
+    tree <- recursiveNewickWrite(foodTree)
+    cat(tree, file = output_tree_fn)
+
+    #### Make and export the taxonomy file ####
+    export <- final.table %>% select(FoodID, taxonomy, Main.food.description)
+    export$Main.food.description <- gsub("_", " ", export$Main.food.description)
+    write.table(export, output_taxonomy_fn, sep = "\t", quote = FALSE, row.names = FALSE)
+
+}
+```
+
+
+
+```{r}
+food_database_fn <- '../data/source/food_database_file.tsv'
+nodes_fn <- '../data/source/NodeLabelsMCT.txt'
+#nodes_fn <- '../data/source/NodeLabels.txt'
+num.levels <- 2
+
+make.food.tree(food_database_fn, nodes_fn, num.levels)
+```
+
+```{r}
+
+fdata <- read.table(food_database_fn, header = TRUE, sep="\t", colClasses="character", fill = TRUE , quote="", strip.white=T)
+nodes <- read.table(nodes_fn, header = TRUE, sep="\t", fill = TRUE , colClasses="character")
+
+main <- fdata[,c("FoodID", "Main.food.description")]
+
+
+# if there happen to be duplicate FoodIDs in main, remove them
+main <- main[!duplicated(main$FoodID),]
+
+flevels <- NULL
+for(i in 1:num.levels)
+    flevels <- cbind(flevels, I(substr(main$FoodID, 1, i)))
+colnames(flevels) <- paste0("L",1:num.levels)
+main <- data.frame(main, flevels, stringsAsFactors=F)
+```
+
+```{r}
+# melt the data, merge to get the node names, then cast back
+main.melt <- melt(main, id.vars = "FoodID", variable.name = "Level", value.name = "Level.code")
+main.merge <- merge(main.melt, nodes, by = "Level.code")
+main.cast <- dcast(main.merge, FoodID ~ Level, value.var = "Main.food.description")
+
+# prepend level to all level descriptions
+main.cast[is.na(main.cast)] <- ""
+main.cast[,colnames(main.cast)[-1]] <- sapply(colnames(main.cast)[-1], function(colname) paste(colname, main.cast[,colname], sep="_"))
+
+# merge back with original table to grab Food Description
+main.join <- merge(main.cast, main[,c("FoodID","Main.food.description")], by="FoodID")
+```
+
+```{r}
+# create a proper newick string for the tree
+newickstring <- paste("foodtreeroot", apply(main.join, 1, function(xx) paste(xx[-1], collapse="/")), sep="/")
+# create a proper taxonomy string for QIIME
+taxonomy <- apply(main.join, 1, function(xx) paste(xx[-1], collapse=";"))
+
+final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F)
+
+#### Make and export the tree ####
+foodTree <- as.Node(final.table, pathName = "newickstring")
+tree <- ToNewick(foodTree)
+cat(tree, file = '../data/source/output_food_tree.tre')
+
+#### Make and export the taxonomy file ####
+export <- final.table %>% select(FoodID, taxonomy, Main.food.description)
+#export$Main.food.description <- gsub("_", " ", export$Main.food.description)
+write.table(export, '../data/source/output_taxonomy.txt', sep = "\t", quote = FALSE, row.names = FALSE)
+```
+

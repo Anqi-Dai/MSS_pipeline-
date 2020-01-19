@@ -58,11 +58,12 @@ final <- Master %>%
   mutate(dehydrated_weight = total_weight*Water_g/100) %>% 
   select(- ...1) %>% 
   rename(FoodID = Food_code,
-         Main.food.description = Food_NSC)
+         Main.food.description = Food_NSC) %>% 
+  mutate(total_weight = if_else(is.nan(total_weight), 0, total_weight),
+         dehydrated_weight = if_else(is.nan(dehydrated_weight), 0, dehydrated_weight))
 
 final %>% 
   write_tsv('../data/source/final_master_list.tsv')
-
 ```
 
 ```{r}
@@ -73,4 +74,14 @@ FINAL <- final %>%
   spread(key = 'MRN', value = 'total_de_wei', fill = 0)
 ```
 
+```{r}
+food_database <- uniq_food %>% 
+  select(-item1_index) %>% 
+  rename(FoodID = Food.Code,
+         Main.food.description = FNDDS.Main.Food.Description)
+
+food_database %>% 
+  write_tsv('../data/source/food_database_file.tsv')
+  
+```
 
