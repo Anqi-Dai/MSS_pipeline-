@@ -1,0 +1,41 @@
+---
+title: "Compare the shortbred and species abundance estimation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+# Doris 57 samples butyrate shortbred results
+short <- read_csv('data/doris_57_short.csv') %>% 
+  dplyr::rename(fid = sampleid) 
+
+# got match the sampleid and the fid
+sg <- get_data_from_query_OTU(0,'shotgun_lookup_ad') %>% 
+  filter(fid %in% short$fid) %>% 
+  distinct(sampleid, fid)
+
+
+short_final <- short %>% 
+  full_join(sg, by  = 'fid')
+
+
+# the estimation results from species abundance from Marina
+estima <- read_csv('data/Doris_butyrate_scatter_01_13_2020_for_angel.csv')
+
+
+all <- short_final %>% 
+  inner_join(estima, by  = 'sampleid')
+
+all %>% 
+  ggscatter(x = 'RPKM', y = 'butyrate_prod')
+
+cor.test(all$RPKM, all$butyrate_prod, method = 'pearson')
+
+# have some correlation 
+``` 
+

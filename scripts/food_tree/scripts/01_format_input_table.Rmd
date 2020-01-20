@@ -78,7 +78,9 @@ FINAL <- final %>%
 food_database <- uniq_food %>% 
   select(-item1_index) %>% 
   rename(FoodID = Food.Code,
-         Main.food.description = FNDDS.Main.Food.Description)
+         Main.food.description = FNDDS.Main.Food.Description) %>% 
+  select(item1_value_raw_raw: WWEIA.Category.Description) %>% 
+  filter(!is.na(FoodID))
 
 food_database %>% 
   write_tsv('../data/source/food_database_file.tsv')

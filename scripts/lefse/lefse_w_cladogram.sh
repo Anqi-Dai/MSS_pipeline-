@@ -9,6 +9,8 @@ pheno=$1
 cts=$2
 outdir=$3
 
+mkdir -p $outdir
+
 cat $pheno $cts > $outdir/lefse_input_table.tsv
 
 format_input.py $outdir/lefse_input_table.tsv  $outdir/lefse_input_table.in -c 1 -u 2 -o 1000000
