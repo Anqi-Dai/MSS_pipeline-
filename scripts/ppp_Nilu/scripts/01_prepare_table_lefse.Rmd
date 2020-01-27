@@ -1,0 +1,16 @@
+---
+title: "Prepare the table for lefse"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Select the medium OTU abundance for the 109 patients
+
+```{r}
+
+```
+
