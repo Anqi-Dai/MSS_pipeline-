@@ -6,11 +6,25 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+dbListTables(con) %>% data.frame() %>% filter(grepl("otu",.))
 ```
 
 Select the medium OTU abundance for the 109 patients
 
 ```{r}
+stb <- read_csv('../data/clean myeloma sdtable 01 27 20.csv')
+
+cts <- get_data_from_query_OTU(0,'counts_ag')
+
+res <- cts %>% 
+  filter(sampleid %in% stb$Sample.ID) %>% 
+  count(sampleid) 
+
+stb %>% 
+  count(Sample.ID)
+
+setdiff(stb$Sample.ID, res$sampleid)
+
 
 ```
 
