@@ -23,8 +23,82 @@ res <- cts %>%
 stb %>% 
   count(Sample.ID)
 
-setdiff(stb$Sample.ID, res$sampleid)
+missing <- paste(setdiff(stb$Sample.ID, res$sampleid),  collapse = '|')
+
+# find the full name of the 3 missing sample
+
+full3 <- cts %>% 
+  filter(str_detect(sampleid, missing)) %>% 
+  distinct(sampleid)
 
 
+intersect(stb$Sample.ID, res$sampleid)
+
+# create a column in the stb that is the real full sampleid
+stb <- stb %>% 
+  mutate(sampleid = if_else(Sample.ID %in% setdiff(stb$Sample.ID, res$sampleid), 
+                            str_glue('{Sample.ID}..pool825'),
+                            Sample.ID))
+
+# the patient table 
+ptb <- read_csv('../data/clean myeloma pttable 01 27 20.csv') %>% 
+  select(mrn, Relapse.POD.Status) %>% 
+  mutate(mrn = as.character(mrn))
+
+
+# load the otu annotation table
+annot <- get_data_from_query_OTU(2) %>% 
+  mutate(ordr = if_else(ordr == '', 'NA', ordr),
+         family = if_else(family == '', 'NA', family),
+         genus = if_else(genus == '', 'NA', genus),
+         species = if_else(species == '', 'NA', species)) %>% 
+  mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+```
+
+```{r}
+CTS <- cts %>% 
+  filter(sampleid %in% stb$sampleid) 
+
+# damn I have to calculate of the relative abundance myself damn
+CTS_sample_sum <- CTS %>% 
+  group_by(sampleid) %>% 
+  summarise(total = sum(count))
+
+CTS <- CTS %>% 
+  left_join(CTS_sample_sum, by  = 'sampleid') %>% 
+  mutate(relab = round(count/total, 5)) %>% 
+  left_join(stb %>% 
+              select(mrn, sampleid), by = 'sampleid')
+
+# get the medium OTU abundance of the otus
+CTS_final <- CTS %>% 
+  group_by(otu_key, mrn) %>% 
+  summarise(Relab = median(relab))
+
+
+final <- CTS_final %>% 
+  rename(key = otu_key) %>% 
+  left_join(annot %>% 
+              select(key, taxa), by = 'key') %>% 
+  spread(key = 'mrn', value = 'Relab', fill = 0) %>% 
+  ungroup() %>% 
+  select(-key) 
+
+# reorder the columns 
+final <- bind_cols(final[,1],final[,ptb$mrn])
+
+all.equal(colnames(final)[2:ncol(final)], ptb$mrn)
+
+final %>% 
+  write_tsv('../data/otu_mrns_relab_reordered.tsv')
+
+ptb %>% 
+  select(Relapse.POD.Status) %>% 
+  t %>% 
+  write.table('../data/mrns_pheno.txt', sep = '\t', quote = F, row.names = T, col.names = F)
+```
+
+```{bash}
+# running the lefse with cladogram
 ```
 
