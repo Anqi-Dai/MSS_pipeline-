@@ -1,0 +1,103 @@
+---
+title: "Creating heatmap using pheatmap pkg"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    code_folding: show
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+library(tidyverse)
+library(pheatmap) # installing with install.packages("pheatmap")
+```
+
+## An example of formatting the input table
+
+```{r}
+# load the pheno and counts table of your analysis.
+pheno <- read_csv('~/melodyP/data/cleaned_pheno/final_pheno.csv')
+
+genus <- read_tsv('~/melodyP/data/humann2_res/genus_level/humann2_pathabundance_genus_level_cpm_stratified.tsv') %>% 
+  dplyr::rename(pw = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_genefamilies_.+$','')))
+
+genus_entero <- genus %>% 
+  filter(str_detect(pw, 'g__Enterococcus')) 
+
+# The input counts table HAS TO be a matrix
+# with feature name as row names and sample names as column names.
+genus_entero_mat <- genus_entero %>% 
+  column_to_rownames('pw') %>% 
+  as.matrix
+
+# this below table links your sample with different pheno data you are interested in
+# and the row names HAVE TO be the sample name or whatever sample ID that is in your counts table.
+annot <- data.frame(row.names = pheno$sampleid, 
+                    tox = pheno$Toxicity, 
+                    CR = pheno$CR)
+```
+
+## Plot heatmap with customization
+
+If you don't provide a path to the filename, the plot will show up in the Rstudio directly.
+
+```{r}
+# a heatmap to see the counts distribution
+
+
+pheatmap(
+  genus_entero_mat,
+  annotation_col = annot,
+  show_rownames = F,
+  show_colnames = T,
+  #filename = '../../figs/Enterococcus_heatmap.jpg',
+  height = 18,
+  width = 18,
+  scale = 'row',
+  cluster_rows = T,
+  cluster_cols = T
+)
+```
+
+**Some important parameters, please refer to the help page for more details**
+
+* scale: whether the values should be centered and scaled
+* cluster_rows/cluster_cols: whether to cluster the rows or the columns. There are several distance metric that could be used.
+
+## Customize the pheno annotation's color
+
+If you wanna customize the pheno annotation's color, to align with your other plots color palette for example.
+
+```{r}
+annotCol <- list(tox = c('#00468B', '#EC0000'),
+                 CR = c('#42B540','#925E9F'))
+names(annotCol$tox) = c('Y','N')
+names(annotCol$CR) = c('Y','N')
+
+annotCol
+```
+```{r}
+# now the color of the pheno label is changed.
+ 
+pheatmap(
+  genus_entero_mat,
+  annotation_col = annot,
+  annotation_colors = annotCol,
+  show_rownames = F,
+  show_colnames = T,
+  #filename = '../figs/Enterococcus_heatmap.jpg',
+  height = 18,
+  width = 18,
+  scale = 'row',
+  cluster_rows = T,
+  cluster_cols = T
+)
+```
+
+And of course you can experiment with different color palette for the heatmap too. 
+
