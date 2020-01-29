@@ -76,13 +76,17 @@ FINAL <- final %>%
 
 ```{r}
 # need to get rid of the all the special characters, so that you will only see underscores
+# all!!!! including the semicolon damn the semi colon
 food_database <- uniq_food %>% 
   select(-item1_index) %>% 
   rename(FoodID = Food.Code,
          Main.food.description = FNDDS.Main.Food.Description) %>% 
   select(item1_value_raw_raw: WWEIA.Category.Description) %>% 
   filter(!is.na(FoodID)) %>% 
-  mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"','_'))
+  mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"|;','_'))
+
+
+
 
 food_database %>% 
   write_tsv('../data/source/food_database_file.tsv')

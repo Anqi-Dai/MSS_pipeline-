@@ -71,3 +71,10 @@ export <- final.table %>% select(FoodID, taxonomy, Main.food.description)
 write.table(export, '../data/source/output_taxonomy.txt', sep = "\t", quote = FALSE, row.names = FALSE)
 ```
 
+```{r}
+# library(networkD3)
+# useRtreeList <- ToListExplicit(foodTree, unname = TRUE)
+# radialNetwork( useRtreeList)
+```
+
+
