@@ -12,7 +12,7 @@ library(treeio)
 
 ```{r}
 nwk <- '../data/source/output_food_tree.newick'
-nwk <- system.file("extdata", "sample.nwk", package="treeio")
+
 tree <- read.tree(nwk)
 
 ggplot(tree, aes(x, y)) + geom_tree() + theme_tree()

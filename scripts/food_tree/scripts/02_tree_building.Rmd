@@ -78,3 +78,8 @@ write.table(export, '../data/source/output_taxonomy.txt', sep = "\t", quote = FA
 ```
 
 
+
+```{r}
+foodTree
+```
+
