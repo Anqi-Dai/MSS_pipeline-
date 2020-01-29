@@ -94,11 +94,16 @@ final %>%
 
 ptb %>% 
   select(Relapse.POD.Status) %>% 
+  rename(Relapse_status = Relapse.POD.Status) %>% 
+  mutate(Relapse_status = if_else(str_detect(Relapse_status, '^No'), 'No_POD', "Yes_POD")) %>% 
   t %>% 
   write.table('../data/mrns_pheno.txt', sep = '\t', quote = F, row.names = T, col.names = F)
 ```
 
+REMEMBER THAT THE PHENO TABLE SHOULD NOT HAVE ANY SPECIAL CHARACTERS THAT WILL CONFUSE THE LEFSE PROGRAM
+
 ```{bash}
 # running the lefse with cladogram
+~/pipeline/scripts/lefse/lefse_w_cladogram.sh mrns_pheno.txt otu_mrns_relab_reordered.tsv lefse_res
 ```
 
