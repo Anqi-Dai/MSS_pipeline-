@@ -64,7 +64,7 @@ annot <- annot_all %>%
          family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
          genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
          species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+  mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}___OTUkey_{key}'))
 ```
 
 ```{r}
