@@ -11,6 +11,7 @@ library(viridisLite)
 library(dplyr)
 library(tidyr)
 library(reshape2)
+source('newick.tree.r')
 ```
 
 ```{r}
@@ -63,7 +64,7 @@ final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F)
 #### Make and export the tree ####
 foodTree <- as.Node(final.table, pathName = "newickstring")
 tree <- ToNewick(foodTree)
-cat(tree, file = '../data/source/output_food_tree.newick')
+cat(tree, file = '../data/source/output_food_tree_datatree.newick')
 
 #### Make and export the taxonomy file ####
 export <- final.table %>% select(FoodID, taxonomy, Main.food.description)
@@ -80,6 +81,9 @@ write.table(export, '../data/source/output_taxonomy.txt', sep = "\t", quote = FA
 
 
 ```{r}
-foodTree
+# tree_df <- data.tree::ToDataFrameTree(foodTree)
+# library(DiagrammeR)
+# tt <- data.tree::To
+
 ```
 

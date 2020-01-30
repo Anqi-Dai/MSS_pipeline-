@@ -83,7 +83,8 @@ food_database <- uniq_food %>%
          Main.food.description = FNDDS.Main.Food.Description) %>% 
   select(item1_value_raw_raw: WWEIA.Category.Description) %>% 
   filter(!is.na(FoodID)) %>% 
-  mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"|;','_'))
+  mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 
+  mutate(Main.food.description = str_replace_all(Main.food.description,"'",""))
 
 
 
