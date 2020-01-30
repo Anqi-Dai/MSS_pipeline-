@@ -1,0 +1,26 @@
+---
+title: "Filter on the count matrix and do lefse"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE) 
+library(tidyverse) 
+```
+
+Filter on the countsn matrix so that At least 10% of samples have that taxa rehab > 0.01% (0.0001)
+
+```{r}
+counts <- read_tsv('../data/otu_mrns_relab_reordered.tsv') %>% 
+  column_to_rownames('taxa')
+
+counts %>% 
+  distinct(taxa)
+```
+
+REMEMBER THAT THE PHENO TABLE SHOULD NOT HAVE ANY SPECIAL CHARACTERS THAT WILL CONFUSE THE LEFSE PROGRAM
+
+```{bash}
+# running the lefse with cladogram
+~/pipeline/scripts/lefse/lefse_w_cladogram.sh mrns_pheno.txt otu_mrns_relab_reordered.tsv lefse_res
+```

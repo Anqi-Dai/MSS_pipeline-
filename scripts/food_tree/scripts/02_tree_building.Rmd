@@ -72,6 +72,14 @@ export <- final.table %>% select(FoodID, taxonomy, Main.food.description)
 write.table(export, '../data/source/output_taxonomy.txt', sep = "\t", quote = FALSE, row.names = FALSE)
 ```
 
+
+```{bash}
+# in terminal
+graphlan_annotate.py --annot annotation.base.txt output_food_tree_datatree.newick  guide_1.xml
+graphlan.py guide_1.xml food_tree.png --dpi 300 --size 3.5
+```
+
+
 ```{r}
 # library(networkD3)
 # useRtreeList <- ToListExplicit(foodTree, unname = TRUE)

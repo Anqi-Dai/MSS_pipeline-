@@ -53,6 +53,18 @@ annot <- get_data_from_query_OTU(2) %>%
          genus = if_else(genus == '', 'NA', genus),
          species = if_else(species == '', 'NA', species)) %>% 
   mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+
+
+
+# create this taxa column that is like the metaphlan format but with some level of being NA then use the upper level taxa name
+annot_all <- get_data_from_query_OTU(2)
+
+annot <- annot_all %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
 ```
 
 ```{r}
@@ -100,10 +112,5 @@ ptb %>%
   write.table('../data/mrns_pheno.txt', sep = '\t', quote = F, row.names = T, col.names = F)
 ```
 
-REMEMBER THAT THE PHENO TABLE SHOULD NOT HAVE ANY SPECIAL CHARACTERS THAT WILL CONFUSE THE LEFSE PROGRAM
 
-```{bash}
-# running the lefse with cladogram
-~/pipeline/scripts/lefse/lefse_w_cladogram.sh mrns_pheno.txt otu_mrns_relab_reordered.tsv lefse_res
-```
 

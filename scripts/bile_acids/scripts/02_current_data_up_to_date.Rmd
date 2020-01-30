@@ -1,0 +1,23 @@
+---
+title: "the bile acid data up to date"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+bile <- read_csv('../data/current_bile_acid_assembly.csv')
+
+bile %>% 
+  ggboxplot(y = 'RPKM', add = 'jitter')
+
+
+bile %>% 
+  gghistogram(x = 'RPKM', color = 'white', fill = 'forestgreen',
+              title = '550 Samples shortbred 2nd bile acid quantification results Jan 30')
+```
+
