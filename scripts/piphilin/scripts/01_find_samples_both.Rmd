@@ -1,0 +1,35 @@
+---
+title: "Find samples both sg and 16s"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
+dbListTables(con) %>% data.frame() %>% filter(grepl("_ag",.)) %>% 
+  filter(!str_detect(.,'asv'))
+```
+
+```{r}
+sg <- get_data_from_query_OTU(0,'shotgun_lookup_ad')
+
+otu_cts <- get_data_from_query_OTU(0,'counts_ag')
+
+otu_ag 
+otu_cts <- get_data_from_query_OTU(0,'otu_ag')
+```
+
+```{r}
+# use the asv version
+# try the CART project samples
+# get the asv cts for those samples
+
+pheno <- read_csv('~/melodyP/data/cleaned_pheno/final_pheno.csv') 
+samps <- pheno %>%  pull(sampleid)
+
+cts <- get_data_from_query_OTU(0,'asv_counts_ag')
+
+
+```
+

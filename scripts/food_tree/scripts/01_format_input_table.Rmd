@@ -27,6 +27,27 @@ two_list <- Venn(list(All = all$Food_NSC,
 ggvenn(two_list)
 # yeah all are located
 ```
+
+```{r}
+# need to correct the all table, some of the NAs
+
+
+all %>% 
+  filter(is.na(Calories_kcal) | 
+           is.na(Proteing_g) |
+           is.na(Fat_g) |
+           is.na(Carbohydrates_g) |
+           is.na(Fibers_g) |
+           is.na(Sugars_g) |
+           is.na(Sodium_mg) ) %>% 
+  arrange(Food_NSC ) %>% 
+  select(-SFA_g, -Cholesterol_mg, -MUFA_g, -PUFA_g) %>% 
+  write_csv('../data/source/NA_in_all_table.csv')
+  
+
+
+```
+
 ```{r}
 # join the FNDDS code to the all table to produce this master list
 master <- all %>% 
