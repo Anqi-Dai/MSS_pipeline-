@@ -7,8 +7,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
-dbListTables(con) %>% data.frame() %>% filter(grepl("_ag",.)) %>% 
+dbListTables(con) %>% data.frame() %>% filter(grepl("asv",.)) %>% 
   filter(!str_detect(.,'asv'))
+library(seqinr)
 ```
 
 ```{r}
@@ -29,7 +30,23 @@ pheno <- read_csv('~/melodyP/data/cleaned_pheno/final_pheno.csv')
 samps <- pheno %>%  pull(sampleid)
 
 cts <- get_data_from_query_OTU(0,'asv_counts_ag')
+CTS <- cts %>% 
+  filter(sampleid %in% samps) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0)
 
+CTS %>% 
+  write_csv('../data/cart_asv_cts.csv')
+
+seqs <- get_data_from_query_OTU(0,'asv_sequences_ag')
+
+SEQS <- seqs %>% 
+  filter(key %in% CTS$asv_key)
+
+
+write.fasta(sequences = as.list(SEQS$asv_sequence), 
+              names = SEQS$key,
+              file.out = '../data/cart_asv_seq.fa')
 
 ```
 

@@ -28,10 +28,13 @@ counts_fil %>%
   write_tsv('../data/otu_mrns_relab_reordered_filtered.tsv')
 ```
 
-
 REMEMBER THAT THE PHENO TABLE SHOULD NOT HAVE ANY SPECIAL CHARACTERS THAT WILL CONFUSE THE LEFSE PROGRAM
 
 ```{bash}
 # running the lefse with cladogram
 ~/pipeline/scripts/lefse/lefse_w_cladogram.sh mrns_pheno.txt otu_mrns_relab_reordered_filtered.tsv lefse_res
 ```
+
+
+
+

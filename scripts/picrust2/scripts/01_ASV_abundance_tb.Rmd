@@ -1,0 +1,67 @@
+---
+title: "Prepare samples ASV abundance table"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(seqinr)
+source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
+```
+
+```{r}
+# get the ASV abundance table for doris 57 samples
+
+
+fid57 <- read_csv('~/pipeline/scripts/bile_acids/data/doris_57_bile.csv')
+
+samps <- get_data_from_query_OTU(0,'shotgun_lookup_ad') %>% 
+  filter(fid %in% fid57$sampleid) %>% 
+  distinct(sampleid, fid) %>% 
+  pull(sampleid)
+
+
+CTS <- get_data_from_query_OTU(0,'asv_counts_ag')
+
+# better remove the three samples that have a total count less than 2000
+rm_samp <- CTS %>% 
+  filter(sampleid %in% samps) %>% 
+  group_by(sampleid) %>% 
+  summarise(tol = sum(count)) %>% 
+  filter(tol < 2000) %>% 
+  pull(sampleid)
+
+samps <- samps[!samps %in% rm_samp]
+
+cts <- CTS %>% 
+  filter(sampleid %in% samps) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid' , value = 'count', fill = 0)
+
+```
+
+```{r}
+cts %>% 
+  write_tsv('../data/doris57/asv_cts.tsv')
+
+# output the asv sequence to a new file
+SEQS <- get_data_from_query_OTU(0,'asv_sequences_ag')
+
+seqs <- SEQS %>% 
+  filter(key %in% cts$asv_key)
+
+
+write.fasta(sequences = as.list(seqs$asv_sequence), 
+              names = seqs$key,
+              file.out = '../data/doris57/asv_seq.fna')
+```
+
+```{bash}
+# turn that into a biom table
+biom convert -i asv_cts.tsv -o asv_cts.biom --to-hdf5 --table-type="Table"
+biom summarize-table -i asv_cts.biom
+```
+
+
+
