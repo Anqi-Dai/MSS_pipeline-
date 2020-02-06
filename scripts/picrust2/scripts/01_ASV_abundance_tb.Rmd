@@ -12,8 +12,6 @@ source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
 
 ```{r}
 # get the ASV abundance table for doris 57 samples
-
-
 fid57 <- read_csv('~/pipeline/scripts/bile_acids/data/doris_57_bile.csv')
 
 samps <- get_data_from_query_OTU(0,'shotgun_lookup_ad') %>% 
@@ -40,7 +38,6 @@ cts <- CTS %>%
   spread(key = 'sampleid' , value = 'count', fill = 0)
 ```
 
-
 ```{r}
 # remove singletons - ASVs found only by 1 read in 1 sample
 cts_mat <- cts %>% 
@@ -48,18 +45,28 @@ cts_mat <- cts %>%
   as.matrix()
 
 # find the singetons
-cts_mat_fil <- cts_mat[rowSums(cts_mat > 0) > 1, ]
+num_zero_thre <- floor(ncol(cts_mat) * 0.97)
+
+cts_mat_fil <- cts_mat[rowSums(cts_mat == 0) <= num_zero_thre, ]
+
+cts_mat_fil <- cts_mat_fil %>% 
+  as.data.frame() %>% 
+  rownames_to_column('asv_key')
+
+cts_mat_fil %>% 
+  write_tsv('../data/doris57/asv_cts_fil.tsv')
+
+#cts_mat_fil <- cts_mat[rowSums(cts_mat) == 1, ]
+
+cts_mat_fil <- read_tsv('../data/doris57/asv_cts_fil.tsv')
 ```
 
 ```{r}
-cts %>% 
-  write_tsv('../data/doris57/asv_cts.tsv')
-
 # output the asv sequence to a new file
 SEQS <- get_data_from_query_OTU(0,'asv_sequences_ag')
 
 seqs <- SEQS %>% 
-  filter(key %in% cts$asv_key)
+  filter(key %in% cts_mat_fil$asv_key)
 
 
 write.fasta(sequences = as.list(seqs$asv_sequence), 
