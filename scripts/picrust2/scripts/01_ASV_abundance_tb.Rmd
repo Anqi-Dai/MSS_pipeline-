@@ -38,7 +38,17 @@ cts <- CTS %>%
   filter(sampleid %in% samps) %>% 
   select(asv_key, sampleid, count) %>% 
   spread(key = 'sampleid' , value = 'count', fill = 0)
+```
 
+
+```{r}
+# remove singletons - ASVs found only by 1 read in 1 sample
+cts_mat <- cts %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+# find the singetons
+cts_mat_fil <- cts_mat[rowSums(cts_mat > 0) > 1, ]
 ```
 
 ```{r}
