@@ -1,0 +1,80 @@
+---
+title: "Compare picrust2 pred and humann2 uniref50 output"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+library(tidyverse)
+library(ggvenn)
+library(ggpubr)
+```
+
+```{r}
+# match between the fid and sampleid 
+pw <- read_tsv('../data/doris57/picrust2_out/pathways_out/path_abun_unstrat.tsv')
+
+target <- colnames(pw)[-1]
+  
+fid57 <- read_csv('~/pipeline/scripts/bile_acids/data/doris_57_bile.csv')
+
+match2 <- get_data_from_query_OTU(0,'shotgun_lookup_ad') %>% 
+  filter(fid %in% fid57$sampleid) %>% 
+  distinct(sampleid, fid) %>% 
+  filter(sampleid %in% target)
+```
+
+
+## compare pathway abundance
+
+```{r}
+h50 <- read_tsv('../data/doris57/uniref50/pabun/humann2_final_out/humann2_pathabundance_unstratified.tsv') %>% 
+  rename(pathway = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_uniref50$',''))) %>% 
+  # select the pathways that have a metacyc ID
+  filter(str_detect(pathway, ':')) %>% 
+  # only keeping the ID
+  mutate(pathway = str_replace(pathway, ':.+$',''))
+```
+```{r}
+two_list <- Venn(list(humann2 = h50$pathway,
+                      p2 = pw$pathway))
+   
+ggvenn(two_list) 
+
+```
+```{r}
+# use the currently overlapped sampleids and pathway names
+ol_pw <- intersect(pw$pathway, h50$pathway)
+
+ol_samp <- intersect(colnames(h50)[-1], colnames(pw)[-1])
+
+h50_sub <- h50 %>% 
+  filter(pathway %in% ol_pw) %>% 
+  select(pathway, ol_samp) %>% 
+  gather(key = 'sampleid', value = 'cnt_humann2', names(.)[2]:names(.)[ncol(.)])
+
+pw_sub <- pw %>% 
+  filter(pathway %in% ol_pw) %>% 
+  select(pathway, ol_samp) %>% 
+  gather(key = 'sampleid', value = 'cnt_picrust', names(.)[2]:names(.)[ncol(.)])
+
+res <- h50_sub %>% 
+  full_join(pw_sub)
+
+cor_res <- res %>% 
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$cnt_humann2, 
+                           .$cnt_picrust, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'pearson')
+
+
+cor_res %>% 
+  ggboxplot(y = 'pearson', add = 'jitter')
+
+summary(cor_res)
+```
+
+## compare genefamily abundance
