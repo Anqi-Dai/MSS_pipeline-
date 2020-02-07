@@ -34,8 +34,9 @@ h50 <- read_tsv('../data/doris57/uniref50/pabun/humann2_final_out/humann2_pathab
   # select the pathways that have a metacyc ID
   filter(str_detect(pathway, ':')) %>% 
   # only keeping the ID
-  mutate(pathway = str_replace(pathway, ':.+$',''))
+  mutate(pathway = str_replace(pathway, ':.+$','')) 
 ```
+
 ```{r}
 two_list <- Venn(list(humann2 = h50$pathway,
                       p2 = pw$pathway))
@@ -47,20 +48,19 @@ ggvenn(two_list)
 # use the currently overlapped sampleids and pathway names
 ol_pw <- intersect(pw$pathway, h50$pathway)
 
-ol_samp <- intersect(colnames(h50)[-1], colnames(pw)[-1])
 
 h50_sub <- h50 %>% 
   filter(pathway %in% ol_pw) %>% 
-  select(pathway, ol_samp) %>% 
   gather(key = 'sampleid', value = 'cnt_humann2', names(.)[2]:names(.)[ncol(.)])
 
 pw_sub <- pw %>% 
   filter(pathway %in% ol_pw) %>% 
-  select(pathway, ol_samp) %>% 
   gather(key = 'sampleid', value = 'cnt_picrust', names(.)[2]:names(.)[ncol(.)])
 
 res <- h50_sub %>% 
-  full_join(pw_sub)
+  rename(fid = sampleid) %>% 
+  left_join(match2, by  = 'fid') %>% 
+  inner_join(pw_sub , by = 'sampleid')
 
 cor_res <- res %>% 
   split(.$sampleid) %>% 
@@ -77,4 +77,9 @@ cor_res %>%
 summary(cor_res)
 ```
 
-## compare genefamily abundance
+## compare genefamily abundance KO group
+
+```{r}
+
+```
+
