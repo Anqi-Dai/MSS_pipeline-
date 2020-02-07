@@ -1,0 +1,49 @@
+---
+title: "Sample code food"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+uni <- read_excel('~/pipeline/scripts/food_tree/data/source/eaten_FNDDS.xlsx', sheet = 1)
+
+uni_rm <- read_excel('~/pipeline/scripts/food_tree/data/source/eaten_FNDDS.xlsx', sheet = 2, col_names = F)
+
+uniq_food <- uni %>% 
+  distinct(item1_value_raw_raw,  .keep_all = T)
+
+# The all table with all the records
+all <- read_excel('~/pipeline/scripts/food_tree/data/source/new_list.xls') %>% 
+  filter(!Food_NSC %in% uni_rm$...1)
+
+```
+
+```{r}
+# need to correct the all table, some of the NAs
+all %>% 
+  mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
+  filter(Por_eaten != 0) %>% 
+  filter(is.na(Calories_kcal) | 
+           is.na(Proteing_g) |
+           is.na(Fat_g) |
+           is.na(Carbohydrates_g) |
+           is.na(Fibers_g) |
+           is.na(Sugars_g) |
+           is.na(Sodium_mg) ) %>% 
+  arrange(Food_NSC ) %>% 
+  select(-SFA_g, -Cholesterol_mg, -MUFA_g, -PUFA_g) %>% 
+  write_csv('../data/NA_in_all_table.csv')
+
+```

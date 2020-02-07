@@ -7,6 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
+source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
 ```
 
 ```{r}
@@ -27,7 +28,6 @@ short_final <- short %>%
 # the estimation results from species abundance from Marina
 estima <- read_csv('data/Doris_butyrate_scatter_01_13_2020_for_angel.csv')
 
-
 all <- short_final %>% 
   inner_join(estima, by  = 'sampleid')
 
@@ -36,6 +36,8 @@ all %>%
 
 cor.test(all$RPKM, all$butyrate_prod, method = 'pearson')
 
+
+cor.test(all$RPKM, all$butyrate_prod, method = 'spearman')
 # have some correlation 
 ``` 
 
