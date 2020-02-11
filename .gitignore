@@ -10,3 +10,5 @@
 /scripts/*/*/*html
 /scripts/MG_fast/*
 /scripts/Rmd/*/dada/*
+/scripts/*/doc/*
+/scripts/Rmd/*/data/*

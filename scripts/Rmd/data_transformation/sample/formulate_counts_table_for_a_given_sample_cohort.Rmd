@@ -1,0 +1,95 @@
+---
+title: "Formulate counts table for a certain sample cohort"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+Could you generate an OTU table that is filtered for taxa >0.01% (as below) but for individual samples, using this sample file below
+
+```{r}
+# load the table
+samples <- read_csv('~/pipeline/scripts/ppp_Nilu/data/msk duke sdtable 01 18 20.csv')
+
+samples %>% 
+  count(mrn) %>% 
+  arrange(desc(n))
+
+CTS_otu <- get_data_from_query_OTU(0,'counts_ag')
+
+# some samples have pool name attached to it so no exact match with the sampleid in the database
+length(intersect(samples$Sample.ID, CTS_otu$sampleid))
+
+
+missing <- paste(setdiff(samples$Sample.ID, CTS_otu$sampleid),  collapse = '|')
+
+missing_sampleid <-  CTS_otu %>% 
+  filter(str_detect(sampleid, missing)) %>% 
+  distinct(sampleid) 
+
+# create a column with full sampleid that will join with castoricenter 
+sampleids <- bind_rows(
+  sampleid = missing_sampleid,
+  sampleid = tibble(sampleid = intersect(samples$Sample.ID, CTS_otu$sampleid))
+)
+```
+
+```{r}
+# annotation table
+
+# create this taxa column that is like the metaphlan format but with some level of being NA then use the upper level taxa name
+annot_all <- get_data_from_query_OTU(2)
+
+annot <- annot_all %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}___OTUkey_{key}'))
+```
+
+
+```{r}
+cts <- CTS_otu %>% 
+  filter(sampleid %in% sampleids$sampleid) 
+
+# calculate of the relative abundance: dividing the count by the total 
+cts_sample_sum <- cts %>% 
+  group_by(sampleid) %>% 
+  summarise(total = sum(count))
+
+cts <- cts %>% 
+  left_join(cts_sample_sum, by  = 'sampleid') %>% 
+  mutate(relab = round(count/total, 5)) 
+
+# change the long form to the wider form
+cts_final <- cts %>% 
+  select(otu_key, relab, sampleid) %>% 
+  left_join(annot %>% 
+              rename(otu_key =key ) %>% 
+              select(otu_key, taxa), by = 'otu_key') %>% 
+  spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
+  select(-otu_key) 
+```
+
+```{r}
+# Filter on the counts matrix so that At least 10% of samples have that taxa relab > 0.01% (0.0001)
+cts_final <- cts_final %>% 
+  column_to_rownames('taxa') %>% 
+  as.matrix()
+
+pass_thre_num <- ceiling(ncol(cts_final) * 0.1)
+
+cts_final <- cts_final[rowSums(cts_final > 0.0001) >= pass_thre_num, ] 
+
+
+# write out the filtered matrix
+cts_final %>% 
+  as.data.frame() %>% 
+  rownames_to_column('taxa') %>% 
+  write_tsv('../data/otu_samples_relab_filtered.tsv')
+```
+
