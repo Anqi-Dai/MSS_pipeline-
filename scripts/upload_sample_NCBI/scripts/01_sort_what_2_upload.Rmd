@@ -1,0 +1,33 @@
+---
+title: "Sort out which need to be uploaded"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+all <- read_csv('/Volumes/vandenBrinkLab/Sarah/Project_auto/msk duke sdtable 01 18 20.csv') 
+```
+
+```{bash}
+cat ../data/table_download_1.tsv ../data/table_download_2.tsv > ../data/current_on_ncbi_20200212.tsv
+```
+
+```{r}
+current <- read_tsv('../data/current_on_ncbi_20200212.tsv')
+```
+```{r}
+# how many overlap 
+length(intersect(current$BioSample.name, all$Sample.ID))
+
+target <- all %>% 
+  filter(!Sample.ID %in% current$BioSample.name)
+```
+
+```{r}
+
+```
+

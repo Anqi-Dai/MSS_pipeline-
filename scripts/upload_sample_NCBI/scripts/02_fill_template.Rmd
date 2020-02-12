@@ -1,0 +1,58 @@
+---
+title: "fill in the biosample tsv template"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+templt <- read_tsv('../data/MIMS.me.human-gut.5.0.tsv')
+colnames(templt)
+```
+```{r}
+# load the nilu target samples table 
+# If information is unavailable for any mandatory field, please enter 'not collected', 'not applicable' or 'missing' as appropriate.
+target <- read_csv('../data/Nilu_to_be_uploaded.csv')
+
+bioproject_accession <- 'PRJNA606262'
+
+organism <- 'human gut metagenome'
+
+collection_date <- 'missing'
+
+env_broad_scale <- 'missing'
+env_local_scale <- 'ENVO:0000903'
+env_medium <- 'not collected'
+# geo_loc_name is either MSK or duke
+host <- "Homo sapiens"
+#lat_lon
+geom_location = c("MSK"="USA:New York",
+                   "Duke"="USA:Durham")
+
+gps_coordinate = c("MSK"="40.7641 N 73.9568 W",
+                   "Duke"="36 N 79 W")
+```
+
+```{r}
+templt_fil <- tibble(`*sample_name` = target$Sample.ID,
+         sample_title = target$Sample.ID,
+         bioproject_accession = bioproject_accession,
+         `*organism` = organism,
+         `*collection_date` = collection_date,
+         `*env_broad_scale` = env_broad_scale,
+         `*env_local_scale` = env_local_scale,
+         `*env_medium` = env_medium,
+         `*geo_loc_name` = if_else(str_detect(target$institution, 'MSK'), 'USA:New York', 'USA:Durham'),
+         `*host` = host,
+         `*lat_lon` = if_else(str_detect(target$institution, 'MSK'), '40.7641 N 73.9568 W', '36 N 79 W'))
+
+
+```
+
+```{r}
+
+```
+
