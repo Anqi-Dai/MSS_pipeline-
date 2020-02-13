@@ -28,6 +28,8 @@ env_local_scale <- 'ENVO:0000903'
 env_medium <- 'not collected'
 # geo_loc_name is either MSK or duke
 host <- "Homo sapiens"
+
+isolation_source <- 'stool'
 #lat_lon
 geom_location = c("MSK"="USA:New York",
                    "Duke"="USA:Durham")
@@ -47,12 +49,14 @@ templt_fil <- tibble(`*sample_name` = target$Sample.ID,
          `*env_medium` = env_medium,
          `*geo_loc_name` = if_else(str_detect(target$institution, 'MSK'), 'USA:New York', 'USA:Durham'),
          `*host` = host,
-         `*lat_lon` = if_else(str_detect(target$institution, 'MSK'), '40.7641 N 73.9568 W', '36 N 79 W'))
+         `*lat_lon` = if_else(str_detect(target$institution, 'MSK'), '40.7641 N 73.9568 W', '36 N 79 W'),
+         isolation_source = isolation_source)
 
+
+templt_fil %>% 
+  write_tsv('../data/Nilu_to_be_uploaded_biosample_template_filled.tsv')
 
 ```
 
-```{r}
 
-```
 

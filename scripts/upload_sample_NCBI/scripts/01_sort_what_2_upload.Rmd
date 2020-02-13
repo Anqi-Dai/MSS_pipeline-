@@ -28,6 +28,7 @@ target <- all %>%
 ```
 
 ```{r}
-
+target %>% 
+  write_csv('../data/Nilu_to_be_uploaded.csv')
 ```
 
