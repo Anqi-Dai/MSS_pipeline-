@@ -21,9 +21,9 @@ bioproject_accession <- 'PRJNA606262'
 
 organism <- 'human gut metagenome'
 
-collection_date <- 'missing'
+collection_date <- 'NA'
 
-env_broad_scale <- 'missing'
+env_broad_scale <- 'NA'
 env_local_scale <- 'ENVO:0000903'
 env_medium <- 'not collected'
 # geo_loc_name is either MSK or duke
@@ -39,6 +39,7 @@ gps_coordinate = c("MSK"="40.7641 N 73.9568 W",
 ```
 
 ```{r}
+# sample_id_unique is added to be the differentiating attribute
 templt_fil <- tibble(`*sample_name` = target$Sample.ID,
          sample_title = target$Sample.ID,
          bioproject_accession = bioproject_accession,
@@ -50,13 +51,242 @@ templt_fil <- tibble(`*sample_name` = target$Sample.ID,
          `*geo_loc_name` = if_else(str_detect(target$institution, 'MSK'), 'USA:New York', 'USA:Durham'),
          `*host` = host,
          `*lat_lon` = if_else(str_detect(target$institution, 'MSK'), '40.7641 N 73.9568 W', '36 N 79 W'),
-         isolation_source = isolation_source)
+         isolation_source = isolation_source,
+         sample_id_unique = target$Sample.ID)
 
 
-templt_fil %>% 
-  write_tsv('../data/Nilu_to_be_uploaded_biosample_template_filled.tsv')
+# Currently, the limit on the number of samples in a single submission is 1000.
+# have to split the file
+templt_fil_split <- templt_fil %>% 
+  split(cut_width(1:nrow(.), 1000, boundary=0))
+
+for(i in 1:length(templt_fil_split)) {
+  write_tsv(templt_fil_split[[i]], str_glue('../data/upload_df_{i}.tsv'))
+}
+```
+
+upload the table to the created biosample submission
+
+and then download the table that has accession in it
+
+
+needs to uplaod the SRA files now
+
+
+
+find out where the fastq files are in the cluster and download them to local folder
+
+
+```{r}
+# find out where the fastq files are 
+all <- get_data_from_query_OTU(0, 'asv_alpha_diversity_ag')
+
+paths <- all %>% 
+  filter(sampleid %in% target$Sample.ID) %>% 
+  distinct(sampleid, .keep_all = T)
+
+
+missing_samp <- sort(setdiff(target$Sample.ID, paths$sampleid))
+missing <- paste(missing_samp, collapse = '|')
+
+missing_df <- all %>% 
+  filter(str_detect(oligos_id, missing))
+
+missing_samp %>% 
+  as.data.frame() %>% 
+  write_csv('../data/missing_path_201.csv', col_names = F)
+```
+
+Turn out that the missing ones are possibly all duke samples let's find out
+
+```{r}
+missing_ <- target %>% 
+  filter(Sample.ID %in% missing_samp)
+
+missing_msk <- missing_ %>% 
+  filter(institution == 'MSK Auto') %>% 
+  select(Sample.ID) 
+
+missing_msk  %>% 
+  write_csv('../data/missing_path_118.csv', col_names = F)
 
 ```
 
+Download the ones we already know where they are in msk from cluster
 
+```{r}
+paths %>% 
+  dplyr::select(sampleid, path_pool) %>% 
+  transmute(cmd = str_glue(' rsync --progress --partial -avz  daia1@lilac.mskcc.org:{path_pool}/{sampleid}..*.fastq.gz upload_fastqs')) %>% 
+  select(cmd) %>% 
+  write_csv('../data/download_msk_known.sh', col_names = F)
+```
+
+
+Locate the missing ones in duke
+
+```{r}
+duke_demultiplex <- read_tsv('../doc/list_demultiplexed_samples_Duke.txt', col_names = F) %>% 
+  filter(X2 %in% missing_samp) %>% 
+  mutate(cmd = str_glue(' rsync --progress --partial -avz daia1@lilac.mskcc.org:{X1} upload_fastqs'))
+
+
+duke_demultiplex %>% 
+  select(cmd) %>% 
+  write_csv('../data/download_duke.sh', col_names = F)
+  
+```
+
+Locate the missing ones in MSK (118) from updated demultiplexed list
+
+```{r}
+# the 17 ones that AG help to find
+f17 <- read_delim('../data/nilus_lost_samples17of118.txt', ' ', col_names = F)
+
+length(intersect(f17$X3, missing_msk$Sample.ID))
+setdiff(f17$X3, missing_msk$Sample.ID)
+
+found14 <- f17 %>% 
+  filter(X3 %in% missing_msk$Sample.ID)
+
+found14 %>% 
+  mutate(cmd = str_glue(' rsync --progress --partial -avz daia1@lilac.mskcc.org:{X1} upload_fastqs')) %>% 
+  select(cmd) %>% 
+  write_csv('../data/download_found_14.sh', col_names = F)
+
+```
+
+```{r}
+extra_msk <- read_delim('../data/demultiplexed_path/list_demultiplexed_samples_extra.txt', delim = ' ', col_names = F) %>% 
+  filter(X2 %in% missing_msk$Sample.ID) %>% 
+  mutate(X1 = str_glue('/data/brinkvd/gomesa/e63data/pipeline_16S_call/{X1}')) %>% 
+  mutate(cmd = str_glue(' rsync --progress --partial -avz daia1@lilac.mskcc.org:{X1} upload_fastqs'))%>% 
+  select(cmd) %>% 
+  write_csv('../data/download_found_103.sh', col_names = F)
+```
+
+create the meta data table for the SRA upload
+
+
+
+
+
+```{r}
+# the accessions from NCBI
+acc <- read_tsv('../data/attributes_with_accession.tsv') %>% 
+  select(accession, sample_name) 
+
+Sys.glob(str_glue('../data/upload_fastqs/*R1*'))
+
+# a template meta data file
+sra <- read_tsv('../data/sra_meta_242.tsv') 
+
+colnames(sra)
+
+sra %>% 
+  select(-biosample_accession, -library_ID,-filename, -filename2) %>% 
+  distinct()
+
+bioproject_accession <- 'PRJNA606262'
+title <- 'Stool sample of auto-HCT patient'
+library_strategy <- 'amplicon'
+library_source <- 'GENOMIC'
+library_selection <- 'PCR'
+library_layout <- 'paired'
+platform <- 'ILLUMINA'
+instrument_model <- 'Illumina MiSeq'
+design_description <- 'PCR amplification of 16S V4-V5 regions; Bead-beating, phenol chloroform DNA extraction'
+filetype <- 'fastq'
+
+# grad the name of the R1 and R2
+R1_aes <- list.files('../data/upload_fastqs/', pattern = 'aes\\..+R1.fastq.gz')
+
+sra_fill <- tibble(
+  biosample_accession = acc$accession,
+  library_ID = acc$sample_name,
+  bioproject_accession = bioproject_accession,
+  title = title,
+  library_strategy = library_strategy,
+  library_source = library_source,
+  library_selection = library_selection,
+  library_layout =library_layout,
+  platform= platform,
+  instrument_model= instrument_model,
+  design_description=design_description,
+  filetype= filetype,
+  filename='',
+  filename2=''
+)
+
+```
+
+```{r}
+# sort out the files that have already downloaded
+
+
+local <- tibble(
+  filename = Sys.glob(str_glue('../data/upload_fastqs/*R1*'))
+) %>% 
+  mutate(filename = str_replace(filename, '../data/upload_fastqs/','')) %>% 
+  split(str_detect(.$filename, 'aes|tp'))
+
+local_duke <- local %>% 
+  pluck('TRUE') %>% 
+  mutate(sampleid = str_replace(filename, '_R1.fastq.gz',''))
+
+local_msk <-  local %>% 
+  pluck('FALSE') %>% 
+  mutate(sampleid = if_else(str_detect(filename, '\\.\\.pool'), str_replace(filename, '\\.\\.pool.+$', ''), str_replace(filename, '_R1.fastq.gz','')))
+
+local_final <- bind_rows(
+  local_duke,
+  local_msk
+) %>% 
+  mutate(filename2 = str_replace(filename, 'R1','R2'))
+
+#length(intersect(local_msk$sampleid, target$Sample.ID))
+
+setdiff(target$Sample.ID, local_final$sampleid)
+
+"960A" %in% acc$sample_name
+
+local_final_split <- local_final %>% 
+  split(.$sampleid %in% acc$sample_name)
+```
+
+```{r}
+# create the sra meta for the 157 first
+acc2 <- read_tsv('../data/attributes_with_accession2.tsv') %>% 
+  select(accession, sample_name) %>% 
+  full_join(local_final_split %>% 
+              pluck('FALSE') %>% 
+              rename(sample_name = sampleid))
+
+sra_fill_2 <- tibble(
+  biosample_accession = acc2$accession,
+  library_ID = acc2$sample_name,
+  bioproject_accession = bioproject_accession,
+  title = title,
+  library_strategy = library_strategy,
+  library_source = library_source,
+  library_selection = library_selection,
+  library_layout =library_layout,
+  platform= platform,
+  instrument_model= instrument_model,
+  design_description=design_description,
+  filetype= filetype,
+  filename=acc2$filename,
+  filename2=acc2$filename2
+)
+
+dir.create('../data/sra_meta')
+sra_fill_2 %>% 
+  write_tsv('../data/sra_meta/nilu_fill2.tsv')
+
+
+# move the files to a fill2 folder
+dir.create('../data/upload_fastqs/fill2')
+
+
+```
 

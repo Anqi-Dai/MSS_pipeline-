@@ -25,6 +25,15 @@ length(intersect(current$BioSample.name, all$Sample.ID))
 
 target <- all %>% 
   filter(!Sample.ID %in% current$BioSample.name)
+
+already_upload <- current %>% 
+  filter(BioSample.name %in% all$Sample.ID)
+
+already_upload %>% 
+  distinct(Submission)
+
+already_upload %>% 
+  write_csv('../data/nilu_samples_already_in_ncbi.csv')
 ```
 
 ```{r}
