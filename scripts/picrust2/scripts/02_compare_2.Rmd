@@ -22,8 +22,9 @@ match2 <- get_data_from_query_OTU(0,'shotgun_lookup_ad') %>%
   filter(fid %in% fid57$sampleid) %>% 
   distinct(sampleid, fid) %>% 
   filter(sampleid %in% target)
-```
 
+# there's a total of 57 samples in doris cohort but we only use the 54 that pass the total 2000 counts threshold in 16S data
+```
 
 ## compare pathway abundance
 
@@ -38,8 +39,8 @@ h50 <- read_tsv('../data/doris57/uniref50/pabun/humann2_final_out/humann2_pathab
 ```
 
 ```{r}
-two_list <- Venn(list(humann2 = h50$pathway,
-                      p2 = pw$pathway))
+two_list <- list(humann2 = h50$pathway,
+                      picrust2 = pw$pathway)
    
 ggvenn(two_list) 
 
@@ -60,7 +61,7 @@ pw_sub <- pw %>%
 res <- h50_sub %>% 
   rename(fid = sampleid) %>% 
   left_join(match2, by  = 'fid') %>% 
-  inner_join(pw_sub , by = 'sampleid')
+  inner_join(pw_sub)
 
 cor_res <- res %>% 
   split(.$sampleid) %>% 
@@ -68,18 +69,85 @@ cor_res <- res %>%
                            .$cnt_picrust, 
                            method = 'pearson', 
                            exact = F)$estimate, 2)) %>% 
-  gather(key = 'sampleid', value = 'pearson')
+  gather(key = 'sampleid', value = 'pearson_cor')
 
 
 cor_res %>% 
-  ggboxplot(y = 'pearson', add = 'jitter')
+  ggboxplot(y = 'pearson_cor', add = 'jitter',
+            title = 'Pearson correlation sample-wise')
 
-summary(cor_res)
+summary(cor_res$pearson_cor)
+
+
+spea_res <- res %>% 
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$cnt_humann2, 
+                           .$cnt_picrust, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'spearman_cor')
+
+
+spea_res %>% 
+  ggboxplot(y = 'spearman_cor', add = 'jitter',
+            title = 'Spearman correlation sample-wise')
+
+
+summary(spea_res$spearman_cor)
 ```
 
 ## compare genefamily abundance KO group
 
 ```{r}
+picr <- read_tsv('../data/doris57/picrust2_out/KO_metagenome_out/pred_metagenome_unstrat.tsv')%>% 
+  rename(KOID = names(.)[1]) %>% 
+  gather(key = 'sampleid', value = 'picrust2_KO', names(.)[2]:names(.)[ncol(.)])
 
+u50 <- read_tsv('../data/doris57/uniref50/genefam/humann2_final_out/humann2_genefamilies_KO_regroup_unstratified.tsv') %>% 
+  rename(KOID = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_uniref50$',''))) %>% 
+  gather(key = 'sampleid', value = 'humann2_KO', names(.)[2]:names(.)[ncol(.)])
+
+res <- u50 %>% 
+  rename(fid = sampleid) %>% 
+  inner_join(match2, by  = 'fid') %>% 
+  inner_join(picr)
+```
+
+```{r}
+# the KO gene family comparison
+pear_res <- res %>% 
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$humann2_KO, 
+                           .$picrust2_KO, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'pearson_cor')
+
+
+pear_res %>% 
+  ggboxplot(y = 'pearson_cor', add = 'jitter',
+            title = 'Pearson correlation sample-wise in KO abundance')
+
+summary(pear_res$pearson_cor)
+```
+
+
+```{r}
+spea_res <- res %>% 
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$humann2_KO, 
+                           .$picrust2_KO, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'spearman_cor')
+
+
+spea_res %>% 
+  ggboxplot(y = 'spearman_cor', add = 'jitter',
+            title = 'Spearman correlation sample-wise in KO abundance')
+
+
+summary(spea_res$spearman_cor)
 ```
 
