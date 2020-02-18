@@ -223,7 +223,6 @@ sra_fill <- tibble(
 ```{r}
 # sort out the files that have already downloaded
 
-
 local <- tibble(
   filename = Sys.glob(str_glue('../data/upload_fastqs/*R1*'))
 ) %>% 
@@ -287,6 +286,20 @@ sra_fill_2 %>%
 # move the files to a fill2 folder
 dir.create('../data/upload_fastqs/fill2')
 
-
+sra_fill_2 %>% 
+  select(filename, filename2) %>% 
+  gather(key = 'type', value = 'fn') %>% 
+  transmute(str_glue('mv upload_fastqs/{fn} upload_fastqs/fill2')) %>% 
+  write_csv('../data/move_2.csv', col_names = F)
 ```
 
+Then upload the fastq files thru aspera
+
+```{bash}
+/Users/daia1/Applications/Aspera\ Connect.app/Contents/Resources/ascp \
+  -i /Users/daia1/pipeline/scripts/upload_sample_NCBI/data/aspera.openssh \
+  -QT -l100m -k1 -d ~/pipeline/scripts/upload_sample_NCBI/data/upload_fastqs/fill2 \
+  subasp@upload.ncbi.nlm.nih.gov:uploads/adai_bu.edu_2tiLlnse
+```
+
+And then wait 10 min to select the preloaded folder
