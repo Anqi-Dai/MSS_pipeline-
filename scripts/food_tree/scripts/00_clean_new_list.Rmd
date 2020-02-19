@@ -77,31 +77,32 @@ check %>%
 
 
 ```{r}
-check <- all %>% 
-    #filter(!...1 %in% corr$...1) %>% 
-    #mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$','')) %>% 
-   mutate(Calories_kcal = as.numeric(Calories_kcal)) %>% 
-  arrange(desc(Calories_kcal))
+# merging with the table Peter corrected the unique record to check
+not_check <- All %>% 
+  filter(Calories_kcal >= 10 & Calories_kcal <= 590) %>% 
+  distinct(Food_NSC, .keep_all = T)
+
+not_check %>% 
+  write_csv('../data/source/All_data_to_be_checked.csv')
+
+```
 
 
-
-boxplot(check$Calories_kcal)
+```{r}
+# regain the Calories_kcal < 10 | Calories_kcal > 590 table expanding the unique items
+cal_corre <- read_csv('../data/source/All_data_check_calories_peter.csv') %>% 
+  select(Food_NSC:Sodium_mg)
 ```
 
 ```{r}
-# check some of the columns to see if it is drastically wrong
-summary(All$Calories_kcal)
+# join with the unique food with food code 
+not_check_uniqe_food_code <- not_check %>% 
+  inner_join(uniq_food %>% 
+               select(Food_NSC = item1_value_raw_raw,
+                      Food.Code,
+                      FNDDS.Main.Food.Description), by = 'Food_NSC') %>% 
+  distinct(Food.Code, .keep_all = T)
 
-All %>% 
-  ggboxplot(y = 'Calories_kcal')
-
-All %>% 
-  gghistogram(x = 'Calories_kcal', bins = 100)
-
-
-
+not_check_uniqe_food_code %>% 
+  write_csv('../data/not_check_uniqe_food_code.csv')
 ```
-
-
-
-

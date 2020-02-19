@@ -303,3 +303,24 @@ Then upload the fastq files thru aspera
 ```
 
 And then wait 10 min to select the preloaded folder
+
+
+
+```{r}
+# the jonas paper samples upload
+jo <- read_tsv('../data/WbcPaperSamplesNotYetInSRA.txt')
+
+
+acc <- bind_rows(
+  read_tsv('../data/attributes_with_accession.tsv') %>% 
+    select(accession, sample_name),
+  read_tsv('../data/attributes_with_accession2.tsv') %>% 
+    select(accession, sample_name)
+) %>% 
+  mutate(in_jonas = if_else(sample_name %in% jo$Sample_ID, T, F)) %>% 
+  arrange(in_jonas)
+
+acc %>% 
+  write_tsv('../data/auto_samples_upload_in_jonas_not.tsv')
+```
+
