@@ -1,0 +1,107 @@
+---
+title: "Cleaning the new list (all table)"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(ggpubr)
+```
+
+Cleaning the new list, which is a table with all patients eaten food of all time
+with food_NSC included that could be used to join with unique that could link to FNDDS food code
+
+
+```{r}
+# uni is the table with unique food_nsc translated to fndds code
+uni <- read_excel('../data/source/eaten_FNDDS.xlsx', sheet = 1)
+
+uni_rm <- read_excel('../data/source/eaten_FNDDS.xlsx', sheet = 2, col_names = F)
+
+uniq_food <- uni %>% 
+  distinct(item1_value_raw_raw,  .keep_all = T)
+
+# The all table with all the records
+all <- read_excel('../data/source/new_list.xls') %>% 
+  # remove some entries that like a section header instead of real food
+  filter(!Food_NSC %in% uni_rm$...1) %>% 
+  # remove the records that have 0 in Por_eaten since that means ordered but not eaten
+  mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
+  filter(Por_eaten != 0) %>% 
+  # remove the 4 columns since we don't care SFA_g, Cholesterol_mg, MUFA_g, PUFA_g c
+  select(-SFA_g, -Cholesterol_mg, -MUFA_g, -PUFA_g) 
+
+# the corrected table (with many essencial columns NA) from Peter
+corr <- read_csv('../data/source/NA_in_all_table_removed.csv')
+
+# update the all table with corrected table from Peter
+All <- bind_rows(
+  corr %>% 
+    mutate(Date = dmy(Date)),
+  all %>% 
+    filter(!...1 %in% corr$...1) %>% 
+  # remove the + sign after numbers in some columns
+    mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$',''),
+           Proteing_g = str_replace_all(Proteing_g, '\\+$',''),
+           Fat_g = str_replace_all(Fat_g, '\\+$',''),
+           Carbohydrates_g = str_replace_all(Carbohydrates_g, '\\+$',''),
+           Fibers_g = str_replace_all(Fibers_g, '\\+$',''),
+           Sugars_g = str_replace_all(Sugars_g, '\\+$',''),
+           Sodium_mg = str_replace_all(Sodium_mg, '\\+$','')) %>% 
+    mutate(Calories_kcal = as.numeric(Calories_kcal),
+           Proteing_g = as.numeric(Proteing_g),
+           Fat_g = as.numeric(Fat_g),
+           Carbohydrates_g = as.numeric(Carbohydrates_g),
+           Fibers_g = as.numeric(Fibers_g),
+           Sugars_g = as.numeric(Sugars_g),
+           Sodium_mg = as.numeric(Sodium_mg)) %>% 
+    mutate(Date = mdy(Date))
+) %>% 
+  rename(key = ...1)  %>% 
+  select(-Name) %>% 
+  separate(Meal, into = c('Meal','Menu'), sep = '  \\(Menu: ')
+```
+
+```{r}
+# suspicious records with calories
+check <- All %>% 
+  filter(Calories_kcal < 10 | Calories_kcal > 590) %>% 
+  distinct(Food_NSC, .keep_all = T)
+
+check %>% 
+  write_csv('../data/source/All_data_check_calories.csv')
+```
+
+
+```{r}
+check <- all %>% 
+    #filter(!...1 %in% corr$...1) %>% 
+    #mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$','')) %>% 
+   mutate(Calories_kcal = as.numeric(Calories_kcal)) %>% 
+  arrange(desc(Calories_kcal))
+
+
+
+boxplot(check$Calories_kcal)
+```
+
+```{r}
+# check some of the columns to see if it is drastically wrong
+summary(All$Calories_kcal)
+
+All %>% 
+  ggboxplot(y = 'Calories_kcal')
+
+All %>% 
+  gghistogram(x = 'Calories_kcal', bins = 100)
+
+
+
+```
+
+
+
+

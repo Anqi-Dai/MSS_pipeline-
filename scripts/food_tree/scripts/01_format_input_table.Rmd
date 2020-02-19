@@ -10,16 +10,7 @@ library(readxl)
 ```
 
 ```{r}
-uni <- read_excel('../data/source/eaten_FNDDS.xlsx', sheet = 1)
 
-uni_rm <- read_excel('../data/source/eaten_FNDDS.xlsx', sheet = 2, col_names = F)
-
-uniq_food <- uni %>% 
-  distinct(item1_value_raw_raw,  .keep_all = T)
-
-# The all table with all the records
-all <- read_excel('../data/source/new_list.xls') %>% 
-  filter(!Food_NSC %in% uni_rm$...1)
 
 two_list <- Venn(list(All = all$Food_NSC,
                  uni = uniq_food$item1_value_raw_raw))
@@ -111,5 +102,11 @@ food_database <- uniq_food %>%
 food_database %>% 
   write_tsv('../data/source/food_database_file.tsv')
   
+```
+
+
+```{r}
+
+
 ```
 
