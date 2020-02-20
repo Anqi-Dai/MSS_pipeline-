@@ -11,6 +11,7 @@ library(tidyverse)
 ```{r}
 templt <- read_tsv('../data/MIMS.me.human-gut.5.0.tsv')
 colnames(templt)
+source('~/db.R')
 ```
 ```{r}
 # load the nilu target samples table 
@@ -198,25 +199,8 @@ instrument_model <- 'Illumina MiSeq'
 design_description <- 'PCR amplification of 16S V4-V5 regions; Bead-beating, phenol chloroform DNA extraction'
 filetype <- 'fastq'
 
-# grad the name of the R1 and R2
-R1_aes <- list.files('../data/upload_fastqs/', pattern = 'aes\\..+R1.fastq.gz')
 
-sra_fill <- tibble(
-  biosample_accession = acc$accession,
-  library_ID = acc$sample_name,
-  bioproject_accession = bioproject_accession,
-  title = title,
-  library_strategy = library_strategy,
-  library_source = library_source,
-  library_selection = library_selection,
-  library_layout =library_layout,
-  platform= platform,
-  instrument_model= instrument_model,
-  design_description=design_description,
-  filetype= filetype,
-  filename='',
-  filename2=''
-)
+
 
 ```
 
@@ -251,6 +235,35 @@ setdiff(target$Sample.ID, local_final$sampleid)
 
 local_final_split <- local_final %>% 
   split(.$sampleid %in% acc$sample_name)
+
+local_final %>% 
+  filter(sampleid == '960A')
+
+
+# join the accession with the file name
+acc1 <- acc %>% 
+  full_join(local_final %>% 
+              rename(sample_name = sampleid), by  = 'sample_name')
+
+sra_fill1 <- tibble(
+  biosample_accession = acc1$accession,
+  library_ID = acc1$sample_name,
+  bioproject_accession = bioproject_accession,
+  title = title,
+  library_strategy = library_strategy,
+  library_source = library_source,
+  library_selection = library_selection,
+  library_layout =library_layout,
+  platform= platform,
+  instrument_model= instrument_model,
+  design_description=design_description,
+  filetype= filetype,
+  filename=acc1$filename,
+  filename2=acc1$filename2
+)
+
+sra_fill1 %>% 
+  write_tsv('../data/nilu_fill1.tsv')
 ```
 
 ```{r}
@@ -259,7 +272,7 @@ acc2 <- read_tsv('../data/attributes_with_accession2.tsv') %>%
   select(accession, sample_name) %>% 
   full_join(local_final_split %>% 
               pluck('FALSE') %>% 
-              rename(sample_name = sampleid))
+              dplyr::rename(sample_name = sampleid))
 
 sra_fill_2 <- tibble(
   biosample_accession = acc2$accession,
@@ -298,7 +311,7 @@ Then upload the fastq files thru aspera
 ```{bash}
 /Users/daia1/Applications/Aspera\ Connect.app/Contents/Resources/ascp \
   -i /Users/daia1/pipeline/scripts/upload_sample_NCBI/data/aspera.openssh \
-  -QT -l100m -k1 -d ~/pipeline/scripts/upload_sample_NCBI/data/upload_fastqs/fill2 \
+  -QT -l100m -k1 -d ~/pipeline/scripts/upload_sample_NCBI/data/upload_fastqs/fill1 \
   subasp@upload.ncbi.nlm.nih.gov:uploads/adai_bu.edu_2tiLlnse
 ```
 
