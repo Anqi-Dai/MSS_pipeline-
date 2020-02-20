@@ -112,6 +112,10 @@ res <- u50 %>%
   rename(fid = sampleid) %>% 
   inner_join(match2, by  = 'fid') %>% 
   inner_join(picr)
+
+# output the table
+res %>% 
+  write_csv('../data/doris57/KO_cnts_from_both.csv')
 ```
 
 ```{r}

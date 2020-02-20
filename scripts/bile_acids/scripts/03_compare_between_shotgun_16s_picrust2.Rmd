@@ -1,0 +1,114 @@
+---
+title: "Compare three ways of estimating secondary bile acid biosynthesis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+There are three ways of estimating: especially the comparison between picrust2 KO abundance and shotgun KO abundance. Also include the CarT project samples. 
+
+```{r}
+# the KOIDs that related to the secondary BA biosynthesis
+
+bile_KOs <- c('K01442','K15868','K15869','K15870','K15871','K15872','K15873','K15874')
+bile_KOs <- paste(bile_KOs, collapse = '|')
+
+ko_genef <- read_tsv('../data/humann2_res/humann2_genefamilies_KO_regroup.tsv') %>% 
+  filter(str_detect(`# Gene Family`, bile_KOs)) %>% 
+  filter(str_detect(`# Gene Family`, '\\|')) %>% 
+  distinct(`# Gene Family`) %>% 
+  rename(genefam = `# Gene Family`) %>% 
+  separate(genefam, into = c('KO_ID','species') ,sep = '\\|'  ) 
+
+
+```
+
+
+# The doris 54 samples
+
+```{r}
+doris_54 <- read_csv('../../picrust2/data/doris57/KO_cnts_from_both.csv') %>% 
+  filter(KOID %in% bile_KOs) %>% 
+  group_by(sampleid) %>% 
+  summarise(humann2_total = sum(humann2_KO),
+            picrust2_total = sum(picrust2_KO))
+```
+
+```{r}
+spea_res <- doris_54 %>% 
+   summarise(spea_res= round(cor.test(.$humann2_total, 
+                           .$picrust2_total, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2))
+
+spea_res
+```
+
+
+```{r}
+pear_res <- doris_54 %>% 
+   summarise(pear_res= round(cor.test(.$humann2_total, 
+                           .$picrust2_total, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2))
+
+pear_res
+```
+```{r}
+# the species count
+bile_spp <- read_csv('../data/bile_acid_produ_spp.csv') %>% 
+  filter(str_detect(species, 's__')) %>% 
+  select(species) %>%  
+  mutate(species = str_replace(species, '^.+s__','')) %>% 
+  distinct(species) %>% 
+  pull(species)
+
+# the counts table with taxa
+CTS <- get_data_from_query_OTU(0, 'asv_counts_ag') 
+ANNOT <- get_data_from_query_OTU(0, 'asv_annotation_blast_ag')
+
+cts <- CTS %>% 
+  filter(sampleid %in% doris_54$sampleid)
+
+s53 <- CTS %>% 
+  count(sampleid) %>% 
+  pull(sampleid)
+
+setdiff(doris_54$sampleid, s53)
+
+
+CTS %>% 
+  filter(str_detect(sampleid, '1252MM'))
+
+cts_tb <- cts %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  left_join(ANNOT %>% 
+              select(asv_key, species))
+
+# overlap 27/56
+intersect(cts_tb$species, bile_spp)
+
+not_sg <- tibble(spp = setdiff(bile_spp, cts_tb$species)) %>% 
+  mutate(genus = str_extract(spp, '^.+_')) %>% 
+  mutate(genus = str_replace_all(genus, '_.+$','')) %>% 
+  mutate(genus = str_replace(genus, '_','')) 
+
+not_sg_annot <- not_sg %>% 
+  distinct(genus) %>% 
+  left_join(ANNOT %>% 
+              distinct(genus, species))
+
+
+not_sg %>% 
+  write_csv('../data/not_in_16s_annot.csv')
+
+
+not_sg_annot %>% 
+  write_csv('../data/those_spp_in_genus.csv')
+```
+
