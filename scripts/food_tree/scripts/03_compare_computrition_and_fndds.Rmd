@@ -7,7 +7,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
+library(kableExtra)
 ```
+
 
 ```{r}
 ALL <- read_csv('../data/finalized/all_patients_record.csv')
@@ -37,6 +39,7 @@ com_colnam <- colnames(computrition)
 combined <- computrition %>% 
   inner_join(uniq_fndds)
 ```
+
 ```{r}
 # look at the items with energy == 0
 energy0 <- combined %>% 
@@ -62,9 +65,33 @@ compare2 <- check %>%
 compare2_res <- compare2 %>% 
   filter(item != 'energy') %>% 
   filter(!is.na(computri_converted)) %>% 
-  split(.$item)  
-  
+  rename(value_compu = value) %>% 
+  split(.$item)
 
+
+compare2_res %>% 
+  pluck('fiber') %>% 
+  head() %>% 
+  kable() %>% 
+  kable_styling(full_width = F)
+
+compare2_res %>% 
+  pluck('carbohydrate') %>% 
+  head() %>% 
+  kable() %>% 
+  kable_styling(full_width = F)
+
+check %>% 
+  filter(item == 'energy' & value != 0) %>% 
+  mutate(ratio = round(value_fndds/value, 2)) %>% 
+  rename(value_compu = value) %>% 
+  head() %>% 
+  kable() %>% 
+  kable_styling(full_width = F)
+```
+
+
+```{r}
 compare2_pearson <- compare2_res %>% 
   map_dfr(~ round(cor.test(.$value_fndds, 
                            .$computri_converted, 
@@ -91,7 +118,14 @@ cor_all <- compare2_spearman %>%
 cor_all %>% 
   write_csv('../data/corerlation_nutrients_foods.csv')
   
-
+cor_all %>% 
+  kable() %>% 
+  kable_styling(full_width = F)
 ```
 
+```{r}
+doubt <- compare2 %>% 
+  filter(item != 'energy') %>% 
+  filter(is.na(computri_converted)) 
+```
 

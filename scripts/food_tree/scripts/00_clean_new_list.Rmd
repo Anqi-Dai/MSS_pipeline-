@@ -177,6 +177,13 @@ uniq_fndds %>%
   write_csv('../data/finalized/uniq_Food_NSC_fndds_nutrient_value.csv')
 ```
 
+```{r}
+# a table with food nsc linking to a single food code
+uniq_food %>% 
+  select(Food_NSC:WWEIA.Category.Description) %>% 
+  write_csv('../data/finalized/unique_food_nsc_with_food_code.csv')
+```
+
 
 ```{r}
 # join with the unique food with food code 
