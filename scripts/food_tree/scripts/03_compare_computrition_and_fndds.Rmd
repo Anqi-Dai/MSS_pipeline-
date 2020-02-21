@@ -87,6 +87,11 @@ compare2_spearman <- compare2_res %>%
 cor_all <- compare2_spearman %>% 
   full_join(compare2_pearson, by = 'nutrient') %>% 
   arrange(pearson_cor)
+
+cor_all %>% 
+  write_csv('../data/corerlation_nutrients_foods.csv')
+  
+
 ```
 
 
