@@ -1,0 +1,92 @@
+---
+title: "Compare computrition with FNDDS value"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+ALL <- read_csv('../data/finalized/all_patients_record.csv')
+
+# the nutrient value for all the Food_NSC
+uniq_fndds <- read_csv('../data/finalized/uniq_Food_NSC_fndds_nutrient_value.csv') %>% 
+   gather('item', 'value_fndds', names(.)[2]:names(.)[ncol(.)])
+```
+
+```{r}
+# now collapse the df and merge the two into a single df
+computrition <- ALL %>% 
+  select(Food_NSC,Calories_kcal: Sodium_mg) %>% 
+  distinct(Food_NSC, .keep_all = T) %>% 
+  rename(energy = Calories_kcal,
+         protein = Proteing_g,
+         fat = Fat_g,
+         carbohydrate = Carbohydrates_g,
+         fiber = Fibers_g,
+         sugar = Sugars_g, 
+         sodium = Sodium_mg) %>% 
+  gather('item', 'value', names(.)[2]:names(.)[ncol(.)])
+
+com_colnam <- colnames(computrition)
+
+
+combined <- computrition %>% 
+  inner_join(uniq_fndds)
+```
+```{r}
+# look at the items with energy == 0
+energy0 <- combined %>% 
+  filter(item == 'energy' & value == 0) # some of them are suspicious such as the condiments one
+
+# look at the computrition energy != 0 first 
+check <- combined %>% 
+  split(.$item == 'energy' & .$value == 0) %>% 
+  pluck('FALSE')
+
+ratio_cal <- check %>% 
+  filter(item == 'energy' & value != 0) %>% 
+  mutate(ratio = round(value_fndds/value, 2)) %>% 
+  select(Food_NSC, ratio)
+
+compare2 <- check %>% 
+  left_join(ratio_cal , by = 'Food_NSC') %>% 
+  mutate(computri_converted = value*ratio) 
+```
+
+```{r}
+# now compare the six nutrients
+compare2_res <- compare2 %>% 
+  filter(item != 'energy') %>% 
+  filter(!is.na(computri_converted)) %>% 
+  split(.$item)  
+  
+
+compare2_pearson <- compare2_res %>% 
+  map_dfr(~ round(cor.test(.$value_fndds, 
+                           .$computri_converted, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'nutrient', value = 'pearson_cor') %>% 
+  arrange(pearson_cor)  
+
+
+
+compare2_spearman <- compare2_res %>% 
+  map_dfr(~ round(cor.test(.$value_fndds, 
+                           .$computri_converted, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'nutrient', value = 'spearman_cor') %>% 
+  arrange(spearman_cor)  
+
+
+cor_all <- compare2_spearman %>% 
+  full_join(compare2_pearson, by = 'nutrient') %>% 
+  arrange(pearson_cor)
+```
+
+

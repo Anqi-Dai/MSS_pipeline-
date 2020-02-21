@@ -92,7 +92,91 @@ not_check %>%
 # regain the Calories_kcal < 10 | Calories_kcal > 590 table expanding the unique items
 cal_corre <- read_csv('../data/source/All_data_check_calories_peter.csv') %>% 
   select(Food_NSC:Sodium_mg)
+
+# the remaining that checked by peter
+remain_corre <- read_csv('../data/source/All_data_to_be_checked_peter.csv') %>% 
+  select(Food_NSC:Sodium_mg)
+
+corre_all <- bind_rows(
+  cal_corre,
+  remain_corre
+) %>% 
+  distinct(Food_NSC, .keep_all = T)
+
+# the All table but without the nutrient values
+corre_All <- All %>% 
+  select(key:Food_NSC) %>% 
+  left_join(corre_all, by  = 'Food_NSC')
+
+
+# output the above corrected finalized all table
+corre_All %>% 
+  write_csv('../data/finalized/all_patients_record.csv')
 ```
+
+```{r}
+uniq_food
+```
+
+```{r}
+# the fndds table
+fndds <- read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1) %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)|,',''))) %>% 
+  select(Food_code, 
+         Energy_kcal, 
+         Protein_g, 
+         Total_Fat_g,
+         Carbohydrate_g,
+         Fiber_total_dietary_g,
+         Sugars_total_g,
+         Sodium_mg)
+
+
+# clean the unique food list
+# specifically combine the fndds nutrient value if there are several food codes to one food_nsc
+uniq_food <- uniq_food %>% 
+  select(-item1_index) %>% 
+  rename(Food_NSC = item1_value_raw_raw)
+
+u1 <- uniq_food %>% 
+  #filter(is.na(...7)) %>% 
+  select(Food_NSC:WWEIA.Category.Description)
+
+u2 <- uniq_food %>% 
+  filter(!is.na(...7)) %>% 
+  select(Food_NSC, ...7:...10) %>% 
+  rename(Food.Code = ...7,
+         FNDDS.Main.Food.Description = ...8,
+         WWEIA.Category.Code = ...9,
+         WWEIA.Category.Description = ...10)
+
+u3 <- uniq_food %>% 
+  filter(!is.na(...11)) %>% 
+  select(Food_NSC, ...11:...14) %>% 
+  rename(Food.Code = ...11,
+         FNDDS.Main.Food.Description = ...12,
+         WWEIA.Category.Code = ...13,
+         WWEIA.Category.Description = ...14)
+
+uniq_fndds <- bind_rows(
+  u1, u2, u3
+)   %>% 
+  rename(Food_code = Food.Code) %>% 
+  left_join(fndds , by = 'Food_code') %>% 
+  group_by(Food_NSC) %>% 
+  summarise(energy = sum(Energy_kcal),
+            protein = sum(Protein_g),
+            fat = sum(Total_Fat_g),
+            carbohydrate = sum(Carbohydrate_g),
+            fiber = sum(Fiber_total_dietary_g),
+            sugar = sum(Sugars_total_g),
+            sodium = sum(Sodium_mg))
+
+uniq_fndds %>% 
+  write_csv('../data/finalized/uniq_Food_NSC_fndds_nutrient_value.csv')
+```
+
 
 ```{r}
 # join with the unique food with food code 
