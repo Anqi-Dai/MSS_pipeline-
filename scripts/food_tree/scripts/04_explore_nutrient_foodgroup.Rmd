@@ -8,12 +8,18 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 library(kableExtra)
-library(ggvenn)
+library(ggvenn) 
+library(RColorBrewer)
 ```
 
 ```{r}
 All <- read_csv('../data/finalized/all_patients_record.csv')
 
+# convert the date to day relative to HCT
+```
+
+
+```{r}
 # have to associate a food code to a food_nsc
 code <- read_csv('../data/finalized/unique_food_nsc_with_food_code.csv', col_types = 'ccccc') %>% 
   filter(Food_NSC %in% All$Food_NSC) %>% 
@@ -24,10 +30,7 @@ final <- All %>%
   left_join(code, by  = 'Food_NSC') %>% 
   rename(Food_code = Food.Code,
          description = FNDDS.Main.Food.Description)
-
-
 ```
-
 
 ```{r}
 # need to get the total dehydrated weight of that food
@@ -43,15 +46,96 @@ final_join <- final %>%
   left_join(engy, by  = 'Food_code') 
 
 Final <- final_join %>% 
-  mutate(total_weight = if_else(Energy_kcal == 0, 0, Calories_kcal/Energy_kcal*100)) %>% 
-  mutate(dehydrated_weight = total_weight*Water_g/100)
-
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0, total_weight*(1 - Water_g/100)))
 
 Final %>% 
   write_csv('../data/finalized/all_patients_record_w_food_code.csv')
+
+colnames(Final)
+```
+
+
+## The food group for each patient 
+
+```{r}
+fgroup <- Final %>% 
+  select(MRN, Date, dehydrated_weight, Food_code) %>% 
+  mutate(food_grp = str_sub(Food_code, 1, 1))
+
+# the total dehydated weight for a patient for one day
+total_daily <- fgroup %>% 
+  group_by(MRN, Date) %>% 
+  summarise(daily_tol = sum(dehydrated_weight))
+
+food_per_group <- fgroup %>% 
+  group_by(MRN, Date, food_grp) %>% 
+  summarise(grp_tol = sum(dehydrated_weight))
+
+# joined together
+fgroup_relab <- food_per_group %>% 
+  left_join(total_daily) %>% 
+  mutate(grp_relab = grp_tol/daily_tol) %>% 
+  arrange(MRN, Date, food_grp) %>% 
+  ungroup() %>% 
+  mutate(food_grp = factor(food_grp))
+```
+```{r}
+# how many patients how many days of data
+npt <- fgroup_relab %>% 
+  count(MRN) %>% 
+  nrow()
+
+pt_days <- fgroup_relab %>% 
+  count(MRN, Date) %>% 
+  ungroup() %>% 
+  count(MRN)
+```
+
+
+```{r}
+# node labels different levels of nodes
+nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(food_grp = Level.code)
+
+scale_fill_manual_value <- c("1" = "#a9a9a9", "2" = "#800000",
+                               "3" = "#ffe119", "4" = "#808000",
+                               "5" = "#9a6324", "6" = "#911eb4",
+                               "7" = "#469990", "8" = "#000075", "9" = "#e5a47c")
+```
+```{r}
+# try to plot one patient first 
+p1 <- fgroup_relab %>% 
+  filter(MRN  == 23575)
+
+p1 %>% 
+  ggplot(aes(x = Date, y = grp_relab, fill =  food_grp)) +
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = scale_fill_manual_value) +
+  labs(y = 'Relative Abundance') +
+  #scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 1),expand = c(0, 0)) +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank()) 
+  
 ```
 
 ```{r}
-
+fgroup_relab %>% 
+  ggplot(aes(x = Date, y = grp_relab, fill =  food_grp)) +
+  geom_bar(position="stack", stat="identity") +
+  scale_fill_manual(values = scale_fill_manual_value) +
+  labs(y = 'Relative Abundance') +
+  #scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(limits = c(0, 1),expand = c(0, 0)) +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x = element_blank()) +
+  facet_wrap(~MRN) +
+  ggsave('../figs/food_group.jpg', width = 40, height = 10)
 ```
 
