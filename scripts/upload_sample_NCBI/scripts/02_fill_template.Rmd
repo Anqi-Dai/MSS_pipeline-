@@ -337,3 +337,15 @@ acc %>%
   write_tsv('../data/auto_samples_upload_in_jonas_not.tsv')
 ```
 
+```{r}
+# the sra accession
+sra_acc <- bind_rows(
+  read_tsv('../data/sra_meta/metadata-6965072-processed-ok.tsv'),
+  read_tsv('../data/sra_meta/metadata-6987832-processed-ok.tsv')
+) %>% 
+  filter(library_ID %in% jo$Sample_ID)
+
+sra_acc %>% 
+  write_csv('../data/sra_acc_in_jonas_14.csv')
+```
+
