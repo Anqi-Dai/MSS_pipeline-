@@ -10,12 +10,24 @@ library(ggpubr)
 library(kableExtra)
 library(ggvenn) 
 library(RColorBrewer)
+library(readxl)
+source('~/db.R')
 ```
 
 ```{r}
 All <- read_csv('../data/finalized/all_patients_record.csv')
 
 # convert the date to day relative to HCT
+allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
+  filter(str_detect(indication, fixed('initial', ignore_case=TRUE))) %>% 
+  select(mrn, hct)
+
+All <- All %>% 
+  rename(mrn = MRN) %>% 
+  left_join(allo, by = 'mrn') %>% 
+  mutate(DayRT = Date - hct) %>% 
+  select(-Date, -hct) %>% 
+  select(key, mrn, DayRT, Meal : Sodium_mg)
 ```
 
 
@@ -59,83 +71,83 @@ colnames(Final)
 ## The food group for each patient 
 
 ```{r}
+# node labels different levels of nodes
+# setting the color for each food group
+nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(food_grp = Level.code)
+
+scale_fill_manual_value <- c("Milk_and_Milk_Products" = "#a9a9a9", "Meat_Poultry_Fish_and_Mixtures" = "#800000",
+                               "Eggs" = "#ffe119", "Dry_Beans_Peas_Other_Legumes_Nuts_and_Seeds" = "#808000",
+                               "Grain_Product" = "#9a6324", "Fruits" = "#911eb4",
+                               "Vegetables" = "#469990", "Fats_Oils_and_Salad_Dressings" = "#000075", "Sugars_Sweets_and_Beverages" = "#e5a47c")
+
+nodes %>% 
+  kable() %>% 
+  kable_styling(full_width = F)
+```
+
+```{r}
 fgroup <- Final %>% 
-  select(MRN, Date, dehydrated_weight, Food_code) %>% 
+  select(mrn, DayRT, dehydrated_weight, Food_code) %>% 
   mutate(food_grp = str_sub(Food_code, 1, 1))
 
 # the total dehydated weight for a patient for one day
 total_daily <- fgroup %>% 
-  group_by(MRN, Date) %>% 
+  group_by(mrn, DayRT) %>% 
   summarise(daily_tol = sum(dehydrated_weight))
 
 food_per_group <- fgroup %>% 
-  group_by(MRN, Date, food_grp) %>% 
+  group_by(mrn, DayRT, food_grp) %>% 
   summarise(grp_tol = sum(dehydrated_weight))
 
 # joined together
 fgroup_relab <- food_per_group %>% 
   left_join(total_daily) %>% 
   mutate(grp_relab = grp_tol/daily_tol) %>% 
-  arrange(MRN, Date, food_grp) %>% 
+  arrange(mrn, DayRT, food_grp) %>% 
   ungroup() %>% 
-  mutate(food_grp = factor(food_grp))
+  left_join(nodes, by = 'food_grp') %>% 
+  mutate(Main.food.description = factor(Main.food.description, levels = c('Grain_Product','Sugars_Sweets_and_Beverages','Meat_Poultry_Fish_and_Mixtures','Milk_and_Milk_Products','Vegetables','Fruits','Dry_Beans_Peas_Other_Legumes_Nuts_and_Seeds','Eggs','Fats_Oils_and_Salad_Dressings'))) %>% 
+  # if one whole day the pt only has consumed suger beverage the value is NaN and need to set that to be 1 for the group 9
+  mutate(grp_relab = if_else(is.nan(grp_relab), 1, grp_relab))
+
+
 ```
 ```{r}
 # how many patients how many days of data
 npt <- fgroup_relab %>% 
-  count(MRN) %>% 
+  count(mrn) %>% 
   nrow()
 
 pt_days <- fgroup_relab %>% 
-  count(MRN, Date) %>% 
+  count(mrn, DayRT) %>% 
   ungroup() %>% 
-  count(MRN)
+  count(mrn)
+
+pt_days %>% 
+  gghistogram(x = 'n', bins = 10, color = 'white', fill = 'navy',
+              xlab = 'Number of days of records per patient',
+              title = 'How many days of records each patient has')
 ```
 
 
-```{r}
-# node labels different levels of nodes
-nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
-  filter(nchar(Level.code) == 1) %>% 
-  rename(food_grp = Level.code)
 
-scale_fill_manual_value <- c("1" = "#a9a9a9", "2" = "#800000",
-                               "3" = "#ffe119", "4" = "#808000",
-                               "5" = "#9a6324", "6" = "#911eb4",
-                               "7" = "#469990", "8" = "#000075", "9" = "#e5a47c")
-```
-```{r}
-# try to plot one patient first 
-p1 <- fgroup_relab %>% 
-  filter(MRN  == 23575)
 
-p1 %>% 
-  ggplot(aes(x = Date, y = grp_relab, fill =  food_grp)) +
+```{r}
+res <- fgroup_relab %>% 
+  ggplot(aes(x = DayRT, y = grp_relab, fill =  Main.food.description)) +
   geom_bar(position="stack", stat="identity") +
   scale_fill_manual(values = scale_fill_manual_value) +
   labs(y = 'Relative Abundance') +
   #scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(limits = c(0, 1),expand = c(0, 0)) +
+  #scale_y_continuous(limits = c(0, 1),expand = c(0, 0)) +
   theme_classic() +
   theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x = element_blank()) 
-  
-```
-
-```{r}
-fgroup_relab %>% 
-  ggplot(aes(x = Date, y = grp_relab, fill =  food_grp)) +
-  geom_bar(position="stack", stat="identity") +
-  scale_fill_manual(values = scale_fill_manual_value) +
-  labs(y = 'Relative Abundance') +
-  #scale_x_continuous(expand = c(0, 0)) +
-  scale_y_continuous(limits = c(0, 1),expand = c(0, 0)) +
-  theme_classic() +
-  theme(axis.title.x=element_blank(),
-        axis.text.x=element_blank(),
-        axis.ticks.x = element_blank()) +
-  facet_wrap(~MRN) +
-  ggsave('../figs/food_group.jpg', width = 40, height = 10)
+        #axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="bottom") +
+  facet_wrap(~mrn) +
+  ggsave('../figs/food_group.jpg', width = 25, height = 15)
 ```
 
