@@ -24,6 +24,16 @@ uni_rm <- read_excel('../data/source/eaten_FNDDS.xlsx', sheet = 2, col_names = F
 uniq_food <- uni %>% 
   distinct(item1_value_raw_raw,  .keep_all = T)
 
+
+problematic <- uniq_food %>% 
+  filter(!is.na(...7))
+
+problematic %>% 
+  write_csv('../data/source/more_than_one.csv')
+```
+
+
+```{r}
 # The all table with all the records
 all <- read_excel('../data/source/new_list.xls') %>% 
   # remove some entries that like a section header instead of real food

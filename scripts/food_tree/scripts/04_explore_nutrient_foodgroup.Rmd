@@ -129,12 +129,12 @@ pt_days %>%
   gghistogram(x = 'n', bins = 10, color = 'white', fill = 'navy',
               xlab = 'Number of days of records per patient',
               title = 'How many days of records each patient has')
+
+max(pt_days$DayRT)
+min(pt_days$DayRT)
 ```
 
-
-
-
-```{r}
+```{r food_group_plot}
 res <- fgroup_relab %>% 
   ggplot(aes(x = DayRT, y = grp_relab, fill =  Main.food.description)) +
   geom_bar(position="stack", stat="identity") +
@@ -149,5 +149,67 @@ res <- fgroup_relab %>%
         legend.position="bottom") +
   facet_wrap(~mrn) +
   ggsave('../figs/food_group.jpg', width = 25, height = 15)
+```
+
+
+## The nutrient level
+
+```{r}
+colnames(Final)
+```
+
+```{r}
+nutrients <- Final %>% 
+  select(mrn, DayRT, Food_NSC, Calories_kcal, Proteing_g:Sodium_mg, description, dehydrated_weight) %>% 
+  # CURRENTLY REMOVE THE ROWS WITH CALORIES AND TOTAL WEIGHT EQUAL TO 0
+  filter(Calories_kcal != 0 & dehydrated_weight!= 0) 
+
+
+check <- nutrients %>% 
+  filter(is.nan(relab_fat)) %>% 
+  distinct(Food_NSC, total_weight, Calories_kcal, Proteing_g)
+
+checkE <- Final %>% 
+  filter(Food_NSC %in% check$Food_NSC)
+```
+
+
+```{r}
+# get the total gram of nutrient per patient per day
+nut_daily_tol <- nutrients %>% 
+  select(mrn, DayRT, Proteing_g:Sodium_mg) %>% 
+  gather('nutrient','weight', Proteing_g:Sodium_mg) %>% 
+  group_by(mrn, DayRT,nutrient) %>% 
+  summarise(nutrient_tol_day = sum(weight)) %>% 
+  # conver the mg in sodium to g
+  mutate(nutrient = str_replace(nutrient, '_.+$','')) %>% 
+  mutate(nutrient_tol_day = if_else(nutrient == 'Sodium', nutrient_tol_day/1000, nutrient_tol_day)) %>% 
+  ungroup()
+
+
+# get the total dehydrated weight per patient per day
+de_wt_daily <- nutrients %>% 
+  select(mrn, DayRT, dehydrated_weight) %>% 
+  group_by(mrn, DayRT) %>% 
+  summarise(total_de_wt_daily = sum(dehydrated_weight)) %>% 
+  ungroup
+
+
+# join them together
+nutr_joined <- nut_daily_tol %>% 
+  left_join(de_wt_daily) %>% 
+  mutate(nut_relab = nutrient_tol_day/total_de_wt_daily) %>% 
+  mutate(nutrient = factor(nutrient))
+```
+
+```{r nutrient_plot}
+# plot 
+
+nutr_joined %>% 
+  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,
+            color = 'white', palette = 'lancet') +
+  facet_wrap(~ mrn) +
+  ggsave('../figs/food_nutrient.jpg', width = 25, height = 15, dpi = 300)
+
 ```
 

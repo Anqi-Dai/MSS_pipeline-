@@ -11,7 +11,7 @@ library(viridisLite)
 library(dplyr)
 library(tidyr)
 library(reshape2)
-source('newick.tree.r')
+library(kableExtra)
 ```
 
 ```{r}
@@ -71,6 +71,20 @@ export <- final.table %>% select(FoodID, taxonomy, Main.food.description)
 #export$Main.food.description <- gsub("_", " ", export$Main.food.description)
 write.table(export, '../data/source/output_taxonomy.txt', sep = "\t", quote = FALSE, row.names = FALSE)
 ```
+
+
+```{r}
+test <- data.tree::ToDataFrameTree(foodTree)
+
+test %>% 
+  kable(caption = 'Food tree in data frame') %>% 
+  kable_styling(full_width = F) %>% 
+  save_kable(file = "../data/source/food_tree_df.html", self_contained = T)
+
+
+```
+
+
 
 
 ```{bash}
