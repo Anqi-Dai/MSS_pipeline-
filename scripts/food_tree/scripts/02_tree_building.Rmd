@@ -14,6 +14,39 @@ library(reshape2)
 library(kableExtra)
 ```
 
+
+```{r}
+### The food database with all the unique food from the diet project
+# need to get rid of the all the special characters, so that you will only see underscores
+# all!!!! including the semicolon damn the semi colon
+# uni is the table with unique food_nsc translated to fndds code
+uni <- read_excel('../data/source/eaten_FNDDS.xlsx', sheet = 1)
+
+uni_rm <- read_excel('../data/source/eaten_FNDDS.xlsx', sheet = 2, col_names = F)
+
+uniq_food <- uni %>% 
+  distinct(item1_value_raw_raw,  .keep_all = T)
+
+food_database <- uniq_food %>% 
+  select(-item1_index) %>% 
+  rename(FoodID = Food.Code,
+         Main.food.description = FNDDS.Main.Food.Description) %>% 
+  select(item1_value_raw_raw: WWEIA.Category.Description) %>% 
+  filter(!is.na(FoodID)) %>% 
+  mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 
+  mutate(Main.food.description = str_replace_all(Main.food.description,"'",""))
+
+food_database %>% 
+  write_tsv('../data/source/food_database_file.tsv')
+
+
+food_database %>% 
+  distinct(Main.food.description)
+
+length(intersect(food_database$Main.food.description, food_cts$Main.food.description))
+```
+
+
 ```{r}
 food_database_fn <- '../data/source/food_database_file.tsv'
 nodes_fn <- '../data/source/NodeLabelsMCT.txt'
@@ -80,13 +113,13 @@ test %>%
   kable(caption = 'Food tree in data frame') %>% 
   kable_styling(full_width = F) %>% 
   save_kable(file = "../data/source/food_tree_df.html", self_contained = T)
-
+   
 final.table %>% 
   filter(Main.food.description == 'Potato__hash_brown__NFS')
+ 
+treedf <- test  %>% 
+  filter(!str_detect(levelName, 'L1|L2|L3|L4|L5|L6'))
 ```
-
-
-
 
 ```{bash}
 # in terminal
@@ -94,14 +127,11 @@ graphlan_annotate.py --annot annotation.base.txt output_food_tree_datatree.newic
 graphlan.py guide_1.xml food_tree.png --dpi 300 --size 3.5
 ```
 
-
 ```{r}
 # library(networkD3)
 # useRtreeList <- ToListExplicit(foodTree, unname = TRUE)
 # radialNetwork( useRtreeList)
 ```
-
-
 
 ```{r}
 # tree_df <- data.tree::ToDataFrameTree(foodTree)
@@ -109,4 +139,3 @@ graphlan.py guide_1.xml food_tree.png --dpi 300 --size 3.5
 # tt <- data.tree::To
 
 ```
-

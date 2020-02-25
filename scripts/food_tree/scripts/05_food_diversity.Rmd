@@ -25,8 +25,9 @@ food_cts <- final %>%
                      Main.food.description), by  = 'Food_NSC') %>% 
   group_by(mrn, Main.food.description) %>% 
   summarise(total_de_wt = sum(dehydrated_weight)) %>% 
-  spread(key = 'mrn', value = 'total_de_wt', fill = 0)
-
+  spread(key = 'mrn', value = 'total_de_wt', fill = 0) %>% 
+  rename(main_food_desc = Main.food.description) %>% 
+  mutate(main_food_desc = str_replace_all(main_food_desc, '_',' '))
 
 
 # check the overlap with the current cts table
@@ -38,6 +39,9 @@ food_cts <- final %>%
 # 
 # setdiff(food_db$item1_value_raw_raw,food_cts$Food_NSC )
 
+################################################################################################
+# there are 12 currently missing in the tree qza so remove them in the feature table for now
+################################################################################################
 
 food_cts %>% 
   write_tsv('../data/finalized/all_patients_food_counts_table_w_maindescrip_featurename.tsv')
@@ -58,30 +62,22 @@ qiime tools import \
 ```
 
 
-
 Convert the tree file to qza format too
 
 ```{bash}
 qiime tools import \
   --input-path output_food_tree_datatree.newick \
   --output-path output_food_tree_datatree.qza \
-  --type 'Phylogeny[Unrooted]'
-```
-
-
-```{bash}
-#Then you can run qiime phylogeny midpoint-root on your new tree to get a rooted tree that core-metrics-phylogeny should like.
-qiime phylogeny midpoint-root --i-tree  output_food_tree_datatree.qza \
-  --o-rooted-tree output_food_tree_datatree_rooted.qza
-
+  --type 'Phylogeny[Rooted]'
 ```
 
 Use qimme2 and the above two files to calculate the alpha diversity with phylogenetics
 
+
 ```{bash}
 qiime diversity alpha-phylogenetic \
   --i-table all_patients_food_counts_table_w_maindescrip_featurename.qza \
-  --i-phylogeny ../source/output_food_tree_datatree_rooted.qza \
+  --i-phylogeny ../source/output_food_tree_datatree.qza \
   --p-metric faith_pd \
   --o-alpha-diversity faith_pd_vector.qza
 ```
@@ -95,4 +91,3 @@ Use qimme2 and the above two files to calculate the unweighted_unifrac distance
 ```{r}
 
 ```
-
