@@ -81,7 +81,8 @@ test %>%
   kable_styling(full_width = F) %>% 
   save_kable(file = "../data/source/food_tree_df.html", self_contained = T)
 
-
+final.table %>% 
+  filter(Main.food.description == 'Potato__hash_brown__NFS')
 ```
 
 

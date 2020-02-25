@@ -164,13 +164,6 @@ nutrients <- Final %>%
   # CURRENTLY REMOVE THE ROWS WITH CALORIES AND TOTAL WEIGHT EQUAL TO 0
   filter(Calories_kcal != 0 & dehydrated_weight!= 0) 
 
-
-check <- nutrients %>% 
-  filter(is.nan(relab_fat)) %>% 
-  distinct(Food_NSC, total_weight, Calories_kcal, Proteing_g)
-
-checkE <- Final %>% 
-  filter(Food_NSC %in% check$Food_NSC)
 ```
 
 
@@ -196,6 +189,7 @@ de_wt_daily <- nutrients %>%
 
 
 # join them together
+# USE THE DEHYDRATED WEIGHT CONVERTED FROM THE CALORIES AND WATER PROPORTION AS THE DENOMINATOR
 nutr_joined <- nut_daily_tol %>% 
   left_join(de_wt_daily) %>% 
   mutate(nut_relab = nutrient_tol_day/total_de_wt_daily) %>% 
@@ -210,6 +204,15 @@ nutr_joined %>%
             color = 'white', palette = 'lancet') +
   facet_wrap(~ mrn) +
   ggsave('../figs/food_nutrient.jpg', width = 25, height = 15, dpi = 300)
+
+
+
+# one patient for example
+nutr_joined %>% 
+  filter(mrn == 35580223) %>% 
+  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,
+            color = 'white', palette = 'lancet') +
+  ggsave('../figs/food_nutrient_example.jpg', dpi = 300)
 
 ```
 

@@ -1,0 +1,98 @@
+---
+title: "Food diversity"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
+```
+
+```{r}
+# need to have the main food description (without special characters) as the feature name
+# use the table previously generated
+food_db <- read_tsv('../data/source/food_database_file.tsv')
+
+food_cts <- final %>% 
+  select(mrn, Food_NSC, dehydrated_weight) %>% 
+  left_join(food_db %>% 
+              select(Food_NSC = item1_value_raw_raw,
+                     Main.food.description), by  = 'Food_NSC') %>% 
+  group_by(mrn, Main.food.description) %>% 
+  summarise(total_de_wt = sum(dehydrated_weight)) %>% 
+  spread(key = 'mrn', value = 'total_de_wt', fill = 0)
+
+
+
+# check the overlap with the current cts table
+# library(ggvenn)
+# two_list <- list(current = food_cts$Food_NSC,
+#                       db = food_db$item1_value_raw_raw)
+#    
+# ggvenn(two_list) 
+# 
+# setdiff(food_db$item1_value_raw_raw,food_cts$Food_NSC )
+
+
+food_cts %>% 
+  write_tsv('../data/finalized/all_patients_food_counts_table_w_maindescrip_featurename.tsv')
+
+```
+
+Convert the counts table to biom format and then to qza format, the feature names need to be the main food description
+
+```{bash}
+biom convert -i all_patients_food_counts_table_w_maindescrip_featurename.tsv -o all_patients_food_counts_table_w_maindescrip_featurename.biom --to-hdf5 --table-type="Table"
+```
+
+```{bash}
+qiime tools import \
+  --input-path all_patients_food_counts_table_w_maindescrip_featurename.biom \
+  --output-path all_patients_food_counts_table_w_maindescrip_featurename.qza \
+  --type 'FeatureTable[Frequency]'
+```
+
+
+
+Convert the tree file to qza format too
+
+```{bash}
+qiime tools import \
+  --input-path output_food_tree_datatree.newick \
+  --output-path output_food_tree_datatree.qza \
+  --type 'Phylogeny[Unrooted]'
+```
+
+
+```{bash}
+#Then you can run qiime phylogeny midpoint-root on your new tree to get a rooted tree that core-metrics-phylogeny should like.
+qiime phylogeny midpoint-root --i-tree  output_food_tree_datatree.qza \
+  --o-rooted-tree output_food_tree_datatree_rooted.qza
+
+```
+
+Use qimme2 and the above two files to calculate the alpha diversity with phylogenetics
+
+```{bash}
+qiime diversity alpha-phylogenetic \
+  --i-table all_patients_food_counts_table_w_maindescrip_featurename.qza \
+  --i-phylogeny ../source/output_food_tree_datatree_rooted.qza \
+  --p-metric faith_pd \
+  --o-alpha-diversity faith_pd_vector.qza
+```
+
+Use qimme2 and the above two files to calculate the unweighted_unifrac distance 
+
+```{bash}
+
+```
+
+```{r}
+
+```
+
