@@ -12,6 +12,7 @@ library(dplyr)
 library(tidyr)
 library(reshape2)
 library(kableExtra)
+library(readxl)
 ```
 
 
@@ -94,6 +95,22 @@ taxonomy <- apply(main.join, 1, function(xx) paste(xx[-1], collapse=";"))
 
 final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F)
 
+
+
+#######################################################
+# remove the three items that are not in the feature table
+#######################################################
+remove3 <- setdiff(final.table %>% 
+         pull(Main.food.description) , food_cts %>% mutate(main_food_desc = str_replace_all(main_food_desc, ' ', '_')) %>% 
+          pull(main_food_desc)
+          )
+
+final.table <- final.table %>% 
+  filter(!Main.food.description %in% remove3)
+```
+
+
+```{r}
 #### Make and export the tree ####
 foodTree <- as.Node(final.table, pathName = "newickstring")
 tree <- ToNewick(foodTree)
@@ -105,21 +122,6 @@ export <- final.table %>% select(FoodID, taxonomy, Main.food.description)
 write.table(export, '../data/source/output_taxonomy.txt', sep = "\t", quote = FALSE, row.names = FALSE)
 ```
 
-
-```{r}
-test <- data.tree::ToDataFrameTree(foodTree)
-
-test %>% 
-  kable(caption = 'Food tree in data frame') %>% 
-  kable_styling(full_width = F) %>% 
-  save_kable(file = "../data/source/food_tree_df.html", self_contained = T)
-   
-final.table %>% 
-  filter(Main.food.description == 'Potato__hash_brown__NFS')
- 
-treedf <- test  %>% 
-  filter(!str_detect(levelName, 'L1|L2|L3|L4|L5|L6'))
-```
 
 ```{bash}
 # in terminal

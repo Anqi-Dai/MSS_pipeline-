@@ -12,8 +12,6 @@ library(ggpubr)
 ```{r}
 final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
 
-final %>% 
-  distinct(description) 
 ```
 
 ```{r}
@@ -41,10 +39,6 @@ food_cts <- final %>%
 # ggvenn(two_list) 
 #  
 # setdiff(food_db$item1_value_raw_raw,food_cts$Food_NSC )
-
-################################################################################################
-# there are 12 currently missing in the tree qza so remove them in the feature table for now
-################################################################################################
 
 food_cts %>% 
   write_tsv('../data/finalized/all_patients_food_counts_table_w_maindescrip_featurename.tsv')
@@ -166,4 +160,38 @@ qiime diversity beta-phylogenetic \
 
 ```{r}
 
+```
+
+
+
+```{r}
+# make fake data and post on the forum
+cts <- matrix(rnorm(33165), nrow = 495, ncol = 67 ) 
+rownames(cts) <- food_cts$main_food_desc
+cts <- cts%>% 
+  as.data.frame() %>% 
+  rownames_to_column('main_food_desc')
+
+cts %>% 
+  write_tsv('../data/test/food_cts_fake.tsv')
+```
+
+```{bash}
+biom convert -i food_cts_fake.tsv -o food_cts_fake.biom --to-hdf5 --table-type="Table"
+```
+
+```{bash}
+qiime tools import \
+  --input-path food_cts_fake.biom \
+  --output-path food_cts_fake.qza \
+  --type 'FeatureTable[Frequency]'
+```
+
+
+```{bash}
+qiime diversity beta-phylogenetic \
+  --i-table food_cts_fake.qza \
+  --i-phylogeny ../source/output_food_tree_datatree.qza \
+  --p-metric unweighted_unifrac \
+  --o-distance-matrix unweighted_unifrac_distance_matrix.qza
 ```
