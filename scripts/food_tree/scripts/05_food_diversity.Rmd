@@ -11,6 +11,9 @@ library(ggpubr)
 
 ```{r}
 final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
+
+final %>% 
+  distinct(description) 
 ```
 
 ```{r}
@@ -36,7 +39,7 @@ food_cts <- final %>%
 #                       db = food_db$item1_value_raw_raw)
 #    
 # ggvenn(two_list) 
-# 
+#  
 # setdiff(food_db$item1_value_raw_raw,food_cts$Food_NSC )
 
 ################################################################################################
@@ -71,7 +74,7 @@ qiime tools import \
   --type 'Phylogeny[Rooted]'
 ```
 
-Use qimme2 and the above two files to calculate the alpha diversity with phylogenetics
+Use qiime and the above two files to calculate the alpha diversity with phylogenetics
 
 
 ```{bash}
@@ -82,10 +85,83 @@ qiime diversity alpha-phylogenetic \
   --o-alpha-diversity faith_pd_vector.qza
 ```
 
-Use qimme2 and the above two files to calculate the unweighted_unifrac distance 
+```{bash}
+# export to tsv format
+qiime tools export --input-path faith_pd_vector.qza --output-path alpha
+```
+
+```{r}
+# some phenotype info regarding to the transplant
+allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
+  filter(mrn %in% faith$mrn)
+colnames(allo)
+
+pts_info <- allo %>% 
+  select(mrn, intensity, indication, gvhd:grade, vital_status) %>% 
+  filter(str_detect(indication, 'Initial')) 
+```
+
+```{r}
+# the results from above  
+faith <- read_tsv('../data/finalized/alpha/alpha-diversity.tsv')  %>% 
+  rename(mrn = X1)
+
+alpha_div <- faith %>% 
+  full_join(pts_info %>% 
+              select(mrn, vital_status))
+
+alpha_div %>% 
+  ggboxplot(x  = 'vital_status', y = 'faith_pd', add = 'jitter', 
+            color = 'vital_status', palette = c('red','black'),
+            xlab = '', title = 'alpha phylogenetics diversity patient wise') +
+  stat_compare_means(comparisons = list(c('Alive', 'Dead')),
+  label = "p.signif",
+  method = 'wilcox.test',
+  correct=FALSE)
+```
+
+```{r}
+# the alpha diversity from the db
+source('~/db.R')
+dbalpha <- get_data_from_query_OTU(0, 'asv_alpha_diversity_ag')
+castori <- get_data_from_query_OTU(0, 'samples_castori_ag')
+# but the faith diversity is per patient basis not per sample
+
+# get the stool sample sampleids
+samps_df <- castori %>% 
+  filter(mrn %in% faith$mrn)
+
+samps <- samps_df %>% 
+  pull(sampleid)
+
+samps_alpha <- dbalpha %>% 
+  filter(sampleid %in% samps)
+
+samps_alpha_med <- samps_alpha %>% 
+  left_join(samps_df %>% 
+              select(sampleid, mrn)) %>% 
+  group_by(mrn) %>% 
+  summarise(med_simp = median(simpson_reciprocal))
+```
+
+```{r}
+# correlation between faith diversity and simpsons diversity
+cor_df <- samps_alpha_med %>% 
+  full_join(alpha_div) 
+
+pearson <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'pearson')$estimate
+
+spearman <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'spearman', exact = F)$estimate
+```
+
+Use qiime and the above two files to calculate the unweighted_unifrac distance 
 
 ```{bash}
-
+qiime diversity beta-phylogenetic \
+  --i-table all_patients_food_counts_table_w_maindescrip_featurename.qza \
+  --i-phylogeny ../source/output_food_tree_datatree.qza \
+  --p-metric unweighted_unifrac \
+  --o-distance-matrix unweighted_unifrac_distance_matrix.qza
 ```
 
 ```{r}
