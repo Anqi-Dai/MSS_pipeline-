@@ -10,6 +10,29 @@ library(ggpubr)
 ```
 
 ```{r}
+# explaining with the nodes
+NODES <- read_tsv('../data/source/NodeLabelsMCT.txt') %>% 
+  mutate(Level.code= as.character(Level.code)) %>% 
+  mutate(grp = str_sub(Level.code, 1,1)) %>% 
+  count(grp)
+bagel <- final %>% 
+  mutate(Food_code= as.character(Food_code)) %>% 
+  mutate(grp = str_sub(Food_code, 1,1)) %>% 
+  count(grp)
+  
+eggs <- read_tsv('../data/source/NodeLabelsMCT.txt') %>% 
+  mutate(Level.code= as.character(Level.code)) %>% 
+  filter(str_detect(Level.code, '^3'))
+
+eggs %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(full_width = F) %>% 
+  kableExtra::save_kable('../data/source/sampleeggs.html', self_contained = T)
+  
+```
+
+
+```{r}
 final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
 
 ```

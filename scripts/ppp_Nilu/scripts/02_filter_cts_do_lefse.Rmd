@@ -19,7 +19,7 @@ pass_thre_num <- ceiling(ncol(counts) * 0.1)
 
 counts_fil <- counts[rowSums(counts > 0.0001) >= pass_thre_num, ] 
 
-round(nrow(counts_fil)/nrow(counts), 4)
+
 
 # write out the filtered matrix
 counts_fil %>% 
