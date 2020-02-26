@@ -12,13 +12,30 @@ dbListTables(con) %>% data.frame() %>% filter(grepl("otu",.))
 Select the medium OTU abundance for the 109 patients
 
 ```{r}
-stb <- read_csv('../data/clean myeloma sdtable 01 27 20.csv')
+# the patient table has been updated that there is now a filtering on low counts samples
+newptb <- read_csv('../data/clean myeloma OTU by species 02 23 20 filtered.csv')
+newpts <- newptb$mrn
 
+# the patient table 
+ptb <- read_csv('../data/clean myeloma pttable 01 27 20.csv') %>% 
+  select(mrn, Relapse.POD.Status) %>% 
+  filter(mrn %in% newpts )
+
+```
+
+
+```{r}
 cts <- get_data_from_query_OTU(0,'counts_ag')
+
 
 res <- cts %>% 
   filter(sampleid %in% stb$Sample.ID) %>% 
-  count(sampleid) 
+  count(sampleid)
+```
+
+
+```{r}
+stb <- read_csv('../data/clean myeloma sdtable 01 27 20.csv')
 
 stb %>% 
   count(Sample.ID)
@@ -38,22 +55,12 @@ intersect(stb$Sample.ID, res$sampleid)
 stb <- stb %>% 
   mutate(sampleid = if_else(Sample.ID %in% setdiff(stb$Sample.ID, res$sampleid), 
                             str_glue('{Sample.ID}..pool825'),
-                            Sample.ID))
-
-# the patient table 
-ptb <- read_csv('../data/clean myeloma pttable 01 27 20.csv') %>% 
-  select(mrn, Relapse.POD.Status) %>% 
-  mutate(mrn = as.character(mrn))
+                            Sample.ID)) %>% 
+  filter(mrn %in% newpts)
+```
 
 
-# load the otu annotation table
-annot <- get_data_from_query_OTU(2) %>% 
-  mutate(ordr = if_else(ordr == '', 'NA', ordr),
-         family = if_else(family == '', 'NA', family),
-         genus = if_else(genus == '', 'NA', genus),
-         species = if_else(species == '', 'NA', species)) %>% 
-  mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
-
+```{r}
 
 
 # create this taxa column that is like the metaphlan format but with some level of being NA then use the upper level taxa name
@@ -94,13 +101,25 @@ final <- CTS_final %>%
               select(key, taxa), by = 'key') %>% 
   spread(key = 'mrn', value = 'Relab', fill = 0) %>% 
   ungroup() %>% 
-  select(-key) 
+  select(-key)
+```
 
+
+```{r}
 # reorder the columns 
+# make the mrn to be characters
+ptb <- ptb %>% 
+  mutate(mrn = as.character(mrn))
+
+
+
 final <- bind_cols(final[,1],final[,ptb$mrn])
 
 all.equal(colnames(final)[2:ncol(final)], ptb$mrn)
+```
 
+
+```{r}
 final %>% 
   write_tsv('../data/otu_mrns_relab_reordered.tsv')
 
