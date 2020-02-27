@@ -8,8 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 library(kableExtra)
-```
-
+``` 
 
 ```{r}
 ALL <- read_csv('../data/finalized/all_patients_record.csv')
@@ -45,6 +44,13 @@ combined <- computrition %>%
 energy0 <- combined %>% 
   filter(item == 'energy' & value == 0) # some of them are suspicious such as the condiments one
 
+
+energy0 %>% 
+  write_csv('../data/source/energy0_item.csv')
+```
+
+
+```{r}
 # look at the computrition energy != 0 first 
 check <- combined %>% 
   split(.$item == 'energy' & .$value == 0) %>% 
@@ -67,8 +73,10 @@ compare2_res <- compare2 %>%
   filter(!is.na(computri_converted)) %>% 
   rename(value_compu = value) %>% 
   split(.$item)
+```
 
 
+```{r}
 compare2_res %>% 
   pluck('fiber') %>% 
   head() %>% 
@@ -90,7 +98,6 @@ check %>%
   kable_styling(full_width = F)
 ```
 
-
 ```{r}
 compare2_pearson <- compare2_res %>% 
   map_dfr(~ round(cor.test(.$value_fndds, 
@@ -102,6 +109,52 @@ compare2_pearson <- compare2_res %>%
 
 
 
+# get the pvalue and the correlation and add to the scatter plot
+
+compare2_pearson_pval <- compare2_res %>% 
+  map_dfr(~ round(cor.test(.$value_fndds, 
+                           .$computri_converted, 
+                           method = 'pearson', 
+                           exact = F)$p.value, 2)) %>% 
+  gather(key = 'nutrient', value = 'pearson_pval') %>% 
+  arrange(pearson_pval) 
+
+person_annot <- compare2_pearson_pval %>% 
+  full_join(compare2_pearson) %>% 
+  split(.$nutrient)
+names(person_annot)
+names(compare2_res)
+```
+
+```{r}
+# make scatter plot to visualize the correlation
+res_plot <- list()
+
+for (i in 1:length(compare2_res)) {
+ res_plot[[i]] <-  compare2_res %>% 
+    pluck(names(compare2_res)[i]) %>% 
+    ggscatter('value_fndds', 'computri_converted',
+              title = str_glue('FNDDS value and converted computrition value\n{names(compare2_res)[i]}\nPearson cor: {person_annot[[i]]$pearson_cor}, pvalue: {person_annot[[i]]$pearson_pval}'),
+              xlab = 'FNDDS value per 100g edible portion',
+              ylab = 'Computrition value per 100g edible portion',
+              alpha = 0.5,
+              add.params = list(size = 4)) +
+    geom_abline(intercept = 0, slope = 1, col = 'red', linetype = 'dashed') 
+}
+
+#+ggsave(str_glue('../figs/correlation_scatter_{names(compare2_res)[i]}.jpg'), width = 6, height = 5)
+
+library(cowplot)
+g <- plot_grid(res_plot[[1]],res_plot[[2]],res_plot[[3]],res_plot[[4]],res_plot[[5]],res_plot[[6]],
+  nrow = 2,
+  align = 'hv',
+  #labels = 'AUTO',
+  axis = 'b') +
+  ggsave('../figs/scatter_all.jpg', width = 12, height = 8, dpi = 300)
+
+```
+
+```{r}
 compare2_spearman <- compare2_res %>% 
   map_dfr(~ round(cor.test(.$value_fndds, 
                            .$computri_converted, 
