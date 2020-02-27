@@ -207,3 +207,59 @@ not_check_uniqe_food_code <- not_check %>%
 not_check_uniqe_food_code %>% 
   write_csv('../data/not_check_uniqe_food_code.csv')
 ```
+
+
+## Keep cleaning and adding necesary columns
+
+```{r}
+All <- read_csv('../data/finalized/all_patients_record.csv')
+
+# convert the date to day relative to HCT
+allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
+  filter(str_detect(indication, fixed('initial', ignore_case=TRUE))) %>% 
+  select(mrn, hct)
+
+All <- All %>% 
+  rename(mrn = MRN) %>% 
+  left_join(allo, by = 'mrn') %>% 
+  mutate(DayRT = Date - hct) %>% 
+  select(-Date, -hct) %>% 
+  select(key, mrn, DayRT, Meal : Sodium_mg)
+```
+
+
+```{r}
+# have to associate a food code to a food_nsc
+code <- read_csv('../data/finalized/unique_food_nsc_with_food_code.csv', col_types = 'ccccc') %>% 
+  filter(Food_NSC %in% All$Food_NSC) %>% 
+  select(1:3)
+
+# join with code to the all table
+final <- All %>% 
+  left_join(code, by  = 'Food_NSC') %>% 
+  rename(Food_code = Food.Code,
+         description = FNDDS.Main.Food.Description)
+```
+
+```{r}
+# need to get the total dehydrated weight of that food
+# FNDDS ref table with energy info
+engy <- read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  select(Food_code, Energy_kcal, Water_g) %>% 
+  mutate(Energy_kcal = as.numeric(Energy_kcal),
+         Water_g = as.numeric(Water_g))
+  
+final_join <- final %>% 
+  left_join(engy, by  = 'Food_code') 
+
+Final <- final_join %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0, total_weight*(1 - Water_g/100)))
+
+Final %>% 
+  write_csv('../data/finalized/all_patients_record_w_food_code.csv')
+
+colnames(Final)
+```

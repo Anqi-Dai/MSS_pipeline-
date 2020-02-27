@@ -29,12 +29,22 @@ eggs %>%
   kableExtra::kable_styling(full_width = F) %>% 
   kableExtra::save_kable('../data/source/sampleeggs.html', self_contained = T)
   
+test <- final %>% 
+  filter(Food_code < 40000000 & Food_code > 30000000) %>% 
+  select(Food_NSC,Food_code )
 ```
 
 
 ```{r}
 final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
 
+
+# the 0 caleries items
+cal0 <-  final %>% 
+  filter(Calories_kcal == 0)
+
+cal0 %>% 
+  write_csv('../data/source/all_0_kcal_foods.csv')
 ```
 
 ```{r}

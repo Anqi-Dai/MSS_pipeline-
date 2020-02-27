@@ -11,63 +11,47 @@ library(kableExtra)
 library(ggvenn) 
 library(RColorBrewer)
 library(readxl)
+library(lubridate)
 source('~/db.R')
 ```
 
 ```{r}
-All <- read_csv('../data/finalized/all_patients_record.csv')
+# loading the finalized table
+Final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
+```
 
-# convert the date to day relative to HCT
-allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
-  filter(str_detect(indication, fixed('initial', ignore_case=TRUE))) %>% 
-  select(mrn, hct)
 
-All <- All %>% 
-  rename(mrn = MRN) %>% 
-  left_join(allo, by = 'mrn') %>% 
-  mutate(DayRT = Date - hct) %>% 
-  select(-Date, -hct) %>% 
-  select(key, mrn, DayRT, Meal : Sodium_mg)
+
+
+
+```{r}
+# the date of engraftment
+# transplant type, intensity, etc. The column titled ‘tt_anc_500’ is the day post -HCT of engraftment and ‘anc_500’ is the specific date of engraftment.
+current_mrns <- Final %>% 
+           distinct(mrn) %>% pull(mrn)
+
+engra <- read_csv('../data/source/nutrition_engraftment day_02.26.20.csv') %>% 
+  filter(mrn %in% current_mrns) %>% 
+  arrange(hct) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  mutate(dayEngra = anc_500 - hct)
 ```
 
 
 ```{r}
-# have to associate a food code to a food_nsc
-code <- read_csv('../data/finalized/unique_food_nsc_with_food_code.csv', col_types = 'ccccc') %>% 
-  filter(Food_NSC %in% All$Food_NSC) %>% 
-  select(1:3)
+# the EN TPN data
+tpn <- read_csv('../data/source/TPN_EN patients.csv') %>% 
+  mutate(Date = mdy(Date))
 
-# join with code to the all table
-final <- All %>% 
-  left_join(code, by  = 'Food_NSC') %>% 
-  rename(Food_code = Food.Code,
-         description = FNDDS.Main.Food.Description)
+# find the hct of those patients
+TPN <- tpn %>% 
+  select(mrn, Date, type= TPN.1..EN.2) %>% 
+  inner_join(engra %>% 
+               select(mrn, hct))  %>% 
+  mutate(dayRT = Date-hct) %>% 
+  mutate(type = if_else(type ==1, "TPN", "EN"))
+
 ```
-
-```{r}
-# need to get the total dehydrated weight of that food
-# FNDDS ref table with energy info
-engy <- read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
-  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
-  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
-  select(Food_code, Energy_kcal, Water_g) %>% 
-  mutate(Energy_kcal = as.numeric(Energy_kcal),
-         Water_g = as.numeric(Water_g))
-  
-final_join <- final %>% 
-  left_join(engy, by  = 'Food_code') 
-
-Final <- final_join %>% 
-  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
-  mutate(dehydrated_weight = if_else(total_weight == 99999, 0, total_weight*(1 - Water_g/100)))
-
-Final %>% 
-  write_csv('../data/finalized/all_patients_record_w_food_code.csv')
-
-colnames(Final)
-```
-
-
 ## The food group for each patient 
 
 ```{r}
@@ -88,6 +72,7 @@ nodes %>%
 ```
 
 ```{r}
+# getting the food group of each food
 fgroup <- Final %>% 
   select(mrn, DayRT, dehydrated_weight, Food_code) %>% 
   mutate(food_grp = str_sub(Food_code, 1, 1))
@@ -97,6 +82,7 @@ total_daily <- fgroup %>%
   group_by(mrn, DayRT) %>% 
   summarise(daily_tol = sum(dehydrated_weight))
 
+# the total dehydated weight for a patient for one day for a single food group
 food_per_group <- fgroup %>% 
   group_by(mrn, DayRT, food_grp) %>% 
   summarise(grp_tol = sum(dehydrated_weight))
@@ -112,9 +98,10 @@ fgroup_relab <- food_per_group %>%
   # if one whole day the pt only has consumed suger beverage the value is NaN and need to set that to be 1 for the group 9
   mutate(grp_relab = if_else(is.nan(grp_relab), 1, grp_relab))
 
-
+# daily_tol is the total dehydated weight for a patient for one day
+# grp_tol is the total dehydated weight for a patient for one day for a single food group
 ```
-```{r}
+```{r summarystats}
 # how many patients how many days of data
 npt <- fgroup_relab %>% 
   count(mrn) %>% 
@@ -134,10 +121,18 @@ max(pt_days$DayRT)
 min(pt_days$DayRT)
 ```
 
+```{r}
+# create a df to add a vertical line as the engraftment date
+engraf_df <- engra %>% 
+  select(mrn, dayEngra)
+```
+
+
 ```{r food_group_plot}
-res <- fgroup_relab %>% 
-  ggplot(aes(x = DayRT, y = grp_relab, fill =  Main.food.description)) +
+res <- ggplot(data = fgroup_relab, aes(x = DayRT, y = grp_relab, fill =  Main.food.description)) +
   geom_bar(position="stack", stat="identity") +
+  geom_vline(data = engraf_df, aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+  geom_vline(data = TPN, aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
   scale_fill_manual(values = scale_fill_manual_value) +
   labs(y = 'Relative Abundance') +
   #scale_x_continuous(expand = c(0, 0)) +
@@ -152,6 +147,59 @@ res <- fgroup_relab %>%
 ```
 
 
+```{r food_group_plot}
+fgroup_abs <-  ggplot(data = fgroup_relab,aes(x = DayRT, y = grp_tol, fill =  Main.food.description)) +
+  geom_bar(position="stack", stat="identity") +
+  geom_vline(data = engraf_df, aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+  geom_vline(data = TPN, aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
+  scale_fill_manual(values = scale_fill_manual_value) +
+  labs(y = 'Total dehydrated weight in each group') +
+  #scale_x_continuous(expand = c(0, 0)) +
+  #scale_y_continuous(limits = c(0, 1),expand = c(0, 0)) +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        #axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="bottom") +
+  facet_wrap(~mrn) +
+  ggsave('../figs/food_group_abs.jpg', width = 25, height = 15)
+```
+
+
+```{r}
+# pick two patients as examples and put them side by side in a large plot
+patients_abs <- fgroup_relab %>% 
+  filter(mrn %in% c(35454047, 35577168)) %>% 
+  select(-daily_tol) %>% 
+  ggplot(aes(x = DayRT, y = grp_tol, fill =  Main.food.description))+
+  geom_bar(position="stack", stat="identity") +
+  labs(y = 'Total dehydrated weight in each group') +
+  scale_fill_manual(values = scale_fill_manual_value) +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        #axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="bottom") +
+  facet_wrap(mrn ~ .) +
+  ggsave('../figs/food_group_patients_abs.jpg', width = 12, height = 7)
+
+patients_relab <- fgroup_relab %>% 
+  filter(mrn %in% c(35454047, 35577168)) %>% 
+  select(-daily_tol) %>% 
+  ggplot(aes(x = DayRT, y = grp_relab, fill =  Main.food.description))+
+  geom_bar(position="stack", stat="identity") +
+  labs(y = 'Relative abundance in each group') +
+  scale_fill_manual(values = scale_fill_manual_value) +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        #axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="bottom") +
+  facet_wrap(mrn ~ .) +
+  ggsave('../figs/food_group_patients_realb.jpg', width = 12, height = 7)
+```
+
+
 ## The nutrient level
 
 ```{r}
@@ -163,7 +211,6 @@ nutrients <- Final %>%
   select(mrn, DayRT, Food_NSC, Calories_kcal, Proteing_g:Sodium_mg, description, dehydrated_weight) %>% 
   # CURRENTLY REMOVE THE ROWS WITH CALORIES AND TOTAL WEIGHT EQUAL TO 0
   filter(Calories_kcal != 0 & dehydrated_weight!= 0) 
-
 ```
 
 
@@ -179,40 +226,41 @@ nut_daily_tol <- nutrients %>%
   mutate(nutrient_tol_day = if_else(nutrient == 'Sodium', nutrient_tol_day/1000, nutrient_tol_day)) %>% 
   ungroup()
 
-
-# get the total dehydrated weight per patient per day
-de_wt_daily <- nutrients %>% 
-  select(mrn, DayRT, dehydrated_weight) %>% 
+# the denominator for the above data's normalization is the total weight of the 6 nutrients
+nut_daily_tol_all <- nut_daily_tol %>% 
   group_by(mrn, DayRT) %>% 
-  summarise(total_de_wt_daily = sum(dehydrated_weight)) %>% 
-  ungroup
-
+  summarise(all_tol_day = sum(nutrient_tol_day))
 
 # join them together
-# USE THE DEHYDRATED WEIGHT CONVERTED FROM THE CALORIES AND WATER PROPORTION AS THE DENOMINATOR
 nutr_joined <- nut_daily_tol %>% 
-  left_join(de_wt_daily) %>% 
-  mutate(nut_relab = nutrient_tol_day/total_de_wt_daily) %>% 
+  left_join(nut_daily_tol_all) %>% 
+  mutate(nut_relab = nutrient_tol_day/all_tol_day) %>% 
   mutate(nutrient = factor(nutrient))
 ```
 
 ```{r nutrient_plot}
-# plot 
-
-nutr_joined %>% 
-  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,
-            color = 'white', palette = 'lancet') +
-  facet_wrap(~ mrn) +
-  ggsave('../figs/food_nutrient.jpg', width = 25, height = 15, dpi = 300)
-
-
-
 # one patient for example
 nutr_joined %>% 
   filter(mrn == 35580223) %>% 
-  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,
+  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,ylab = 'Relative abundance',
+            legend = 'right',
             color = 'white', palette = 'lancet') +
-  ggsave('../figs/food_nutrient_example.jpg', dpi = 300)
+  ggsave('../figs/food_nutrient_example.jpg', dpi = 300, width = 8, height = 5)
 
 ```
+
+```{r nutrient_plot}
+# plot 
+nutr_joined %>% 
+  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,ylab = 'Relative abundance',legend = 'bottom',
+            color = 'white', palette = 'lancet') +
+  #geom_vline(data = engraf_df, aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+  #geom_vline(data = TPN, aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
+  facet_wrap(~ mrn) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5)) +
+  ggsave('../figs/food_nutrient_all.jpg', width = 25, height = 15, dpi = 300)
+```
+
+
+
 
