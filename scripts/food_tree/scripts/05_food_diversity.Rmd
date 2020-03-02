@@ -10,6 +10,18 @@ library(ggpubr)
 ```
 
 ```{r}
+# some phenotype info regarding to the transplant
+allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
+  filter(mrn %in% faith$mrn)
+colnames(allo)
+
+pts_info <- allo %>% 
+  select(mrn, intensity, indication, gvhd:grade, vital_status) %>% 
+  filter(str_detect(indication, 'Initial')) 
+```
+
+
+```{r}
 # explaining with the nodes
 NODES <- read_tsv('../data/source/NodeLabelsMCT.txt') %>% 
   mutate(Level.code= as.character(Level.code)) %>% 
@@ -35,6 +47,8 @@ test <- final %>%
 ```
 
 
+## Alpha diversity
+
 ```{r}
 final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
 
@@ -53,25 +67,21 @@ cal0 %>%
 food_db <- read_tsv('../data/source/food_database_file.tsv')
 
 food_cts <- final %>% 
-  select(mrn, Food_NSC, dehydrated_weight) %>% 
+  select(mrn, DayRT, Food_NSC, dehydrated_weight) %>% 
   left_join(food_db %>% 
               select(Food_NSC = item1_value_raw_raw,
                      Main.food.description), by  = 'Food_NSC') %>% 
-  group_by(mrn, Main.food.description) %>% 
-  summarise(total_de_wt = sum(dehydrated_weight)) %>% 
-  spread(key = 'mrn', value = 'total_de_wt', fill = 0) %>% 
+  group_by(mrn,DayRT, Main.food.description) %>% 
+  summarise(daily_de_wt = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  mutate(mrn = as.character(mrn),
+         DayRT = as.character(DayRT)) %>% 
+  mutate(DayRT = str_replace(DayRT, '-','_')) %>% 
+  mutate(mrnDay = str_glue('{mrn}d{DayRT}')) %>% 
+  select(-mrn, -DayRT) %>% 
+  spread(key = 'mrnDay', value = 'daily_de_wt', fill = 0) %>% 
   rename(main_food_desc = Main.food.description) %>% 
   mutate(main_food_desc = str_replace_all(main_food_desc, '_',' '))
-
-
-# check the overlap with the current cts table
-# library(ggvenn)
-# two_list <- list(current = food_cts$Food_NSC,
-#                       db = food_db$item1_value_raw_raw)
-#    
-# ggvenn(two_list) 
-#  
-# setdiff(food_db$item1_value_raw_raw,food_cts$Food_NSC )
 
 food_cts %>% 
   write_tsv('../data/finalized/all_patients_food_counts_table_w_maindescrip_featurename.tsv')
@@ -117,22 +127,38 @@ qiime diversity alpha-phylogenetic \
 qiime tools export --input-path faith_pd_vector.qza --output-path alpha
 ```
 
-```{r}
-# some phenotype info regarding to the transplant
-allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
-  filter(mrn %in% faith$mrn)
-colnames(allo)
-
-pts_info <- allo %>% 
-  select(mrn, intensity, indication, gvhd:grade, vital_status) %>% 
-  filter(str_detect(indication, 'Initial')) 
-```
 
 ```{r}
 # the results from above  
 faith <- read_tsv('../data/finalized/alpha/alpha-diversity.tsv')  %>% 
-  rename(mrn = X1)
+  rename(mrnDay = X1) %>% 
+  separate(mrnDay, into = c('mrn','DayRT'), sep = 'd') %>% 
+  mutate(DayRT = str_replace(DayRT,'_','-'),
+         DayRT = as.numeric(DayRT))
 
+faith %>% 
+  write_csv('../data/finalized/alpha_faith_daily_all.csv')
+```
+
+
+```{r plot_daily_alpha_div}
+# plot daily alpha diversity change for every patient
+faith %>% 
+  ggplot(aes(x = DayRT, y = faith_pd))+
+  geom_line()+
+  geom_point(size = 0.8)+
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        #axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="bottom") +
+  facet_wrap(~mrn)+
+  ggsave('../figs/alpha_div_daily_all.jpg', width = 25, height = 15, dpi = 300)
+
+```
+
+
+```{r}
 alpha_div <- faith %>% 
   full_join(pts_info %>% 
               select(mrn, vital_status))
@@ -180,6 +206,10 @@ pearson <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'pearson')$estima
 
 spearman <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'spearman', exact = F)$estimate
 ```
+
+
+## Beta diversity
+
 
 Use qiime and the above two files to calculate the unweighted_unifrac distance 
 

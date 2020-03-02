@@ -47,6 +47,9 @@ TPN <- tpn %>%
   mutate(dayRT = Date-hct) %>% 
   mutate(type = if_else(type ==1, "TPN", "EN"))
 
+TPN %>% 
+  write_csv('../data/finalized/TPN_EN_all.csv')
+
 ```
 ## The food group for each patient 
 
@@ -121,6 +124,9 @@ min(pt_days$DayRT)
 # create a df to add a vertical line as the engraftment date
 engraf_df <- engra %>% 
   select(mrn, dayEngra)
+
+engraf_df %>% 
+  write_csv('../data/finalized/engraf_day_df.csv')
 ```
 
 
@@ -160,6 +166,12 @@ fgroup_abs <-  ggplot(data = fgroup_relab,aes(x = DayRT, y = grp_tol, fill =  Ma
   facet_wrap(~mrn) +
   ggsave('../figs/food_group_abs.jpg', width = 25, height = 15)
 ```
+
+```{r}
+fgroup_relab %>% 
+  write_csv('../data/finalized/food_group_daily_all.csv')
+```
+
 
 
 ```{r}
@@ -255,6 +267,9 @@ nutr_joined %>%
         legend.position="bottom") +
   ggsave('../figs/food_nutrient_example.jpg', dpi = 300, width = 8, height = 5)
 
+
+nutr_joined %>% 
+  write_csv('../data/finalized/nutrient_daily_all.csv')
 ```
  
 ```{r nutrient_plot}
