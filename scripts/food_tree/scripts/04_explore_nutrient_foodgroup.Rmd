@@ -20,10 +20,6 @@ source('~/db.R')
 Final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
 ```
 
-
-
-
-
 ```{r}
 # the date of engraftment
 # transplant type, intensity, etc. The column titled ‘tt_anc_500’ is the day post -HCT of engraftment and ‘anc_500’ is the specific date of engraftment.
@@ -169,10 +165,12 @@ fgroup_abs <-  ggplot(data = fgroup_relab,aes(x = DayRT, y = grp_tol, fill =  Ma
 ```{r}
 # pick two patients as examples and put them side by side in a large plot
 patients_abs <- fgroup_relab %>% 
-  filter(mrn %in% c(35454047, 35577168)) %>% 
+  filter(mrn %in% c(35522948, 35571968)) %>% 
   select(-daily_tol) %>% 
   ggplot(aes(x = DayRT, y = grp_tol, fill =  Main.food.description))+
   geom_bar(position="stack", stat="identity") +
+  geom_vline(data = engraf_df %>% filter(mrn %in% c(35522948, 35571968)), aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+  geom_vline(data = TPN %>% filter(mrn %in% c(35522948, 35571968)), aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
   labs(y = 'Total dehydrated weight in each group') +
   scale_fill_manual(values = scale_fill_manual_value) +
   theme_classic() +
@@ -184,10 +182,12 @@ patients_abs <- fgroup_relab %>%
   ggsave('../figs/food_group_patients_abs.jpg', width = 12, height = 7)
 
 patients_relab <- fgroup_relab %>% 
-  filter(mrn %in% c(35454047, 35577168)) %>% 
+  filter(mrn %in% c(35522948, 35571968)) %>% 
   select(-daily_tol) %>% 
   ggplot(aes(x = DayRT, y = grp_relab, fill =  Main.food.description))+
   geom_bar(position="stack", stat="identity") +
+  geom_vline(data = engraf_df %>% filter(mrn %in% c(35522948, 35571968)), aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+  geom_vline(data = TPN %>% filter(mrn %in% c(35522948, 35571968)), aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
   labs(y = 'Relative abundance in each group') +
   scale_fill_manual(values = scale_fill_manual_value) +
   theme_classic() +
@@ -241,23 +241,35 @@ nutr_joined <- nut_daily_tol %>%
 ```{r nutrient_plot}
 # one patient for example
 nutr_joined %>% 
-  filter(mrn == 35580223) %>% 
-  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,ylab = 'Relative abundance',
-            legend = 'right',
-            color = 'white', palette = 'lancet') +
+  filter(mrn == 35586702) %>% 
+  ggplot(aes(x = DayRT, y = nut_relab, fill =  nutrient)) +
+  geom_bar(position="stack", stat="identity") +
+  geom_vline(data = engraf_df %>% filter(mrn == 35586702), aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+  geom_vline(data = TPN %>% filter(mrn == 35586702), aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
+  scale_fill_lancet() +
+  labs(y = 'Relative abundance') +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        #axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="bottom") +
   ggsave('../figs/food_nutrient_example.jpg', dpi = 300, width = 8, height = 5)
 
 ```
-
+ 
 ```{r nutrient_plot}
-# plot 
-nutr_joined %>% 
-  ggbarplot(x = 'DayRT', y  = 'nut_relab', fill = 'nutrient',size = 0.01,ylab = 'Relative abundance',legend = 'bottom',
-            color = 'white', palette = 'lancet') +
-  #geom_vline(data = engraf_df, aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
-  #geom_vline(data = TPN, aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
-  facet_wrap(~ mrn) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 5)) +
+nutrient_plot_relab <-  ggplot(data = nutr_joined,aes(x = DayRT, y = nut_relab, fill =  nutrient)) +
+  geom_bar(position="stack", stat="identity") +
+  geom_vline(data = engraf_df, aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+  geom_vline(data = TPN, aes(xintercept = dayRT), color = 'forestgreen', size=1, linetype = 'dotted') +
+  scale_fill_lancet() +
+  labs(y = 'Relative abundance') +
+  theme_classic() +
+  theme(axis.title.x=element_blank(),
+        #axis.text.x=element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position="bottom") +
+  facet_wrap(~mrn) +
   ggsave('../figs/food_nutrient_all.jpg', width = 25, height = 15, dpi = 300)
 ```
 
