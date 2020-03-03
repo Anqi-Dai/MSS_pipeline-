@@ -112,7 +112,7 @@ pt_days <- fgroup_relab %>%
   count(mrn)
 
 pt_days %>% 
-  gghistogram(x = 'n', bins = 10, color = 'white', fill = 'navy',
+  gghistogram(x = 'n', bins = 30, color = 'white', fill = 'navy',
               xlab = 'Number of days of records per patient',
               title = 'How many days of records each patient has')
 

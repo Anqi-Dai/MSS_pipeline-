@@ -6,6 +6,10 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(grid)
+library(ggsci)
 ```
 
 To plot the different plot in one column for a single patient, including absolute food weight, relative abundance, nutrient relative abundance, alpha diversity change.
@@ -19,7 +23,28 @@ pt_num <- fgroup %>%
   mutate(ID = seq(1, nrow(.))) %>% 
   mutate(ID = str_pad(ID, 3, 'left', '0'))
 ```
+```{r}
+# some phenotype info regarding the transplant
+#source('~/db.R')
 
+faith <- read_csv('../data/finalized/alpha_faith_daily_all.csv')
+allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
+  filter(mrn %in% faith$mrn)
+colnames(allo)
+
+pts_info <- allo %>% 
+  select(mrn, intensity, indication, source, gvhd:grade) %>% 
+  filter(str_detect(indication, 'Initial')) %>% 
+  # clean the source 
+  mutate(source = if_else(str_detect(source, 'Cord' ), 
+                             'cord',
+                             if_else(str_detect(source, 'SBA|CD34'), 
+                                     'TCD',
+                                     'unmodified'))) 
+```
+
+  
+  
 ```{r}
 # loading all the tables
 nutr <- read_csv('../data/finalized/nutrient_daily_all.csv') %>% 
@@ -27,7 +52,9 @@ nutr <- read_csv('../data/finalized/nutrient_daily_all.csv') %>%
 
 fgroup <- read_csv('../data/finalized/food_group_daily_all.csv')%>% 
   left_join(pt_num) %>% 
-  mutate(Main.food.description = factor(Main.food.description, levels = c('Grain_Product','Sugars_Sweets_and_Beverages','Meat_Poultry_Fish_and_Mixtures','Milk_and_Milk_Products','Vegetables','Fruits','Dry_Beans_Peas_Other_Legumes_Nuts_and_Seeds','Eggs','Fats_Oils_and_Salad_Dressings')))
+  mutate(Main.food.description = factor(Main.food.description, levels = c('Grain_Product','Sugars_Sweets_and_Beverages','Meat_Poultry_Fish_and_Mixtures','Milk_and_Milk_Products','Vegetables','Fruits','Dry_Beans_Peas_Other_Legumes_Nuts_and_Seeds','Eggs','Fats_Oils_and_Salad_Dressings'))) %>% 
+  left_join(pts_info %>% 
+              select(mrn, intensity, source))
 
 engraf_df <- read_csv('../data/finalized/engraf_day_df.csv')%>% 
   left_join(pt_num)
@@ -45,6 +72,8 @@ scale_fill_manual_value <- c("Milk_and_Milk_Products" = "#a9a9a9", "Meat_Poultry
 ```
 
 
+
+
 ```{r}
 # the function for making the above binded plot for each patient
 make_combined_plot <- function(id) {
@@ -53,8 +82,9 @@ make_combined_plot <- function(id) {
     geom_vline(data = engraf_df %>%  filter(ID == id), aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
     geom_vline(data = TPN %>% filter(ID == id), aes(xintercept = dayRT), color = 'forestgreen', size=1.3, linetype = 'dotted') +
     scale_fill_manual(values = scale_fill_manual_value) +
-    labs(y = 'Dehydrated weight') +
+    labs(y = 'Dehydrated weight', title = str_glue('Patient{id} Intensity: {fgroup %>% filter(ID == id) %>% distinct(intensity) %>% pull(intensity)}   Source: {fgroup %>% filter(ID == id) %>% distinct(source) %>% pull(source)}')) +
     theme_classic() +
+      ylim(0, 600) +
     theme(axis.title.x=element_blank(),
           axis.ticks.x = element_blank(),
           axis.text.x=element_blank(),
@@ -84,6 +114,7 @@ make_combined_plot <- function(id) {
     labs(x = '', y = 'Faith’s Phylogenetic Diversity') +
     geom_point(size = 1.5)+
     theme_classic() +
+    ylim(0, 2000) +
     theme(axis.title.x=element_blank(),
           axis.text.x=element_blank(),
           axis.ticks.x = element_blank(),
@@ -105,22 +136,57 @@ make_combined_plot <- function(id) {
           legend.position="None")
   
   
-  g <- plot_grid(fgroup_abs, fgroup_relab, alpha_div, nutr_relab, 
+  g <- plot_grid(fgroup_abs, fgroup_relab, alpha_div, nutr_relab,
     ncol = 1,
-    align = 'hv',
+    o = 'hv',
     #labels = 'AUTO',
-    axis = 'b') +
-    ggsave(str_glue('../figs/per_patient/bind_{id}.jpg'), width = 5, height = 8, dpi = 300)
+    axis = 'bltr') +
+    ggsave(str_glue('../figs/per_patient/bind_{id}.jpg'), width = 5, height = 10, dpi = 300)
 }
-```
 
-```{r}
+
+
+
 ids <- fgroup %>% 
   distinct(ID) %>% 
   pull(ID)
+#ids <- '027'
 
 ids %>% 
-  
+  map(~ make_combined_plot(.))
 
 ```
+```{r}
+id <- '027'
+nutr %>% 
+    filter(ID == id) %>% 
+    ggplot(aes(x = DayRT, y = nut_relab, fill =  nutrient)) +
+    geom_bar(position="stack", stat="identity") +
+    geom_vline(data = engraf_df %>% filter(ID == id), aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+    geom_vline(data = TPN %>% filter(ID == id), aes(xintercept = dayRT), color = 'forestgreen', size=1.3, linetype = 'dotted') +
+    scale_fill_lancet() +
+    labs(y = 'Relative abundance', x = 'Day relative to transplant') +
+    theme_classic() +
+    theme(#axis.text.x=element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.title.x=element_blank(),
+          legend.position="right")
+
+
+
+
+ggplot(data = fgroup %>% filter(ID == id),aes(x = DayRT, y = grp_relab, fill =  Main.food.description)) +
+    geom_bar(position="stack", stat="identity") +
+    geom_vline(data = engraf_df %>%  filter(ID == id), aes(xintercept = dayEngra), color = 'red', size=2, linetype = 'dashed') +
+    geom_vline(data = TPN %>% filter(ID == id), aes(xintercept = dayRT), color = 'forestgreen', size=1.3, linetype = 'dotted') +
+    scale_fill_manual(values = scale_fill_manual_value) +
+    labs(y = 'Relative Abundance') +
+    theme_classic() +
+    theme(axis.title.x=element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x=element_blank(),
+          legend.position="right")
+```
+
+
 
