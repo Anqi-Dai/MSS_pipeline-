@@ -100,13 +100,21 @@ final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F)
 #######################################################
 # remove the three items that are not in the feature table
 #######################################################
-remove3 <- setdiff(final.table %>% 
-         pull(Main.food.description) , food_cts %>% mutate(main_food_desc = str_replace_all(main_food_desc, ' ', '_')) %>% 
-          pull(main_food_desc)
-          )
+# remove3 <- setdiff(final.table %>% 
+#          pull(Main.food.description) , food_cts %>% mutate(main_food_desc = str_replace_all(main_food_desc, ' ', '_')) %>% 
+#           pull(main_food_desc)
+#           )
 
+final.table <- final.table 
+# %>% 
+#   filter(!Main.food.description %in% remove3)
+
+# to see the overlap between the food id in the feature table and the food id in the tree file
+length(intersect(final.table$FoodID, food_cts$FoodID))
+
+# recreate the newick string that will be in the tree file replacing the main food desc with food id
 final.table <- final.table %>% 
-  filter(!Main.food.description %in% remove3)
+  mutate(newickstring = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{FoodID}'))
 ```
 
 

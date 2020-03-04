@@ -59,9 +59,8 @@ cal0 <-  final %>%
 
 cal0 %>% 
   write_csv('../data/source/all_0_kcal_foods.csv')
-```
 
-```{r}
+
 # need to have the main food description (without special characters) as the feature name
 # use the table previously generated
 food_db <- read_tsv('../data/source/food_database_file.tsv')
@@ -208,53 +207,3 @@ spearman <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'spearman', exac
 ```
 
 
-## Beta diversity
-
-
-Use qiime and the above two files to calculate the unweighted_unifrac distance 
-
-```{bash}
-qiime diversity beta-phylogenetic \
-  --i-table all_patients_food_counts_table_w_maindescrip_featurename.qza \
-  --i-phylogeny ../source/output_food_tree_datatree.qza \
-  --p-metric unweighted_unifrac \
-  --o-distance-matrix unweighted_unifrac_distance_matrix.qza
-```
-
-```{r}
-
-```
-
-
-
-```{r}
-# make fake data and post on the forum
-cts <- matrix(rnorm(33165), nrow = 495, ncol = 67 ) 
-rownames(cts) <- food_cts$main_food_desc
-cts <- cts%>% 
-  as.data.frame() %>% 
-  rownames_to_column('main_food_desc')
-
-cts %>% 
-  write_tsv('../data/test/food_cts_fake.tsv')
-```
-
-```{bash}
-biom convert -i food_cts_fake.tsv -o food_cts_fake.biom --to-hdf5 --table-type="Table"
-```
-
-```{bash}
-qiime tools import \
-  --input-path food_cts_fake.biom \
-  --output-path food_cts_fake.qza \
-  --type 'FeatureTable[Frequency]'
-```
-
-
-```{bash}
-qiime diversity beta-phylogenetic \
-  --i-table food_cts_fake.qza \
-  --i-phylogeny ../source/output_food_tree_datatree.qza \
-  --p-metric unweighted_unifrac \
-  --o-distance-matrix unweighted_unifrac_distance_matrix.qza
-```
