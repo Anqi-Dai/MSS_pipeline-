@@ -16,32 +16,75 @@ CTS <- get_data_from_query_OTU(0,'asv_counts_ag')
 SEQS <- get_data_from_query_OTU(0,'asv_sequences_ag')
 ```
  
-See how many samples total that we have 16s asv counts 
- 
-```{r}
-# there are duplicated samples
-n_samples <- CTS %>% 
-  dplyr::count(sampleid)
-```
+
 
 Decide on the threshold of filtering the samples by total number of count
 
 ```{r}
 total_cnt <- CTS %>% 
   distinct(sampleid, count_total)
+
+total_cnt %>% 
+  gghistogram('count_total', title = 'Distribution of count total per sample')
+
+# what percentile is total count == 500
+# keeping 98% of all samples
+nrow(total_cnt[total_cnt$count_total >= 500])/nrow(total_cnt)*100
+
+
+# keeping 95% of all samples
+nrow(total_cnt[total_cnt$count_total >= 2000])/nrow(total_cnt)*100
+
+
+# CURRENTLY DECIDE TO KEEP THE THRESHOLD TO BE 500
 ```
 
+```{r filter_sample_total_count}
+rm_samples <- total_cnt %>% 
+  filter(count_total < 500) %>% 
+  pull(sampleid) 
+  
+CTS_fil <- CTS %>% 
+  filter(!sampleid %in% rm_samples)
+
+
+#See how many samples total that we have 16s asv counts now
+n_samples <- CTS_fil %>% 
+  dplyr::count(sampleid, count_total) %>% 
+  arrange(sampleid, desc(count_total)) %>% 
+  # remove the duplicated samples here
+  distinct(sampleid, .keep_all = T)
+```
 
 ```{r}
 # see the distribution of the number of asv per sample
 n_samples %>% 
-  gghistogram('n', bins = 30, xlab = 'Number of asv per sample')
+  gghistogram('n', bins = 30, xlab = 'Number of asv per sample',
+              title = 'distribution for samples that have count >= 500')
 
 # divide the samples into 2 groups on median asv number per sample
 med_asv_num <- quantile(n_samples$n, 0.5)
 
-n_samples %>% 
-  filter(n <= 72)
+
+combi_low <- n_samples %>% 
+  mutate(combi = str_glue('{sampleid}_{count_total}')) %>% 
+  filter(n < med_asv_num) %>% 
+  pull(combi)
+
+
+combi_high <- n_samples %>% 
+  mutate(combi = str_glue('{sampleid}_{count_total}')) %>% 
+  filter(n >= med_asv_num) %>% 
+  pull(combi)
+
+CTS_fil_low <- CTS_fil %>% 
+  mutate(combi = str_glue('{sampleid}_{count_total}')) %>% 
+  filter(combi %in% combi_low)
+
+
+CTS_fil_high <- CTS_fil %>% 
+  mutate(combi = str_glue('{sampleid}_{count_total}')) %>% 
+  filter(combi %in% combi_high)
 ```
  
 Split then into 100 samples per batch and play around with the nonzero threshold
