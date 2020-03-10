@@ -1,0 +1,53 @@
+---
+title: "Split all the 16 samples into batches and try to get it to run on the cluster"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+source('~/db.R')
+#load the big db table
+CTS <- get_data_from_query_OTU(0,'asv_counts_ag')
+SEQS <- get_data_from_query_OTU(0,'asv_sequences_ag')
+```
+ 
+See how many samples total that we have 16s asv counts 
+ 
+```{r}
+# there are duplicated samples
+n_samples <- CTS %>% 
+  dplyr::count(sampleid)
+```
+
+Decide on the threshold of filtering the samples by total number of count
+
+```{r}
+total_cnt <- CTS %>% 
+  distinct(sampleid, count_total)
+```
+
+
+```{r}
+# see the distribution of the number of asv per sample
+n_samples %>% 
+  gghistogram('n', bins = 30, xlab = 'Number of asv per sample')
+
+# divide the samples into 2 groups on median asv number per sample
+med_asv_num <- quantile(n_samples$n, 0.5)
+
+n_samples %>% 
+  filter(n <= 72)
+```
+ 
+Split then into 100 samples per batch and play around with the nonzero threshold
+
+```{r}
+# so there are different formats of the 16s samples, some like 1101A, some like 12.tp.16
+
+```
+

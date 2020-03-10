@@ -149,3 +149,18 @@ graphlan.py guide_1.xml food_tree.png --dpi 300 --size 3.5
 # tt <- data.tree::To
 
 ```
+
+
+```{r}
+cts <- read_tsv('~/pipeline/scripts/picrust2/data/doris57/picrust2_out/KO_metagenome_out/pred_metagenome_unstrat.tsv') %>% 
+  column_to_rownames('function') %>% 
+  as.matrix()
+
+colsum <- colSums(cts)
+
+normcts <- cts/colsum*1000000
+
+validate <- colSums(normcts)
+
+```
+
