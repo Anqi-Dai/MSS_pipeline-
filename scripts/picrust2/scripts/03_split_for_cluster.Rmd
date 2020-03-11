@@ -177,6 +177,67 @@ g <- plot_grid(frac, abs,
   align = 'hv',
   axis = 'b')  +
   ggsave('../figs/frac_abs.jpg', width = 7, height = 7, dpi = 300)
+ 
+```
+
+DECIDED TO USE THE THRESHOLD OF 98%, remove the singletons
+
+```{r}
+return_filtered_count <- function(spread_df) {
+     cts_mat = spread_df %>% 
+        column_to_rownames('asv_key') %>% 
+        as.matrix()
+      # find the singetons
+    num_zero_thre = floor(ncol(cts_mat) * 0.98)
+    cts_mat_fil = cts_mat[rowSums(cts_mat == 0) <= num_zero_thre, ]
+    cts_mat_fil = cts_mat_fil %>% 
+      as.data.frame() %>% 
+      rownames_to_column('asv_key') 
+    return(cts_mat_fil)
+}
+
+spread_low <- list()
+for(i in 1:length(splitted_low)){
+  spread_low[[i]] <- spread_100(CTS_fil_low, splitted_low[[i]])
+}
+
+spread_high <- list()
+for(i in 1:length(splitted_high)){
+  spread_high[[i]] <- spread_100(CTS_fil_high, splitted_high[[i]])
+}
+
+spread_all <- c(spread_low, spread_high)
+
+
+filtered_list <- spread_all %>% 
+  map(~ return_filtered_count(.))
+```
+
+```{r}
+# make a list of the asv sequence fasta file for each of the filtered count matrix
+library(seqinr)
+
+seqs_list <- list()
+for(i in 1: length(filtered_list)){
+  seqs_list[[i]]<- SEQS %>% 
+    filter(asv_key %in% filtered_list[[i]]$asv_key)
+}
+```
+
+
+```{r}
+for ( i in 1:length(filtered_list)){
+  filtered_list[[i]] %>% 
+    write_tsv(str_glue('../data/splitted_100/filtered_counts_{i}.tsv'))
+  
+  seqs = seqs_list[[i]]
+  
+  write.fasta(sequences = as.list(seqs$asv_sequence), 
+              names = seqs$key,
+              file.out = str_glue('../data/splitted_100/filtered_counts_asv_sequence_{i}.tsv'))
+}
+
+
 
 ```
 
