@@ -7,6 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
+library(cowplot)
 ```
 
 ```{r}
@@ -87,10 +88,95 @@ CTS_fil_high <- CTS_fil %>%
   filter(combi %in% combi_high)
 ```
  
-Split then into 100 samples per batch and play around with the nonzero threshold
+Split them into 100 samples per batch and play around with the nonzero threshold
 
 ```{r}
-# so there are different formats of the 16s samples, some like 1101A, some like 12.tp.16
+# total number of samples in each group and then split
+splitted_low <- CTS_fil_low %>% 
+  distinct(sampleid) %>% 
+  split(cut_width(1:nrow(.), 100, boundary=0))
+
+splitted_high <- CTS_fil_high %>% 
+  distinct(sampleid) %>% 
+  split(cut_width(1:nrow(.), 100, boundary=0))
+
+# a function with input a df with sampleid, and then output the spreaded counts matrix
+spread_100 <- function(DF_group, df){
+  cts <- DF_group %>% 
+    filter(sampleid %in% df$sampleid) %>% 
+    select(asv_key, sampleid, count) %>% 
+    spread(key = 'sampleid' , value = 'count', fill = 0)
+  return(cts)
+}
+
+# to find the number of rows in the filtered count matrix
+fil_cts_nrow <- function(spread_df, thre){
+   cts_mat = spread_df %>% 
+        column_to_rownames('asv_key') %>% 
+        as.matrix()
+      # find the singetons
+    num_zero_thre = floor(ncol(cts_mat) * thre)
+    cts_mat_fil = cts_mat[rowSums(cts_mat == 0) <= num_zero_thre, ]
+    cts_mat_fil_nrow = cts_mat_fil %>% 
+      as.data.frame() %>% 
+      rownames_to_column('asv_key') %>% 
+      nrow()
+    return(cts_mat_fil_nrow)
+}
+```
+
+
+```{r}
+# try on the low group first
+spread_list <- list()
+for(i in 1:length(splitted_low)){
+  spread_list[[i]] <- spread_100(CTS_fil_low, splitted_low[[i]])
+}
+```
+
+```{r}
+# investigate the kept number of asvs after filtering
+thre <- seq(0.960, 0.995, 0.005)
+
+# apply on all the df in the low group
+low_fil_num <- spread_list %>% 
+  map_dfr(function(df){ thre %>% 
+          set_names(thre) %>% 
+          map(~ fil_cts_nrow(df, .))})
+
+# the original number of rows in each df
+df_nrow <- spread_list %>% 
+  set_names(seq(1:length(spread_list))) %>% 
+  map_dfr(function(df){ return(nrow(df))}) %>% 
+  gather('id', 'nrow') %>% 
+  select(nrow)
+
+low_fil_compare <- bind_cols(low_fil_num,df_nrow )
+  
+# convert the absolute number to a percentage
+low_fil_perc <- low_fil_compare %>% 
+  gather('thre', 'fil_nrow', names(.)[1]:names(.)[ncol(.)-1]) %>% 
+  mutate(fil_nrow_perc = round(fil_nrow/nrow, 2))
+```
+```{r}
+# the ditribution of the fraction of kept asv numbers
+frac <- low_fil_perc %>% 
+  ggboxplot('thre', 'fil_nrow_perc', title = 'All the subsets and the fraction',
+            xlab = 'Filtering threshold', ylab = 'Fraction of number of rows left after filtering', add = 'jitter') +
+  theme_bw()
+
+
+# the absolute number
+abs <- low_fil_perc %>% 
+  ggboxplot('thre', 'fil_nrow', title = 'All the subsets and the absolute number',
+            xlab = 'Filtering threshold', ylab = 'Absolute number of rows left after filtering', add = 'jitter') +
+  theme_bw()
+
+g <- plot_grid(frac, abs,
+  nrow = 2,
+  align = 'hv',
+  axis = 'b')  +
+  ggsave('../figs/frac_abs.jpg', width = 7, height = 7, dpi = 300)
 
 ```
 
