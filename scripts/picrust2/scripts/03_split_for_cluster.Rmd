@@ -233,11 +233,8 @@ for ( i in 1:length(filtered_list)){
   seqs = seqs_list[[i]]
   
   write.fasta(sequences = as.list(seqs$asv_sequence), 
-              names = seqs$key,
+              names = seqs$asv_key,
               file.out = str_glue('../data/splitted_100/filtered_counts_asv_sequence_{i}.tsv'))
 }
-
-
-
 ```
 
