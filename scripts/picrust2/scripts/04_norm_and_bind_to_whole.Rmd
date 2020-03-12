@@ -1,0 +1,68 @@
+---
+title: "bind the df and normalize and combine to whole df"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+
+kos <- list.files('../data/done_results/', recursive = T, full.names = T, pattern = 'pred_metagenome_unstrat.tsv')
+
+res <- kos %>% 
+  map(function(fn){
+    tb <- read_tsv(fn) %>% 
+        gather('sampleid','count', names(.)[2]:names(.)[ncol(.)]) %>% 
+        filter(count != 0)
+      
+      tb_sum <- tb %>% 
+        group_by(sampleid) %>% 
+        summarise(total =  sum(count))
+      
+      tb_norm <- tb %>% 
+        left_join(tb_sum, by = 'sampleid') %>% 
+        mutate(cpm = count/total*1000000) %>% 
+        rename(KOID = names(.)[1]) %>% 
+        select(KOID, sampleid, cpm)
+      return(tb_norm)
+  }) %>% 
+  bind_rows()
+```
+
+```{r}
+# find the KOs we are interested in
+KOs <- c('K01442','K15868','K15869','K15870','K15871','K15872','K15873','K15874')
+
+bile_res <- res %>% 
+  filter(KOID %in% KOs) 
+
+bile_res_dist <- bile_res %>% 
+  dplyr::count(sampleid)
+
+KOID_dist <-  bile_res %>% 
+  dplyr::count(KOID)
+
+
+bile_res %>% 
+  write_csv('../data/normalized_picrust2_pred_metagenome_KO_secondary_bile_counts.csv')
+```
+
+```{r}
+# see the cpm distribution 
+# create a df to have the height of the annotation also
+KOID_dist_df <- KOID_dist %>% 
+  mutate(height = quantile(bile_res %>%  filter(KOID == 'K01442') %>% pull(cpm), 0.9))
+
+bile_res %>% 
+  ggboxplot('KOID', 'cpm', title = 'All KOs related to secondary bile acid biosynthesis') +
+  geom_text(data = KOID_dist_df, aes(x = KOID, y = height, label = n)) +
+  theme_bw() +
+  scale_y_continuous( breaks =seq(0, 3000, 200))
+
+
+```
+

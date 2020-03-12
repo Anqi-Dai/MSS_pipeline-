@@ -238,3 +238,29 @@ for ( i in 1:length(filtered_list)){
 }
 ```
 
+```{r}
+# create bash script for creating the dir and then download only the file into the corresponding dir
+src <- tibble(
+  id = seq(1, 178),
+  local_dir = str_glue('/Users/daia1/pipeline/scripts/picrust2/data/done_results/subset_{id}'),
+  ko_file = str_glue('daia1@lilac.mskcc.org:~/my_workdir/other_pipeline/picrust2/output/picrust2_out_{id}/KO_metagenome_out/pred_metagenome_unstrat.tsv.gz'),
+  pw_file = str_glue('daia1@lilac.mskcc.org:~/my_workdir/other_pipeline/picrust2/output/picrust2_out_{id}/pathways_out/path_abun_unstrat.tsv.gz'),
+  dl_ko = str_glue('scp {ko_file} {local_dir}'),
+  dl_pw = str_glue('scp {pw_file} {local_dir}'),
+  unzip_ko = str_glue('gunzip /Users/daia1/pipeline/scripts/picrust2/data/done_results/subset_{id}/pred_metagenome_unstrat.tsv.gz'),
+  unzip_pw = str_glue('gunzip /Users/daia1/pipeline/scripts/picrust2/data/done_results/subset_{id}/path_abun_unstrat.tsv.gz')
+)
+
+# create local dir first
+src %>% 
+  mutate(mkdir_cmd = str_glue('mkdir {local_dir}')) %>% 
+  select(mkdir_cmd) %>% 
+  write_tsv('../data/mkdir.sh', col_names = F)
+
+src %>% 
+  select(dl_ko, dl_pw, unzip_ko, unzip_pw) %>% 
+  gather('fn', 'cmd') %>% 
+  select(cmd) %>% 
+  write_tsv('../data/downloding_ko_pw.sh', col_names = F)
+```
+
