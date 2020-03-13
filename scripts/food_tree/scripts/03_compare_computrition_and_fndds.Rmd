@@ -23,7 +23,7 @@ uniq_fndds <- read_csv('../data/finalized/uniq_Food_NSC_fndds_nutrient_value.csv
 computrition <- ALL %>% 
   select(Food_NSC,Calories_kcal: Sodium_mg) %>% 
   distinct(Food_NSC, .keep_all = T) %>% 
-  rename(energy = Calories_kcal,
+  dplyr::rename(energy = Calories_kcal,
          protein = Proteing_g,
          fat = Fat_g,
          carbohydrate = Carbohydrates_g,
@@ -180,5 +180,65 @@ cor_all %>%
 doubt <- compare2 %>% 
   filter(item != 'energy') %>% 
   filter(is.na(computri_converted)) 
+```
+
+
+```{r}
+# find the outlier of the scatter plots comparison by doing a ratio of the converted computrition value and FNDDS value
+outlier <- compare2_res %>% 
+  map(~ mutate(.data = ., check_ratio = round(computri_converted/value_fndds, 2))) %>% 
+  bind_rows(.id = 'group') %>% 
+  filter(is.finite(check_ratio))
+```
+
+
+```{r}
+# check the ratio much bigger than 1 ones 
+# >= 4
+outlier_select <- outlier %>% 
+  filter(check_ratio >= 4) %>% 
+  arrange(Food_NSC)
+
+# retrieve the ID of the food and join back to this table
+outlier_select <- outlier_select %>% 
+  left_join(ALL %>%  select(key, Food_NSC)) %>% 
+  select(key, group : check_ratio)
+
+outlier_select %>% 
+  write_csv('../data/need_to_be_checked_comput_fndds_ratio_too_big.csv')
+
+
+# or I just pick the points that are in the impossible region
+impossible_all <- compare2_res %>% 
+  bind_rows(.id = 'group') 
+
+
+carbohydrate <- impossible_all%>% 
+  filter(group == 'carbohydrate' & computri_converted > 100)
+
+fat <- impossible_all%>% 
+  filter(group == 'fat' & computri_converted > 101)
+
+fiber <- impossible_all %>% 
+  filter(group == 'fiber' & computri_converted > 20)
+
+
+sodium <- impossible_all%>% 
+  filter(group == 'sodium'  & computri_converted > 5000 & value_fndds < 3000)
+
+all_obvious <- bind_rows(carbohydrate, fat, fiber, sodium)
+
+
+all_obvious %>% 
+  left_join(ALL %>%  select(key, Food_NSC), by = 'Food_NSC') %>% 
+  write_csv('../data/outlier_very_obvious.csv')
+
+correct_id <- all_obvious %>% 
+  left_join(ALL %>%  select(key, Food_NSC))
+
+ALL %>% 
+  distinct(Food_NSC, .keep_all = T) %>% 
+  filter(Food_NSC %in% all_obvious$Food_NSC) %>% 
+  write_csv('../data/outlier_very_obvious.csv')
 ```
 

@@ -1,0 +1,113 @@
+---
+title: "Create and filter count matrix"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(phyloseq)
+library(phangorn)
+library(dada2)
+library(DECIPHER)
+library(tidyverse)
+library(kableExtra)
+```
+
+```{r}
+# load the big table from the db
+source('~/db.R')
+CTS <- get_data_from_query_OTU(0,'asv_counts_ag')
+SEQ <- get_data_from_query_OTU(0,'asv_sequences_ag')
+ANNOT <- get_data_from_query_OTU(0, 'asv_annotation_blast_ag')
+```
+
+
+## Make sure the sampleids in your table can be found in our database (need to clean when you can't)
+
+```{r}
+# load the pheno table (contains at least the sampleid column and a column with phenotype information that you are interested in, such as Toxicity Y and N, Responding status: responder and non_responder)
+pheno <- read_csv('../data/final_pheno.csv') %>% 
+  # some samples have "..pool........" attached at the end of the sampleid, remove them
+  mutate(postgres_ID = str_replace(postgres_ID, '\\.\\.pool.+$',''))
+
+
+# lets look at the key information in this pheno table
+pheno %>% 
+  select(Patient_ID, Sample_ID, postgres_ID, Timepoint, Response_Status )
+```
+
+- There are several unconventional sampleids in the `Sample_ID` column, such as DP.1. That's because they are from external insitutions. Luckily John helped to link those to the sampleids in our own database (only need a little bit cleaning like talked above). 
+
+```{r}
+# look at some details of the samples
+
+# how many sample total?
+nrow(pheno)
+```
+```{r}
+# how many patients total?
+# this can be found by the patient ID 
+pheno %>% 
+  dplyr::count(Patient_ID)
+```
+So only 2 of them have only one time point of sample, but all the others have both day 0 and day 28 data.
+
+```{r}
+# how many responders and non_responders?
+# every sample has a responding status variable, but it really depends on the day 28 response. In other words, for the sample patient's samples, day 0 response will be the same as day 28's.
+
+pheno %>% 
+  filter(Timepoint == 'd28') %>% 
+  dplyr::count(Response_Status)
+
+```
+
+
+
+```{r}
+# Do we have all of these samples counts in the database
+# how many samples counts we have
+have_counts <-CTS %>% 
+  filter(sampleid %in% pheno$postgres_ID) %>% 
+  dplyr::count(sampleid) 
+
+nrow(have_counts)  # that one missing sample is not there because it failed sequencing due to some amplification problem.
+```
+
+n is the number of ASV identified in each sample. 
+
+```{r}
+# now recreate the pheno table but with only the samples that we have 
+pheno <- pheno %>% 
+  filter(postgres_ID %in% have_counts$sampleid)
+```
+
+
+
+```{r}
+# get the unique asv_seq to build a tree.
+seqtab <- CTS %>% 
+  filter(sampleid %in% pheno$postgres_ID) %>% 
+  select(asv_key, sampleid, count) %>% 
+  left_join(SEQ %>% 
+              dplyr::rename(asv_key = key), by  = 'asv_key')
+
+seqs <- seqtab %>% 
+  distinct(asv_sequence) %>% 
+  pull(asv_sequence)
+
+names(seqs) <- seqs
+
+# tree building and the last step takes a lot of time!
+alignment <- AlignSeqs(DNAStringSet(seqs), anchor=NA)
+phang.align <- phyDat(as(alignment, "matrix"), type="DNA")
+dm <- dist.ml(phang.align)
+treeNJ <- NJ(dm) # Note, tip order != sequence order
+fit = pml(treeNJ, data=phang.align)
+fitGTR <- update(fit, k=4, inv=0.2)
+fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
+ rearrangement = "stochastic", control = pml.control(trace = 0))
+detach("package:phangorn", unload=TRUE)
+```
+
+

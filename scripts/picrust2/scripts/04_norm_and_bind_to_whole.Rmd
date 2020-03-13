@@ -31,6 +31,10 @@ res <- kos %>%
       return(tb_norm)
   }) %>% 
   bind_rows()
+
+res %>% 
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/normalized_picrust2_pred_metagenome_KO_all_counts.csv')
+
 ```
 
 ```{r}
@@ -62,7 +66,5 @@ bile_res %>%
   geom_text(data = KOID_dist_df, aes(x = KOID, y = height, label = n)) +
   theme_bw() +
   scale_y_continuous( breaks =seq(0, 3000, 200))
-
-
 ```
 
