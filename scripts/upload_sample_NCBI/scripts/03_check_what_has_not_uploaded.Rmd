@@ -1,0 +1,48 @@
+---
+title: "Check what has or hasn't been uploaded"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+uo1 <- read_excel('../data/shotgun/U01_shotgunsequenced.xlsx') %>% 
+  rename(sampleid = names(.)[1])
+
+sra <- read_tsv('../data/shotgun/SRA_shotgun.tsv') %>% 
+  select(sra = SRA.filename)
+```
+
+```{r}
+# clean the sra files that are not in the 08397
+sra_fil <- sra %>% 
+  filter(str_detect(sra, 'clean')) %>% 
+  mutate(sra = str_replace(sra, '_clean.fastq','')) %>% 
+  filter(sra %in% uo1$sampleid)
+
+length(intersect(sra_fil$sra, uo1$sampleid))
+
+sra_fil %>% 
+  write_csv('../data/shotgun/UO1_samples_already_uploaded_to_SRA_20200316.csv')
+```
+
+
+```{r}
+missing <- read_tsv('../data/shotgun/metadata-5741703-processed-ok.tsv')
+
+
+length(intersect(missing$orig_sample_name, uo1$sampleid))
+```
+```{r}
+source('~/db.R')
+sg <- get_data_from_query_OTU(0, 'shotgun_lookup_ad') %>% 
+  filter(str_detect(projectid, '08397'))
+  filter(projectid == 'Project_08397')
+
+length(intersect(missing$orig_sample_name, sg$sampleid))
+```
+

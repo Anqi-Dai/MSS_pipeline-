@@ -1,0 +1,462 @@
+'''
+This Snakefile is the pipeline of the following steps:
+* Initial quality checking with fastqc
+* Aggregated view of the quality with multiqc
+* Deduplication with clumpify
+* Trimming adapters and low quality reads with bbmap
+* Decontamination with kneaddata
+* Second quality check of the preprocessing done reads with fastqc again
+* Taxanomic profiling and pathway analysis with humann2 
+* Aggregated view of the trimming, alignment with multiqc again
+
+# for a specific project:
+# certain pathway abundance quantification results will be 
+* Joined
+* Renormalized to relative abundance
+* Split to statified and unstratified version
+
+How to run:
+The params for running on the cluster is specified in the cluster.json file that is in the same folder. 
+When in the rule of humann2_run, need to activate a specific conda environment, so in the command line:
+snakemake -j 999 --use-conda --cluster-config cluster.json --cluster 'bsub -n {cluster.threads}  -R {cluster.memory} -W {cluster.walltime} -e {cluster.error} -o {cluster.output}'
+'''
+
+#==================================================================================================================================================
+
+from glob import glob
+import json
+
+configfile: 'il22_project.yml'
+
+sample_dir = config['sample_dir']
+
+FILE = json.load(open(config['sample_json']))
+sample_names = FILE.keys()
+
+#==================================================================================================================================================
+
+localrules: all, multiqc1_run, multiqc2_run, merge_metaphlan_res, heatmap_top_features, Output
+
+# to create the output file names for fastqc
+sample_name_list = list(FILE.keys())
+
+ini_fastq_fns = [FILE[sample]['R1'][0] for sample in sample_name_list] +  [FILE[sample]['R2'][0] for sample in sample_name_list]
+
+fastqc1 = [fastq.replace('.fastq.gz', '_fastqc.zip') for fastq in ini_fastq_fns]
+
+fastqc2 = expand('{sample_dir}/{sample}_paired_{read}_fastqc.zip',  sample_dir = sample_dir, sample = sample_names, read = ["1","2"])
+
+multiqc1 = sample_dir + '/raw_reads_fastqc_report.html'
+
+multiqc2 = sample_dir + '/preprocessing_done_report.html'
+
+knead = expand('{sample_dir}/{sample}_kneaddata.log', sample_dir = sample_dir, sample = sample_names)
+
+metaphlan_res = expand('{sample_dir}/{sample}_profile.txt', sample_dir = sample_dir, sample = sample_names)
+
+merged_metaphlan = expand('{sample_dir}/merged_abundance_table.txt', sample_dir = sample_dir)
+
+humann2 = expand('{sample_dir}/{sample}_humann2_run.done', sample_dir = sample_dir, sample = sample_names)
+
+rule all:
+    input:
+        fastqc1, 
+        fastqc2, 
+        multiqc1, 
+        multiqc2,
+        sample_dir+'/humann2_final_out'
+
+
+# for the samples that have multiple R1 and R2 in the folder:
+
+def fastq_R1_from_sample(wildcards):
+    fns = glob('{}/Sample_{}_IGO*/{}_*R1_001.fastq.gz'.format(wildcards.sample_dir, wildcards.sample, wildcards.sample))
+    fns.sort()
+    return fns
+
+
+def fastq_R2_from_sample(wildcards):
+    fns = glob('{}/Sample_{}_IGO*/{}_*R2_001.fastq.gz'.format(wildcards.sample_dir, wildcards.sample, wildcards.sample))
+    fns.sort()
+    return fns
+
+
+rule concat_R1_R2:
+    input:
+        R1=fastq_R1_from_sample,
+        R2=fastq_R2_from_sample
+    output:
+        R1='{sample_dir}/{sample}__concat_R1.fastq.gz',
+        R2='{sample_dir}/{sample}__concat_R2.fastq.gz'
+    shell:
+        'cat {input.R1} > {output.R1};'
+        'cat {input.R2} > {output.R2}'
+
+# Initial FastQC to see the quality 
+
+rule initial_fastqc_run:
+    input:
+        '{sample_dir}/{sample_info}.fastq.gz'
+    output:
+        '{sample_dir}/{sample_info}_fastqc.zip'
+    threads:
+        4
+    shell: 
+        '''
+        fastqc {input} -t {threads} 
+        '''
+
+# Multiqc the above initial QC results only
+
+rule multiqc1_run:
+    input:
+        initial_fastqc=fastqc1
+    output:
+        sample_dir+'/raw_reads_fastqc_report.html'
+    params:
+        out_dir=sample_dir
+    shell:
+        'multiqc -f -n raw_reads_fastqc_report {input.initial_fastqc} -o {params.out_dir} '
+
+
+# Remove duplicated reads from the fastq.gz files 
+'''
+rule clumpify_run:
+    input:
+        R1=lambda wildcards: FILE[wildcards.sample]['R1'],
+        R2=lambda wildcards: FILE[wildcards.sample]['R2']
+    output:
+        out1='{sample_dir}/{sample}_dedupe_R1.fastq.gz',
+        out2='{sample_dir}/{sample}_dedupe_R2.fastq.gz'
+    threads:
+        1
+    log:
+        '{sample_dir}/{sample}_dedupe_stats.txt'
+    shell:
+        '
+        clumpify.sh -Xmx1g in={input.R1} in2={input.R2} out={output.out1} out2={output.out2}  \
+            dedupe optical threads={threads} ow 2> {log}
+        '
+'''
+
+rule clumpify_multiple:
+    input:
+        R1='{sample_dir}/{sample}__concat_R1.fastq.gz',
+        R2='{sample_dir}/{sample}__concat_R2.fastq.gz'
+    output:
+        out1='{sample_dir}/{sample}_dedupe_R1.fastq.gz',
+        out2='{sample_dir}/{sample}_dedupe_R2.fastq.gz'
+    threads:
+        1
+    log:
+        '{sample_dir}/{sample}_dedupe_stats.txt'
+    shell:
+        '''
+        clumpify.sh -Xmx1g in={input.R1} in2={input.R2} out={output.out1} out2={output.out2}  \
+            dedupe optical threads={threads} ow 2> {log}
+        '''
+
+
+
+
+# Trim adapters with BBMap
+
+rule bbmap_run:
+    input:
+        R1='{sample_dir}/{sample}_dedupe_R1.fastq.gz',
+        R2='{sample_dir}/{sample}_dedupe_R2.fastq.gz',
+        adapter='/home/daia1/my_workdir/APPS/bbmap/resources/adapters.fa'
+    output:
+        out_R1='{sample_dir}/{sample}_trim_R1.fastq.gz',
+        out_R2='{sample_dir}/{sample}_trim_R2.fastq.gz',
+        rm_R1='{sample_dir}/{sample}_discard_R1.fastq.gz',
+        rm_R2='{sample_dir}/{sample}_discard_R2.fastq.gz',
+        stats='{sample_dir}/{sample}_trimmingAQ.txt'
+    threads:
+        8
+    log:
+        '{sample_dir}/{sample}_bbmap_log.txt'
+    shell:
+        '''
+        bbduk.sh -Xmx1g \
+            in={input.R1} in2={input.R2} \
+            out={output.out_R1} out2={output.out_R2} \
+            outm={output.rm_R1} outm2={output.rm_R2} \
+            ref={input.adapter} \
+            minlen=51  qtrim=rl trimq=10 ktrim=r k=31 mink=9 hdist=1 hdist2=1  tpe tbo \
+            stats={output.stats} \
+            threads={threads} 2> {log}
+        '''
+
+
+# Remove human reads contamination using Kneaddata
+
+rule kneaddata_run:
+    input:
+        R1='{sample_dir}/{sample}_trim_R1.fastq.gz',
+        R2='{sample_dir}/{sample}_trim_R2.fastq.gz',
+        bmtagger_db='/home/daia1/my_workdir/ref_db/kneaddata_bmatgger_hg38'
+    output:
+        Log='{sample_dir}/{sample}_kneaddata.log',
+        cat='{sample_dir}/{sample}.fastq',
+        pair1='{sample_dir}/{sample}_paired_1.fastq',
+        pair2='{sample_dir}/{sample}_paired_2.fastq'
+    params:
+        out_prefix='{sample}',
+        out_dir=sample_dir
+    threads:
+        8
+    shell:
+        '''
+        kneaddata -i {input.R1} -i {input.R2} \
+            -o {params.out_dir} \
+            -db {input.bmtagger_db} \
+            --output-prefix {params.out_prefix} \
+            --bypass-trim \
+            --run-bmtagger \
+            --cat-final-output  \
+            -t {threads} \
+            --log {output.Log}
+        '''
+
+# FastQC of the paired fastqs.
+rule fastqc_run:
+    input:
+        '{sample_dir}/{sample}_paired_{read}.fastq'
+    output:
+        '{sample_dir}/{sample}_paired_{read}_fastqc.zip'
+    threads:
+        4
+    shell: 
+        'fastqc {input} -t {threads}'
+
+
+# R script to grab stats of the bmtagger decontamination run
+
+# Metaphlan2 run to get the bug list separately
+
+rule metaphlan2_run:
+    input:
+        '{sample_dir}/{sample}.fastq'
+    output:
+        outfile='{sample_dir}/{sample}_profile.txt',
+        bt_out='{sample_dir}/{sample}.bowtie2.bz2'
+    conda:
+        'envs/humann2_py2.yaml'
+    threads:
+        8
+    log:
+        '{sample_dir}/{sample}_metaphlan2_log.txt'
+    shell:
+        '''
+        metaphlan2.py {input} --input_type fastq --bowtie2out {output.bt_out} --nproc {threads} -t rel_ab_w_read_stats  -o  {output.outfile}  2> {log}
+        '''
+
+# Join the Metaphlan2 profiling result into a single table
+
+rule merge_metaphlan_res:
+    input:
+        expand('{sample_dir}/{sample}_profile.txt',  sample_dir = sample_dir, sample = sample_names)
+    output:
+        sample_dir+'/merged_abundance_table.txt'
+    conda:
+        'envs/humann2_py2.yaml'
+    shell:
+        'merge_metaphlan_tables.py {input} > {output}'
+
+# Summarise the metaphlan2 results at the species level
+
+rule summarise_species_level:
+    input:
+        sample_dir+'/merged_abundance_table.txt'
+    output:
+        sample_dir+'/merged_abundance_table_species.txt'
+    shell:
+        '''
+        grep -E "(s__)|(^ID)" {input} | grep -v 't__' | sed 's/^.*s__//g' > {output}
+        '''
+
+# Summarise the metaphlan2 results at the genus level
+
+rule summarise_genus_level:
+    input:
+        sample_dir+'/merged_abundance_table.txt'
+    output:
+        sample_dir+'/merged_abundance_table_genus.txt'
+    shell:
+        '''
+        grep -E "(g__)|(^ID)" {input} | grep -v "s__" | grep -v "t__" | sed 's/^.*g__//g' > {output}
+        '''
+
+# Generate the heatmap of the top 25 features
+
+rule heatmap_top_features:
+    input:
+        sample_dir+'/merged_abundance_table_species.txt'
+    output:
+        sample_dir+'/abundance_heatmap_species.png'
+    conda:
+        'envs/humann2_py2.yaml'
+    shell:
+        '''
+        hclust2.py -i {input} -o {output} \
+        --ftop 25 --f_dist_f braycurtis --s_dist_f braycurtis \
+        --cell_aspect_ratio 1 -l --flabel_size 3 --slabel_size 3 --max_flabel_len 100 --max_slabel_len 100 --minv 0.1 --dpi 300 
+        '''
+
+
+# Humann2 run 
+
+
+rule humann2_run_uniref50:
+    input:
+        '{sample_dir}/{sample}.fastq'
+    output:
+        touch('{sample_dir}/{sample}_humann2_run_uniref50.done')
+    params:
+        out_prefix='{sample}_uniref50',
+        out_dir=sample_dir
+    conda:
+        'envs/humann2_py2.yaml'
+    threads:
+        16
+    log:
+        '{sample_dir}/{sample}_humann2_uniref50.log'
+    shell:
+        '''
+        humann2_config --update database_folders protein /home/daia1/my_workdir/ref_db/uniref/uniref 
+        humann2_config --update database_folders nucleotide /home/daia1/my_workdir/ref_db/chocophlan
+        humann2_config --update output_format remove_column_description_output  True
+        humann2 --input {input} \
+            --output {params.out_dir} \
+            --output-basename {params.out_prefix} \
+            --o-log {log} \
+            --search-mode uniref50 \
+            --remove-temp-output \
+            --output-max-decimals 5 \
+            --threads {threads}
+        '''
+
+rule humann2_run_uniref90:
+    input:
+        '{sample_dir}/{sample}.fastq'
+    output:
+        touch('{sample_dir}/{sample}_humann2_run_uniref90.done')
+    params:
+        out_prefix='{sample}_uniref90',
+        out_dir=sample_dir
+    conda:
+        'envs/humann2_py2.yaml'
+    threads:
+        16
+    log:
+        '{sample_dir}/{sample}_humann2_uniref90.log'
+    shell:
+        '''
+        humann2_config --update database_folders protein /home/daia1/my_workdir/ref_db/uniref/uniref 
+        humann2_config --update database_folders nucleotide /home/daia1/my_workdir/ref_db/chocophlan
+        humann2_config --update output_format remove_column_description_output  True
+        humann2 --input {input} \
+            --output {params.out_dir} \
+            --output-basename {params.out_prefix} \
+            --o-log {log} \
+            --search-mode uniref90 \
+            --remove-temp-output \
+            --output-max-decimals 5 \
+            --threads {threads}
+        '''
+
+# Create a genus level gene families file
+
+rule genefam_genus:
+    input:
+        '{sample_dir}/{sample}_genefamilies.tsv'
+    output:
+        '{sample_dir}/{sample}_genefamilies_genus_level.tsv'
+    conda:
+        'envs/humann2_py2.yaml'
+    shell:
+        'humann2_genefamilies_genus_level --input  {input}  --output  {output}'        
+
+
+
+# Multiqc to look at the concat fastq files and the bowtie2 log from humann2
+
+rule multiqc2_run:
+    input:
+        fastqc2=expand('{sample_dir}/{sample}_paired_{read}_fastqc.zip',  sample_dir = sample_dir, sample = sample_names, read = ["1","2"]),
+        bowtie2=expand('{sample_dir}/{sample}_humann2.log',  sample_dir = sample_dir, sample = sample_names),
+        bbmap=expand('{sample_dir}/{sample}_trimmingAQ.txt', sample_dir = sample_dir, sample = sample_names)
+    output:
+        sample_dir+"/preprocessing_done_report.html"
+    params:
+        out_dir=sample_dir
+    shell:
+        "multiqc -f {input.fastqc2} {input.bowtie2} {input.bbmap} \
+            -n preprocessing_done_report  -o {params.out_dir} "
+# Join humann2 output per sample into one table
+
+rule join_table:
+    input:
+        res_dir=sample_dir
+    output:
+        gene=sample_dir+'/humann2_genefamilies.tsv',
+        pathabun=sample_dir+'/humann2_pathabundance.tsv',
+        pathcover=sample_dir+'/humann2_pathcoverage.tsv'
+    conda:
+        'envs/humann2_py2.yaml'
+    shell:
+        '''
+        humann2_join_tables -s  --input {input.res_dir} --file_name genefamilies --output {output.gene} 
+        humann2_join_tables -s  --input {input.res_dir} --file_name pathabundance --output {output.pathabun} 
+        humann2_join_tables -s  --input {input.res_dir} --file_name pathcoverage --output {output.pathcover}
+        '''
+        
+
+# Renormalize gene family and pathway abundance from RPK to relative abundance(CPM) for input of lefse
+
+rule renormalize:
+    input:
+        path=sample_dir+'/humann2_pathabundance.tsv'
+    output:
+        path_out=sample_dir+'/humann2_pathabundance_cpm.tsv'
+    conda:
+        'envs/humann2_py2.yaml'
+    shell:  
+        '''
+        humann2_renorm_table --input  {input.path} --units cpm -s n --output {output.path_out} 
+        '''
+
+rule split_stratified:
+    input:
+        pabun=sample_dir+'/humann2_pathabundance_cpm.tsv',
+        pcover=sample_dir+'/humann2_pathcoverage.tsv'
+    output:
+        output_dir=directory(sample_dir+'/humann2_final_out')
+    conda:
+        'envs/humann2_py2.yaml'
+    shell:
+        '''
+        humann2_split_stratified_table --input {input.pabun} --output {output.output_dir}
+        humann2_split_stratified_table --input {input.pcover} --output {output.output_dir}
+        '''
+
+
+hm2_90 = expand('{sample_dir}/{sample}_humann2_run_uniref90.done', sample_dir = sample_dir, sample = sample_names)
+hm2_50 = expand('{sample_dir}/{sample}_humann2_run_uniref50.done', sample_dir = sample_dir, sample = sample_names)
+
+rule Output: 
+    input:
+        hm2_50
+
+rule final:
+    input:
+        fastqc1,
+        fastqc2,
+        knead, 
+        metaphlan_res,
+        hm2_90
+
+rule merged_meta:
+    input:
+        metaphlan_res

@@ -197,8 +197,18 @@ outlier <- compare2_res %>%
 # >= 4
 outlier_select <- outlier %>% 
   filter(check_ratio >= 4) %>% 
-  arrange(Food_NSC)
+  arrange(Food_NSC) %>% 
+  distinct(Food_NSC)
 
+
+ALL %>% 
+  distinct(Food_NSC, .keep_all = T) %>% 
+  filter(Food_NSC %in% outlier_select$Food_NSC) %>% 
+  write_csv('../data/outlier_very_obvious.csv')
+```
+
+
+```{r}
 # retrieve the ID of the food and join back to this table
 outlier_select <- outlier_select %>% 
   left_join(ALL %>%  select(key, Food_NSC)) %>% 

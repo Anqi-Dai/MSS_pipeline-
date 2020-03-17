@@ -39,6 +39,17 @@ food_cts %>%
 
 ```
 
+```{bash}
+biom convert -i all_patients_food_counts_table_w_maindescrip_featurename.tsv -o all_patients_food_counts_table_w_maindescrip_featurename.biom --to-hdf5 --table-type="Table"
+```
+
+```{bash}
+qiime tools import \
+  --input-path all_patients_food_counts_table_w_maindescrip_featurename.biom \
+  --output-path all_patients_food_counts_table_w_maindescrip_featurename.qza \
+  --type 'FeatureTable[Frequency]'
+```
+
 Regenerated the food tree newick file with the tip being the food id
 
 Convert the tree from newick to qza
@@ -89,7 +100,9 @@ cts <- matrix(rnorm(33165), nrow = 495, ncol = 67 )
 rownames(cts) <- food_cts$main_food_desc
 cts <- cts%>% 
   as.data.frame() %>% 
-  rownames_to_column('main_food_desc')
+  rownames_to_column('main_food_desc') %>% 
+  mutate(main_food_desc = food_cts$FoodID) %>% 
+  rename(FoodID = main_food_desc)
 
 cts %>% 
   write_tsv('../data/test/food_cts_fake.tsv')
