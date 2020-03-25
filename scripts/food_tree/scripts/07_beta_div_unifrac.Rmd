@@ -7,9 +7,12 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(phyloseq)
+library(ape)
 ```
 
 ## Beta diversity
+
+The counts table can't have a column that is completely all zeros. Also for the beta diversity, don't need to split to daily records but per patient basis that is fine. 
 
 ```{r}
 # the feature table
@@ -24,20 +27,16 @@ food_cts <- final %>%
               select(Food_NSC = item1_value_raw_raw,
                      #Main.food.description,
                      FoodID), by  = 'Food_NSC') %>% 
-  group_by(mrn,DayRT, FoodID) %>% 
-  summarise(daily_de_wt = sum(dehydrated_weight)) %>% 
-  ungroup() %>% 
-  mutate(mrn = as.character(mrn),
-         DayRT = as.character(DayRT)) %>% 
-  mutate(DayRT = str_replace(DayRT, '-','_')) %>% 
-  mutate(mrnDay = str_glue('{mrn}d{DayRT}')) %>% 
-  select(-mrn, -DayRT) %>% 
-  spread(key = 'mrnDay', value = 'daily_de_wt', fill = 0)
+  group_by(mrn, FoodID) %>% 
+  summarise(total_de_wt = sum(dehydrated_weight)) %>% 
+  spread(key = 'mrn', value = 'total_de_wt', fill = 0)
 
 food_cts %>% 
   write_tsv('../data/finalized/all_patients_food_counts_table_w_maindescrip_featurename.tsv')
 
 ```
+
+
 
 ```{bash}
 biom convert -i all_patients_food_counts_table_w_maindescrip_featurename.tsv -o all_patients_food_counts_table_w_maindescrip_featurename.biom --to-hdf5 --table-type="Table"
@@ -73,58 +72,47 @@ qiime diversity beta-phylogenetic \
 ```
 
 
+Export the qza format to a readable table format
+
+```{bash}
+qiime tools export --input-path unweighted_unifrac_distance_matrix.qza --output-path beta_phylo
+```
+
+Check the beta distance matrix
+
+```{r}
+beta <- read_tsv('../data/finalized/beta_phylo/distance-matrix.tsv')
+```
+
+```{r}
+# calculate the pcoa
+beta_dist <- as.dist(beta %>% column_to_rownames('X1'))
+food_pcoa <- pcoa(beta_dist)$vectors
+ 
+# load the pheno info
+pheno <- read_csv('../data/finalized/pheno_67.csv') %>% 
+  # clean the intensity make them nicely cleaned three types
+  mutate(intensity = if_else(str_detect(intensity,  fixed('REDUCE', ignore_case = T)), 'REDUCED',
+                             if_else(str_detect(intensity,  fixed('non', ignore_case = T)), 'NONABL', 'ABLATIVE'))) %>% 
+  # clean source 
+  mutate(source = if_else(str_detect(source, 'Cord' ), 
+                             'cord',
+                             if_else(str_detect(source, 'SBA|CD34'), 
+                                     'TCD',
+                                     'unmodified')))
+
+food_pcoa_df <- food_pcoa %>% 
+  as.data.frame()  %>% 
+  rownames_to_column('mrn') %>% 
+  select(mrn, Axis.1:Axis.2) %>% 
+  mutate(mrn =  as.numeric(mrn)) %>% 
+  full_join(pheno, by = 'mrn')
+```
 
 
 ```{r}
-ps <- phyloseq(otu_table(seqtabNoC, taxa_are_rows=FALSE), 
-               sample_data(samdf), 
-               tax_table(taxTab),phy_tree(fitGTR$tree))
-```
-
-
-
-
-
-
-
-
-
-
-
-
-## Debug with fake data
-
-```{r}
-# make fake data and post on the forum
-cts <- matrix(rnorm(33165), nrow = 495, ncol = 67 ) 
-rownames(cts) <- food_cts$main_food_desc
-cts <- cts%>% 
-  as.data.frame() %>% 
-  rownames_to_column('main_food_desc') %>% 
-  mutate(main_food_desc = food_cts$FoodID) %>% 
-  rename(FoodID = main_food_desc)
-
-cts %>% 
-  write_tsv('../data/test/food_cts_fake.tsv')
-```
-
-```{bash}
-biom convert -i food_cts_fake.tsv -o food_cts_fake.biom --to-hdf5 --table-type="Table"
-```
-
-```{bash}
-qiime tools import \
-  --input-path food_cts_fake.biom \
-  --output-path food_cts_fake.qza \
-  --type 'FeatureTable[Frequency]'
-```
-
-
-```{bash}
-qiime diversity beta-phylogenetic \
-  --i-table food_cts_fake.qza \
-  --i-phylogeny ../source/output_food_tree_datatree.qza \
-  --p-metric unweighted_unifrac \
-  --o-distance-matrix unweighted_unifrac_distance_matrix.qza
+food_pcoa_df %>% 
+  ggscatter('Axis.1', 'Axis.2', color = 'vital_status', palette = 'lancet',
+            title = 'Beta diversity unweighted unifrac distance')
 ```
 

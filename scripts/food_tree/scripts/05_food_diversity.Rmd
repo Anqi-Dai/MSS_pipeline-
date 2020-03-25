@@ -9,16 +9,7 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-```{r}
-# some phenotype info regarding to the transplant
-allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
-  filter(mrn %in% faith$mrn)
-colnames(allo)
 
-pts_info <- allo %>% 
-  select(mrn, intensity, indication, gvhd:grade, vital_status) %>% 
-  filter(str_detect(indication, 'Initial')) 
-```
 
 
 ```{r}
@@ -139,6 +130,19 @@ faith %>%
   write_csv('../data/finalized/alpha_faith_daily_all.csv')
 ```
 
+```{r}
+# some phenotype info regarding the transplant
+allo <- get_data_from_query_OTU(0, 'patient_allo_ag') %>% 
+  filter(mrn %in% faith$mrn)
+colnames(allo)
+
+pts_info <- allo %>% 
+  select(mrn, intensity, source, indication, gvhd:grade, vital_status) %>% 
+  filter(str_detect(indication, 'Initial')) 
+
+pts_info %>% 
+  write_csv('../data/finalized/pheno_67.csv')
+```
 
 ```{r plot_daily_alpha_div}
 # plot daily alpha diversity change for every patient
@@ -194,6 +198,17 @@ samps_alpha_med <- samps_alpha %>%
               select(sampleid, mrn)) %>% 
   group_by(mrn) %>% 
   summarise(med_simp = median(simpson_reciprocal))
+
+stool_alpha <- samps_df %>% 
+  select(datecollection, sampleid, mrn) %>% 
+  inner_join(dbalpha %>% 
+               select(sampleid, simpson_reciprocal)) %>% 
+  left_join(allo %>% 
+              select(mrn, hct)) %>% 
+  mutate(dayRT = datecollection - hct) %>% 
+  filter(dayRT >= -10 & dayRT <= 41)
+
+
 ```
 
 ```{r}
@@ -206,4 +221,26 @@ pearson <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'pearson')$estima
 spearman <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'spearman', exact = F)$estimate
 ```
 
+
+```{r}
+# one patient with the lowerst food diversity and micriobiome diversity and one patient with high high
+daily_food <- read_csv('../data/finalized/alpha_faith_daily_all.csv')
+
+daily_food %>% 
+  ggline('DayRT', 'faith_pd') +
+  geom_line(stool_alpha,mapping = aes(x = dayRT, y = simpson_reciprocal, color = 'red')) +
+  facet_wrap(mrn ~.) +
+  ggsave('../figs/two_pt.jpg', width = 30, height = 20)
+
+
+
+daily_food %>% 
+  #ggline('DayRT', 'faith_pd') +
+  ggline(stool_alpha,mapping = aes(x = dayRT, y = simpson_reciprocal, color = 'red')) +
+  facet_wrap(mrn ~.) +
+  ggsave('../figs/two_pt_stool.jpg', width = 30, height = 20)
+
+
+  
+```
 
