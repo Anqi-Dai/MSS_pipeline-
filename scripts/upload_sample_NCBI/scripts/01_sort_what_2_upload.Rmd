@@ -18,6 +18,9 @@ cat ../data/table_download_1.tsv ../data/table_download_2.tsv > ../data/current_
 
 ```{r}
 current <- read_tsv('../data/current_on_ncbi_20200212.tsv')
+
+current %>% 
+  filter(BioSample.name  %in% new_samps) 
 ```
 ```{r}
 # how many overlap 

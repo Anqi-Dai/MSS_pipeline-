@@ -1,0 +1,43 @@
+---
+title: "uploading newly added samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+source('~/db.R')
+```
+
+```{r}
+new <- read_csv('../data/msk duke sdtable 03 02 20.csv')
+
+old <- bind_rows(read_tsv('~/pipeline/scripts/upload_sample_NCBI/data/metadata-6965072-processed-ok.tsv'),
+                 read_tsv('~/pipeline/scripts/upload_sample_NCBI/data/metadata-6987832-processed-ok.tsv')) %>% 
+  select(library_ID)
+```
+
+
+```{r}
+library(ggvenn)
+two_list <- list(old = old$library_ID,
+                      new = new$sampleid_clean)
+   
+ggvenn(two_list) 
+```
+```{r}
+# find out the new ones in new
+new_samps <- setdiff(new$sampleid_clean, old$library_ID)
+
+location <- get_data_from_query_OTU(0, 'asv_alpha_diversity_ag')
+
+new_loca <- location %>% 
+  filter(sampleid %in% new_samps)
+```
+```{r}
+setdiff( old$library_ID, new$sampleid_clean)
+```
+

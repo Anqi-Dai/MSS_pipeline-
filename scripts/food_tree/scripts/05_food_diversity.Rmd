@@ -227,16 +227,15 @@ spearman <- cor.test(cor_df$med_simp, cor_df$faith_pd, method = 'spearman', exac
 daily_food <- read_csv('../data/finalized/alpha_faith_daily_all.csv')
 
 daily_food %>% 
-  ggline('DayRT', 'faith_pd') +
-  geom_line(stool_alpha,mapping = aes(x = dayRT, y = simpson_reciprocal, color = 'red')) +
+  ggline('DayRT', 'faith_pd', title = 'Food') +
   facet_wrap(mrn ~.) +
   ggsave('../figs/two_pt.jpg', width = 30, height = 20)
 
 
 
-daily_food %>% 
+stool_alpha %>% 
   #ggline('DayRT', 'faith_pd') +
-  ggline(stool_alpha,mapping = aes(x = dayRT, y = simpson_reciprocal, color = 'red')) +
+  ggline(x = 'dayRT', y = 'simpson_reciprocal', color = 'red', title = 'Micriobiome') +
   facet_wrap(mrn ~.) +
   ggsave('../figs/two_pt_stool.jpg', width = 30, height = 20)
 
