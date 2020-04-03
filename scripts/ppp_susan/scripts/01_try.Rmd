@@ -1,0 +1,25 @@
+---
+title: "try the run discovery"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+dat <- read_tsv('../data/Pt3_skin_TCRB.tsv') %>% 
+  select(cdr3_rearrangement) %>% 
+  filter(!is.na(cdr3_rearrangement))
+
+colnames(dat)
+
+dat %>% 
+  write_tsv('../data/Pt3_skin_TCRB_try.tsv')
+```
+
