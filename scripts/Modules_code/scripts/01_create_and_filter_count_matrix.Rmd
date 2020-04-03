@@ -5,10 +5,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-library(phyloseq)
-library(phangorn)
-library(dada2)
-library(DECIPHER)
+```
+
+
+```{r setup, include=FALSE}
 library(tidyverse)
 library(kableExtra)
 ```

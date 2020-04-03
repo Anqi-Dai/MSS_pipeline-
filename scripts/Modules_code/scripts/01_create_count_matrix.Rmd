@@ -1,0 +1,97 @@
+---
+title: "Create count matrix for the samples you are interested in"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+```
+
+## Look at the pheno table
+
+Make sure the sampleids in your table can be found in our database (need to clean when you can't)
+
+```{r}
+# load the pheno table (contains at least the sampleid column and a column with phenotype information that you are interested in, such as Toxicity Y and N, Responding status: responder and non_responder)
+pheno <- read_csv('../data/final_pheno.csv') %>% 
+  # some samples have "..pool........" attached at the end of the sampleid, remove them
+  mutate(postgres_ID = str_replace(postgres_ID, '\\.\\.pool.+$',''))
+
+
+# lets look at the key information in this pheno table
+pheno %>% 
+  select(Patient_ID, Sample_ID, postgres_ID, Timepoint, Response_Status ) %>% 
+  kable() %>% 
+  kable_styling(position = 'left', full_width = F)
+```
+
+
+## Only use the d28 samples for this tutorial
+
+```{r}
+# subset and select the d28 samples
+pheno_28 <- pheno %>% 
+  filter(Timepoint == 'd28') %>% 
+  # there is one sample that doesn't have 16s (but has shotgun data), so remove it
+  filter(has_16S == TRUE)
+
+# how many responders and non_responders?
+# every sample has a responding status variable, but it really depends on the day 28 response. In other words, for the sample patient's samples, day 0 response will be the same as day 28's.
+
+pheno_28 %>% 
+  dplyr::count(Response_Status) %>% 
+  kable() %>% 
+  kable_styling(position = 'left', full_width = F)
+```
+
+
+## Retrieve the count data from the db and spread it to a wide form
+
+
+```{r}
+# load the big table from the db
+source('~/db.R')
+CTS <- get_data_from_query_OTU(0,'asv_counts_ag')
+```
+
+
+```{r}
+cts <- CTS %>% 
+  filter(sampleid %in% pheno_28$postgres_ID)
+
+# take a look at the first 6 rows of this table
+cts %>% 
+  head %>% 
+  kable(caption = 'A look at first 6 rows') %>% 
+  kable_styling(position = 'left', full_width = F)
+
+
+# select essential columns and spread it to a matrix format
+cts <- CTS %>% 
+  filter(sampleid %in% pheno_28$postgres_ID) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key) %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+cts %>% 
+  head() %>% 
+  kable(caption = 'A look at first 6 rows of the matrix') %>% 
+  kable_styling(position = 'left', full_width = F)
+
+```
+
+
