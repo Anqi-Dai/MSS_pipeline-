@@ -1,0 +1,53 @@
+---
+title: "Find shotgun data for Hana"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+would you have a look if you have shotgun sequencing for at least some of these patients/transplants and at which timepoints? It’s for the MAIT project.
+I am primarily interested in the patients in Unconventional_Hana_d30, for those I had blood samples collected on d30 and I saw some associations of microbiome and MAIT cells/unconventional T cells.
+
+```{r}
+# look at the d30 table
+d30 <- read_csv('../data/Unconventional_Hana_d30.csv')
+
+# gain access to the db
+source('~/db.R')
+sg <- get_data_from_query_OTU(0, 'shotgun_lookup_ad')
+castori <- get_data_from_query_OTU(0, 'samples_castori_ag')
+colnames(castori)
+colnames(sg)
+```
+
+```{r}
+subset <- castori %>% 
+  filter(mrn %in% d30$mrn) %>% 
+  inner_join(sg, by = 'sampleid')
+
+colnames(subset)
+
+subset %>% 
+  distinct(mrn) %>% 
+  nrow
+
+subset %>% 
+  distinct(sampleid) %>% 
+  nrow
+
+final <- subset %>% 
+  left_join(d30, by = 'mrn') %>% 
+  mutate(diffHCT = datecollection - hct) %>% 
+  select(mrn, sampleid, diffHCT, hct, directory)
+
+
+final %>% 
+  write_csv('../data/Hana_shotgun_d30.csv')
+```
+
