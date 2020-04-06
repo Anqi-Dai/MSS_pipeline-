@@ -1,0 +1,11 @@
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//ascending_colon_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//colon_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//descending_colon_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//duodenum_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//ileum_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//jejunum_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//liver_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//skin_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//small_intestine_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//spleen_cdr3_rearrangement.csv
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr=../data/per_organ//transverse_colon_cdr3_rearrangement.csv

@@ -23,3 +23,112 @@ dat %>%
   write_tsv('../data/Pt3_skin_TCRB_try.tsv')
 ```
 
+
+## Concatenate the input data together to make a big df
+
+```{r}
+fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full.names = T)
+
+DF <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., col_types = cols(.default = "c"))  %>% 
+  select(cdr3_rearrangement) %>% 
+  filter(!is.na(cdr3_rearrangement))) %>% 
+  bind_rows(.id = 'fn')
+
+# clean the fn name
+DFC <- DF %>% 
+  mutate(fn = str_replace(fn, '^.+//',''),
+         fn = str_replace(fn, '_TCRB.tsv',''))  %>% 
+  mutate(Pt = str_extract(fn, '^Pt\\d')) %>% 
+  mutate(Organ = str_replace(fn, '^Pt\\d_','')) %>% 
+  select(-fn)
+
+# write out this df for future use
+DFC %>% 
+  write_csv('../data/cdr3_rearrangement_all_patients.csv')
+
+```
+
+## Group the cdr3_rearrangement by patients and output for each patient
+
+```{r}
+
+group_names <- DFC %>% group_keys(Pt) %>% pull(1)
+
+DFC_pt <- DFC %>%
+   group_split(Pt) %>%
+   set_names(group_names)
+
+
+dir.create('../data/per_pt')
+# write out the df for each patient and have the patient id in the file name
+for(i in names(DFC_pt)) {
+  write_csv(DFC_pt[[i]] %>% select(cdr3_rearrangement),
+            str_glue('../data/per_pt/{i}_cdr3_rearrangement.csv'))
+}
+
+```
+
+## Group the cdr3_rearrangement by organs and output for each organ
+
+```{r}
+group_names <- DFC %>% group_keys(Organ) %>% pull(1)
+
+DFC_Organ <- DFC %>%
+   group_split(Organ) %>%
+   set_names(group_names)
+
+
+dir.create('../data/per_organ')
+# write out the df for each patient and have the patient id in the file name
+for(i in names(DFC_Organ)) {
+  write_csv(DFC_Organ[[i]] %>% select(cdr3_rearrangement),
+            str_glue('../data/per_organ/{i}_cdr3_rearrangement.csv'))
+}
+```
+
+## Run Gliph separately
+
+### Patient
+
+How to run the script
+
+```{bash}
+
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl \
+  --tcr=Pt3_cdr3_rearrangement.csv
+```
+
+```{r}
+# make a bash script to loop over the file
+pt_fns <- list.files('../data/per_pt/', pattern = '.csv$', full.names = T)
+
+cmd <- data_frame(
+  fn = pt_fns
+) %>% 
+  mutate(cmd = str_glue('/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr={fn}')) %>% 
+  select(cmd) %>% 
+  write_csv('run_gliph_pt.sh', col_names = F)
+```
+
+Seems nothing really comes out of it
+
+### Organ
+
+```{r}
+# make a bash script to loop over the file
+organ_fns <- list.files('../data/per_organ/', pattern = '.csv$', full.names = T)
+
+cmd <- data_frame(
+  fn = organ_fns
+) %>% 
+  mutate(cmd = str_glue('/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-discovery.pl --tcr={fn}')) %>% 
+  select(cmd) %>% 
+  write_csv('run_gliph_organ.sh', col_names = F)
+```
+
+```{bash}
+ bash run_gliph_organ.sh 
+```
+

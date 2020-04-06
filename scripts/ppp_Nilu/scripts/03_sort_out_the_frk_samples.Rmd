@@ -15,6 +15,20 @@ source('~/db.R')
 ```{r}
 new <- read_csv('../data/msk duke sdtable 03 02 20.csv')
 
+old_all <- read_csv('../data/msk duke sdtable 01 18 20.csv')
+```
+
+```{r}
+# the ones that got removed cuz low total counts
+rm <- setdiff(old_all$Sample.ID, new$sampleid_clean)
+
+rm %>% 
+  data_frame() %>% 
+  write_csv('../data/removed_76_from_the_01-18_version.csv', col_names = F)
+```
+
+
+```{r}
 old <- bind_rows(read_tsv('~/pipeline/scripts/upload_sample_NCBI/data/metadata-6965072-processed-ok.tsv'),
                  read_tsv('~/pipeline/scripts/upload_sample_NCBI/data/metadata-6987832-processed-ok.tsv')) %>% 
   select(library_ID)
