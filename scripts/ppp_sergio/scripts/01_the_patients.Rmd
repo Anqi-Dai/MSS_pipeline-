@@ -1,0 +1,180 @@
+---
+title: "Look at the patients"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+# the ethnicity data on the MSK set that was used in the nejm paper (“frozen set”) here: smb://skimcs.mskcc.org/vandenbrinklab/deep_sequencing/Clinical Annotation/Ethnicity/ethnicity_nejm_frozen_set.csv
+pheno <- read_csv('/Volumes/vandenBrinkLab/deep_sequencing/Clinical Annotation/Ethnicity/ethnicity_nejm_frozen_set.csv') %>% 
+  select(-X1, -X1_1)
+```
+
+Question: the ethnicity_simple should be used ??
+
+```{r}
+pheno %>% 
+  head()
+```
+```{r}
+pheno %>% 
+  count(ethnicity_simple) %>% 
+  mutate(grp = if_else(ethnicity_simple == 'White', 'white', if_else(ethnicity_simple == 'other', 'other', 'nonwhite'))) %>% 
+  group_by(grp) %>% 
+  summarise(grp_sum = sum(n)) %>% 
+  # removing the other cuz don't know their race
+  filter(grp != 'other') %>% 
+  mutate(grp_perc = round(grp_sum/sum(grp_sum)*100, 2))
+```
+
+```{r}
+# the patients mrn that gonna be used in this analysis: white and nonwhite (excluding the other)
+target <- pheno %>% 
+  filter(ethnicity_simple != 'other') %>% 
+  select(mrn=patient_id, ethnicity=ethnicity_simple)
+
+nrow(target)
+```
+
+## Find all the samples for the patients and get the day relative to transplant
+
+```{r}
+source('~/db.R')
+castori <- get_data_from_query_OTU(0, 'samples_castori_ag')
+allo <- get_data_from_query_OTU(0, 'patient_allo_ag')
+# get the alpha diversity from the db
+aldiv <- get_data_from_query_OTU(0, 'asv_alpha_diversity_ag')
+```
+
+```{r}
+DF <- target %>% 
+  left_join(allo %>% 
+              filter(str_detect(indication, fixed('initial', ignore_case = T))) %>%  
+              select(mrn, hct), by  = 'mrn') %>% 
+  left_join(castori %>% 
+              filter(sampletype == 'Stool' | sampletype == 'stool') %>% 
+              select(mrn, sampleid, datecollection), by = 'mrn') %>% 
+  mutate(drt = datecollection - hct) %>% 
+  # filter on the drt < 1000 & drt > -100
+  filter(drt < 1000 & drt > -100)
+```
+
+```{r}
+# look at the dist of drt
+DF %>% 
+  gghistogram('drt', bins = 30,
+              title = 'Distribution of day relative to transplant')
+```
+
+```{r}
+# join to get the alpha diversity and also the count total to see if need to filter
+all <- DF %>% 
+  left_join(aldiv %>% 
+              select(sampleid, simpson_reciprocal, shannon, count_total), by = 'sampleid') %>% 
+  # there are duplicated sequenced samples remove the lower count ones
+  arrange(sampleid, desc(count_total)) %>% 
+  distinct(sampleid, .keep_all = T)
+```
+
+```{r}
+# look at this all table
+all %>% 
+  summary 
+```
+```{r}
+all_temp <- all %>% 
+  filter(!is.na(count_total)) %>% 
+  filter(count_total >= 500) %>% 
+  # simplify the ethnicity
+  mutate(eth = if_else(ethnicity == 'White', 'white', 'nonwhite'))
+```
+
+
+## alpha diversity
+
+- are there ethnicity differences in alpha diversity? 
+- Can look at first baseline sample (earliest sample per patient collected day -30 to day -6). 
+- Can look at the median diversity per patient in the window day 7-21 as the "periengraftment period".
+
+### baseline
+
+```{r}
+# in the baseline window: collected day -30 to day -6
+df_baseline <- all_temp %>% 
+  filter(drt >= -30 & drt <= -6) 
+```
+
+```{r}
+# earliest baseline sample
+df_baseline_first <- df_baseline %>% 
+  group_by(mrn) %>% 
+  arrange(drt) %>% 
+  slice(1)
+
+nrow(df_baseline_first)
+```
+
+
+```{r}
+df_baseline_first %>% 
+  ggboxplot(x = 'eth', y = 'simpson_reciprocal', add = 'jitter', xlab = 'ethnicity',
+            title = 'Alpha div simposon reciprocal comparison') +
+  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
+                    label = "p.signif",
+                    method = 'wilcox.test',
+                    correct=FALSE)
+
+
+df_baseline_first %>% 
+  ggboxplot(x = 'eth', y = 'shannon', add = 'jitter', xlab = 'ethnicity',
+            title = 'Alpha div shannon comparison') +
+  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
+                    label = "p.signif",
+                    method = 'wilcox.test',
+                    correct=FALSE)
+```
+
+### peri-engraftment
+
+```{r}
+# peri 
+
+df_peri <- all_temp %>% 
+  filter(drt >= 7 & drt <= 21) 
+
+# median div in the above window
+df_peri_med_div <- df_peri %>% 
+  group_by(mrn, eth) %>% 
+  summarise(med_sr = median(simpson_reciprocal),
+            med_shan = median(shannon))
+
+nrow(df_peri_med_div)
+```
+
+```{r}
+df_peri_med_div %>% 
+  ggboxplot(x = 'eth', y = 'med_sr', add = 'jitter', xlab = 'ethnicity',
+            title = 'Median alpha div simposon reciprocal peri comparison') +
+  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
+                    label = "p.signif",
+                    method = 'wilcox.test',
+                    correct=FALSE)
+
+ 
+df_peri_med_div %>% 
+  ggboxplot(x = 'eth', y = 'med_shan', add = 'jitter', xlab = 'ethnicity',
+            title = 'Median alpha div Shannon peri comparison') +
+  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
+                    label = "p.signif",
+                    method = 'wilcox.test',
+                    correct=FALSE)
+```
+
