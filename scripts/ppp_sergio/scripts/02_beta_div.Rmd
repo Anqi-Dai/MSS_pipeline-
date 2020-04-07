@@ -1,11 +1,19 @@
 ---
 title: "The beta diversity"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
+
+## Load lib and tables
 
 ```{r}
 library(tidyverse)
@@ -46,12 +54,6 @@ time %>%
 ```
 
 ## Adonis test
-
-```{r}
-data(dune)
-data(dune.env)
-adonis(dune ~ Management*A1, data=dune.env, permutations=99)
-```
 
 ```{r}
 source('~/db.R')
@@ -139,6 +141,33 @@ all.equal(rownames(cts_baseline_fil_spp), df_baseline$sampleid)
 
 ```{r}
 # the adonis test
-adonis(cts_baseline_fil_spp ~ eth, data=cts_baseline_pheno, permutations=99)
+range(cts_baseline_fil_spp^0.25) # suitable range! double square root transformation
+dist_bl_spp <- vegdist(cts_baseline_fil_spp^0.25, method = 'bray')
+```
+
+```{r}
+# NMDS
+# nmds <- metaMDS(dist_bl_spp)
+# op <- ordiplot(nmds, type = 'n')
+# cols <- c('blue','red')
+# points(nmds, cex =2, pch =16, col=cols[cts_baseline_pheno$eth])
+```
+
+
+```{r}
+pmv <- adonis(cts_baseline_fil_spp^0.25 ~ eth, data=cts_baseline_pheno, permutations=999, method = 'bray')
+pmv
+#densityplot(permustats(pmv))
+```
+```{r}
+# distance based dispersion test
+bd <- betadisper(dist_bl_spp, cts_baseline_pheno$eth)
+boxplot(bd)
+anova(bd)
+permutest(bd)
+
+# which spp are responsible for the difference
+sim <- simper(cts_baseline_fil_spp^0.25 , group = cts_baseline_pheno$eth)
+summary(sim)
 ```
 

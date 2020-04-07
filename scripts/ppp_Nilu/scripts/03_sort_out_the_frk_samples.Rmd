@@ -16,9 +16,8 @@ source('~/db.R')
 new <- read_csv('../data/msk duke sdtable 03 02 20.csv')
 
 old_all <- read_csv('../data/msk duke sdtable 01 18 20.csv')
-```
 
-```{r}
+
 # the ones that got removed cuz low total counts
 rm <- setdiff(old_all$Sample.ID, new$sampleid_clean)
 
@@ -32,6 +31,12 @@ rm %>%
 old <- bind_rows(read_tsv('~/pipeline/scripts/upload_sample_NCBI/data/metadata-6965072-processed-ok.tsv'),
                  read_tsv('~/pipeline/scripts/upload_sample_NCBI/data/metadata-6987832-processed-ok.tsv')) %>% 
   select(library_ID)
+
+
+# get the SRR for the 76 removed ones
+old %>% 
+  filter(library_ID %in% rm) %>% 
+  write_csv('../data/low_count_remove_75.csv')
 ```
 
 
