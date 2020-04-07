@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(vegan)
 ```
 
 ```{r}
@@ -33,14 +34,111 @@ time <- bind_rows(
 ) %>% 
   left_join(tsnec %>% select(sampleid, t1_scaled, t2_scaled), by = 'sampleid')
 ```
+## TSNE visualizations
 
 ```{r}
 # few samples don't have the tsne in the db
 time %>% 
   filter(!is.na(t1_scaled)) %>% 
-  ggscatter(x = 't1_scaled', y = 't2_scaled', color = 'eth', palette = 'lancet', alpha = 0.8, 
+  ggscatter(x = 't1_scaled', y = 't2_scaled', color = 'eth', palette = 'jco', alpha = 0.8, 
             title = 'TSNE for two period of time') +
   facet_wrap(~period)
 ```
 
+## Adonis test
+
+```{r}
+data(dune)
+data(dune.env)
+adonis(dune ~ Management*A1, data=dune.env, permutations=99)
+```
+
+```{r}
+source('~/db.R')
+CTS <- get_data_from_query_OTU(0, 'asv_counts_ag')
+ANNOT <- get_data_from_query_OTU(0, 'asv_annotation_blast_ag')
+```
+
+### baseline
+
+```{r}
+# get the counts of those baseline samples 
+# THERE ARE DUPLICATED SAMPLES IN THE CTS TABLE SO NEED TO REMOVE THE LOWER TOTAL COUNT ONES!!!!!
+cts_bl <- CTS %>% 
+  arrange(sampleid, asv_key, desc(count_total)) %>% 
+  distinct(sampleid, asv_key, .keep_all = T) %>% 
+  filter(sampleid %in% df_baseline$sampleid)
+
+cts_bl %>% 
+  count(sampleid)
+# good we have all the samples counts
+
+cts_baseline <- cts_bl %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key) %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+dim(cts_baseline)
+# cts_baseline %>% 
+#   distinct(asv_key, sampleid)
+```
+
+
+```{r}
+# filter out the singletons that have a count <= 50
+# if we just count > 0 singletons
+table(rowSums(cts_baseline > 0))
+
+# remove the singletons that have a count <= 50
+singletons_ma <- cts_baseline[rowSums(cts_baseline > 0) == 1,]
+singletons_rm <- rownames(singletons_ma[rowSums(singletons_ma) <= 50,])
+
+cts_baseline_fil <- cts_baseline[!rownames(cts_baseline) %in% singletons_rm,]
+dim(cts_baseline_fil)
+```
+
+```{r}
+# get the species info for the asv_key
+annot <- ANNOT %>% 
+  filter(asv_key %in% rownames(cts_baseline_fil)) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+
+same_spp <- annot %>% 
+  count(taxa) %>% 
+  arrange(desc(n))
+
+cts_baseline_fil_spp <- cts_baseline_fil %>% 
+  as.data.frame() %>% 
+  rownames_to_column('asv_key') %>% 
+  full_join(annot %>%  select(asv_key, taxa), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa) %>% 
+  summarise(cnt = sum(count)) %>% 
+  spread(key = 'taxa', value = 'cnt') %>% 
+  column_to_rownames('sampleid') 
+
+
+dim(cts_baseline_fil_spp)
+```
+
+```{r}
+# the pheno for the baseline samples 
+cts_baseline_pheno <- df_baseline %>% 
+  filter(sampleid %in% rownames(cts_baseline_fil_spp)) 
+
+all.equal(rownames(cts_baseline_fil_spp), df_baseline$sampleid)
+```
+
+
+```{r}
+# the adonis test
+adonis(cts_baseline_fil_spp ~ eth, data=cts_baseline_pheno, permutations=99)
+```
 
