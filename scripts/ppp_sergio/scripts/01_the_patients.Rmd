@@ -1,5 +1,5 @@
 ---
-title: "Look at the patients"
+title: "Look at the patients to be included in the cohort and also alpha diversity of the samples"
 output: html_document
 ---
 
@@ -90,6 +90,11 @@ all %>%
   summary 
 ```
 ```{r}
+# We may not have the alpha div and the total counts in the db for a given sample in castori
+# the reason may be: 
+# the samples are collected but not sequenced
+# or couldn't be sequenced because failed to amplify
+# or finished sequencing but haven't gone thru the pipeline thus not in the db (new samples)
 all_temp <- all %>% 
   filter(!is.na(count_total)) %>% 
   filter(count_total >= 500) %>% 
@@ -176,5 +181,28 @@ df_peri_med_div %>%
                     label = "p.signif",
                     method = 'wilcox.test',
                     correct=FALSE)
+```
+
+
+```{r}
+# save the two time period tables for use in other scripts
+df_baseline %>% 
+  write_csv('../data/df_baseline.csv')
+
+df_peri %>% 
+  write_csv('../data/df_peri.csv')
+```
+
+
+```{r}
+aldiv %>% 
+  filter(sampleid == 'FMT.0061M')
+# find the samples that don't have alpha div value in the db 
+nodiv <- all %>% 
+  filter(is.na(count_total)) %>% 
+  select(sampleid)
+
+nodiv %>% 
+  write_csv('../data/no_alpha_div_sampleid.csv')
 ```
 

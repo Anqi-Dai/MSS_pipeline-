@@ -1,0 +1,46 @@
+---
+title: "The beta diversity"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+# load the tables of the samples
+df_baseline <- read_csv('../data/df_baseline.csv')
+df_peri <- read_csv('../data/df_peri.csv')
+
+# load the tsne coordinates table in the db
+source('~/db.R')
+dbListTables(con) %>% data.frame() %>% filter(grepl('tsne', .))
+tsnec <- get_data_from_query_OTU(0, 'tsne_ag')
+```
+
+```{r}
+# get the t1_scaled and t2_scaled from the db and join to the table
+time <- bind_rows(
+  df_baseline %>% 
+    mutate(period = 'baseline'),
+  df_peri %>% 
+    mutate(period = 'peri')
+) %>% 
+  left_join(tsnec %>% select(sampleid, t1_scaled, t2_scaled), by = 'sampleid')
+```
+
+```{r}
+# few samples don't have the tsne in the db
+time %>% 
+  filter(!is.na(t1_scaled)) %>% 
+  ggscatter(x = 't1_scaled', y = 't2_scaled', color = 'eth', palette = 'lancet', alpha = 0.8, 
+            title = 'TSNE for two period of time') +
+  facet_wrap(~period)
+```
+
+
