@@ -1,0 +1,32 @@
+---
+title: "A simple introduction to the tidyverse package"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+pheno <- read_csv('/Volumes/vandenBrinkLab/deep_sequencing/Clinical Annotation/Ethnicity/ethnicity_nejm_frozen_set.csv') %>% 
+  select(-X1, -X1_1)
+```
+
+Question: 
+Are there microbiota differences between ethnic groups, white and African American people. 
+
+```{r}
+pheno %>% 
+  count(ethnicity_simple) %>% 
+  mutate(grp = if_else(ethnicity_simple == 'White', 'white', if_else(ethnicity_simple == 'other', 'other', 'nonwhite'))) %>% 
+  group_by(grp) %>% 
+  summarise(grp_sum = sum(n)) %>% 
+  # remove the other since we don't know the ethnicity
+  filter(grp != 'other') %>% 
+  mutate(grp_perc = round(grp_sum/sum(grp_sum)*100, 2)) 
+```
+

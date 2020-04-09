@@ -24,7 +24,7 @@ pheno <- read_csv('/Volumes/vandenBrinkLab/deep_sequencing/Clinical Annotation/E
   select(-X1, -X1_1)
 ```
 
-Question: the ethnicity_simple should be used ??
+The ethnicity_simple should be used.
 
 ```{r}
 pheno %>% 
@@ -54,10 +54,12 @@ nrow(target)
 
 ```{r}
 source('~/db.R')
+source('~/db_connect_simple.R')
 castori <- get_data_from_query_OTU(0, 'samples_castori_ag')
 allo <- get_data_from_query_OTU(0, 'patient_allo_ag')
 # get the alpha diversity from the db
-aldiv <- get_data_from_query_OTU(0, 'asv_alpha_diversity_ag')
+# the below function will load the unique samples and the table name can't be changed 
+get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
 ```
 
 ```{r}
@@ -83,11 +85,8 @@ DF %>%
 ```{r}
 # join to get the alpha diversity and also the count total to see if need to filter
 all <- DF %>% 
-  left_join(aldiv %>% 
-              select(sampleid, simpson_reciprocal, shannon, count_total), by = 'sampleid') %>% 
-  # there are duplicated sequenced samples remove the lower count ones
-  arrange(sampleid, desc(count_total)) %>% 
-  distinct(sampleid, .keep_all = T)
+  left_join(asv_alpha_diversity_ag %>% 
+              select(sampleid, simpson_reciprocal, shannon, count_total), by = 'sampleid')
 ```
 
 ```{r}
@@ -103,8 +102,8 @@ all %>%
 # or finished sequencing but haven't gone thru the pipeline thus not in the db (new samples)
 all_temp <- all %>% 
   filter(!is.na(count_total)) %>% 
-  filter(count_total >= 500) %>% 
-  # simplify the ethnicity
+  filter(count_total >= 200) %>% 
+  # simplify the ethnicity   
   mutate(eth = if_else(ethnicity == 'White', 'white', 'nonwhite'))
 ```
 

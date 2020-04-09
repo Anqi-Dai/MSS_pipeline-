@@ -1,0 +1,19 @@
+---
+title: "How to establish connection to the postgre database on your local machine"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+source('~/db.R')
+```
+
+```{r}
+dbListTables(con) %>% data.frame() %>% filter(grepl('tsne',.))
+
+tsne <- get_data_from_query_OTU(0, 'tsne_ag')
+```
+
