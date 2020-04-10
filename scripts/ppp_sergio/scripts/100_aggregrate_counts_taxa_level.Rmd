@@ -23,8 +23,8 @@ library(tidyverse)
 ```{r}
 cts <- read.csv('../data/cts_baseline_fil.txt',row.names = 1, check.names = F)
 
-cts %>% 
-  head()
+# number of ASVs and number of samples
+dim(cts)
 ```
 
 ## Connect to the db and load the tables
@@ -173,6 +173,9 @@ ALL <- rbind(cts_relab,
              cts_class,
              cts_phylum)
 ```
+
+*The output table(ALL) will be a matrix with samples in the columns, and features in the rows. The features include ASV_key, full taxa up till species level, full taxa up till genus level... full taxa up till phylum level.*
+
 
 ## See the number of features in each taxa level in the combined big table (also a way to subset different level)
 
