@@ -17,7 +17,6 @@ knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 library(tidyverse)
 ```
 
-
 ## Input: a counts matrix, with asv_keys as the row names, and sampleids as the columns
 
 ```{r}
@@ -30,7 +29,7 @@ samps <- read_csv('../../ppp_Nilu/data/msk duke sdtable 03 02 20.csv') %>%
 ```{r}
 source('~/db.R')
 source('~/db_connect_simple.R')
-CTS <- get_data_from_query_OTU(0, 'counts_ag')
+get_table_from_database('counts_ag')
 #q2_str = get_data_from_query_OTU("2_str"); #get the taxonomy.  This has full taxonomy
 if(!exists("q2_str")){
   q2_str = get_data_from_query_OTU("2_str")
@@ -40,28 +39,39 @@ if(!exists("q2_str")){
 
 ```{r}
 # get the counts 
-# no duplicates
 # remove the pool number
-CTSR <- counts_ag %>% 
-  mutate(sampleid = str_replace(sampleid, '\\.\\.pool.+$',''))
+# get the total number of counts for all the sample
+CTS_total <- counts_ag %>% 
+  group_by(sampleid) %>% 
+  summarise(total_count = sum(count))
+
+CTS <- counts_ag %>% 
+  left_join(CTS_total) %>% 
+  mutate(sampleid = str_replace(sampleid, '\\.\\.pool.+$','')) %>% 
+  # remove the lower coverage one
+  arrange(sampleid, otu_key, desc(total_count)) %>% 
+  distinct(sampleid, otu_key, .keep_all = T)
 
 
-cts <- CTSR %>% 
+cts <- CTS %>% 
   filter(sampleid %in% samps$sampleid)
-cts %>% count(sampleid)
 
-
-
+cts %>% count(sampleid) %>% nrow
 ```
 
 ```{r}
-cts_ma <- cts %>% 
+cts <- cts %>% 
   select(otu_key, sampleid, count) %>% 
   spread(key = 'sampleid', value = 'count', fill = 0) %>% 
   arrange(otu_key) %>% 
   column_to_rownames('otu_key') %>% 
   as.matrix()
 
+cts %>% 
+  write.csv('../data/nilu_cts.csv', row.names = T, quote = F)
+
+
+cts <- read.csv('../data/nilu_cts.csv', row.names = 1, check.names = F)
 ```
 
 
@@ -69,130 +79,129 @@ cts_ma <- cts %>%
 
 ```{r}
 # for the specific samples above 
-annot <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% rownames(cts)) %>% 
-  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
-         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
-         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
-         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_species = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'),
-         taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'),
-         taxa_family = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}'),
-         taxa_order = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}'),
-         taxa_class = str_glue('k__{kingdom}|p__{phylum}|c__{class}'),
-         taxa_phylum = str_glue('k__{kingdom}|p__{phylum}'))
+annot <- q2_str %>% 
+  mutate(key = as.character(key)) %>% 
+  filter(key %in% rownames(cts))
+
+colnames(annot)
+```
 
 
+```{r}
 # the species level summarization
 cts_species <- cts %>% 
   as.data.frame() %>% 
-  rownames_to_column('asv_key') %>% 
-  full_join(annot %>%  select(asv_key, taxa_species), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
+  rownames_to_column('key') %>% 
+  full_join(annot %>%  select(key, s_full), by  = 'key') %>% 
+  select(-key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_species) %>% 
+  group_by(sampleid, s_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_species, relab) %>% 
+  left_join(CTS_total, by = 'sampleid') %>% 
+  mutate(relab = cnt/total_count) %>% 
+  select(sampleid, s_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
-  column_to_rownames('taxa_species') 
+  column_to_rownames('s_full') 
 
 # the genus level summarization
 cts_genus <- cts %>% 
   as.data.frame() %>% 
-  rownames_to_column('asv_key') %>% 
-  full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
+  rownames_to_column('key') %>% 
+  full_join(annot %>%  select(key, g_full), by  = 'key') %>% 
+  select(-key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_genus) %>% 
+  group_by(sampleid, g_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_genus, relab) %>% 
+  left_join(CTS_total, by = 'sampleid') %>% 
+  mutate(relab = cnt/total_count) %>% 
+  select(sampleid, g_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
-  column_to_rownames('taxa_genus') 
+  column_to_rownames('g_full') 
 
 # the family level summarization
 cts_family <- cts %>% 
   as.data.frame() %>% 
-  rownames_to_column('asv_key') %>% 
-  full_join(annot %>%  select(asv_key, taxa_family), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
+  rownames_to_column('key') %>% 
+  full_join(annot %>%  select(key, f_full), by  = 'key') %>% 
+  select(-key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_family) %>% 
+  group_by(sampleid, f_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_family, relab) %>% 
+  left_join(CTS_total, by = 'sampleid') %>% 
+  mutate(relab = cnt/total_count) %>% 
+  select(sampleid, f_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
-  column_to_rownames('taxa_family') 
+  column_to_rownames('f_full') 
 
 # the order level summarization
 cts_order <- cts %>% 
   as.data.frame() %>% 
-  rownames_to_column('asv_key') %>% 
-  full_join(annot %>%  select(asv_key, taxa_order), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
+  rownames_to_column('key') %>% 
+  full_join(annot %>%  select(key, o_full), by  = 'key') %>% 
+  select(-key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_order) %>% 
+  group_by(sampleid, o_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_order, relab) %>% 
+  left_join(CTS_total, by = 'sampleid') %>% 
+  mutate(relab = cnt/total_count) %>% 
+  select(sampleid, o_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
-  column_to_rownames('taxa_order') 
+  column_to_rownames('o_full') 
 
 # the class level summarization
 cts_class <- cts %>% 
   as.data.frame() %>% 
-  rownames_to_column('asv_key') %>% 
-  full_join(annot %>%  select(asv_key, taxa_class), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
+  rownames_to_column('key') %>% 
+  full_join(annot %>%  select(key, c_full), by  = 'key') %>% 
+  select(-key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_class) %>% 
+  group_by(sampleid, c_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_class, relab) %>% 
+  left_join(CTS_total, by = 'sampleid') %>% 
+  mutate(relab = cnt/total_count) %>% 
+  select(sampleid, c_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
-  column_to_rownames('taxa_class') 
+  column_to_rownames('c_full') 
 
 
 # the phylum level summarization
 cts_phylum <- cts %>% 
   as.data.frame() %>% 
-  rownames_to_column('asv_key') %>% 
-  full_join(annot %>%  select(asv_key, taxa_phylum), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
+  rownames_to_column('key') %>% 
+  full_join(annot %>%  select(key, p_full), by  = 'key') %>% 
+  select(-key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_phylum) %>% 
+  group_by(sampleid, p_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_phylum, relab) %>% 
+  left_join(CTS_total, by = 'sampleid') %>% 
+  mutate(relab = cnt/total_count) %>% 
+  select(sampleid, p_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
-  column_to_rownames('taxa_phylum') 
+  column_to_rownames('p_full')
 
-
-# convert the count in asv cts table to relab
+# convert the count in otu cts table to relab
 cts_relab <- cts %>% 
   as.data.frame() %>% 
-  rownames_to_column('asv_key') %>% 
-  gather(key = 'sampleid', value = 'count', names(.)[2]:names(.)[ncol(.)])  %>% 
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = count/count_total) %>% 
-  select(sampleid, asv_key, relab) %>% 
+  rownames_to_column('key') %>% 
+  full_join(annot %>%  select(key, otu_full), by  = 'key') %>% 
+  select(-key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.)-1])  %>% 
+  left_join(CTS_total, by = 'sampleid') %>% 
+  mutate(relab = count/total_count) %>% 
+  select(sampleid, otu_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab')  %>% 
-  column_to_rownames('asv_key') 
+  column_to_rownames('otu_full')
+```
 
-# bind all those matrix together including the asv one
+
+```{r}
+# bind all those matrix together including the otu one
 ALL <- rbind(cts_relab,
              cts_species,
              cts_genus,
@@ -211,13 +220,13 @@ ALL <- rbind(cts_relab,
 ```{r}
 # look at the number of features in each taxa group
 tally_feature <- data_frame(feature = rownames(ALL)) %>% 
-  mutate(grp = if_else(str_detect(feature, '^asv'), 'ASV',
+  mutate(grp = if_else(str_detect(feature, 'otu__OTU'), 'OTU',
                        if_else(str_detect(feature, 's__'),'species',
                                if_else(str_detect(feature, 'g__'),'genus',
                                        if_else(str_detect(feature, 'f__'),'family',
                                                if_else(str_detect(feature, 'o__'),'order',
                                                        if_else(str_detect(feature, 'c__'),'class', 'phylum'))))))) %>% 
-  mutate(grp = factor(grp, levels = c('ASV',
+  mutate(grp = factor(grp, levels = c('OTU',
                                       'species',
                                       'genus',
                                       'family',
@@ -225,7 +234,7 @@ tally_feature <- data_frame(feature = rownames(ALL)) %>%
                                       'class',
                                       'phylum')))
 
-
+  
 tally_feature %>% 
   count(grp)
 ```
