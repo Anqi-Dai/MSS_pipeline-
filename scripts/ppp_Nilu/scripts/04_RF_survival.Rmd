@@ -1,0 +1,23 @@
+---
+title: "Random Forests for Survival"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+## top 40 most abundant genera
+
+```{r}
+cts_genus <- read.csv('../data/cts_genus.csv', check.names = F, row.names = 1)
+
+top40 <- apply(cts_genus, 1, sum)
+rowSums(is.na(cts_genus))
+dim(cts_genus)
+```
+

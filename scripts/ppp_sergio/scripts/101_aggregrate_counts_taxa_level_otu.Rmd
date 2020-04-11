@@ -48,15 +48,27 @@ CTS_total <- counts_ag %>%
 CTS <- counts_ag %>% 
   left_join(CTS_total) %>% 
   mutate(sampleid = str_replace(sampleid, '\\.\\.pool.+$','')) %>% 
+  mutate(otu_key = as.character(otu_key)) %>% 
   # remove the lower coverage one
   arrange(sampleid, otu_key, desc(total_count)) %>% 
   distinct(sampleid, otu_key, .keep_all = T)
 
 
+
+# CTS %>%  distinct(total_count) %>% nrow
+
+
 cts <- CTS %>% 
   filter(sampleid %in% samps$sampleid)
 
-cts %>% count(sampleid) %>% nrow
+# cts %>% count(sampleid) %>% nrow
+# 
+# CTS %>% distinct(sampleid) %>% nrow
+# 
+# CTS %>% distinct(sampleid, total_count) %>% nrow
+
+
+ 
 ```
 
 ```{r}
@@ -67,11 +79,19 @@ cts <- cts %>%
   column_to_rownames('otu_key') %>% 
   as.matrix()
 
+counts_total <- CTS_total %>% 
+  mutate(sampleid = str_replace(sampleid, '\\.\\.pool.+$','')) %>% 
+  arrange(sampleid,  desc(total_count)) %>% 
+  distinct(sampleid, .keep_all = T)
+
+
 cts %>% 
   write.csv('../data/nilu_cts.csv', row.names = T, quote = F)
 
 
 cts <- read.csv('../data/nilu_cts.csv', row.names = 1, check.names = F)
+
+
 ```
 
 
@@ -98,11 +118,12 @@ cts_species <- cts %>%
   group_by(sampleid, s_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(CTS_total, by = 'sampleid') %>% 
+  left_join(counts_total, by = 'sampleid') %>% 
   mutate(relab = cnt/total_count) %>% 
   select(sampleid, s_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
   column_to_rownames('s_full') 
+
 
 # the genus level summarization
 cts_genus <- cts %>% 
@@ -114,7 +135,7 @@ cts_genus <- cts %>%
   group_by(sampleid, g_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(CTS_total, by = 'sampleid') %>% 
+  left_join(counts_total, by = 'sampleid') %>% 
   mutate(relab = cnt/total_count) %>% 
   select(sampleid, g_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
@@ -130,7 +151,7 @@ cts_family <- cts %>%
   group_by(sampleid, f_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(CTS_total, by = 'sampleid') %>% 
+  left_join(counts_total, by = 'sampleid') %>% 
   mutate(relab = cnt/total_count) %>% 
   select(sampleid, f_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
@@ -146,7 +167,7 @@ cts_order <- cts %>%
   group_by(sampleid, o_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(CTS_total, by = 'sampleid') %>% 
+  left_join(counts_total, by = 'sampleid') %>% 
   mutate(relab = cnt/total_count) %>% 
   select(sampleid, o_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
@@ -162,7 +183,7 @@ cts_class <- cts %>%
   group_by(sampleid, c_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(CTS_total, by = 'sampleid') %>% 
+  left_join(counts_total, by = 'sampleid') %>% 
   mutate(relab = cnt/total_count) %>% 
   select(sampleid, c_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
@@ -179,7 +200,7 @@ cts_phylum <- cts %>%
   group_by(sampleid, p_full) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
-  left_join(CTS_total, by = 'sampleid') %>% 
+  left_join(counts_total, by = 'sampleid') %>% 
   mutate(relab = cnt/total_count) %>% 
   select(sampleid, p_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab') %>% 
@@ -192,7 +213,7 @@ cts_relab <- cts %>%
   full_join(annot %>%  select(key, otu_full), by  = 'key') %>% 
   select(-key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.)-1])  %>% 
-  left_join(CTS_total, by = 'sampleid') %>% 
+  left_join(counts_total, by = 'sampleid') %>% 
   mutate(relab = count/total_count) %>% 
   select(sampleid, otu_full, relab) %>% 
   spread(key = 'sampleid', value = 'relab')  %>% 
@@ -237,5 +258,12 @@ tally_feature <- data_frame(feature = rownames(ALL)) %>%
   
 tally_feature %>% 
   count(grp)
+```
+
+```{r}
+cts_genus %>% 
+  write.csv('../../ppp_Nilu/data/cts_genus.csv', quote = F, row.names = T)
+
+rowSums(cts_genus)  
 ```
 
