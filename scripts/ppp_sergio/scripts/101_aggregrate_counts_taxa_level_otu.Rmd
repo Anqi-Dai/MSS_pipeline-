@@ -51,7 +51,7 @@ CTS <- counts_ag %>%
   mutate(otu_key = as.character(otu_key)) %>% 
   # remove the lower coverage one
   arrange(sampleid, otu_key, desc(total_count)) %>% 
-  distinct(sampleid, otu_key, .keep_all = T)
+  distinct(sampleid, otu_key, .keep_all = T) 
 
 
 
@@ -66,9 +66,6 @@ cts <- CTS %>%
 # CTS %>% distinct(sampleid) %>% nrow
 # 
 # CTS %>% distinct(sampleid, total_count) %>% nrow
-
-
- 
 ```
 
 ```{r}

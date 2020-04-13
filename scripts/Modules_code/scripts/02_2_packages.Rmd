@@ -1,0 +1,75 @@
+---
+title: "Rmarkdown and ggpubr"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+[ggpubr: Create Easily Publication Ready Plots](http://www.sthda.com/english/wiki/ggpubr-create-easily-publication-ready-plots)
+
+## Loading data
+
+```{r}
+dat <- read_csv('example_quantification_data.csv')
+
+dat %>% 
+  head()
+```
+
+
+```{r}
+table(dat$Response_Status, dat$Timepoint)
+```
+
+## Plotting
+
+### ggpubr syntax
+
+```{r}
+dat %>% 
+  ggboxplot(x = 'Response_Status', y = 'RPKM', 
+            color = 'Response_Status', 
+            palette = 'lancet', add = 'jitter',
+            title = 'RPKM for X gene between responders and non-responders',
+            ylab = 'RPKM') +
+  facet_wrap(.~Timepoint) +
+  stat_compare_means(comparisons = list(c('responder', 'non-responder')),
+                    label = "p.signif",
+                    method = 'wilcox.test')
+```
+
+### ggplot2 syntax
+
+```{r}
+dat %>% 
+  ggplot(aes(x = Response_Status, y = RPKM, color = Response_Status)) +
+  geom_boxplot() +
+  geom_jitter() +
+  facet_wrap(.~Timepoint) +
+  labs(y = 'RPKM',
+       title = 'RPKM for X gene between responders and non-responders') +
+  theme_classic() +
+  theme(legend.position="top") +
+  scale_colour_manual(values = c('#EC0000', '#00468B'))
+  
+```
+
+## Shortcut key
+
+- Run a line: command + enter
+- Run a chunk: command + shift + enter
+- Insert a chunk: command + option + i
+
