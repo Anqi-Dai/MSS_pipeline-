@@ -1,0 +1,150 @@
+---
+title: "Selecting patients meeting certain criteria"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+
+```
+
+a list of MRNs of patients 
+who have GVHD Grade 2, 3, or 4 (any organ, not just lower-GI) 
+and for whom we have a at least 1 microbiome sample in 
+a window of (20 days before the date of GVHD onset to anytime after GVHD onset)
+
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = "~/dbConfig.txt")
+
+# loading the db tables
+get_table_from_database('patient_allo_ag')
+get_table_from_database('samples_castori_ag')
+```
+
+```{r}
+
+colnames(samples_castori_ag)
+
+samples_castori_ag %>% 
+  count(sampletype)
+
+
+colnames(patient_allo_ag)
+
+patient_allo_ag %>% 
+  count(indication) 
+
+patient_allo_ag %>% 
+  count(intensity) 
+
+patient_allo_ag %>% 
+  count(source) 
+
+patient_allo_ag %>% 
+  count(grade) 
+
+```
+
+*Note*: thawed stool should not be used. thawed refers to Fecal Microbiota Transplant trial products that we administered to patients by enema. People should exclude those samples from observational studies. 
+
+*Note*: a caution that some patients have (in our system) GVHD grade 5 or 6. So be careful not to fall into the pitfall of pulling in grade >=2. grade 5 and 6 don’t exist in the literature. our own BMT department uses 5 to mean not-evaluable and 6 to mean “GVHD symptoms so subtle that they don’t even meet criteria for grade 1 but we didn’t want to lose that information so we chose 6". A nice example of the importance of always inspecting your data using count() or summary() or inspect visually, for example using hist()
+
+*Note*: remind yourself that you should get into the habit of checking your data to make sure your joins worked. for example by checking whether they have duplicated mrns or duplicated sampleids. (do you expect to have any duplicates?) and do you have any MRNs or duplicates that are NA.
+
+
+```{r}
+cohort <- patient_allo_ag %>%   
+  filter(str_detect(indication, 'Initial')) %>% 
+  filter(grade >=2 & grade <= 4) %>% 
+  inner_join(samples_castori_ag, by  = 'mrn') %>% 
+  filter(str_detect(sampletype, fixed('stool', ignore_case=TRUE))) %>% 
+  mutate(diffonset = datecollection - onset) %>% 
+  select(sampleid, datecollection, diffonset, mrn:pod) %>% 
+  filter(diffonset >= -20)
+
+nrow(cohort)
+```
+
+**Note**: some other filtering to consider for downstream analysis-----can't use some of the samples in our analysis. Possible reasons:
+
+- the samples are collected but not sequenced
+- or couldn't be sequenced because failed to amplify
+- or finished sequencing but haven't gone thru the pipeline thus not in the db (new samples)
+- have the counts in the pipeline but the sample is very low quality that total count is only 5 for example(need to remove these samples like filtering on total_count >= 200)
+
+
+```{r}
+cohort %>% 
+  gghistogram(x = 'diffonset', bins = 100, xlab = 'Day relative to onset', title = 'Histogran')
+```
+
+
+```{r}
+cohort %>% 
+  distinct(mrn) %>% 
+  write_csv('../data/Sergio_list_MRN_only.csv')
+
+
+cohort %>% 
+  write_csv('../data/Sergio_list_all_info.csv')
+
+```
+
+```{r}
+# note the diffonset as big as 1000 days, are those from second transplant patients?
+cohort %>% 
+  filter(diffonset <= 700) %>% 
+  distinct(mrn) %>% 
+  nrow
+```
+
+
+## Do a venn diagram to show the actual relationship
+
+```{r}
+# patients with second transplant
+second <- allo %>% 
+  filter(!str_detect(indication, fixed('initial', ignore_case=TRUE))) %>% 
+  distinct(mrn)
+
+
+gt700 <- cohort %>% 
+  filter(diffonset > 700) %>% 
+  distinct(mrn)
+
+length(intersect(second$mrn, gt700$mrn))
+
+
+cohort %>% 
+  filter(diffonset > 700) %>% 
+  distinct(mrn) %>% 
+  nrow
+
+lt700 <- cohort %>% 
+  filter(diffonset <= 700) %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+gt700 <- cohort %>% 
+  filter(diffonset > 700) %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+
+
+check <- cohort %>% 
+  filter(mrn %in% intersect(gt700, lt700))
+```
+

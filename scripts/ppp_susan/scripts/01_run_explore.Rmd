@@ -1,5 +1,5 @@
 ---
-title: "try the run discovery"
+title: "Run discovery"
 output: html_document
 ---
 
