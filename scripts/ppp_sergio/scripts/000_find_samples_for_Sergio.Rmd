@@ -24,6 +24,8 @@ who have GVHD Grade 2, 3, or 4 (any organ, not just lower-GI)
 and for whom we have a at least 1 microbiome sample in 
 a window of (20 days before the date of GVHD onset to anytime after GVHD onset)
 
+## Connect to db
+
 ```{r}
 source('~/db_connect_simple.R')
 connect_database(config_file = "~/dbConfig.txt")
@@ -32,6 +34,8 @@ connect_database(config_file = "~/dbConfig.txt")
 get_table_from_database('patient_allo_ag')
 get_table_from_database('samples_castori_ag')
 ```
+
+## A look at the key tables
 
 ```{r}
 
@@ -57,11 +61,13 @@ patient_allo_ag %>%
 
 ```
 
-*Note*: thawed stool should not be used. thawed refers to Fecal Microbiota Transplant trial products that we administered to patients by enema. People should exclude those samples from observational studies. 
+## The selection
 
-*Note*: a caution that some patients have (in our system) GVHD grade 5 or 6. So be careful not to fall into the pitfall of pulling in grade >=2. grade 5 and 6 don’t exist in the literature. our own BMT department uses 5 to mean not-evaluable and 6 to mean “GVHD symptoms so subtle that they don’t even meet criteria for grade 1 but we didn’t want to lose that information so we chose 6". A nice example of the importance of always inspecting your data using count() or summary() or inspect visually, for example using hist()
+**Note**: thawed stool should not be used. thawed refers to Fecal Microbiota Transplant trial products that we administered to patients by enema. People should exclude those samples from observational studies. 
 
-*Note*: remind yourself that you should get into the habit of checking your data to make sure your joins worked. for example by checking whether they have duplicated mrns or duplicated sampleids. (do you expect to have any duplicates?) and do you have any MRNs or duplicates that are NA.
+**Note**: a caution that some patients have (in our system) GVHD grade 5 or 6. So be careful not to fall into the pitfall of pulling in grade >=2. grade 5 and 6 don’t exist in the literature. our own BMT department uses 5 to mean not-evaluable and 6 to mean “GVHD symptoms so subtle that they don’t even meet criteria for grade 1 but we didn’t want to lose that information so we chose 6". A nice example of the importance of always inspecting your data using count() or summary() or inspect visually, for example using hist()
+
+**Note**: remind yourself that you should get into the habit of checking your data to make sure your joins worked. for example by checking whether they have duplicated mrns or duplicated sampleids. (do you expect to have any duplicates?) and do you have any MRNs or duplicates that are NA.
 
 
 ```{r}
@@ -90,6 +96,7 @@ cohort %>%
   gghistogram(x = 'diffonset', bins = 100, xlab = 'Day relative to onset', title = 'Histogran')
 ```
 
+## Write out the tables
 
 ```{r}
 cohort %>% 
@@ -100,51 +107,5 @@ cohort %>%
 cohort %>% 
   write_csv('../data/Sergio_list_all_info.csv')
 
-```
-
-```{r}
-# note the diffonset as big as 1000 days, are those from second transplant patients?
-cohort %>% 
-  filter(diffonset <= 700) %>% 
-  distinct(mrn) %>% 
-  nrow
-```
-
-
-## Do a venn diagram to show the actual relationship
-
-```{r}
-# patients with second transplant
-second <- allo %>% 
-  filter(!str_detect(indication, fixed('initial', ignore_case=TRUE))) %>% 
-  distinct(mrn)
-
-
-gt700 <- cohort %>% 
-  filter(diffonset > 700) %>% 
-  distinct(mrn)
-
-length(intersect(second$mrn, gt700$mrn))
-
-
-cohort %>% 
-  filter(diffonset > 700) %>% 
-  distinct(mrn) %>% 
-  nrow
-
-lt700 <- cohort %>% 
-  filter(diffonset <= 700) %>% 
-  distinct(mrn) %>% 
-  pull(mrn)
-
-gt700 <- cohort %>% 
-  filter(diffonset > 700) %>% 
-  distinct(mrn) %>% 
-  pull(mrn)
-
-
-
-check <- cohort %>% 
-  filter(mrn %in% intersect(gt700, lt700))
 ```
 
