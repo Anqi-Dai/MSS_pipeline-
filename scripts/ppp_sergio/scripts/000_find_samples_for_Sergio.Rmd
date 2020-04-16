@@ -81,6 +81,8 @@ cohort <- patient_allo_ag %>%
   filter(diffonset >= -20)
 
 nrow(cohort)
+
+
 ```
 
 **Note**: some other filtering to consider for downstream analysis-----can't use some of the samples in our analysis. Possible reasons:
@@ -106,6 +108,12 @@ cohort %>%
 
 cohort %>% 
   write_csv('../data/Sergio_list_all_info.csv')
+
+
+patient_allo_ag %>% 
+  mutate(MRN = str_pad(mrn, 8,'left', '0')) %>% 
+  select(MRN) %>% 
+  mutate(mrn = as.numeric(MRN))
 
 ```
 

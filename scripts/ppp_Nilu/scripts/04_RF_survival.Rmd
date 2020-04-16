@@ -1,6 +1,6 @@
 ---
 title: "Random Forests for Survival"
-output: html_document
+output: html_document 
 ---
 
 ```{r setup, include=FALSE}
@@ -9,15 +9,118 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(readxl)
+library(randomForestSRC)
+library(ggRandomForests)
 ```
 
-## top 40 most abundant genera
+the outcome of interest can be overall survival or Progression-Free-Survival, which Nilu has nicely organized for this cohort
+
+
+## top 40 most abundant genera count matrix and summarize to get the median abundance for each patient
 
 ```{r}
 cts_genus <- read.csv('../data/cts_genus.csv', check.names = F, row.names = 1)
-
-top40 <- apply(cts_genus, 1, sum)
-rowSums(is.na(cts_genus))
 dim(cts_genus)
+
+N <- 40
+topN_genera <- sort(apply(cts_genus, 1, sum), decreasing = T)[1:N]
+
+
+topN_ma <- cts_genus[rownames(cts_genus) %in% names(topN_genera),]
+
+
+# get the pt samples corresponding table and do the median summarization
+samps <- read_csv('../data/msk duke sdtable 03 02 20.csv') %>% 
+  rename(sampleid = sampleid_clean)
+
+topN_df <- topN_ma %>% 
+  as.data.frame() %>% 
+  rownames_to_column('genus') %>% 
+  gather(key = 'sampleid', value = 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(samps %>% select(sampleid, mrn)) %>% 
+  group_by(mrn, genus) %>% 
+  summarise(med_relab = median(relab)) %>% 
+  spread(key = 'mrn', value = 'med_relab', fill = 0) %>% 
+  column_to_rownames('genus') %>% 
+  as.matrix()
+```
+
+## The patient pheno table
+
+Need to have a more comprehensive tables of the important clinical variables
+
+```{r}
+suv_pt <- read_excel('../data/pttable_anon_040920.xlsx', sheet = 1)
+dic <- read_csv('../data/mrn_pid_key07-Apr-2020 12.20.csv')
+
+pt_sub <- suv_pt %>% 
+  full_join(dic) %>% 
+  select(-pid.anon.v1, -X1, -CleanMyeloma)
+
+# also the table that has the median div in peri period
+# get the median and do a summarization
+samps <- read_csv('../data/sdtable_anon_040720.csv') %>% 
+  group_by(pid.anon.v1) %>% 
+  summarise(med_SR = median(simpson_reciprocal)) %>% 
+  full_join(dic) %>% 
+  select(mrn, med_SR)
+
+
+# this is the more comprehensive table and subset to have only the 240 included in the survival analysis
+pt_all <- read_csv('../data/msk duke pttable 03 02 20.csv')
+  
+  
+pt <- pt_all %>% 
+  select(mrn, institution, Sex , Age, disease_cat, Pt.Status_cat, Regimen_cat) %>% 
+  filter(mrn %in% pt_sub$mrn) %>% 
+  full_join(pt_sub) %>% 
+  full_join(samps)
+
+# divide the pt to groups low div and high div 
+thre_div <- median(pt$med_SR)
+
+pt <- pt %>% 
+  mutate(div_grp = if_else(med_SR > thre_div, 'high', 'low'))
+
+```
+
+
+```{r}
+# any NA?
+pt %>% 
+  summary
+
+
+# change the column types
+pt_final <- pt %>% 
+  mutate(institution = factor(institution),
+         Sex = factor(Sex),
+         disease_cat= factor(disease_cat),
+         Pt.Status_cat  = factor(Pt.Status_cat ),
+         Regimen_cat = factor(Regimen_cat),
+         div_grp = factor(div_grp)) %>% 
+  select(-mrn)
+
+pt_final %>% 
+  summary
+
+```
+
+
+## build the model
+
+```{r}
+res <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ ., data = pt_final, importance = TRUE)
+
+```
+
+
+
+
+```{r}
+data(pbc, package = "randomForestSRC")
+pbc.obj <- rfsrc(Surv(days,status) ~ ., pbc, importance = TRUE)
+find.interaction(pbc.obj, method = "vimp", nvar = 8)
 ```
 
