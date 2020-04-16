@@ -94,33 +94,49 @@ pt %>%
 
 # change the column types
 pt_final <- pt %>% 
-  mutate(institution = factor(institution),
-         Sex = factor(Sex),
-         disease_cat= factor(disease_cat),
-         Pt.Status_cat  = factor(Pt.Status_cat ),
-         Regimen_cat = factor(Regimen_cat),
-         div_grp = factor(div_grp)) %>% 
-  select(-mrn)
+  mutate(institution = if_else(institution == 'MSK Auto', T, F),
+         Sex = if_else(Sex == 'M', T, F),
+         div_grp = if_else(div_grp == 'high', T, F)) %>% 
+  select(-mrn, -Pt.Status_cat,-med_SR)
 
 pt_final %>% 
   summary
+
+colnames(pt_final)
 
 ```
 
 
 ## build the model
 
-```{r}
-res <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ ., data = pt_final, importance = TRUE)
+There can't be any factor strings !!! you need to convert to numeric or logic!!!!!
 
+### For the PFS
+
+```{r}
+res <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = pt_final %>% select(-PFS_landmrk_time, -POD_24), importance = TRUE)
+
+#plot(gg_error(res))
+
+
+plot(gg_vimp(res)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0")
+```
+
+### For the OS
+
+```{r}
+res_os <- rfsrc(Surv(PFS_landmrk_time, POD_24) ~ . , data = pt_final %>% select(-OS_landmark_time, -DeadorAlive_24), importance = TRUE)
+
+plot(gg_vimp(res_os)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0")
 ```
 
 
 
-
 ```{r}
-data(pbc, package = "randomForestSRC")
-pbc.obj <- rfsrc(Surv(days,status) ~ ., pbc, importance = TRUE)
-find.interaction(pbc.obj, method = "vimp", nvar = 8)
+#gg_dta <- gg_survival(interval = "OS_landmark_time",censor = "DeadorAlive_24",by = "div_grp",data = pt_final, conf.int = 0.95)
 ```
 
