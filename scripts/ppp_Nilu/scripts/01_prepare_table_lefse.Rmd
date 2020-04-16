@@ -131,5 +131,8 @@ ptb %>%
   write.table('../data/mrns_pheno.txt', sep = '\t', quote = F, row.names = T, col.names = F)
 ```
 
+```{bash}
+cat ../data/mrns_pheno.txt ../data/otu_mrns_relab_reordered.tsv > ../data/test.tsv
+```
 
 

@@ -1,10 +1,16 @@
 ---
 title: "Random Forests for Survival"
-output: html_document 
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 4
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -12,11 +18,15 @@ library(tidyverse)
 library(readxl)
 library(randomForestSRC)
 library(ggRandomForests)
+library(kableExtra)
+pretty_print <- function(df) {
+  df %>% 
+    kable() %>% 
+    kable_styling(position = 'left', full_width = F)
+}
 ```
 
-the outcome of interest can be overall survival or Progression-Free-Survival, which Nilu has nicely organized for this cohort
-
-
+The outcome of interest can be overall survival or Progression-Free-Survival, which Nilu has nicely organized for this cohort.
 
 ## The patient data including clinical variables
 
@@ -59,11 +69,6 @@ pt <- pt %>%
 
 
 ```{r}
-# any NA?
-pt %>% 
-  summary
-
-
 # change the column types
 pt_final <- pt %>% 
   mutate(institution = if_else(institution == 'MSK Auto', T, F),
@@ -71,17 +76,28 @@ pt_final <- pt %>%
          div_grp = if_else(div_grp == 'high', T, F)) %>% 
   select(-mrn, -Pt.Status_cat,-med_SR)
 
+pt_final %>% head(10) %>% pretty_print() 
+
 pt_final %>% 
   summary
-
-colnames(pt_final)
 
 ```
 
 
-## build the model
-
 There can't be any factor strings !!! you need to convert to numeric or logic!!!!!
+
+**VIMP close to zero indicates the variable contributes nothing to predictive accuracy, and negative values indicate the predictive accuracy improves when the variable is misspecified. In the later case, we assume noise is more informative than the true variable. As such, we ignore variables with negative and near zero values of VIMP, relying on large positive values to indicate that the predictive power of the forest is dependent on those variables.**
+
+### For the OS
+
+```{r}
+res_os <- rfsrc(Surv(PFS_landmrk_time, POD_24) ~ . , data = pt_final %>% select(-OS_landmark_time, -DeadorAlive_24), importance = TRUE)
+
+plot(gg_vimp(res_os)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0",
+       title = 'Progression free survival')
+```
 
 ### For the PFS
 
@@ -97,44 +113,84 @@ plot(gg_vimp(res)) +
        title = 'Overall survival')
 ```
 
-### For the OS
 
-```{r}
-res_os <- rfsrc(Surv(PFS_landmrk_time, POD_24) ~ . , data = pt_final %>% select(-OS_landmark_time, -DeadorAlive_24), importance = TRUE)
-
-plot(gg_vimp(res_os)) +
-  theme(legend.position = c(0.8, 0.2)) +
-  labs(fill = "VIMP > 0",
-       title = 'Progression free survival')
-```
 
 ## The patient data including only microbiota features
 
-top 20 most abundant genera count matrix and summarize to get the median abundance for each patient
+Top 20 most abundant genera count matrix and summarize to get the median abundance for each patient
 
 ```{r}
 cts_genus <- read.csv('../data/cts_genus.csv', check.names = F, row.names = 1)
 dim(cts_genus)
 
-N <- 40
+N <- 20
 topN_genera <- sort(apply(cts_genus, 1, sum), decreasing = T)[1:N]
-
-
 topN_ma <- cts_genus[rownames(cts_genus) %in% names(topN_genera),]
+```
 
+**Note:** Ruminococcus in two different family
 
-# get the pt samples corresponding table and do the median summarization
-samps <- read_csv('../data/msk duke sdtable 03 02 20.csv') %>% 
-  rename(sampleid = sampleid_clean)
+```{r}
+# the top 20 most abundant genera
+data_frame(genus = names(topN_genera)) %>% 
+  arrange(genus) %>% 
+  mutate(genus = str_extract(genus, 'f__.+$')) %>% 
+  pretty_print()
+  
+```
 
-topN_df <- topN_ma %>% 
-  as.data.frame() %>% 
+```{r}
+# the subset samples that are in the peri time period
+peri <- read_csv('../data/sdtable_anon_040720.csv')
+
+peri_ma <- topN_ma[,colnames(topN_ma) %in% peri$sampleid_clean] %>% 
   rownames_to_column('genus') %>% 
   gather(key = 'sampleid', value = 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
-  left_join(samps %>% select(sampleid, mrn)) %>% 
+  left_join(peri %>% select(pid.anon.v1, sampleid = sampleid_clean)) %>% 
+  left_join(dic %>% select(mrn, pid.anon.v1)) %>% 
   group_by(mrn, genus) %>% 
   summarise(med_relab = median(relab)) %>% 
-  spread(key = 'mrn', value = 'med_relab', fill = 0) %>% 
-  column_to_rownames('genus') %>% 
-  as.matrix()
+  mutate(genus = str_extract(genus, 'f__.+$')) %>% 
+  spread(key = 'genus', value = 'med_relab')
+
 ```
+ 
+**VIMP close to zero indicates the variable contributes nothing to predictive accuracy, and negative values indicate the predictive accuracy improves when the variable is misspecified. In the later case, we assume noise is more informative than the true variable. As such, we ignore variables with negative and near zero values of VIMP, relying on large positive values to indicate that the predictive power of the forest is dependent on those variables.** 
+
+### Overall survival
+
+```{r}
+# get one table for overall survival
+df_OS <- peri_ma %>% 
+  full_join(pt_sub %>% select(mrn, OS_landmark_time, DeadorAlive_24)) %>% 
+  ungroup() %>% 
+  select(-mrn)
+```
+```{r}
+micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS, importance = TRUE)
+
+plot(gg_vimp(micro_OS)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0",
+       title = 'Overall survival')
+```
+
+### Progression free survival
+
+```{r}
+df_PFS <- peri_ma %>% 
+  full_join(pt_sub %>% select(mrn, PFS_landmrk_time, POD_24)) %>% 
+  ungroup() %>% 
+  select(-mrn)
+
+
+micro_PFS <- rfsrc(Surv(PFS_landmrk_time, POD_24) ~ . , data = df_PFS, importance = TRUE, tree.err = TRUE)
+
+plot(gg_vimp(micro_PFS)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0",
+       title = 'Progression free survival')
+
+
+```
+
