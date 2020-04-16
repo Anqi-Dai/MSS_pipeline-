@@ -1,12 +1,12 @@
 ---
-title: "Contrast between white and African American micriobiota in two time periods"
+title: "Is there difference in micriobiota composition between white and African American patients during baseline and peri-engraftment time period"
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
 output:
   html_document:
     toc: true
     toc_float: true
-    toc_depth: 3
+    toc_depth: 5
 ---
 
 ```{r setup, include=FALSE}
@@ -17,7 +17,15 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 library(tidyverse)
 library(ggpubr)
 library(kableExtra)
+# define a function for pretty print using Kable
+pretty_print <- function(df) {
+  df %>% 
+    kable() %>% 
+    kable_styling(position = 'left', full_width = F)
+}
 ```
+
+## A look at the data and the ethnicity distribution
 
 ```{r}
 # the ethnicity data on the MSK set that was used in the nejm paper (“frozen set”) here: smb://skimcs.mskcc.org/vandenbrinklab/deep_sequencing/Clinical Annotation/Ethnicity/ethnicity_nejm_frozen_set.csv
@@ -26,14 +34,14 @@ pheno <- read_csv('/Volumes/vandenBrinkLab/deep_sequencing/Clinical Annotation/E
   select(-X1, -X1_1)
 ```
 
-
+### How many patients per each ethnicity group
 
 ```{r}
 # get the groups percentage
 eth_grp <- pheno %>% 
   count(ethnicity_simple) 
 
-eth_grp
+eth_grp %>% pretty_print()
 
 nonwhite <- eth_grp %>% 
   mutate(grp = if_else(ethnicity_simple == 'White', 'white', if_else(ethnicity_simple == 'other', 'other', 'nonwhite'))) %>% 
@@ -42,15 +50,17 @@ nonwhite <- eth_grp %>%
   # removing the other cuz don't know their race
   filter(grp != 'other') %>% 
   mutate(grp_perc = round(grp_sum/sum(grp_sum)*100, 2))
+```
 
-nonwhite
+### White and African American patients and their percentages
 
+```{r}
 # if only include white and aa
 aa <- eth_grp %>% 
   filter(ethnicity_simple %in% c('Black/African American','White')) %>% 
   mutate(grp_perc = round(n/sum(n)*100, 2))
 
-aa
+aa %>% pretty_print()
 ```
 
 ```{r}
@@ -59,10 +69,11 @@ target <- pheno %>%
   filter(ethnicity_simple != 'other') %>% 
   select(mrn=patient_id, ethnicity=ethnicity_simple)
 
+# how many patients total
 nrow(target)
 ```
 
-## Find all the samples for the patients and get the day relative to transplant
+## Find the samples for the patients
 
 ```{r}
 source('~/db.R')
@@ -128,16 +139,20 @@ ALL <- All %>%
 ```{r}
 # look at this all table
 # there are some NAs we need to deal with that
-ALL %>% 
-  select(-mrn) %>% 
-  head
+# ALL %>% 
+#   select(-mrn) %>% 
+#   head %>% 
 ```
+
+
+**We may not have the alpha div and the total counts in the db for a given sample. The reasons may be: **
+
+- the samples are collected but not sequenced
+- or couldn't be sequenced because failed to amplify
+- or finished sequencing but haven't gone thru the pipeline thus not in the db (new samples)
+
 ```{r}
-# We may not have the alpha div and the total counts in the db for a given sample in castori
-# the reason may be: 
-# the samples are collected but not sequenced
-# or couldn't be sequenced because failed to amplify
-# or finished sequencing but haven't gone thru the pipeline thus not in the db (new samples)
+
 ALL_final <- ALL %>% 
   filter(!is.na(count_total)) %>% 
   filter(count_total >= 200) %>% 
@@ -167,68 +182,15 @@ df_baseline_first <- df_baseline %>%
   arrange(drt) %>% 
   slice(1)  
 
+# how many patients
 nrow(df_baseline_first)
 
-df_baseline_first %>% 
-  ungroup() %>% 
-  count(ethnicity)
-```
-#### white and non white
-
-
-##### split by source  
-
-
-```{r}
-df_baseline_first %>% 
-  ggboxplot(x = 'eth', y = 'simpson_reciprocal', add = 'jitter', xlab = 'ethnicity', color = 'eth', palette = 'lancet',
-            title = 'Alpha div simposon reciprocal comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ src) 
-
-
-df_baseline_first %>% 
-  ggboxplot(x = 'eth', y = 'shannon', add = 'jitter', xlab = 'ethnicity',color = 'eth', palette = 'lancet',
-            title = 'Alpha div shannon comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ src) 
 ```
 
-
-##### split by intensity  
-
-```{r}
-df_baseline_first %>% 
-  ggboxplot(x = 'eth', y = 'simpson_reciprocal', add = 'jitter', xlab = 'ethnicity',color = 'eth', palette = 'lancet',
-            title = 'Alpha div simposon reciprocal comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ intensity) 
+#### White and African American
 
 
-df_baseline_first %>% 
-  ggboxplot(x = 'eth', y = 'shannon', add = 'jitter', xlab = 'ethnicity',color = 'eth', palette = 'lancet',
-            title = 'Alpha div shannon comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ intensity) 
-```
-
-
-#### white and black
-
-
-##### split by source  
+##### Split by source  
 
 ```{r}
 df_baseline_first_black <- df_baseline_first %>% 
@@ -257,7 +219,7 @@ df_baseline_first_black %>%
 ```
 
 
-##### split by intensity 
+##### Split by intensity 
 
 ```{r}
 df_baseline_first_black %>% 
@@ -298,63 +260,9 @@ df_peri_med_div <- df_peri %>%
 nrow(df_peri_med_div)
 ```
 
-#### white and non white
+#### White and African American
 
-
-##### split by source  
-
-
-```{r}
-df_peri_med_div %>% 
-  ggboxplot(x = 'eth', y = 'med_sr', add = 'jitter', xlab = 'ethnicity', color = 'eth', palette = 'lancet',
-            title = 'Median alpha div simposon reciprocal peri comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ src)  +
-  scale_y_sqrt()
-
- 
-df_peri_med_div %>% 
-  ggboxplot(x = 'eth', y = 'med_shan', add = 'jitter', xlab = 'ethnicity',color = 'eth', palette = 'lancet',
-            title = 'Median alpha div Shannon peri comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ src)  +
-  scale_y_sqrt()
-```
-
-##### split by intensity 
-
-```{r}
-df_peri_med_div %>% 
-  ggboxplot(x = 'eth', y = 'med_sr', add = 'jitter', xlab = 'ethnicity', color = 'eth', palette = 'lancet',
-            title = 'Median alpha div simposon reciprocal peri comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ intensity)  +
-  scale_y_sqrt()
-
- 
-df_peri_med_div %>% 
-  ggboxplot(x = 'eth', y = 'med_shan', add = 'jitter', xlab = 'ethnicity',color = 'eth', palette = 'lancet',
-            title = 'Median alpha div Shannon peri comparison') +
-  stat_compare_means(comparisons = list(c('white', 'nonwhite')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ intensity)  +
-  scale_y_sqrt()
-```
-
-#### white and black
-
-##### split by source 
+##### Split by source 
 
 ```{r}
 df_peri_med_div_black <- df_peri_med_div %>% 
@@ -381,7 +289,8 @@ df_peri_med_div_black %>%
                     correct=FALSE) +
   facet_wrap(.~ src) 
 ```
-##### split by intensity 
+
+##### Split by intensity 
 
 ```{r}
 df_peri_med_div_black %>% 
@@ -405,7 +314,6 @@ df_peri_med_div_black %>%
 ```
 
 
-
 ```{r}
 # save the two time period tables for use in other scripts
 # df_baseline %>% 
@@ -417,18 +325,14 @@ df_peri_med_div_black %>%
 
 ## TSNE
 
-What does TSNE do?
-
 ```{r}
+#What does TSNE do?
 #knitr::include_graphics('~/Desktop/screenshots/Screen Shot 2020-04-09 at 3.36.00 PM.png')
 ```
 
-
 ```{r}
 tsnec <- get_data_from_query_OTU(0, 'tsne_ag')
-```
 
-```{r}
 # get the t1_scaled and t2_scaled from the db and join to the table
 time <- bind_rows(
   df_baseline %>% 
@@ -440,14 +344,6 @@ time <- bind_rows(
   
 ```
 
-```{r}
-# few samples don't have the tsne in the db
-time %>% 
-  filter(!is.na(t1_scaled)) %>% 
-  ggscatter(x = 't1_scaled', y = 't2_scaled', color = 'eth', palette = 'jama', alpha = 0.8, 
-            title = 'TSNE for two period of time') +
-  facet_wrap(~period)
-```
 
 ```{r}
 # only with white and black
@@ -459,6 +355,8 @@ time %>%
             title = 'TSNE for two period of time between white and black') +
   facet_wrap(~period)
 ```
+
+Overlapping between white and black. No separation.
 
 ## Adonis test
 
@@ -483,8 +381,8 @@ ANNOT <- get_data_from_query_OTU(0, 'asv_annotation_blast_ag')
 cts_bl <- asv_counts_ag %>% 
   filter(sampleid %in% df_baseline$sampleid)
 
-cts_bl %>% 
-  count(sampleid)
+# cts_bl %>% 
+#   count(sampleid)
 # good we have all the samples counts
 
 cts_baseline <- cts_bl %>% 
@@ -494,7 +392,7 @@ cts_baseline <- cts_bl %>%
   column_to_rownames('asv_key') %>% 
   as.matrix()
 
-dim(cts_baseline)
+#dim(cts_baseline)
 # cts_baseline %>% 
 #   distinct(asv_key, sampleid)
 ```
@@ -525,7 +423,7 @@ cts_baseline_genus <- cts_baseline %>%
   spread(key = 'taxa_genus', value = 'relab') %>% 
   column_to_rownames('sampleid')
 
-dim(cts_baseline_genus)
+#dim(cts_baseline_genus)
 ```
 
 ```{r}
@@ -534,7 +432,7 @@ cts_baseline_pheno <- df_baseline %>%
   filter(sampleid %in% rownames(cts_baseline_genus)) %>% 
   arrange(sampleid)
 
-all.equal(rownames(cts_baseline_genus), cts_baseline_pheno$sampleid)
+#all.equal(rownames(cts_baseline_genus), cts_baseline_pheno$sampleid)
 ```
 
 ```{r}
@@ -543,6 +441,7 @@ library(vegan)
 dist_bl <- vegdist(cts_baseline_genus, method = 'bray')
 ```
 
+#### The actual test
 
 ```{r}
 pmv <- adonis(cts_baseline_genus ~ ethnicity, data=cts_baseline_pheno, permutations=999, method = 'bray')
@@ -550,7 +449,7 @@ pmv
 #densityplot(permustats(pmv))
 ```
 
-**There is a sig difference between the groups black and white**
+**There is a sig difference between the groups black and white. Possibly due to the big sample size here.**
 
 ```{r}
 # distance based dispersion test
@@ -561,6 +460,8 @@ anova(bd)
 ```
  
 **The within group dispersion is the same (no sig difference)**
+
+#### The top 20 contributing genera
 
 ```{r}
 # which genus are responsible for the difference
@@ -576,8 +477,10 @@ genus_contri <- summary(sim) %>%
 # average	: Species contribution to average between-group dissimilarity.
 
 
-genus_contri
+genus_contri %>% pretty_print()
 ```
+
+It aligns with our understanding that there are more good bugs like Blautia in baseline time period.
 
 ### peri-engraftment
 
@@ -593,8 +496,8 @@ df_peri <- df_peri %>%
 cts_peri <- asv_counts_ag %>% 
   filter(sampleid %in% df_peri$sampleid)
 
-cts_peri %>% 
-  count(sampleid)
+# cts_peri %>% 
+#   count(sampleid)
 # good we have all the samples counts
 
 cts_peri <- cts_peri %>% 
@@ -604,7 +507,7 @@ cts_peri <- cts_peri %>%
   column_to_rownames('asv_key') %>% 
   as.matrix()
 
-dim(cts_peri)
+#dim(cts_peri)
 # cts_baseline %>% 
 #   distinct(asv_key, sampleid)
 ```
@@ -635,7 +538,7 @@ cts_peri_genus <- cts_peri %>%
   spread(key = 'taxa_genus', value = 'relab') %>% 
   column_to_rownames('sampleid')
 
-dim(cts_peri_genus)
+#dim(cts_peri_genus)
 ```
 
 ```{r}
@@ -644,7 +547,7 @@ cts_peri_pheno <- df_peri %>%
   filter(sampleid %in% rownames(cts_peri_genus)) %>% 
   arrange(sampleid)
 
-all.equal(rownames(cts_peri_genus), cts_peri_pheno$sampleid)
+#all.equal(rownames(cts_peri_genus), cts_peri_pheno$sampleid)
 ```
 
 ```{r}
@@ -653,11 +556,15 @@ library(vegan)
 dist_peri <- vegdist(cts_peri_genus, method = 'bray')
 ```
 
+#### The actual test
+
 ```{r}
 pmv <- adonis(cts_peri_genus ~ ethnicity, data=cts_peri_pheno, permutations=999, method = 'bray')
 pmv
 #densityplot(permustats(pmv))
 ```
+
+**There is a sig difference between the group black and white**
 
 ```{r}
 # distance based dispersion test
@@ -667,7 +574,10 @@ anova(bd)
 #permutest(bd)
 ```
  
-**Looks there is sig difference within each group already** 
+**Looks the within group dispersion is sig different already.** 
+
+
+#### The top 20 contributing genera
  
 ```{r}
 # which genus are responsible for the difference
@@ -682,6 +592,7 @@ genus_contri <- summary(sim) %>%
 
 # average	: Species contribution to average between-group dissimilarity.
 
-
-genus_contri
+genus_contri %>% pretty_print()
 ```
+
+It aligns with our previous finding that there is Enterococcus dominance in peri-engraftment time

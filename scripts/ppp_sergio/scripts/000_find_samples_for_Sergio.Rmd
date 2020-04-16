@@ -116,4 +116,10 @@ patient_allo_ag %>%
   mutate(mrn = as.numeric(MRN))
 
 ```
+```{r}
+data(dune)
+data(dune.env)
+(sim <- with(dune.env, simper(dune, Management)))
+summary(sim)
+```
 

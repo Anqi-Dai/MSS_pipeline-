@@ -17,36 +17,8 @@ library(ggRandomForests)
 the outcome of interest can be overall survival or Progression-Free-Survival, which Nilu has nicely organized for this cohort
 
 
-## top 40 most abundant genera count matrix and summarize to get the median abundance for each patient
 
-```{r}
-cts_genus <- read.csv('../data/cts_genus.csv', check.names = F, row.names = 1)
-dim(cts_genus)
-
-N <- 40
-topN_genera <- sort(apply(cts_genus, 1, sum), decreasing = T)[1:N]
-
-
-topN_ma <- cts_genus[rownames(cts_genus) %in% names(topN_genera),]
-
-
-# get the pt samples corresponding table and do the median summarization
-samps <- read_csv('../data/msk duke sdtable 03 02 20.csv') %>% 
-  rename(sampleid = sampleid_clean)
-
-topN_df <- topN_ma %>% 
-  as.data.frame() %>% 
-  rownames_to_column('genus') %>% 
-  gather(key = 'sampleid', value = 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
-  left_join(samps %>% select(sampleid, mrn)) %>% 
-  group_by(mrn, genus) %>% 
-  summarise(med_relab = median(relab)) %>% 
-  spread(key = 'mrn', value = 'med_relab', fill = 0) %>% 
-  column_to_rownames('genus') %>% 
-  as.matrix()
-```
-
-## The patient pheno table
+## The patient data including clinical variables
 
 Need to have a more comprehensive tables of the important clinical variables
 
@@ -121,7 +93,8 @@ res <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = pt_final %>% se
 
 plot(gg_vimp(res)) +
   theme(legend.position = c(0.8, 0.2)) +
-  labs(fill = "VIMP > 0")
+  labs(fill = "VIMP > 0",
+       title = 'Overall survival')
 ```
 
 ### For the OS
@@ -131,12 +104,37 @@ res_os <- rfsrc(Surv(PFS_landmrk_time, POD_24) ~ . , data = pt_final %>% select(
 
 plot(gg_vimp(res_os)) +
   theme(legend.position = c(0.8, 0.2)) +
-  labs(fill = "VIMP > 0")
+  labs(fill = "VIMP > 0",
+       title = 'Progression free survival')
 ```
 
+## The patient data including only microbiota features
 
+top 20 most abundant genera count matrix and summarize to get the median abundance for each patient
 
 ```{r}
-#gg_dta <- gg_survival(interval = "OS_landmark_time",censor = "DeadorAlive_24",by = "div_grp",data = pt_final, conf.int = 0.95)
-```
+cts_genus <- read.csv('../data/cts_genus.csv', check.names = F, row.names = 1)
+dim(cts_genus)
 
+N <- 40
+topN_genera <- sort(apply(cts_genus, 1, sum), decreasing = T)[1:N]
+
+
+topN_ma <- cts_genus[rownames(cts_genus) %in% names(topN_genera),]
+
+
+# get the pt samples corresponding table and do the median summarization
+samps <- read_csv('../data/msk duke sdtable 03 02 20.csv') %>% 
+  rename(sampleid = sampleid_clean)
+
+topN_df <- topN_ma %>% 
+  as.data.frame() %>% 
+  rownames_to_column('genus') %>% 
+  gather(key = 'sampleid', value = 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(samps %>% select(sampleid, mrn)) %>% 
+  group_by(mrn, genus) %>% 
+  summarise(med_relab = median(relab)) %>% 
+  spread(key = 'mrn', value = 'med_relab', fill = 0) %>% 
+  column_to_rownames('genus') %>% 
+  as.matrix()
+```

@@ -201,15 +201,5 @@ meta <- meta(pseq.rel)
 data<-read.csv('~/Downloads/datatest.csv',header=T,row.names=1,sep=";")
 ```
 
-```{r}
-current <- rowSums(cts_baseline_fil_spp) %>% data.frame() %>% rownames_to_column('sampleid') 
 
-old <- cts_bl %>% 
-  distinct(sampleid, count_total)
-
-test <- old %>% full_join(current) %>% 
-  rename(sum_cnt = names(.)[3]) %>% 
-  mutate(perc = sum_cnt/count_total)
-
-```
 
