@@ -88,7 +88,7 @@ There can't be any factor strings !!! you need to convert to numeric or logic!!!
 
 **VIMP close to zero indicates the variable contributes nothing to predictive accuracy, and negative values indicate the predictive accuracy improves when the variable is misspecified. In the later case, we assume noise is more informative than the true variable. As such, we ignore variables with negative and near zero values of VIMP, relying on large positive values to indicate that the predictive power of the forest is dependent on those variables.**
 
-### For the OS
+### For the PFS
 
 ```{r}
 res_os <- rfsrc(Surv(PFS_landmrk_time, POD_24) ~ . , data = pt_final %>% select(-OS_landmark_time, -DeadorAlive_24), importance = TRUE)
@@ -99,7 +99,7 @@ plot(gg_vimp(res_os)) +
        title = 'Progression free survival')
 ```
 
-### For the PFS
+### For the OS
 
 ```{r}
 res <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = pt_final %>% select(-PFS_landmrk_time, -POD_24), importance = TRUE)
@@ -169,11 +169,52 @@ df_OS <- peri_ma %>%
 ```{r}
 micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS, importance = TRUE)
 
+plot(gg_vimp(micro_OS, nvar = 10)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0",
+       title = 'Overall survival') +
+  theme_classic() +
+  ggsave('../data/OS_micriobiome.positive.vim.jpg', width = 10, height = 6, dpi = 300)
+```
+
+```{r}
 plot(gg_vimp(micro_OS)) +
   theme(legend.position = c(0.8, 0.2)) +
   labs(fill = "VIMP > 0",
-       title = 'Overall survival')
+       title = 'Overall survival') +
+  theme_classic()
 ```
+
+```{r}
+# a heatmap to visualize the relationship
+library(pheatmap)
+relab <- df_OS %>% 
+  select(-OS_landmark_time, -DeadorAlive_24) %>% 
+  t
+
+colnames(relab) <- paste('pt', seq(1:240), sep = '')
+
+annot <- df_OS %>% 
+  select(DeadorAlive_24) %>% 
+  mutate(rowname = paste('pt', seq(1:nrow(.)), sep = '')) %>% 
+  column_to_rownames('rowname') 
+
+pheatmap(
+  relab,
+  annotation_col = annot,
+  show_rownames = T,
+  show_colnames = T,
+  filename = '../data/OS.heatmap.jpg',
+  height = 10,
+  width = 25,
+  scale = 'none',
+  cluster_rows = T,
+  cluster_cols = T
+)
+
+
+```
+
 
 ### Progression free survival
 
