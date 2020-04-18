@@ -1,0 +1,90 @@
+---
+title: "A look at the gliph output"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+```{r}
+# the output fns 
+pt_fns <- list.files('../data/gliph_output/', pattern = 'Pt._cdr3_amino_acid.csv-kmer_resample_1000_minp0.001_ove10.txt', full.names = T)
+
+organ_fns <- setdiff(list.files('../data/gliph_output/', pattern = '.+_cdr3_amino_acid.csv-kmer_resample_1000_minp0.001_ove10.txt', full.names = T), pt_fns)
+
+# bind the results together to df
+pt_all <- pt_fns %>% 
+  set_names(pt_fns) %>% 
+  map(~ read_tsv(.)) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '../data/gliph_output//',''),
+         fn = str_replace(fn, '_cdr3_amino_acid.csv-kmer_resample_1000_minp0.001_ove10.txt',''))
+
+
+organ_all <- organ_fns %>% 
+  set_names(organ_fns) %>% 
+  map(~ read_tsv(.)) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '../data/gliph_output//',''),
+         fn = str_replace(fn, '_cdr3_amino_acid.csv-kmer_resample_1000_minp0.001_ove10.txt',''))
+
+
+pt_all %>% 
+  write_csv('../data/patients_all_sig_motif.csv')
+  
+
+organ_all %>% 
+  write_csv('../data/organ_all_sig_motif.csv') 
+```
+
+# Patients level
+
+## The frequency of different motif
+
+```{r}
+pt_all %>% 
+  count(Motif)
+
+```
+
+# Organ level
+
+# The frequency
+
+```{r}
+organ_all %>% 
+  count(Motif) %>% 
+  arrange(desc(n))
+
+multiple <- organ_all %>% 
+  count(Motif) %>% 
+  arrange(desc(n)) %>% 
+  filter(n > 1) %>% 
+  pull(Motif)
+```
+
+
+```{r}
+# most frequent, what is the organ?
+organ_all %>% 
+  filter(Motif %in% multiple) %>% 
+  arrange(Motif)
+
+
+```
+
+```{r}
+
+```
+
