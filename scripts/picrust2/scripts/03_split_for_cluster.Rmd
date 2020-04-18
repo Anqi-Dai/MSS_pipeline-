@@ -158,6 +158,7 @@ low_fil_perc <- low_fil_compare %>%
   gather('thre', 'fil_nrow', names(.)[1]:names(.)[ncol(.)-1]) %>% 
   mutate(fil_nrow_perc = round(fil_nrow/nrow, 2))
 ```
+
 ```{r}
 # the ditribution of the fraction of kept asv numbers
 frac <- low_fil_perc %>% 

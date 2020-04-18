@@ -164,26 +164,21 @@ peri_ma <- topN_ma[,colnames(topN_ma) %in% peri$sampleid_clean] %>%
 df_OS <- peri_ma %>% 
   full_join(pt_sub %>% select(mrn, OS_landmark_time, DeadorAlive_24)) %>% 
   ungroup() %>% 
-  select(-mrn)
+  select(-mrn) 
 ```
+
 ```{r}
 micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS, importance = TRUE)
 
 plot(gg_vimp(micro_OS, nvar = 10)) +
   theme(legend.position = c(0.8, 0.2)) +
   labs(fill = "VIMP > 0",
-       title = 'Overall survival') +
+       title = 'Overall survival') + 
   theme_classic() +
-  ggsave('../data/OS_micriobiome.positive.vim.jpg', width = 10, height = 6, dpi = 300)
+  ggsave('../data/OS_micriobiome.positive.vim.pdf', width = 10, height = 6)
 ```
 
-```{r}
-plot(gg_vimp(micro_OS)) +
-  theme(legend.position = c(0.8, 0.2)) +
-  labs(fill = "VIMP > 0",
-       title = 'Overall survival') +
-  theme_classic()
-```
+
 
 ```{r}
 # a heatmap to visualize the relationship
@@ -227,10 +222,12 @@ df_PFS <- peri_ma %>%
 
 micro_PFS <- rfsrc(Surv(PFS_landmrk_time, POD_24) ~ . , data = df_PFS, importance = TRUE, tree.err = TRUE)
 
-plot(gg_vimp(micro_PFS)) +
+plot(gg_vimp(micro_PFS, nvar = 5)) +
   theme(legend.position = c(0.8, 0.2)) +
   labs(fill = "VIMP > 0",
-       title = 'Progression free survival')
+       title = 'Progression Free Survival')+
+  theme_classic() +
+  ggsave('../data/PFS_micriobiome.positive.vim.pdf', width = 10, height = 6)
 
 
 ```
