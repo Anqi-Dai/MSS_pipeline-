@@ -1,0 +1,51 @@
+---
+title: "GLIPH scoring"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+```
+
+
+# format the HLA file so that I can run the scoring script
+
+```{r}
+hla <- read_csv('../data/HLA.csv', col_names = F) %>% 
+  filter(!is.na(X1)) %>% 
+  mutate(X1 = str_replace(X1, '_',''))
+```
+
+
+```{bash}
+/Users/daia1/pipeline/scripts/ppp_susan/software/gliph/gliph/bin/gliph-group-scoring.pl \
+  --convergence_file=Pt3_cdr3_amino_acid.csv-convergence-groups.txt \
+  --clone_annotations=Pt3_cdr3_amino_acid.csv \
+  --hla_file=pt3_hla.txt \
+  --p_depth=10000 \
+  --motif_pval_file=Pt3_cdr3_amino_acid.csv-kmer_resample_1000_minp0.001_ove10.txt > Pt3_score.txt
+```
+
+```{r}
+pts <- hla %>% 
+  distinct(X1) %>% 
+  pull(X1)
+
+for(pt in pts ){
+  identifier <-  hla %>% 
+    filter(X1 == pt) %>% 
+    mutate(id = str_glue('{X2}{X3}')) %>% 
+    select(id) %>% 
+    mutate(num = seq(1:nrow(.))) %>% 
+    spread('num', 'id')
+  
+  bind_cols(data_frame('0' = pt ), identifier) %>% 
+    write_tsv(str_glue('../data/gliph_output/{pt}_hla.txt'), col_names = F)
+}
+```
+
