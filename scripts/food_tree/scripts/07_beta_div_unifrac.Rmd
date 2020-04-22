@@ -5,14 +5,21 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r setup, include=FALSE}
 library(tidyverse)
 library(phyloseq)
 library(ape)
+library(vegan)
+library(ggpubr)
 ```
 
 ## Beta diversity
 
-The counts table can't have a column that is completely all zeros. Also for the beta diversity, don't need to split to daily records but per patient basis that is fine. 
+The counts table can't have a column that is completely all zeros. 
+
 
 ```{r}
 # the feature table
@@ -21,31 +28,87 @@ final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
 
 food_db <- read_tsv('../data/source/food_database_file.tsv')
 
+# the food id and food name table
+food_id_name <- food_cts <- final %>% 
+  select(mrn, DayRT, Food_NSC, dehydrated_weight) %>% 
+  left_join(food_db %>% 
+              select(Food_NSC = item1_value_raw_raw,
+                     #Main.food.description,
+                     FoodID), by  = 'Food_NSC')
+
 food_cts <- final %>% 
   select(mrn, DayRT, Food_NSC, dehydrated_weight) %>% 
   left_join(food_db %>% 
               select(Food_NSC = item1_value_raw_raw,
                      #Main.food.description,
                      FoodID), by  = 'Food_NSC') %>% 
-  group_by(mrn, FoodID) %>% 
-  summarise(total_de_wt = sum(dehydrated_weight)) %>% 
-  spread(key = 'mrn', value = 'total_de_wt', fill = 0)
+  group_by(mrn, DayRT, FoodID) %>% 
+  summarise(day_de_wt = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  mutate(mrn = as.character(mrn),
+         DayRT = as.character(DayRT)) %>% 
+  mutate(DayRT = str_replace(DayRT, '-','_')) %>% 
+  mutate(mrnDay = str_glue('{mrn}d{DayRT}')) %>% 
+  select(-mrn, -DayRT) 
 
-food_cts %>% 
-  write_tsv('../data/finalized/all_patients_food_counts_table_w_maindescrip_featurename.tsv')
+
+food_cts_wide <- food_cts %>% 
+  spread(key = 'mrnDay', value = 'day_de_wt', fill = 0)
+
+# find the most eaten food and put 10X than the smallest non-value in those eaters that have no solid food on that day
+most_eaten_food <- food_cts_wide %>% 
+  mutate(row_sum = rowSums(.[2:ncol(.)])) %>% 
+  select(FoodID, row_sum) %>% 
+  arrange(desc(row_sum)) %>% 
+  slice(1) 
+
+
+most_eaten_food_min_val <- food_cts_wide %>% 
+  filter(FoodID == most_eaten_food$FoodID) %>% 
+  select(-FoodID) %>% 
+  gather('mrnDay', 'wt') %>% 
+  filter(wt != 0) %>% 
+  arrange(wt) %>% 
+  summarise(min_val = 0.1*min(wt))
+
+
+# what are the patients and days that they don't eat any solid food?
+daily_total <- food_cts_wide %>% 
+  select(-FoodID) %>% 
+  summarise_all(sum) %>% 
+  gather('mrnDay', 'wt') %>% 
+  arrange(wt) %>% 
+  filter(wt == 0) %>% 
+  pull(mrnDay)
+
+# now put the value of the most eaten food to be the min value for those 5 mrnDay records
+food_cts <- food_cts %>% 
+  mutate(day_de_wt = if_else(mrnDay %in% daily_total , most_eaten_food_min_val$min_val, day_de_wt))
+
+# food_cts %>% 
+#   filter(mrnDay %in% daily_total)
+
+food_cts_day <- food_cts %>% 
+  spread(key = 'mrnDay', value = 'day_de_wt', fill = 0)
 
 ```
 
 
+```{r}
+# write out the food_cts_day table cuz now it's per patient per day data
+food_cts_day %>% 
+  write_tsv('../data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.tsv')
+```
+
 
 ```{bash}
-biom convert -i all_patients_food_counts_table_w_maindescrip_featurename.tsv -o all_patients_food_counts_table_w_maindescrip_featurename.biom --to-hdf5 --table-type="Table"
+biom convert -i all_patients_food_dehywt_table_w_fooID_by_day.tsv -o all_patients_food_dehywt_table_w_fooID_by_day.biom  --to-hdf5 --table-type="Table"
 ```
 
 ```{bash}
 qiime tools import \
-  --input-path all_patients_food_counts_table_w_maindescrip_featurename.biom \
-  --output-path all_patients_food_counts_table_w_maindescrip_featurename.qza \
+  --input-path all_patients_food_dehywt_table_w_fooID_by_day.biom \
+  --output-path all_patients_food_dehywt_table_w_fooID_by_day.qza \
   --type 'FeatureTable[Frequency]'
 ```
 
@@ -61,11 +124,11 @@ qiime tools import \
 ```
 
 
-Use qiime and the above two files to calculate the unweighted_unifrac distance 
+Use qiime and the above two files to calculate the **unweighted_unifrac** distance 
 
 ```{bash}
 qiime diversity beta-phylogenetic \
-  --i-table all_patients_food_counts_table_w_maindescrip_featurename.qza \
+  --i-table all_patients_food_dehywt_table_w_fooID_by_day.qza \
   --i-phylogeny ../source/output_food_tree_datatree.qza \
   --p-metric unweighted_unifrac \
   --o-distance-matrix unweighted_unifrac_distance_matrix.qza
@@ -78,41 +141,7 @@ Export the qza format to a readable table format
 qiime tools export --input-path unweighted_unifrac_distance_matrix.qza --output-path beta_phylo
 ```
 
-Check the beta distance matrix
-
-```{r}
-beta <- read_tsv('../data/finalized/beta_phylo/distance-matrix.tsv')
-```
-
-```{r}
-# calculate the pcoa
-beta_dist <- as.dist(beta %>% column_to_rownames('X1'))
-food_pcoa <- pcoa(beta_dist)$vectors
- 
-# load the pheno info
-pheno <- read_csv('../data/finalized/pheno_67.csv') %>% 
-  # clean the intensity make them nicely cleaned three types
-  mutate(intensity = if_else(str_detect(intensity,  fixed('REDUCE', ignore_case = T)), 'REDUCED',
-                             if_else(str_detect(intensity,  fixed('non', ignore_case = T)), 'NONABL', 'ABLATIVE'))) %>% 
-  # clean source 
-  mutate(source = if_else(str_detect(source, 'Cord' ), 
-                             'cord',
-                             if_else(str_detect(source, 'SBA|CD34'), 
-                                     'TCD',
-                                     'unmodified')))
-
-food_pcoa_df <- food_pcoa %>% 
-  as.data.frame()  %>% 
-  rownames_to_column('mrn') %>% 
-  select(mrn, Axis.1:Axis.2) %>% 
-  mutate(mrn =  as.numeric(mrn)) %>% 
-  full_join(pheno, by = 'mrn')
-```
 
 
-```{r}
-food_pcoa_df %>% 
-  ggscatter('Axis.1', 'Axis.2', color = 'vital_status', palette = 'lancet',
-            title = 'Beta diversity unweighted unifrac distance')
-```
+
 
