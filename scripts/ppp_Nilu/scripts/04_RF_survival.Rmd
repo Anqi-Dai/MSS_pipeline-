@@ -168,6 +168,7 @@ df_OS <- peri_ma %>%
 ```
 
 ```{r}
+set.seed(101)
 micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS, importance = TRUE)
 
 plot(gg_vimp(micro_OS, nvar = 10)) +
@@ -214,6 +215,7 @@ pheatmap(
 ### Progression free survival
 
 ```{r}
+set.seed(101)
 df_PFS <- peri_ma %>% 
   full_join(pt_sub %>% select(mrn, PFS_landmrk_time, POD_24)) %>% 
   ungroup() %>% 

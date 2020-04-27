@@ -1,0 +1,35 @@
+---
+title: "pull info from kegg db about the bile acid KOs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(KEGGREST)
+```
+
+```{r}
+bile <- c('K01442','K15868','K15869','K15870','K15871','K15872','K15873','K15874')
+
+KOS <- bile %>% 
+  set_names(bile) %>% 
+  map(~ list(KOID = keggGet(.)[[1]]$ENTRY,
+             KO_name = keggGet(.)[[1]]$NAME,
+             KO_def = keggGet(.)[[1]]$DEFINITION),
+             KO_pathway = keggGet(.)[[1]]$PATHWAY) %>% 
+  bind_rows()
+
+res <- keggGet('K01442')[[1]]$PATHWAY
+
+
+KOS %>% 
+  write_csv('../data/secondary_bile_KO_list.csv')
+```
+
+
+
+
