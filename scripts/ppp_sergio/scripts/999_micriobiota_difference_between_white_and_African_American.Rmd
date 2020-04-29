@@ -32,6 +32,8 @@ pretty_print <- function(df) {
 # The ethnicity_simple should be used.
 pheno <- read_csv('/Volumes/vandenBrinkLab/deep_sequencing/Clinical Annotation/Ethnicity/ethnicity_nejm_frozen_set.csv') %>% 
   select(-X1, -X1_1)
+
+colnames(pheno)
 ```
 
 ### How many patients per each ethnicity group
@@ -76,13 +78,19 @@ nrow(target)
 ## Find the samples for the patients
 
 ```{r}
-source('~/db.R')
 source('~/db_connect_simple.R')
-castori <- get_data_from_query_OTU(0, 'samples_castori_ag')
-allo <- get_data_from_query_OTU(0, 'patient_allo_ag')
+connect_database(config_file = "~/dbConfig.txt")
+
+castori <- get_table_from_database('samples_castori_ag')
+allo <- get_table_from_database('patient_allo_ag')
 # get the alpha diversity from the db
 # the below function will load the unique samples and the table name can't be changed 
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+```
+
+```{r}
+allo %>% 
+  count(source)
 ```
 
 ```{r}
@@ -150,6 +158,7 @@ ALL <- All %>%
 - the samples are collected but not sequenced
 - or couldn't be sequenced because failed to amplify
 - or finished sequencing but haven't gone thru the pipeline thus not in the db (new samples)
+- nothing in the sequencing file (no read in the file)
 
 ```{r}
 
@@ -208,14 +217,7 @@ df_baseline_first_black %>%
   facet_wrap(.~ src) 
 
 
-df_baseline_first_black %>% 
-  ggboxplot(x = 'ethnicity', y = 'shannon', add = 'jitter', xlab = 'ethnicity',color = 'ethnicity', palette = 'jco',
-            title = 'Alpha div shannon comparison') +
-  stat_compare_means(comparisons = list(c('white', 'black')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ src) 
+
 ```
 
 
@@ -232,14 +234,6 @@ df_baseline_first_black %>%
   facet_wrap(.~ intensity) 
 
 
-df_baseline_first_black %>% 
-  ggboxplot(x = 'ethnicity', y = 'shannon', add = 'jitter', xlab = 'ethnicity',color = 'ethnicity', palette = 'jco',
-            title = 'Alpha div shannon comparison') +
-  stat_compare_means(comparisons = list(c('white', 'black')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ intensity) 
 ```
 
 
@@ -277,17 +271,10 @@ df_peri_med_div_black %>%
                     label = "p.signif",
                     method = 'wilcox.test',
                     correct=FALSE) +
-  facet_wrap(.~ src) 
+  facet_wrap(.~ src) + scale_y_sqrt()
+  
 
 
-df_peri_med_div_black %>% 
-  ggboxplot(x = 'ethnicity', y = 'med_shan', add = 'jitter', xlab = 'ethnicity',color = 'ethnicity', palette = 'jco',
-            title = 'Alpha div shannon comparison') +
-  stat_compare_means(comparisons = list(c('white', 'black')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ src) 
 ```
 
 ##### Split by intensity 
@@ -300,17 +287,10 @@ df_peri_med_div_black %>%
                     label = "p.signif",
                     method = 'wilcox.test',
                     correct=FALSE) +
-  facet_wrap(.~ intensity) 
+  facet_wrap(.~ intensity) + scale_y_sqrt()
+  
 
 
-df_peri_med_div_black %>% 
-  ggboxplot(x = 'ethnicity', y = 'med_shan', add = 'jitter', xlab = 'ethnicity',color = 'ethnicity', palette = 'jco',
-            title = 'Alpha div shannon comparison') +
-  stat_compare_means(comparisons = list(c('white', 'black')),
-                    label = "p.signif",
-                    method = 'wilcox.test',
-                    correct=FALSE) +
-  facet_wrap(.~ intensity) 
 ```
 
 
@@ -331,7 +311,7 @@ df_peri_med_div_black %>%
 ```
 
 ```{r}
-tsnec <- get_data_from_query_OTU(0, 'tsne_ag')
+tsnec <- get_table_from_database('tsne_ag')
 
 # get the t1_scaled and t2_scaled from the db and join to the table
 time <- bind_rows(
@@ -360,7 +340,9 @@ Overlapping between white and black. No separation.
 
 ## Adonis test
 
-From now on only use the white and black two groups.
+The statistical test is called Permutational Multivariate Analysis of Variance Using Distance Matrices (PERMANOVA). It is called Adonis here because the function name is that from the vegan package.
+
+**PERMANOVA is an acronym for “permutational multivariate analysis of variance”1. It is best described as a geometric partitioning of multivariate variation in the space of a chosen dissimilarity measure according to a given ANOVA design, with p‐values obtained using appropriate distribution‐free permutation techniques (see Permutation Based Inference; Linear Models: Permutation Methods). The method is semiparametric, motivated by the desire to perform a classical partitioning, as in ANOVA (hence allowing tests and estimation of sizes of main effects, interaction terms, hierarchical structures, random components in mixed models, etc.), while simultaneously retaining important robust statistical properties of rank‐based nonparametric multivariate methods, such as the analysis of similarities (ANOSIM2), namely, (1) the flexibility to base the analysis on a dissimilarity measure of choice (such as Bray–Curtis, Jaccard, etc.) and (2) distribution‐free inferences achieved by permutations, with no assumption of multivariate normality. Thus, PERMANOVA opens the door for formal partitioning of multivariate data in response to complex experimental designs in a wide variety of contexts: there may be more response variables than sampling units, data may be severely non‐normal, zero‐inflated, ordinal or qualitative (e.g., responses to questionnaires, DNA/RNA sequences, allele frequencies, amino acids, or protein data). Although originally motivated by ecological studies, where variables usually consist of counts of abundances (or percentage cover, frequencies, or biomass) for a large number of species, PERMANOVA is now used across many fields, including chemistry, social sciences, agriculture, medicine, genetics, psychology, economics, and more.**
 
 ```{r}
 df_baseline <- df_baseline %>% 
@@ -371,7 +353,7 @@ df_baseline <- df_baseline %>%
 
 ```{r}
 get_table_from_database_predefined_filter('asv_counts_ag')
-ANNOT <- get_data_from_query_OTU(0, 'asv_annotation_blast_ag')
+ANNOT <- get_table_from_database('asv_annotation_blast_ag')
 ```
 
 ### baseline
@@ -381,8 +363,8 @@ ANNOT <- get_data_from_query_OTU(0, 'asv_annotation_blast_ag')
 cts_bl <- asv_counts_ag %>% 
   filter(sampleid %in% df_baseline$sampleid)
 
-# cts_bl %>% 
-#   count(sampleid)
+cts_bl %>% 
+   count(sampleid)
 # good we have all the samples counts
 
 cts_baseline <- cts_bl %>% 
@@ -408,7 +390,7 @@ annot <- ANNOT %>%
   mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
 
 
-cts_baseline_genus <- cts_baseline %>% 
+cts_baseline_genus_all <- cts_baseline %>% 
   as.data.frame() %>% 
   rownames_to_column('asv_key') %>% 
   full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
@@ -419,32 +401,61 @@ cts_baseline_genus <- cts_baseline %>%
   # get the total count from the db to calculate the relab
   left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_genus, relab) %>% 
+  select(sampleid, taxa_genus, relab) 
+
+
+N <- 40
+  
+baseline_genus_top <- cts_baseline_genus_all %>% 
+  group_by(taxa_genus) %>% 
+  summarise(relab_genus = sum(relab)) %>% 
+  arrange(desc(relab_genus)) 
+  
+cts_baseline_genus_topN <- baseline_genus_top$taxa_genus[1:N]
+  
+cts_baseline_genus_top <- cts_baseline_genus_all %>% 
+  filter(taxa_genus %in% cts_baseline_genus_topN) %>% 
   spread(key = 'taxa_genus', value = 'relab') %>% 
   column_to_rownames('sampleid')
 
-#dim(cts_baseline_genus)
+
+#dim(cts_baseline_genus_top)
 ```
 
 ```{r}
 # the pheno for the baseline samples 
 cts_baseline_pheno <- df_baseline %>% 
-  filter(sampleid %in% rownames(cts_baseline_genus)) %>% 
+  filter(sampleid %in% rownames(cts_baseline_genus_top)) %>% 
   arrange(sampleid)
 
-#all.equal(rownames(cts_baseline_genus), cts_baseline_pheno$sampleid)
+#all.equal(rownames(cts_baseline_genus_top), cts_baseline_pheno$sampleid)
 ```
 
 ```{r}
 # the adonis test
 library(vegan)
-dist_bl <- vegdist(cts_baseline_genus, method = 'bray')
+dist_bl <- vegdist(cts_baseline_genus_top, method = 'bray')
 ```
+
+
+```{r}
+# for the PCoA
+bl_bc <- cmdscale(dist_bl, k = 2) 
+
+bl_bc %>% 
+    as.data.frame() %>% 
+    rownames_to_column('sampleid') %>% 
+    full_join(df_baseline, by = 'sampleid') %>% 
+    ggscatter(x = 'V1', y = 'V2', color =  'ethnicity',  palette = 'jco') +
+    labs(x = 'PCo 1', y = 'PCo 2', title = 'PCoA (BC distance) between ethnicity') 
+```
+
+
 
 #### The actual test
 
 ```{r}
-pmv <- adonis(cts_baseline_genus ~ ethnicity, data=cts_baseline_pheno, permutations=999, method = 'bray')
+pmv <- adonis(cts_baseline_genus_top ~ ethnicity, data=cts_baseline_pheno, permutations=999, method = 'bray')
 pmv
 #densityplot(permustats(pmv))
 ```
@@ -455,7 +466,7 @@ pmv
 # distance based dispersion test
 bd <- betadisper(dist_bl, cts_baseline_pheno$ethnicity)
 boxplot(bd)
-anova(bd)
+anova(bd)             
 #permutest(bd)
 ```
  
@@ -466,7 +477,7 @@ anova(bd)
 ```{r}
 # which genus are responsible for the difference
 # The simper functions performs pairwise comparisons of groups of sampling units and finds the contribution of each species to the average between-group Bray-Curtis dissimilarity. Although the method is called simper, it really studied dissimilarities instead of similarities 
-sim <- simper(cts_baseline_genus , group = cts_baseline_pheno$ethnicity)
+sim <- simper(cts_baseline_genus_top , group = cts_baseline_pheno$ethnicity)
 
 genus_contri <- summary(sim) %>% 
   pluck('white_black') %>% 
@@ -480,7 +491,7 @@ genus_contri <- summary(sim) %>%
 genus_contri %>% pretty_print()
 ```
 
-It aligns with our understanding that there are more good bugs like Blautia in baseline time period.
+
 
 ### peri-engraftment
 
@@ -488,6 +499,7 @@ It aligns with our understanding that there are more good bugs like Blautia in b
 df_peri <- df_peri %>% 
   filter(ethnicity %in% c('Black/African American', 'White')) %>% 
   mutate(ethnicity = if_else(ethnicity == 'Black/African American', 'black', 'white'))
+
 ```
 
 
@@ -523,7 +535,9 @@ annot <- ANNOT %>%
   mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
 
 
-cts_peri_genus <- cts_peri %>% 
+N <- 40
+
+cts_peri_genus_all <- cts_peri %>% 
   as.data.frame() %>% 
   rownames_to_column('asv_key') %>% 
   full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
@@ -534,32 +548,55 @@ cts_peri_genus <- cts_peri %>%
   # get the total count from the db to calculate the relab
   left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_genus, relab) %>% 
+  select(sampleid, taxa_genus, relab) 
+ 
+  
+peri_genus_top <- cts_peri_genus_all %>% 
+  group_by(taxa_genus) %>% 
+  summarise(relab_genus = sum(relab)) %>% 
+  arrange(desc(relab_genus)) 
+  
+cts_peri_genus_topN <- peri_genus_top$taxa_genus[1:N]
+  
+cts_peri_genus_top <- cts_peri_genus_all %>% 
+  filter(taxa_genus %in% cts_peri_genus_topN) %>% 
   spread(key = 'taxa_genus', value = 'relab') %>% 
   column_to_rownames('sampleid')
 
-#dim(cts_peri_genus)
+#dim(cts_peri_genus_top)
 ```
 
 ```{r}
 # the pheno 
 cts_peri_pheno <- df_peri %>% 
-  filter(sampleid %in% rownames(cts_peri_genus)) %>% 
+  filter(sampleid %in% rownames(cts_peri_genus_top)) %>% 
   arrange(sampleid)
 
-#all.equal(rownames(cts_peri_genus), cts_peri_pheno$sampleid)
+#all.equal(rownames(cts_peri_genus_top), cts_peri_pheno$sampleid)
 ```
 
 ```{r}
 # the adonis test
 library(vegan)
-dist_peri <- vegdist(cts_peri_genus, method = 'bray')
+dist_peri <- vegdist(cts_peri_genus_top, method = 'bray')
+```
+
+```{r}
+# for the PCoA
+peri_bc <- cmdscale(dist_peri, k = 2) 
+
+peri_bc %>% 
+    as.data.frame() %>% 
+    rownames_to_column('sampleid') %>% 
+    full_join(df_peri, by = 'sampleid') %>% 
+    ggscatter(x = 'V1', y = 'V2', color =  'ethnicity',  palette = 'jco') +
+    labs(x = 'PCo 1', y = 'PCo 2', title = 'PCoA (BC distance) between ethnicity') 
 ```
 
 #### The actual test
 
 ```{r}
-pmv <- adonis(cts_peri_genus ~ ethnicity, data=cts_peri_pheno, permutations=999, method = 'bray')
+pmv <- adonis(cts_peri_genus_top ~ ethnicity, data=cts_peri_pheno, permutations=999, method = 'bray')
 pmv
 #densityplot(permustats(pmv))
 ```
@@ -575,6 +612,7 @@ anova(bd)
 ```
  
 **Looks the within group dispersion is sig different already.** 
+**significant differences may be caused by different within-group variation (dispersion) instead of different mean values of the groups**
 
 
 #### The top 20 contributing genera
@@ -582,7 +620,7 @@ anova(bd)
 ```{r}
 # which genus are responsible for the difference
 # The simper functions performs pairwise comparisons of groups of sampling units and finds the contribution of each species to the average between-group Bray-Curtis dissimilarity. Although the method is called simper, it really studied dissimilarities instead of similarities 
-sim <- simper(cts_peri_genus , group = cts_peri_pheno$ethnicity)
+sim <- simper(cts_peri_genus_top , group = cts_peri_pheno$ethnicity)
 
 genus_contri <- summary(sim) %>% 
   pluck('white_black') %>% 
@@ -595,4 +633,4 @@ genus_contri <- summary(sim) %>%
 genus_contri %>% pretty_print()
 ```
 
-It aligns with our previous finding that there is Enterococcus dominance in peri-engraftment time
+In summary, we concluded there is no real differences based on ethnicity. The alpha and beta diversity visualization suggested so. As for the adonis test, it could be significant due to the large sample size and the confounding within group dispersion.

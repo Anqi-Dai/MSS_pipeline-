@@ -168,7 +168,7 @@ df_OS <- peri_ma %>%
 ```
 
 ```{r}
-set.seed(101)
+set.seed(121)
 micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS, importance = TRUE)
 
 plot(gg_vimp(micro_OS, nvar = 10)) +
@@ -177,6 +177,31 @@ plot(gg_vimp(micro_OS, nvar = 10)) +
        title = 'Overall survival') + 
   theme_classic() +
   ggsave('../data/OS_micriobiome.positive.vim.pdf', width = 10, height = 6)
+
+colnames(gg_v)
+
+gg_v <- gg_variable(micro_OS, time = 2,  time.labels = '2')
+plot(gg_v, xvar="f__Enterococcaceae|g__Enterococcus", alpha = 0.4) +
+  theme(legend.position = 'none') +
+  theme_classic() +
+  labs(x = 'Enterococcus relative abundance') +
+  scale_color_manual(values = c('#00468B','#EC0000')) +
+  ggsave('../data/survival_dir_Enterococcus.pdf', width = 5, height = 3)
+
+plot(gg_v, xvar="f__Streptococcaceae|g__Streptococcus", alpha = 0.4) +
+  theme(legend.position = 'none') +
+  theme_classic() +
+  labs(x = 'Streptococcus relative abundance') +
+  scale_color_manual(values = c('#00468B','#EC0000')) +
+  ggsave('../data/survival_dir_Streptococcus.pdf', width = 5, height = 3)
+
+plot(gg_v, xvar="f__Lachnospiraceae|g__Coprococcus", alpha = 0.4) +
+  theme(legend.position = 'none') +
+  theme_classic() +
+  labs(x = 'Coprococcus relative abundance') +
+  scale_color_manual(values = c('#00468B','#EC0000')) +
+  ggsave('../data/survival_dir_Coprococcus.pdf', width = 5, height = 3)
+ 
 ```
 
 
@@ -207,8 +232,6 @@ pheatmap(
   cluster_rows = T,
   cluster_cols = T
 )
-
-
 ```
 
 
@@ -233,4 +256,6 @@ plot(gg_vimp(micro_PFS, nvar = 5)) +
 
 
 ```
+
+
 

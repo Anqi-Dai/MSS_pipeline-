@@ -11,10 +11,11 @@ library(cowplot)
 ```
 
 ```{r}
-source('~/db.R')
+source('~/db_connect_simple.R')
+connect_database(config_file = "~/dbConfig.txt")
 #load the big db table
-CTS <- get_data_from_query_OTU(0,'asv_counts_ag')
-SEQS <- get_data_from_query_OTU(0,'asv_sequences_ag')
+CTS <- get_table_from_database('asv_counts_ag')
+SEQS <- get_table_from_database('asv_sequences_ag')
 ```
  
 
@@ -28,21 +29,21 @@ total_cnt <- CTS %>%
 total_cnt %>% 
   gghistogram('count_total', title = 'Distribution of count total per sample')
 
-# what percentile is total count == 500
-# keeping 98% of all samples
-nrow(total_cnt[total_cnt$count_total >= 500])/nrow(total_cnt)*100
+# what percentile is total count == 200
+
+nrow(total_cnt[total_cnt$count_total >= 200])/nrow(total_cnt)*100
 
 
 # keeping 95% of all samples
 nrow(total_cnt[total_cnt$count_total >= 2000])/nrow(total_cnt)*100
 
 
-# CURRENTLY DECIDE TO KEEP THE THRESHOLD TO BE 500
+# CURRENTLY DECIDE TO KEEP THE THRESHOLD TO BE 200
 ```
 
 ```{r filter_sample_total_count}
 rm_samples <- total_cnt %>% 
-  filter(count_total < 500) %>% 
+  filter(count_total < 200) %>% 
   pull(sampleid) 
   
 CTS_fil <- CTS %>% 
@@ -61,7 +62,7 @@ n_samples <- CTS_fil %>%
 # see the distribution of the number of asv per sample
 n_samples %>% 
   gghistogram('n', bins = 30, xlab = 'Number of asv per sample',
-              title = 'distribution for samples that have count >= 500')
+              title = 'distribution for samples that have count >= 200')
 
 # divide the samples into 2 groups on median asv number per sample
 med_asv_num <- quantile(n_samples$n, 0.5)
@@ -183,13 +184,15 @@ g <- plot_grid(frac, abs,
 
 DECIDED TO USE THE THRESHOLD OF 98%, remove the singletons
 
+2020-4-28: try not filtering, keeping all the singletons.
+
 ```{r}
 return_filtered_count <- function(spread_df) {
      cts_mat = spread_df %>% 
         column_to_rownames('asv_key') %>% 
         as.matrix()
       # find the singetons
-    num_zero_thre = floor(ncol(cts_mat) * 0.98)
+    num_zero_thre = floor(ncol(cts_mat) * 1)
     cts_mat_fil = cts_mat[rowSums(cts_mat == 0) <= num_zero_thre, ]
     cts_mat_fil = cts_mat_fil %>% 
       as.data.frame() %>% 
@@ -237,7 +240,15 @@ for ( i in 1:length(filtered_list)){
               names = seqs$asv_key,
               file.out = str_glue('../data/splitted_100/filtered_counts_asv_sequence_{i}.tsv'))
 }
+
+# upload the files to cluster to run
 ```
+
+
+############################################################################################################
+
+
+After finish running on the cluster, download the results to local. First create directories and then download and the unzip.
 
 ```{r}
 # create bash script for creating the dir and then download only the file into the corresponding dir

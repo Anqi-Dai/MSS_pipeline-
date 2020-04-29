@@ -32,14 +32,15 @@ res <- kos %>%
   }) %>% 
   bind_rows()
 
-res %>% 
-  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/normalized_picrust2_pred_metagenome_KO_all_counts.csv')
+# res %>% 
+#   write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/normalized_picrust2_pred_metagenome_KO_all_counts.csv')
 
 ```
 
 ```{r}
 # find the KOs we are interested in
-KOs <- c('K01442','K15868','K15869','K15870','K15871','K15872','K15873','K15874')
+KOs <- c('K01442','K15868','K15869','K15870','K15871','K15872','K15873','K15874',
+         'K07007','K22604','K22605','K22606','K22607')
 
 bile_res <- res %>% 
   filter(KOID %in% KOs) 
