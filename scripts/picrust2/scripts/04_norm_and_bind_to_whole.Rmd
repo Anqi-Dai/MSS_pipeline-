@@ -66,6 +66,7 @@ bile_res %>%
   ggboxplot('KOID', 'cpm', title = 'All KOs related to secondary bile acid biosynthesis') +
   geom_text(data = KOID_dist_df, aes(x = KOID, y = height, label = n)) +
   theme_bw() +
-  scale_y_continuous( breaks =seq(0, 3000, 200))
+  scale_y_continuous( breaks =seq(0, 3000, 200)) +
+  ggsave('../figs/All KOs related to secondary bile acid biosynthesis.jpg', width = 6, height = 4)
 ```
 
