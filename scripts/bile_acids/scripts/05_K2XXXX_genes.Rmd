@@ -75,15 +75,25 @@ k2_genes <- data_frame(
   ID = desc,
   seq = aa
 )
-```
 
-
-
-
-```{r}
 write.fasta(sequences = as.list(k2_genes$seq), 
               names = k2_genes$ID,
               file.out = '../data/IMG_genes/K2XXXX_genes.fa')
 
-`1```
+```
+
+
+python /home/daia1/my_workdir/APPS/biobakery-shortbred-918294a74d70/shortbred_identify.py --goi /home/daia1/my_workdir/other_pipeline/butyrate_gene_quantify/data/K2XXXX_genes.fa --ref /home/daia1/my_workdir/MelodyCART/shortred_analysis/shortbred_stuff/uniref90_nosc.fasta --markers /home/daia1/my_workdir/other_pipeline/butyrate_gene_quantify/data/K2XXXX_genes_markers.fa                 --search_program usearch --usearch /home/daia1/my_workdir/APPS/usearch --tmp /home/daia1/my_workdir/other_pipeline/butyrate_gene_quantify/tmp_bile 
+
+
+```{bash}
+# since working on the cluster is not successful when trying to run usearch try running it locally
+python /Users/daia1/apps/biobakery-shortbred-918294a74d70/shortbred_identify.py \
+  --goi /Users/daia1/pipeline/scripts/bile_acids/data/IMG_genes/K2XXXX_genes.fa \
+  --ref /Users/daia1/pipeline/scripts/bile_acids/data/shortbred/uniref90_nosc.fasta \
+  --markers /Users/daia1/pipeline/scripts/bile_acids/data/shortbred/K2XXXX_genes_markers.fa  \
+  --search_program usearch --usearch  /Users/daia1/apps/usearch11.0.667_i86osx32 \
+  --tmp /Users/daia1/pipeline/scripts/bile_acids/data/shortbred/temp
+  
+```
 
