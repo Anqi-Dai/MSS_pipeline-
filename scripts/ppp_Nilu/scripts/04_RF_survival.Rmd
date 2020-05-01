@@ -162,14 +162,21 @@ peri_ma <- topN_ma[,colnames(topN_ma) %in% peri$sampleid_clean] %>%
 ```{r}
 # get one table for overall survival
 df_OS <- peri_ma %>% 
+  column_to_rownames('mrn') %>% 
+  as.matrix() 
+
+df_OS_log <- log2(df_OS + 0.0000388) %>% 
+  as.data.frame() %>% 
+  rownames_to_column('mrn') %>% 
+  mutate(mrn = as.numeric(mrn)) %>% 
   full_join(pt_sub %>% select(mrn, OS_landmark_time, DeadorAlive_24)) %>% 
   ungroup() %>% 
   select(-mrn) 
 ```
 
 ```{r}
-set.seed(121)
-micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS, importance = TRUE)
+set.seed(111)
+micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS_log, importance = TRUE)
 
 plot(gg_vimp(micro_OS, nvar = 10)) +
   theme(legend.position = c(0.8, 0.2)) +
@@ -178,9 +185,11 @@ plot(gg_vimp(micro_OS, nvar = 10)) +
   theme_classic() +
   ggsave('../data/OS_micriobiome.positive.vim.pdf', width = 10, height = 6)
 
-colnames(gg_v)
+
 
 gg_v <- gg_variable(micro_OS, time = 2,  time.labels = '2')
+colnames(gg_v)
+
 plot(gg_v, xvar="f__Enterococcaceae|g__Enterococcus", alpha = 0.4) +
   theme(legend.position = 'none') +
   theme_classic() +
