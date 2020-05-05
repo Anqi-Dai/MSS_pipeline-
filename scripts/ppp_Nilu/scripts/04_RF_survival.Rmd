@@ -175,6 +175,21 @@ df_OS_log <- log2(df_OS + 0.0000388) %>%
 ```
 
 ```{r}
+df_OS <- peri_ma %>% 
+  full_join(pt_sub %>% select(mrn, OS_landmark_time, DeadorAlive_24)) %>% 
+  ungroup() %>% 
+  select(-mrn) 
+
+
+df_OS %>% 
+  write_csv('../data/df_OS_top20_spp.csv')
+
+df_OS_log %>% 
+  write_csv('../data/df_OS_log_top20_spp.csv')
+```
+
+
+```{r}
 set.seed(111)
 micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS_log, importance = TRUE)
 

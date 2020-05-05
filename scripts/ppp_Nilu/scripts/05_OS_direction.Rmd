@@ -1,0 +1,88 @@
+---
+title: "OS RSF"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(randomForestSRC)
+library(ggRandomForests)
+library(kableExtra)
+```
+
+```{r}
+# this table has the relative abundance of the top 20 genera and the survival time and the status
+df_OS <- read_csv('../data/df_OS_top20_spp.csv')
+
+# head of the table
+df_OS %>% 
+  head()
+
+
+# this table has the same genera but the relative abundance is log transformed by adding a tiny pseudo count
+df_OS_log <- read_csv('../data/df_OS_log_top20_spp.csv')
+
+
+# head of the table
+df_OS_log %>% 
+  head()
+```
+
+## normal relative abundance 
+
+```{r}
+set.seed(123)
+micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS, importance = TRUE)
+
+plot(gg_vimp(micro_OS, nvar = 10)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0",
+       title = 'Overall survival') + 
+  theme_classic() 
+
+
+
+gg_v <- gg_variable(micro_OS, time = 2,  time.labels = '2')
+
+
+plot(gg_v, xvar="f__Enterococcaceae|g__Enterococcus", alpha = 0.4) +
+  theme(legend.position = 'none') +
+  theme_classic() +
+  labs(x = 'Enterococcus relative abundance') +
+  scale_color_manual(values = c('#00468B','#EC0000'))
+```
+
+## log transform relative abundance
+
+```{r}
+set.seed(456)
+micro_OS <- rfsrc(Surv(OS_landmark_time, DeadorAlive_24) ~ . , data = df_OS_log, importance = TRUE)
+
+plot(gg_vimp(micro_OS, nvar = 10)) +
+  theme(legend.position = c(0.8, 0.2)) +
+  labs(fill = "VIMP > 0",
+       title = 'Overall survival') + 
+  theme_classic() 
+
+
+
+gg_v <- gg_variable(micro_OS, time = 2,  time.labels = '2')
+
+
+plot(gg_v, xvar="f__Enterococcaceae|g__Enterococcus", alpha = 0.4) +
+  theme(legend.position = 'none') +
+  theme_classic() +
+  labs(x = 'Enterococcus relative abundance') +
+  scale_color_manual(values = c('#00468B','#EC0000'))
+```
+

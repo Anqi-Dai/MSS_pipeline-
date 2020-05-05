@@ -209,6 +209,15 @@ ALL %>%
 
 
 ```{r}
+# the food with ration >= 4 with all the macronutrients except sodium for peter to check
+ratio4 <- ALL %>% 
+  filter(Food_NSC %in% outlier_select$Food_NSC) %>% 
+  select(Food_NSC: Sugars_g) %>% 
+  distinct()
+```
+
+
+```{r}
 # retrieve the ID of the food and join back to this table
 outlier_select <- outlier_select %>% 
   left_join(ALL %>%  select(key, Food_NSC)) %>% 
@@ -216,8 +225,10 @@ outlier_select <- outlier_select %>%
 
 outlier_select %>% 
   write_csv('../data/need_to_be_checked_comput_fndds_ratio_too_big.csv')
+```
 
 
+```{r}
 # or I just pick the points that are in the impossible region
 impossible_all <- compare2_res %>% 
   bind_rows(.id = 'group') 
