@@ -83,3 +83,175 @@ ALL <- all_ma %>%
   rownames_to_column('genefam')
 ```
 
+## Compare the KO normalized abundance between this from shotgun and from picrust2
+
+```{r}
+sg <- ALL %>% 
+  gather('fid', 'cpm', names(.)[2]:names(.)[ncol(.)]) %>% 
+  separate(genefam, into = c('KOID','spp'), sep = '\\|')
+```
+
+```{r}
+# get the species of those KO
+species <- sg %>% 
+  distinct(KOID, spp)
+
+bai_species <- species %>% 
+  filter(!KOID %in% c('K01442','K07007'))
+
+bai_species
+```
+
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = "~/dbConfig.txt")
+SG <- get_table_from_database('shotgun_lookup_ad')
+
+
+sg_res <- sg %>% 
+  group_by(fid, KOID) %>% 
+  summarise(CPM = sum(cpm)) %>% 
+  left_join(SG %>% select(fid, sampleid))
+```
+
+```{r}
+# get the picrust2 result from my table
+p2 <- read_csv('../../picrust2/data/normalized_picrust2_pred_metagenome_KO_secondary_bile_counts.csv')
+
+both <- sg_res %>% 
+  inner_join(p2)  
+
+pearson_cor <- both %>%   
+  split(.$samplid) %>% 
+  map_dfr(~ round(cor.test(.$CPM, 
+                           .$cpm, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'samplid', value = 'cor') %>% 
+  arrange(cor)  
+
+pearson_cor
+
+
+spearman_cor <- both %>%   
+  split(.$KOID) %>% 
+  map_dfr(~ round(cor.test(.$CPM, 
+                           .$cpm, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'KOID', value = 'cor') %>% 
+  arrange(cor)  
+
+spearman_cor
+```
+
+# compare the raw count instead of the normalized count
+
+```{bash}
+humann2_split_stratified_table --input humann2_genefamilies_KO_regroup.tsv --output KO_regroup
+```
+
+
+```{r}
+# the unnormalized data from shotgun
+
+fmt <- read_tsv('../data/shotgun/fmt/humann2_genefamilies_KO_regroup_unstratified.tsv') %>% 
+  rename(genefam = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$',''))) 
+  
+
+# the sg01
+sg01 <- read_tsv('../data/shotgun/sg01/KO_regroup/humann2_genefamilies_KO_regroup_unstratified.tsv') %>% 
+  rename(genefam = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$','')))
+
+# sgother
+sgother <- read_tsv('../data/shotgun/sgother/KO_regroup/humann2_genefamilies_KO_regroup_unstratified.tsv') %>% 
+  rename(genefam = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$',''))) 
+
+unnorm <- fmt %>% 
+  full_join(sg01, by  = 'genefam' ) %>% 
+  full_join(sgother, by  = 'genefam' ) %>% 
+  replace(is.na(.), 0) %>% 
+  filter(! genefam %in% c('UNMAPPED','UNGROUPED')) %>% 
+  gather('fid', 'cnt', names(.)[2]:names(.)[ncol(.)])
+```
+
+
+```{r}
+# the raw value from the picrust2
+
+compare_cohort <- both %>% 
+  distinct(sampleid)
+
+kos <- list.files('../../picrust2/data/done_results/', recursive = T, full.names = T, pattern = 'pred_metagenome_unstrat.tsv')
+
+res <- kos %>% 
+  map(function(fn){
+    tb <- read_tsv(fn) %>% 
+        gather('sampleid','count', names(.)[2]:names(.)[ncol(.)]) 
+      return(tb)
+  }) %>% 
+  bind_rows() %>% 
+  filter(sampleid %in% compare_cohort$sampleid) %>% 
+  rename(KOID = names(.)[1])
+
+
+```
+
+```{r}
+raw <- unnorm %>% 
+  rename(KOID = genefam) %>% 
+  left_join(SG %>% select(fid, sampleid)) %>% 
+  inner_join(res) 
+
+
+pearson_raw <- raw %>%   
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$cnt, 
+                           .$count, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'cor') %>% 
+  arrange(cor)  
+
+# remember this is using the overlapped KOs raw count from picrust2 and raw count from uniref90 KO regroup and do pearson correlation.
+
+library(ggpubr)
+pearson_raw %>% 
+  ggboxplot(y = 'cor', add = 'jitter', xlab = '',
+            title = 'Pearson correlation between raw count of picrust2 and shotgun\nusing KO abundance in ~260 samples') +
+  theme_cleveland() +
+  scale_y_continuous( breaks =seq(0, 1, 0.1)) 
+
+```
+
+```{r}
+# what if I only included the bile KOs
+bile_raw <- raw %>% 
+  filter(KOID %in% KOs)
+
+pearson_bile_KO <- bile_raw %>%   
+  split(.$KOID) %>% 
+  map_dfr(~ round(cor.test(.$cnt, 
+                           .$count, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'KOID', value = 'cor') %>% 
+  arrange(cor)
+
+  
+pearson_bile_sample <- bile_raw %>%   
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$cnt, 
+                           .$count, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'cor') %>% 
+  arrange(cor)
+
+summary(pearson_bile_sample$cor)
+```
+
+

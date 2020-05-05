@@ -18,12 +18,12 @@ target <- colnames(pw)[-1]
   
 fid57 <- read_csv('~/pipeline/scripts/bile_acids/data/doris_57_bile.csv')
 
-match2 <- get_data_from_query_OTU(0,'shotgun_lookup_ad') %>% 
+match2 <- get_table_from_database('shotgun_lookup_ad') %>% 
   filter(fid %in% fid57$sampleid) %>% 
   distinct(sampleid, fid) %>% 
   filter(sampleid %in% target)
 
-# there's a total of 57 samples in doris cohort but we only use the 54 that pass the total 2000 counts threshold in 16S data
+# there's a total of 57 samples in doris cohort but we only use the 54 that pass the total 2000 counts threshold in 16S data 
 ```
 
 ## compare pathway abundance
