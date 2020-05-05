@@ -214,6 +214,9 @@ ratio4 <- ALL %>%
   filter(Food_NSC %in% outlier_select$Food_NSC) %>% 
   select(Food_NSC: Sugars_g) %>% 
   distinct()
+
+ratio4 %>% 
+  write_csv('../data/need_to_be_checked_comput_fndds_ratio_too_big_all_columns.csv')
 ```
 
 
@@ -262,4 +265,6 @@ ALL %>%
   filter(Food_NSC %in% all_obvious$Food_NSC) %>% 
   write_csv('../data/outlier_very_obvious.csv')
 ```
+
+
 

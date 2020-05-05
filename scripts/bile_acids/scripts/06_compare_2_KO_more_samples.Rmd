@@ -1,0 +1,165 @@
+---
+title: "Compare shotgun and picrust2 with more samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+# Normalized in both
+
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = "~/dbConfig.txt")
+SG <- get_table_from_database('shotgun_lookup_ad')
+
+```
+
+
+```{r}
+# shotgun
+fmt <- read_tsv('../data/shotgun/fmt/humann2_genefamilies_KO_regroup_cpm_unstratified.tsv') %>% 
+  rename(KOID = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$',''))) 
+  
+
+# the sg01
+sg01 <- read_tsv('../data/shotgun/sg01/out/humann2_genefamilies_KO_regroup_cpm_unstratified.tsv') %>% 
+  rename(KOID = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$',''))) 
+
+# sgother
+sgother <- read_tsv('../data/shotgun/sgother/out/humann2_genefamilies_KO_regroup_cpm_unstratified.tsv') %>% 
+  rename(KOID = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$',''))) 
+
+norm <- fmt %>% 
+  full_join(sg01, by  = 'KOID' ) %>% 
+  full_join(sgother, by  = 'KOID' ) %>% 
+  replace(is.na(.), 0) %>% 
+  gather('fid', 'CPM', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(SG %>% distinct(fid, sampleid))
+
+norm
+```
+
+```{r}
+# the samples in the shotgun cohort
+samps <- norm %>% 
+  distinct(fid) %>% 
+  inner_join(SG %>% distinct(fid, sampleid))
+
+samps %>% 
+  write_csv('../data/sapmles_in_the_261.csv')
+```
+
+Check the correlation for those 261 samples, all of the KO!
+
+
+```{r}
+# picrust2
+kos <- list.files('../../picrust2/data/done_results/', recursive = T, full.names = T, pattern = 'pred_metagenome_unstrat.tsv')
+
+res <- kos %>% 
+  map(function(fn){
+    tb <- read_tsv(fn) %>% 
+        gather('sampleid','count', names(.)[2]:names(.)[ncol(.)]) %>% 
+        filter(count != 0)
+      
+      tb_sum <- tb %>% 
+        group_by(sampleid) %>% 
+        summarise(total =  sum(count))
+      
+      tb_norm <- tb %>% 
+        left_join(tb_sum, by = 'sampleid') %>% 
+        mutate(cpm = count/total*1000000) %>% 
+        rename(KOID = names(.)[1]) %>% 
+        select(KOID, sampleid, cpm)
+      return(tb_norm)
+  }) %>% 
+  bind_rows() %>% 
+  filter(sampleid %in% samps$sampleid)
+```
+
+```{r}
+combined <- norm %>% 
+  inner_join(res, by  = c('KOID','sampleid')) 
+# thsi si the df with the 261 samples all KOs normalzied value in shotgun and picrust2
+```
+
+## comparison with normalized value
+
+```{r}
+pearson_norm <- combined %>%   
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$CPM, 
+                           .$cpm, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'cor') %>% 
+  arrange(cor)  
+
+
+pearson_norm %>% 
+  ggplot(aes(x= factor(0), y = cor)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.3, size = 3.5, alpha = 0.8, col = 'forestgreen') +
+  theme_cleveland() +
+  scale_y_continuous( breaks =seq(0, 1, 0.1)) +
+  theme(axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank()) +
+  labs(y = 'Pearson correlation',
+       title = 'Pearson cor betw shotgun and picrust2\nnormalized KO abundance for 261 samples') +
+  ggsave('../data/Pearson cor betw shotgun and picrust2 normalized KO abundance for 261 samples.jpg', width = 4, height = 5)
+
+summary(pearson_norm$cor)
+```
+
+
+Correlation coefficients whose magnitude are between 0.5 and 0.7 indicate variables which can be considered moderately correlated. Correlation coefficients whose magnitude are between 0.3 and 0.5 indicate variables which have a low correlation.
+
+```{r}
+spearman_norm <- combined %>%   
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$CPM, 
+                           .$cpm, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'cor') %>% 
+  arrange(cor)
+
+summary(spearman_norm$cor)
+```
+
+
+```{r}
+# to show some scatter plot
+# the sample with the lowest correlation
+summary(pearson_norm$cor)
+# lowest, 50%, max
+pick <- c('FMT.0034E','1339J','FMT.0166A')
+
+combined %>% 
+  filter(sampleid %in% pick) %>% 
+  left_join(pearson_norm %>% 
+              filter(sampleid %in% pick)) %>% 
+  split(.$sampleid) %>% 
+  map(~ ggplot(data = ., aes(x = CPM, y = cpm)) +
+        geom_point( alpha = 0.3, size = 3) +
+        labs(x = 'shotgun normalized abundance',
+             y  = 'picrust2 normalized abundancee',
+             title = str_glue('Scatter plot of normalized KO abundance between shotgun and picrust2\nSample: {.$sampleid}  Pearson correlation: {.$cor}')) +
+        scale_y_log10() +
+        scale_x_log10()+
+        geom_abline(intercept = 0, slope = 1, col = 'red', linetype = 'dashed') +
+        theme_classic())
+
+```
+

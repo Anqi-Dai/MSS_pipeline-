@@ -99,7 +99,10 @@ species <- sg %>%
 bai_species <- species %>% 
   filter(!KOID %in% c('K01442','K07007'))
 
-bai_species
+bai_species %>% 
+  write_csv('../data/bai_operon_species.csv')
+
+
 ```
 
 ```{r}
