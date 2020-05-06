@@ -1,0 +1,386 @@
+---
+title: "qimme2 protocol try"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+create qiim2 2020.2 conda env
+
+```{r}
+fns <- tibble(`absolute-filepath` = list.files('/Users/daia1/MSK/work/learning/qiime2‐ecam‐tutorial/per_sample_FASTQ/81253/', full.names = T, pattern = '.gz')) %>% 
+  mutate(`sample-id` = str_replace(`absolute-filepath`, '/Users/daia1/MSK/work/learning/qiime2‐ecam‐tutorial/per_sample_FASTQ/81253//',''),
+         `sample-id` = str_replace(`sample-id`, '.fastq.gz','')) %>% 
+  select(`sample-id`, `absolute-filepath`)
+
+fns %>% 
+  write_tsv('manifest.tsv')
+```
+
+Use the manifest file to import the sequences into QIIME 2
+
+```{bash} 
+qiime tools import \
+--input-path manifest.tsv \
+--type 'SampleData[SequencesWithQuality]' \
+--input-format SingleEndFastqManifestPhred33V2 \
+--output-path se-demux.qza
+```
+
+Create a summary of the demultiplexed artifact:
+
+```{bash}
+qiime demux summarize \
+--i-data se-demux.qza \
+--o-visualization se-demux.qzv
+```
+
+```{bash}
+#a subset of your reads are selected randomly (sampled
+#without replacement), and the quality scores of only those sequences are used to generate the box plots. By default, #10,000 sequences are subsampled, but you can control
+#that number with --p-n on the demux summarize command. Keep in mind that
+#because of this random subsampling, every time you run demux summarize on
+#the same sequence data, you will obtain slightly different plots.
+qiime tools view se-demux.qzv
+```
+
+
+
+In this tutorial, we will denoise our sequences with q2-deblur, which uses a precalculated static sequence error profile to associate erroneous sequence reads with the
+true biological sequence from which they are derived. Unlike DADA2, which creates sequence error profiles on a per-analysis basis, this allows Deblur to be simultaneously applied across different datasets, reflecting its design motivation to perform meta-analyses.
+Additionally, using a pre-defined error profile generally results in shorter runtimes.
+
+```{bash}
+qiime quality-filter q-score \
+--i-demux se-demux.qza \
+--o-filtered-sequences demux-filtered.qza \
+--o-filter-stats demux-filter-stats.qza
+```
+
+```{bash}
+qiime deblur denoise-16S \
+--i-demultiplexed-seqs demux-filtered.qza \
+--p-trim-length 150 \
+--p-sample-stats \
+--p-jobs-to-start 4 \
+--o-stats deblur-stats.qza \
+--o-representative-sequences rep-seqs-deblur.qza \
+--o-table table-deblur.qza
+```
+
+Deblur generates three outputs: an artifact with the semantic type FeatureTable[Frequency], which is a table of the counts of each observed feature in each sample, an artifact with the semantic type FeatureData[Sequence], which contains the sequence that defines each feature in the
+table that will be used later for assigning taxonomy to features and generating a
+phylogenetic tree, and summary statistics of the Deblur run in a DeblurStats
+artifact. Each of these artifacts can be visualized to provide important information.
+
+
+
+Create a visualization summary of the DeblurStats artifact
+
+```{bash}
+qiime deblur visualize-stats \
+--i-deblur-stats deblur-stats.qza \
+--o-visualization deblur-stats.qzv
+```
+
+ Visualize the representative sequences by entering:
+ 
+```{bash}
+qiime feature-table tabulate-seqs \
+--i-data rep-seqs-deblur.qza \
+--o-visualization rep-seqs-deblur.qzv
+```
+
+Visualize the feature table. Note that in this step we can provide our metadata file,
+which then adds information about sample groups into the resulting summary output.
+Adding the metadata is useful for checking that all groups (e.g., a given age or sex of
+subject) have enough samples and sequences to proceed with analysis. This check is
+important because variation in the number of sequences per sample, which is typically
+not fully controllable, often leads to samples being dropped from the analysis because
+too few reads were obtained from them:
+
+```{bash}
+qiime feature-table summarize \
+--i-table table-deblur.qza \
+--m-sample-metadata-file metadata.tsv \
+--o-visualization table-deblur.qzv
+```
+
+Building a phylogenetic tree: For this tutorial,
+we will use the fragment-insertion tree-building method as described by Janssen et al.
+
+
+Download a backbone tree as the base for our features to be inserted onto. Here, we
+use the Greengenes (16s rRNA) reference database:
+
+```{bash}
+wget \
+-O "sepp-refs-gg-13-8.qza" \
+"https://data.qiime2.org/2019.10/common/sepp-refsgg-13-8.qza"
+```
+
+Create an insertion tree by entering the following commands:
+
+```{bash}
+qiime fragment-insertion sepp \
+--i-representative-sequences rep-seqs-deblur.qza \
+--i-reference-database sepp-refs-gg-13-8.qza \
+--p-threads 4 \
+--o-tree insertion-tree.qza \
+--o-placements insertion-placements.qza
+```
+
+Once the insertion tree is created, you must filter your feature table so that it only
+contains fragments that are in the insertion tree. This step is needed because SEPP
+might reject the insertion of some fragments, such as erroneous sequences or those
+that are too distantly related to the reference alignment and phylogeny. Features in
+your feature table without a corresponding phylogeny will cause diversity computation to fail, because branch lengths cannot be determined for sequences not in the
+tree.
+
+```{bash}
+#Filter your feature table by running the following:
+qiime fragment-insertion filter-features \
+--i-table table-deblur.qza \
+--i-tree insertion-tree.qza \
+--o-filtered-table filtered-table-deblur.qza \
+--o-removed-table removed-table.qza
+```
+
+Visualize the phylogenetic tree
+ 
+```{bash}
+#The phylogenetic tree artifact (semantic type: Phylogeny[Rooted]) produced
+#in this step can be readily visualized using q2-empress (https:// github.com/ biocore/
+#empress) or iTOL’s (Letunic & Bork, 2019) interactive web-based tool by simply uploading the artifact at #https://itol.embl.de/ upload.cgi.
+```
+
+Taxonomic classification:If a pre-trained classifier suited
+for your region of interest or reference database is not available through these resources,
+you can train your own by following the online tutorial (https:// docs.qiime2.org/ 2019.
+10/tutorials/feature-classifier/). In the present protocol, we will train a classifier specific
+to our data that (optionally) also incorporates environment-specific taxonomic abundance
+information to improve species inference. This bespoke method has been shown to improve classification accuracy (Kaehler et al., 2019) when compared to traditional Naive
+Bayes classifiers, which assume that all species in the reference database are equally
+likely to be observed in your sample (i.e., that sea-floor microbes are just as likely to be
+found in a stool sample as microbes usually associated with stool).
+
+
+To train a classifier using this bespoke method, we need three files: (1) a set of reference
+reads, (2) a reference taxonomy, and (3) taxonomic weights. Taxonomic weights can be
+customized for specific sample types and reference data using the q2-clawback plugin
+(Kaehler et al., 2019) (see alternative pipeline recommendation below), or we can obtain
+pre-assembled taxonomic weights from the readytowear collection (https:// github.
+com/BenKaehler/ readytowear). This collection also contains the reference reads and taxonomies required. The taxonomic weights used in this tutorial have been assembled with
+16S rRNA gene sequence data using the Greengenes reference database trimmed to the
+V4 domain (bound by the 515F/806R primer pair as used in the ECAM study). Here,
+we will use the pre-calculated taxonomic weights specific to human stool data. For other
+sample types, make sure to pick the appropriate weights best fit for your data, and the
+appropriate sequence reference database; a searchable inventory of available weights is
+available at https:// github.com/BenKaehler/ readytowear/ blob/master/inventory.tsv.
+
+```{bash}
+#Start by downloading the three required files from the inventory
+wget
+https://github.com/BenKaehler/readytowear/raw/
+master/data/gg_13_8/515f-806r/human-stool.qza
+wget
+https://github.com/BenKaehler/readytowear/raw/
+master/data/gg_13_8/515f-806r/ref-seqs-v4.qza
+wget
+https://github.com/BenKaehler/readytowear/raw/
+master/data/gg_13_8/515f-806r/ref-tax.qza
+```
+
+```{bash}
+#Train a classifier
+qiime feature-classifier fit-classifier-naive-bayes \
+--i-reference-reads ref-seqs-v4.qza \
+--i-reference-taxonomy ref-tax.qza \
+--i-class-weight human-stool.qza \
+--o-classifier gg138_v4_human-stool_classifier.qza
+```
+
+Assign taxonomy to our representative sequences using our newly trained classifier:
+
+```{bash}
+qiime feature-classifier classify-sklearn \
+--i-reads rep-seqs-deblur.qza \
+--i-classifier gg138_v4_human-stool_classifier.qza \
+--o-classification bespoke-taxonomy.qza
+```
+
+
+Visualize our taxonomies by entering the following:Because these methods are only estimates, it is not uncommon to find disagreements between the predicted taxonomies. The results here will generally be
+more accurate than those received from the simple BLAST search linked from the
+rep-seqs.qzv Visualization
+
+```{bash}
+qiime metadata tabulate \
+--m-input-file bespoke-taxonomy.qza \
+--m-input-file rep-seqs-deblur.qza \
+--o-visualization bespoke-taxonomy.qzv
+```
+
+
+Filtering data
+
+In the following sections, we will explore the microbial communities of our samples from children only, 
+
+```{bash}
+qiime feature-table filter-samples \
+--i-table filtered-table-deblur.qza \
+--m-metadata-file metadata.tsv \
+--p-where "[mom_or_child]= 'C'" \
+--o-filtered-table child-table.qza
+```
+
+We now have a new subsetted feature table consisting of child samples only. Let us visualize this new feature table as we did previously:
+
+```{bash}
+qiime feature-table summarize \
+--i-table child-table.qza \
+--m-sample-metadata-file metadata.tsv \
+--o-visualization child-table.qzv
+```
+
+In this section, we will explore how sampling depth impacts
+alpha diversity estimates (within-sample richness, discussed in more detail below) using
+the alpha-rarefaction action within the q2-diversity plugin
+
+```{bash}
+qiime diversity alpha-rarefaction \
+--i-table child-table.qza \
+--i-phylogeny insertion-tree.qza \
+--p-max-depth 10000 \
+--m-metadata-file metadata.tsv \
+--o-visualization child-alpha-rarefaction.qzv
+```
+
+One
+common approach to dealing with this problem is to sample a random subset of sequences without replacement for each sample at a fixed depth (also referred to as rarefying) and discard all remaining samples with total read counts below that threshold.
+This approach, which is not ideal because it discards a large amount of information (McMurdie & Holmes, 2014), has nonetheless been shown to be useful for many different
+microbial community analyses that are otherwise dominated by sample-to-sample variation in the number of sequences per sample obtained (Weiss et al., 2017).
+
+# Basic data exploration and diversity analyses
+
+
+To mitigate the appearance of these
+false replicates and ensure that samples meet assumptions of independence, we will filter
+our feature table prior to group tests to include only one sample per subject per month.
+
+```{bash}
+qiime feature-table filter-samples \
+--i-table child-table.qza \
+--m-metadata-file metadata.tsv \
+--p-where "[month_replicate]= 'no'" \
+--o-filtered-table child-table-norep.qza
+```
+
+Create a Visualization summary of this new table as before:
+
+
+```{bash}
+qiime feature-table summarize \
+--i-table child-table-norep.qza \
+--m-sample-metadata-file metadata.tsv \
+--o-visualization child-table-norep.qzv
+```
+
+Generate the taxonomic barplot by running:
+
+```{bash}
+qiime taxa barplot \
+--i-table child-table-norep.qza \
+--i-taxonomy bespoke-taxonomy.qza \
+--m-metadata-file metadata.tsv \
+--o-visualization child-bar-plots.qzv
+```
+
+In this tutorial, we will utilize the pipeline action core-metrics-phylogenetic, which simultaneously rarefies a FeatureTable[Frequency] to a userspecified depth, computes several commonly used alpha and beta diversity
+metrics, and generates principal coordinates analysis (PCoA) plots using the EMPeror
+visualization tool (Vázquez-Baeza, Pirrung, Gonzalez, & Knight, 2013) for each of
+the beta diversity metrics. For this tutorial, we will use a sampling depth of 3400 as
+determined from the previous step
+
+```{bash}
+qiime diversity core-metrics-phylogenetic \
+--i-table child-table-norep.qza \
+--i-phylogeny insertion-tree.qza \
+--p-sampling-depth 3400 \
+--m-metadata-file metadata.tsv \
+--p-n-jobs 1 \
+--output-dir child-norep-core-metrics-results
+```
+
+Performing statistical tests on diversity and generating interactive visualizations
+Alpha diversity
+
+```{bash}
+qiime diversity alpha-group-significance \
+--i-alpha-diversity child-norep-core-metricsresults/shannon_vector.qza \
+--m-metadata-file metadata.tsv \
+--o-visualization child-norep-core-metricsresults/shannon-group-significance.qzv
+```
+
+One important confounding factor here is that we are simultaneously analyzing our samples across all time points and in doing so potentially losing meaningful signals at a
+particular time point. I
+
+So let us re-analyze our data at the final (month 24) timepoint, by filtering our featuretable again:
+
+```{bash}
+qiime feature-table filter-samples \
+--i-table child-table-norep.qza \
+--m-metadata-file metadata.tsv \
+--p-where "[month]= '24'" \
+--o-filtered-table table-norep-C24.qza
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
+
+```{bash}
+
+```
