@@ -85,6 +85,9 @@ res <- kos %>%
   }) %>% 
   bind_rows() %>% 
   filter(sampleid %in% samps$sampleid)
+
+res %>% 
+  distinct(sampleid)
 ```
 
 ```{r}
@@ -136,6 +139,20 @@ spearman_norm <- combined %>%
   arrange(cor)
 
 summary(spearman_norm$cor)
+
+
+spearman_norm %>% 
+  ggplot(aes(x= factor(0), y = cor)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.3, size = 3.5, alpha = 0.8, col = 'midnightblue') +
+  theme_cleveland() +
+  scale_y_continuous( breaks =seq(0, 1, 0.1)) +
+  theme(axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank()) +
+  labs(y = 'Spearman correlation',
+       title = 'Spearman cor betw shotgun and picrust2\nnormalized KO abundance for 261 samples') +
+  ggsave('../figs/Spearman cor betw shotgun and picrust2 normalized KO abundance for 261 samples.jpg', width = 4, height = 5)
 ```
 
 
