@@ -180,3 +180,159 @@ combined %>%
 
 ```
 
+
+
+##################################################################################################################
+
+```{r}
+kos <- list.files('../../picrust2/data/done_results/', recursive = T, full.names = T, pattern = 'pred_metagenome_unstrat.tsv')
+
+p_raw <- kos %>% 
+  map(function(fn){
+    tb <- read_tsv(fn) %>% 
+        gather('sampleid','p_count', names(.)[2]:names(.)[ncol(.)]) 
+      return(tb)
+  }) %>% 
+  bind_rows() %>% 
+  filter(sampleid %in% samps$sampleid) %>% 
+  rename(KOID = names(.)[1])
+```
+
+```{r}
+# the unnormalized data from shotgun
+
+fmt <- read_tsv('../data/shotgun/fmt/humann2_genefamilies_KO_regroup_unstratified.tsv') %>% 
+  rename(KOID = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$',''))) 
+  
+
+# the sg01
+sg01 <- read_tsv('../data/shotgun/sg01/KO_regroup/humann2_genefamilies_KO_regroup_unstratified.tsv') %>% 
+  rename(KOID = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$','')))
+
+# sgother
+sgother <- read_tsv('../data/shotgun/sgother/KO_regroup/humann2_genefamilies_KO_regroup_unstratified.tsv') %>% 
+  rename(KOID = names(.)[1]) %>% 
+  rename_all(funs(str_replace(., '_Abundance-RPKs$',''))) 
+
+sg_raw <- fmt %>% 
+  full_join(sg01, by  = 'KOID' ) %>% 
+  full_join(sgother, by  = 'KOID' ) %>% 
+  replace(is.na(.), 0) %>% 
+  filter(! KOID %in% c('UNMAPPED','UNGROUPED')) %>% 
+  gather('fid', 'sg_cnt', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(samps)
+
+ 
+raw_combined <- sg_raw %>% 
+  inner_join(p_raw)
+
+
+pearson_raw <- raw_combined %>%   
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$sg_cnt, 
+                           .$p_count, 
+                           method = 'pearson', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'cor') %>% 
+  arrange(cor)  
+
+summary(pearson_raw)  
+
+
+
+spearman_raw <- raw_combined %>%   
+  split(.$sampleid) %>% 
+  map_dfr(~ round(cor.test(.$sg_cnt, 
+                           .$p_count, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'sampleid', value = 'cor') %>% 
+  arrange(cor)  
+
+summary(spearman_raw) 
+```
+```{r}
+pearson_raw %>% 
+  ggplot(aes(x= factor(0), y = cor)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.3, size = 3.5, alpha = 0.8, col = 'forestgreen') +
+  theme_cleveland() +
+  scale_y_continuous( breaks =seq(0, 1, 0.1)) +
+  theme(axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank()) +
+  labs(y = 'Pearson correlation',
+       title = 'Pearson cor betw shotgun and picrust2\nKO abundance for 261 samples') +
+  ggsave('../figs/Pearson cor betw shotgun and picrust2 KO abundance for 261 samples.jpg', width = 4, height = 5)
+
+
+spearman_raw %>% 
+  ggplot(aes(x= factor(0), y = cor)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.3, size = 3.5, alpha = 0.8, col = 'midnightblue') +
+  theme_cleveland() +
+  scale_y_continuous( breaks =seq(0, 1, 0.1)) +
+  theme(axis.title.x=element_blank(),
+    axis.text.x=element_blank(),
+    axis.ticks.x=element_blank()) +
+  labs(y = 'Spearman correlation',
+       title = 'Spearman cor betw shotgun and picrust2\nKO abundance for 261 samples') +
+  ggsave('../figs/Spearman cor betw shotgun and picrust2 KO abundance for 261 samples.jpg', width = 4, height = 5)
+```
+
+```{r}
+# pick from pearson_raw
+pick <- c('FMT.0034E', 'FMT.0066T', 'FMT.0166A')
+
+raw_combined %>% 
+  filter(sampleid %in% pick) %>% 
+  left_join(pearson_raw %>% 
+              filter(sampleid %in% pick)) %>% 
+  split(.$sampleid) %>% 
+  map(~ ggplot(data = ., aes(x = sg_cnt, y = p_count)) +
+        geom_point( alpha = 0.3, size = 3) +
+        labs(x = 'shotgun abundance',
+             y  = 'picrust2 abundancee',
+             title = str_glue('Scatter plot of KO abundance between shotgun and picrust2\nSample: {.$sampleid}  Pearson correlation: {.$cor}')) +
+        scale_y_log10() +
+        scale_x_log10()+
+        geom_abline(intercept = 0, slope = 1, col = 'red', linetype = 'dashed', size = 1) +
+        theme_classic())
+```
+
+
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = "~/dbConfig.txt")
+
+alpha <- get_table_from_database('asv_alpha_diversity_ag')
+
+alpha_261 <- alpha %>% 
+  filter(sampleid %in% samps$sampleid)
+
+df <- pearson_raw %>% 
+  rename(pearson = cor) %>% 
+  full_join(spearman_raw %>% 
+              rename(spearman = cor)) %>% 
+  inner_join(alpha_261 %>% select(simpson_reciprocal, sampleid))
+
+
+df %>% 
+  gather('type', 'cor', pearson:spearman) %>% 
+  filter(type == 'pearson') %>% 
+  ggscatter('simpson_reciprocal', 'cor', col = 'forestgreen',
+            ylab = 'Pearson correlation',
+            add = "loess", 
+            title = 'Pearson correlation VS simpson reciprocal diversity',
+            conf.int = TRUE,
+            alpha = 0.5) +
+  scale_x_sqrt() +
+  theme_light() +
+  geom_hline(yintercept  = 0.5, linetype = 'dashed', col = 'red') +
+  geom_vline(xintercept  = 4, linetype = 'dashed', col = 'red') +
+  #facet_wrap(~type) +
+  ggsave('../figs/scatter_alpha.jpg', width = 7, height = 7)
+```
+

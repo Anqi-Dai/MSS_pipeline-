@@ -193,7 +193,7 @@ kos <- list.files('../../picrust2/data/done_results/', recursive = T, full.names
 res <- kos %>% 
   map(function(fn){
     tb <- read_tsv(fn) %>% 
-        gather('sampleid','count', names(.)[2]:names(.)[ncol(.)]) 
+        gather('sampleid','p_count', names(.)[2]:names(.)[ncol(.)]) 
       return(tb)
   }) %>% 
   bind_rows() %>% 
