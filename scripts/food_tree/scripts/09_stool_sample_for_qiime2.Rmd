@@ -65,6 +65,11 @@ other <- read_delim('../../upload_sample_NCBI/data/demultiplexed_path/list_demul
   filter(sampleid %in% missing) %>% 
   spread('direction', 'folder')
 
+other_sampleid <- other$sampleid
+```
+
+
+```{r}
 # another 10 missing ....
 missing10 <- setdiff(missing, other$sampleid)
  
@@ -75,9 +80,19 @@ last <- asv_alpha_diversity_ag %>%
          R2 = str_replace(R1, '_R1.fastq.gz','_R2.fastq.gz')) %>% 
   select(sampleid, R1, R2)
 
+other_alpha <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% other_sampleid) %>% 
+  mutate(R1 = str_glue('{path_pool}/{oligos_id}_R1.fastq.gz'),
+         R2 = str_replace(R1, '_R1.fastq.gz','_R2.fastq.gz')) %>% 
+  select(sampleid, R1, R2)
 
+other_alpha$path_pool
+```
+
+
+```{r}
 all_path <- bind_rows(
-  paths, other, last
+  paths, other_alpha, last
 ) %>% 
   rename(`sample-id` = sampleid, 
          `forward-absolute-filepath` = R1,
@@ -87,7 +102,7 @@ all_path %>%
   write_tsv('../data/qiime/manifest.tsv')
 ```
 
-
+**Summary: just use the alpha diversity table, and glue the path_pool with oligos_id and then you got the full file path!**
 
 ```{r}
 
