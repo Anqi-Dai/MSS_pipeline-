@@ -56,6 +56,10 @@ In this tutorial, we will denoise our sequences with q2-deblur, which uses a pre
 true biological sequence from which they are derived. Unlike DADA2, which creates sequence error profiles on a per-analysis basis, this allows Deblur to be simultaneously applied across different datasets, reflecting its design motivation to perform meta-analyses.
 Additionally, using a pre-defined error profile generally results in shorter runtimes.
 
+
+ Apply an initial quality filtering process based on quality scores. This method is an
+implementation of the quality-filtering approach described by Bokulich et al. (2013):
+\
 ```{bash}
 qiime quality-filter q-score \
 --i-demux se-demux.qza \

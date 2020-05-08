@@ -1,0 +1,43 @@
+---
+title: "All samples in 16s data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = "~/dbConfig.txt")
+
+get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+```
+
+```{r}
+ALl16 <- asv_alpha_diversity_ag %>% 
+  mutate(R1 = str_glue('{path_pool}/{oligos_id}_R1.fastq.gz'),
+         R2 = str_replace(R1, '_R1.fastq.gz','_R2.fastq.gz')) %>% 
+  select(sampleid, R1, R2) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  rename(`sample-id` = sampleid, 
+         `forward-absolute-filepath` = R1,
+         `reverse-absolute-filepath` = R2)
+
+ALl16 %>% 
+  write_tsv('../data/ALl16_manifest.tsv')
+
+
+ALl16 <- asv_alpha_diversity_ag %>% 
+  mutate(R1 = str_glue('{path_pool}/{oligos_id}_R1.fastq.gz'),
+         R2 = str_replace(R1, '_R1.fastq.gz','_R2.fastq.gz')) %>% 
+  select(sampleid, path_pool, R1, R2) %>% 
+  filter(sampleid == '260')
+
+```
+
