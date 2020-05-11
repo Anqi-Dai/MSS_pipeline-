@@ -1,0 +1,3 @@
+
+        qiime emperor plot             --i-pcoa data/finalized/unweighted_unifrac_pcoa.qza             --m-metadata-file data/finalized/meta_data_67.tsv             --o-visualization  data/finalized/unweighted_unifrac_distance_emperor.qzv
+        

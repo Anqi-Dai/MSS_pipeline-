@@ -1,0 +1,89 @@
+'''
+This Snakefile carries out diet project work with qiime2 **LOCALLTY**
+
+To run, source activate qiime2-2020.2
+'''
+
+rule all:
+    input:
+        'data/finalized/unweighted_unifrac_distance_matrix.qza'
+        
+
+#############################################################
+# The diet data 
+#############################################################
+
+rule convert_dehywt_table_to_biom:
+    input:
+        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.tsv'
+    output:
+        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.biom'
+    shell:
+        'biom convert -i  {input[0]} -o {output[0]} --to-hdf5 --table-type="Table"'
+
+rule convert_dehywt_table_to_qza:
+    input:
+        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.biom'
+    output:
+        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.qza'
+    shell:
+        'qiime tools import --input-path {input[0]} --output-path  {output[0]} --type "FeatureTable[Frequency]"' 
+
+rule cal_unweighted_unifrac:
+    input:
+        cts='data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.qza',
+        tree='data/finalized/output_food_tree_datatree.qza'
+    output:
+        'data/finalized/unweighted_unifrac_distance_matrix.qza'
+    shell:
+        '''
+        qiime diversity beta-phylogenetic \
+            --i-table {input.cts} \
+            --i-phylogeny {input.tree} \
+            --p-metric unweighted_unifrac \
+            --o-distance-matrix {output[0]}
+        '''
+
+rule pcoa_unweighted_unifrac:
+    input:
+        'data/finalized/unweighted_unifrac_distance_matrix.qza'
+    output:
+        'data/finalized/unweighted_unifrac_pcoa.qza'
+    shell:
+        'qiime diversity pcoa \
+            --i-distance-matrix {input[0]} \
+            --o-pcoa {output[0]}'
+
+
+rule visualize_unweighted_unifrac_with_emperor_custom_axes:
+    input:
+        pcoa='data/finalized/unweighted_unifrac_pcoa.qza',
+        meta='data/finalized/meta_data_67.tsv'
+    output:
+        'data/finalized/unweighted_unifrac_distance_emperor_foodDayRT.qzv'
+    shell:
+        '''
+        qiime emperor plot \
+            --i-pcoa {input.pcoa} \
+            --m-metadata-file {input.meta} \
+            --p-custom-axes foodDayRT \
+            --o-visualization  {output[0]}
+        ''' 
+
+rule visualize_unweighted_unifrac_with_emperor:
+    input:
+        pcoa='data/finalized/unweighted_unifrac_pcoa.qza',
+        meta='data/finalized/meta_data_67.tsv'
+    output:
+        'data/finalized/unweighted_unifrac_distance_emperor.qzv'
+    shell:
+        '''
+        qiime emperor plot \
+            --i-pcoa {input.pcoa} \
+            --m-metadata-file {input.meta} \
+            --o-visualization  {output[0]}
+        '''
+
+
+rule output:
+    input: 'data/finalized/unweighted_unifrac_distance_emperor.qzv'

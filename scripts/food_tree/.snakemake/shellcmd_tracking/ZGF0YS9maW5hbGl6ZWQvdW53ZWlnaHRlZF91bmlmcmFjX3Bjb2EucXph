@@ -1,0 +1,1 @@
+qiime diversity pcoa             --i-distance-matrix data/finalized/unweighted_unifrac_distance_matrix.qza             --o-pcoa data/finalized/unweighted_unifrac_pcoa.qza

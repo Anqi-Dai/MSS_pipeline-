@@ -1,0 +1,3 @@
+
+        qiime diversity beta-phylogenetic             --i-table data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.qza             --i-phylogeny data/finalized/output_food_tree_datatree.qza             --p-metric unweighted_unifrac             --o-distance-matrix data/finalized/unweighted_unifrac_distance_matrix.qza
+        
