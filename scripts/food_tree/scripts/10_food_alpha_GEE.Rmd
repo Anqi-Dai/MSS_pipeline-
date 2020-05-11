@@ -13,6 +13,14 @@ library(ggpubr)
 library(geepack)
 ```
 
+
+- This model tells the popolation difference and doesn't assume distribution of the data, and also account for multiple observations for one subject
+- time^2 quadratic time cuz the change is not linear, it has U turn and such, so it's quadratic
+- When you include quadratic time you also include the normal time
+- the P value from summary gave you significance level
+- it doesn't come together with the lowess curve, so just describe it in the text
+- use the indenpent working correlations
+
 ```{r}
 # load the faith alpha data
 faith <- read_tsv('../data/finalized/meta_data_67.tsv')
@@ -24,33 +32,48 @@ formular_intensity <- formula(faith_pd ~ foodDayRT + foodDayRT^2 + intensity)
 # faith %>% 
 #   ggboxplot(y = 'faith_pd', add = 'jitter')
 ```
+```{r}
+# visualization
+faith %>% 
+  ggscatter('foodDayRT', 'faith_pd', 
+            color = 'intensity', palette = 'lancet', alpha = 0.8,size = 1,
+            #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
+            ylab = 'alpha diversity (Faith)', xlab = 'Day relative to transplant',
+            title = 'Food alpha diversity split by intensity',
+            add = "loess", conf.int = TRUE) 
+
+
+faith %>% 
+  ggscatter('foodDayRT', 'faith_pd', 
+            color = 'source', palette = 'nejm', alpha = 0.8, size = 1,
+            #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
+            ylab = 'alpha diversity (Faith)', xlab = 'Day relative to transplant',
+            title = 'Food alpha diversity split by source',
+            add = "loess", conf.int = TRUE)
+
+```
+
+
+
 
 # by source
 
 ```{r}
-# the exchangeable Working Covariance
-geeEx_source <- geeglm(formular_source, id=mrn, data=faith, family=gaussian, corstr="ex")
-summary(geeEx_source)
-anova(geeEx_source)
 
 # the indenpendent Working Covariance
 geeInd_source <- geeglm(formular_source, id=mrn, data=faith, family=gaussian, corstr="ind")
 summary(geeInd_source)
-anova(geeInd_source)
+#anova(geeInd_source)
 
 ```
 
 # by intensity
 
 ```{r}
-# the exchangeable Working Covariance
-geeEx_intensity <- geeglm(formular_intensity, id=mrn, data=faith, family=gaussian, corstr="ex")
-summary(geeEx_intensity)
-anova(geeEx_intensity)
 
 # the indenpendent Working Covariance
 geeInd_intensity <- geeglm(formular_intensity, id=mrn, data=faith, family=gaussian, corstr="ind")
 summary(geeInd_intensity)
-anova(geeInd_intensity)
+#anova(geeInd_intensity)
 ```
 
