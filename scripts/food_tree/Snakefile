@@ -70,6 +70,24 @@ rule visualize_unweighted_unifrac_with_emperor_custom_axes:
             --o-visualization  {output[0]}
         ''' 
 
+
+rule visualize_unweighted_unifrac_with_emperor_faith_pd:
+    input:
+        pcoa='data/finalized/unweighted_unifrac_pcoa.qza',
+        meta='data/finalized/meta_data_67.tsv'
+    output:
+        'data/finalized/unweighted_unifrac_distance_emperor_faith_pd.qzv'
+    shell:
+        '''
+        qiime emperor plot \
+            --i-pcoa {input.pcoa} \
+            --m-metadata-file {input.meta} \
+            --p-custom-axes faith_pd \
+            --o-visualization  {output[0]}
+        ''' 
+
+
+
 rule visualize_unweighted_unifrac_with_emperor:
     input:
         pcoa='data/finalized/unweighted_unifrac_pcoa.qza',
@@ -85,5 +103,13 @@ rule visualize_unweighted_unifrac_with_emperor:
         '''
 
 
+rule export_pcoa_matrix:
+    input:
+        'data/finalized/unweighted_unifrac_distance_matrix.qza'
+    output:
+        'data/finalized/unweighted_unifrac'
+    shell:
+        'qiime tools export --input-path {input[0]} --output-path {output[0]}'
+
 rule output:
-    input: 'data/finalized/unweighted_unifrac_distance_emperor.qzv'
+    input: 'data/finalized/unweighted_unifrac_distance_emperor_faith_pd.qzv'

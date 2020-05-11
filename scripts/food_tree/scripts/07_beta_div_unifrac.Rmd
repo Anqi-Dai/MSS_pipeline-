@@ -162,6 +162,19 @@ faith <- read_csv('../data/finalized/alpha_faith_daily_all.csv') %>%
   mutate(DayRT = str_replace(DayRT, '-','_')) %>% 
   mutate(dietID = str_glue('{pt}d{DayRT}')) 
 
+en <- read_csv('../data/finalized/TPN_EN_all.csv') %>% 
+  # just color by the mrn that is either en or tpn
+  distinct(mrn, type) %>% 
+  distinct(mrn, .keep_all = T)
+
+tpns <- en %>% 
+  filter(type == 'TPN') %>% 
+  pull(mrn)
+
+ens <- en %>% 
+  filter(type == 'EN') %>% 
+  pull(mrn)
+
 meta <- final %>% 
   distinct(dietID, mrn, DayRT) %>% 
   left_join(pheno, by  = 'mrn') %>% 
@@ -172,7 +185,9 @@ meta <- final %>%
   rename(foodDayRT = DayRT) %>% 
   # change back the foodDayRT to be numeric
   mutate(foodDayRT = str_replace(foodDayRT,'_','-')) %>% 
-  mutate(foodDayRT = as.numeric(foodDayRT))
+  mutate(foodDayRT = as.numeric(foodDayRT)) %>% 
+  mutate(entronutri = if_else(mrn %in% ens, "EN", 
+                              if_else(mrn %in% tpns, "TPN", 'none')))
 
 
 meta  %>% 
@@ -180,4 +195,8 @@ meta  %>%
   
 ```
 
+```{r}
+# visualize the unweighted unifrac in pcoa
+unifrac <- read_tsv('../data/finalized/unweighted_unifrac/distance-matrix.tsv')
+```
 

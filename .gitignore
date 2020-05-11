@@ -13,3 +13,4 @@
 /scripts/*/doc/*
 /scripts/Rmd/*/data/*
 /scripts/*/software/*
+*.snakemake

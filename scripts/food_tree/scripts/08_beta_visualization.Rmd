@@ -40,22 +40,24 @@ alpha <- read_csv('../data/finalized/alpha_faith_daily_all.csv') %>%
 # see different intensity
 alpha %>% 
   ggscatter('DayRT', 'faith_pd', 
-            color = 'intensity', palette = 'lancet', alpha = 0.8,
+            color = 'intensity', palette = 'lancet', alpha = 0.8,size = 1,
             #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
             ylab = 'alpha diversity (Faith)', xlab = 'Day relative to transplant',
             title = 'Food alpha diversity split by intensity',
-            add = "loess", conf.int = TRUE)
+            add = "loess", conf.int = TRUE) +
+  ggsave('../figs/alpha_div_by_intensity.jpg', width = 5, height = 5)
 ```
 
 ```{r}
 # see different source 
 alpha %>% 
   ggscatter('DayRT', 'faith_pd', 
-            color = 'source', palette = 'jco', alpha = 0.8,
+            color = 'source', palette = 'nejm', alpha = 0.8, size = 1,
             #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
             ylab = 'alpha diversity (Faith)', xlab = 'Day relative to transplant',
             title = 'Food alpha diversity split by source',
-            add = "loess", conf.int = TRUE)
+            add = "loess", conf.int = TRUE) +
+  ggsave('../figs/alpha_div_by_source.jpg', width = 5, height = 5)
 ```
 
 ##### **Food** alpha diversity drops probably because of the chemo, so the patients didn't want to eat. Specifically, the ablative/reduced and cord/TCD have the biggest drop. 
@@ -66,23 +68,66 @@ alpha %>%
 
 ```{r}
 #Check the beta distance matrix
-beta_un_uni <- read.delim('../data/finalized/beta_phylo/distance-matrix.tsv', sep = '\t', row.names = 1)
+beta_un_uni <- read.delim('../data/finalized/unweighted_unifrac/distance-matrix.tsv', sep = '\t', row.names = 1)
 food_dist <- as.dist(beta_un_uni)
+
+meta <-  read_tsv('../data/finalized/meta_data_67.tsv') %>% 
+  rename(did = names(.)[1])
 
 #pcoa
 pcoa_f <- as.data.frame(pcoa(food_dist)$vectors) %>% 
   select(Axis.1, Axis.2) %>% 
-  rownames_to_column('mrnDay') %>% 
-  separate(mrnDay, into = c('mrn','DayRT'), sep = 'd') %>% 
-  mutate(DayRT = str_replace(DayRT,'_','-'),
-         DayRT = as.numeric(DayRT),
-         mrn = as.numeric(mrn))
+  rownames_to_column('did') %>% 
+  full_join(meta, by = 'did')
+
 
 # the percent variance
 eigen <- pcoa(food_dist)$values$Eigenvalues
 
 percent_var <- signif(eigen/sum(eigen), 3)*100
 ```
+
+```{r}
+# look at how to set customed breaks for the viridis color gradient
+pcoa_f %>% 
+  gghistogram(x = 'faith_pd', bins = 200, fill = 'forestgreen')
+```
+
+
+```{r}
+# look at the quantiles
+brks <- unique(c(seq(0, 0.4, length.out = 3),seq(0.5, 0.8, length.out = 3),1.0))
+brks <- seq(0, 1, 0.1)
+quants_faith <- brks %>% 
+  set_names(brks) %>% 
+  map_dfr(~ quantile(pcoa_f$faith_pd, .)) %>% 
+  gather('brks', 'value') %>% 
+  mutate(value =  round(value, 0))
+```
+
+
+```{r}
+# color by faith pd
+library(viridis)
+library(RColorBrewer)
+
+pcoa_f %>% 
+  mutate(brks = cut(faith_pd, 
+                    breaks = format(quants_faith %>% pull(value), scientific=F),
+                    include.lowest = T)) %>% 
+  ggplot(aes(x = Axis.1, y = Axis.2, col = brks)) +
+  geom_point(alpha=0.7, size = 2.5) +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme_classic() +
+  theme(legend.position = 'top') +
+  labs(title = 'PCoA of unweighted unifrac distance colored by Faith alpha diversity') + 
+  scale_color_gradient2() +
+  scale_colour_manual(values = rev(brewer.pal(10,"RdYlBu"))) +
+  #scale_color_gradient(low="royalblue", high="orangered") +
+  ggsave('../figs/beta_un_unifrac_all_pts_by_faith.jpg', width = 6, height = 4)
+```
+
 
 ```{r}
 # join the coords with the pheno
