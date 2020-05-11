@@ -113,3 +113,10 @@ rule export_pcoa_matrix:
 
 rule output:
     input: 'data/finalized/unweighted_unifrac_distance_emperor_faith_pd.qzv'
+
+
+
+
+######################################################################
+# the Microbiome data
+######################################################################

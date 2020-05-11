@@ -1,0 +1,56 @@
+---
+title: "diet alpha GEE"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(geepack)
+```
+
+```{r}
+# load the faith alpha data
+faith <- read_tsv('../data/finalized/meta_data_67.tsv')
+
+formular_source <- formula(faith_pd ~ foodDayRT + foodDayRT^2 + source)
+
+formular_intensity <- formula(faith_pd ~ foodDayRT + foodDayRT^2 + intensity)
+
+# faith %>% 
+#   ggboxplot(y = 'faith_pd', add = 'jitter')
+```
+
+# by source
+
+```{r}
+# the exchangeable Working Covariance
+geeEx_source <- geeglm(formular_source, id=mrn, data=faith, family=gaussian, corstr="ex")
+summary(geeEx_source)
+anova(geeEx_source)
+
+# the indenpendent Working Covariance
+geeInd_source <- geeglm(formular_source, id=mrn, data=faith, family=gaussian, corstr="ind")
+summary(geeInd_source)
+anova(geeInd_source)
+
+```
+
+# by intensity
+
+```{r}
+# the exchangeable Working Covariance
+geeEx_intensity <- geeglm(formular_intensity, id=mrn, data=faith, family=gaussian, corstr="ex")
+summary(geeEx_intensity)
+anova(geeEx_intensity)
+
+# the indenpendent Working Covariance
+geeInd_intensity <- geeglm(formular_intensity, id=mrn, data=faith, family=gaussian, corstr="ind")
+summary(geeInd_intensity)
+anova(geeInd_intensity)
+```
+

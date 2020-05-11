@@ -113,8 +113,18 @@ meta <- samples %>%
 meta %>% 
   write_tsv('../data/qiime/diet_67_meta.tsv')
 
+
+stool_meta <- read_tsv('../data/qiime/diet_67_meta.tsv')
 ```
 
+```{r}
+# look at drt in these 1002 samples
+range(samples$drt)
+```
+
+
+
+# upload the tables to database 
 
 ```{r}
 bile <- read_csv('../../picrust2/data/normalized_picrust2_pred_metagenome_KO_secondary_bile_counts.csv')
@@ -133,4 +143,5 @@ upload_data_from_query_OTU(2)
 
 get_table_from_database('bile_picrust_ad')
 ```
+
 

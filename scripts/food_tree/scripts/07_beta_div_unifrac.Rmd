@@ -195,8 +195,5 @@ meta  %>%
   
 ```
 
-```{r}
-# visualize the unweighted unifrac in pcoa
-unifrac <- read_tsv('../data/finalized/unweighted_unifrac/distance-matrix.tsv')
-```
+
 
