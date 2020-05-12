@@ -133,6 +133,9 @@ pcoa_f %>%
 # join the coords with the pheno
 beta_un_uni_df <- pcoa_f %>% 
   left_join(pheno, by  = 'mrn')
+
+final %>% 
+  distinct(Food_NSC)
 ```
 
 ```{r}

@@ -111,8 +111,102 @@ rule export_pcoa_matrix:
     shell:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 
+
+
+# longitudinal analysis
+
+rule create_div_qza:
+    input:
+        'data/finalized/faith_all.tsv'
+    output:
+        'data/finalized/faith_all.qza'
+    shell:
+        '''
+        qiime tools import --input-path {input[0]} --output-path  {output[0]} --type 'SampleData[AlphaDiversity]'
+        '''
+
+
+rule faith_alpha_volatility:
+    input:
+        meta='data/finalized/meta_data_67.tsv'
+    output:
+        'data/finalized/faith_alpha_volatility.qzv'
+    shell:
+        '''
+        qiime longitudinal volatility \
+            --m-metadata-file {input.meta} \
+            --p-default-metric faith_pd \
+            --p-default-group-column intensity \
+            --p-state-column foodDayRT \
+            --p-individual-id-column mrn \
+            --o-visualization {output[0]}
+        '''
+
+# First differencing to track rate of change
+
+
+rule faith_first_difference:
+    input:
+        meta='data/finalized/meta_data_67.tsv'
+    output:
+        'data/finalized/faith_first_difference.qza'
+    shell:
+        '''
+        qiime longitudinal first-differences \
+            --m-metadata-file {input.meta} \
+            --p-metric faith_pd \
+            --p-state-column foodDayRT \
+            --p-individual-id-column mrn \
+            --p-replicate-handling random \
+            --o-first-differences {output[0]}
+        '''
+
+
+rule faith_first_difference_volatility:
+    input:
+        meta='data/finalized/meta_data_67.tsv',
+        first_diff='data/finalized/faith_first_difference.qza'
+    output:
+        'data/finalized/faith_first_difference_volatility.qzv'
+    shell:
+        '''
+        qiime longitudinal volatility \
+            --m-metadata-file {input.meta} \
+            --m-metadata-file {input.first_diff} \
+            --p-default-metric Difference \
+            --p-default-group-column intensity \
+            --p-state-column foodDayRT \
+            --p-individual-id-column mrn \
+            --o-visualization {output[0]}
+        '''
+
+
+# feature volatility -- to pick out predictive features
+
+rule feature_volatility:
+    input:
+        cts='data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.qza',
+        meta='data/finalized/meta_data_67.tsv'
+    output:
+        'data/finalized/cts_feature_volatility'
+    shell:
+        '''
+        qiime longitudinal feature-volatility \
+            --i-table {input.cts} \
+            --m-metadata-file {input.meta} \
+            --p-state-column foodDayRT \
+            --p-individual-id-column mrn \
+            --p-n-jobs 4 \
+            --output-dir {output[0]}
+        '''
+
 rule output:
-    input: 'data/finalized/unweighted_unifrac_distance_emperor_faith_pd.qzv'
+    input:
+        'data/finalized/cts_feature_volatility'
+
+
+
+
 
 
 
@@ -120,3 +214,14 @@ rule output:
 ######################################################################
 # the Microbiome data
 ######################################################################
+
+# the diet data spans from the -10 to 41 relative to transplant, 
+# so need to filter on the stool samples to include near to that period
+'''
+rule filter_stool_samples_close_to_diet:
+    input:
+        'data/finalized/pe-demux_dada2.qza'
+    output:
+        'data/finalized/pe-demux_dada2_filtered_close_to_diet_data.qza'
+    shell:
+'''
