@@ -183,6 +183,11 @@ rule faith_first_difference_volatility:
 
 # feature volatility -- to pick out predictive features
 
+'''
+This pipeline identifies features that are predictive of a numeric metadata column, “state_column” (e.g., time), 
+and plots their relative frequencies across states using interactive feature volatility plots
+'''
+
 rule feature_volatility:
     input:
         cts='data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.qza',
@@ -194,7 +199,7 @@ rule feature_volatility:
         qiime longitudinal feature-volatility \
             --i-table {input.cts} \
             --m-metadata-file {input.meta} \
-            --p-state-column foodDayRT \
+            --p-state-column faith_pd \
             --p-individual-id-column mrn \
             --p-n-jobs 4 \
             --output-dir {output[0]}
