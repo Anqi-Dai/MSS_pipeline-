@@ -54,6 +54,7 @@ rule pcoa_unweighted_unifrac:
             --i-distance-matrix {input[0]} \
             --o-pcoa {output[0]}'
 
+# visualize needs to use the meta table 
 
 rule visualize_unweighted_unifrac_with_emperor_custom_axes:
     input:
@@ -102,7 +103,14 @@ rule visualize_unweighted_unifrac_with_emperor:
             --o-visualization  {output[0]}
         '''
 
+rule viz:
+    input:
+        'data/finalized/unweighted_unifrac_distance_emperor.qzv',
+        'data/finalized/unweighted_unifrac_distance_emperor_faith_pd.qzv',
+        'data/finalized/unweighted_unifrac_distance_emperor_foodDayRT.qzv'
 
+
+# so that I can do a ggplot
 rule export_pcoa_matrix:
     input:
         'data/finalized/unweighted_unifrac_distance_matrix.qza'
