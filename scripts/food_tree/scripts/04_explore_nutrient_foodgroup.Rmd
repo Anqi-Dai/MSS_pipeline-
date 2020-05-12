@@ -8,7 +8,6 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 library(kableExtra)
-library(ggvenn) 
 library(RColorBrewer)
 library(readxl)
 library(lubridate)
@@ -99,6 +98,12 @@ fgroup_relab <- food_per_group %>%
 
 # daily_tol is the total dehydated weight for a patient for one day
 # grp_tol is the total dehydated weight for a patient for one day for a single food group
+
+fgroup_relab %>% 
+  count(mrn, DayRT)
+
+fgroup_relab %>% 
+  write_csv('../data/finalized/all_diet_sample_with_food_group_info.csv')
 ```
 ```{r summarystats}
 # how many patients how many days of data
@@ -248,6 +253,12 @@ nutr_joined <- nut_daily_tol %>%
   left_join(nut_daily_tol_all) %>% 
   mutate(nut_relab = nutrient_tol_day/all_tol_day) %>% 
   mutate(nutrient = factor(nutrient))
+
+nutr_joined %>% 
+  count(mrn, DayRT)
+
+nutr_joined %>% 
+  write_csv('../data/finalized/all_diet_sample_with_nutrients_info.csv')
 ```
 
 ```{r nutrient_plot}
