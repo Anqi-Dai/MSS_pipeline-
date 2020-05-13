@@ -1,0 +1,196 @@
+---
+title: "random forest hana"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(randomForest)
+library(ggpubr)
+library(kableExtra)
+library(arrangements)
+```
+
+# load the tables
+
+```{r}
+# it contains all the pheno and all the genera info
+dat <- read_csv('../data/pheno_unconventional_periengr_d30_allsamples.csv')
+
+
+
+range(dat$sample_day)
+
+dat %>% 
+  count(mrn)
+```
+ 
+# clean the pheno table
+
+```{r}
+# the categorical has to be factored
+pheno <- dat %>% 
+  distinct(mrn, MAIT_reconstitution, MAIT_Vd2) %>% 
+  mutate(MAIT_reconstitution = factor(MAIT_reconstitution),
+         MAIT_Vd2 = factor(MAIT_Vd2)) %>% 
+  mutate(mrn = as.character(mrn)) %>% 
+  arrange(mrn)
+
+pheno %>% 
+  count(MAIT_reconstitution)
+
+pheno %>% 
+  count(MAIT_Vd2)
+```
+
+
+# get the median relab for all genera
+
+```{r}
+cts_median <- dat %>% 
+  select(mrn, sampleid, Abiotrophia:Xanthomonas) %>% 
+  gather('genus', 'relab',names(.)[3]:names(.)[ncol(.)] ) %>% 
+  group_by(mrn, genus) %>% 
+  summarise(median_relab = median(relab)) %>% 
+  spread('mrn', 'median_relab') 
+  
+
+# get the top most abundant N genera
+N <- 50
+
+cts_median_top <- cts_median %>% 
+  mutate(genus_sum = rowSums(.[2:ncol(.)])) %>% 
+  arrange(desc(genus_sum)) %>% 
+  top_n(n = N) %>% 
+  select(-genus_sum) %>% 
+  gather('mrn', 'med_relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  spread('genus', 'med_relab') %>% 
+  arrange(mrn) %>% 
+  column_to_rownames('mrn') %>% 
+  as.matrix()
+
+all.equal(rownames(cts_median_top), pheno$mrn)
+
+```
+
+# random forest
+
+
+```{r}
+# for MAIT_reconstitution
+mod_recon <- randomForest(cts_median_top, pheno$MAIT_reconstitution, importance = T)
+
+impor_feature <- importance(mod_recon, type=1) %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = 'genus') %>% 
+  arrange(MeanDecreaseAccuracy)
+
+
+# plot the err rate change
+mod_recon  %>% 
+  pluck('err.rate') %>% 
+  as.data.frame() %>% 
+  mutate(ntree = seq(1, nrow(.))) %>% 
+  gather(key = 'type', value = 'ERR', names(.)[1]:names(.)[ncol(.)-1]) %>% 
+  ggline(x = 'ntree', y = 'ERR', color = 'type', palette = 'jama') +
+  labs(x = 'Number of trees', 
+       y = 'Error rate')
+```
+
+```{r}
+# for MAIT_Vd2
+mod_vd2 <- randomForest(cts_median_top, pheno$MAIT_Vd2, importance = T)
+
+impor_feature <- importance(mod_vd2, type=1) %>% 
+  as.data.frame() %>% 
+  rownames_to_column(var = 'genus') %>% 
+  arrange(MeanDecreaseAccuracy)
+
+
+# plot the err rate change
+mod_vd2  %>% 
+  pluck('err.rate') %>% 
+  as.data.frame() %>% 
+  mutate(ntree = seq(1, nrow(.))) %>% 
+  gather(key = 'type', value = 'ERR', names(.)[1]:names(.)[ncol(.)-1]) %>% 
+  ggline(x = 'ntree', y = 'ERR', color = 'type', palette = 'jama') +
+  labs(x = 'Number of trees', 
+       y = 'Error rate')
+```
+
+# the simper method
+
+```{r}
+library(vegan)
+pmv_mait <- adonis(cts_median_top ~ MAIT_reconstitution, data=pheno, permutations=999, method = 'bray')
+pmv_mait
+
+pmv_vd2 <- adonis(cts_median_top ~ MAIT_Vd2, data=pheno, permutations=999, method = 'bray')
+pmv_vd2
+```
+
+
+
+```{r}
+# use a loop to try all the vd2 combinations
+vd2_4 <- pheno %>% 
+  mutate(MAIT_Vd2 = as.character(MAIT_Vd2)) %>% 
+  distinct(MAIT_Vd2) %>% 
+  pull(MAIT_Vd2)
+
+combi <- combinations(vd2_4, 2) %>% 
+  as.data.frame() 
+  
+
+all_top <- cts_median_top %>% 
+  as.data.frame() %>% 
+  rownames_to_column('mrn') %>% 
+  full_join(pheno, by = 'mrn')
+
+
+```
+```{r}
+pairwise_adonis <- apply(combi, 1, function(Row){
+
+  pheno_sub <- pheno %>% 
+    filter(MAIT_Vd2 %in% c(Row[['V1']],Row[['V2']])) %>% 
+    arrange(mrn)
+  
+  cts_median_top_sub <- cts_median_top %>% 
+    as.data.frame() %>% 
+    rownames_to_column('mrn') %>% 
+    filter(mrn %in% pheno_sub$mrn) %>% 
+    arrange(mrn) %>% 
+    column_to_rownames('mrn')
+  
+  if(all.equal(rownames(cts_median_top_sub), pheno_sub$mrn)  == T){
+    pmv_pair_vd2 <- adonis(cts_median_top_sub ~ MAIT_Vd2, data=pheno_sub, permutations=999, method = 'bray')
+    return(pmv_pair_vd2$aov.tab$`Pr(>F)`[1])
+  }else{
+    stop("rownames don't match")
+    }
+}) 
+
+pairwise_adonis_res <- bind_cols(combi, pval = pairwise_adonis ) %>% 
+  transmute(pair = str_glue('{V1}_{V2}'),
+            pval = pval) %>% 
+  arrange(pval) %>% 
+  mutate(fdr = p.adjust(pval, method = 'BH'))
+```
+
+
+```{r}
+pheno %>% 
+  count(MAIT_Vd2)
+```
+

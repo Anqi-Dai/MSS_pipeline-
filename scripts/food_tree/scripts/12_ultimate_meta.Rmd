@@ -211,6 +211,9 @@ meta %>%
 
 meta <- meta %>% 
   full_join(nutrients_both,  by = '#SampleID')
+
+
+summary(meta$Fibers_total)
 ```
 
 ```{r}
