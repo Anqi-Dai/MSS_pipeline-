@@ -137,9 +137,14 @@ pmv_mait
 
 pmv_vd2 <- adonis(cts_median_top ~ MAIT_Vd2, data=pheno, permutations=999, method = 'bray')
 pmv_vd2
+
+
+# to see the within group dispersion
+dist_pmv <- vegdist(cts_median_top, method = 'bray')
+bd <- betadisper(dist_pmv, pheno$MAIT_Vd2)
+boxplot(bd)
+anova(bd)        
 ```
-
-
 
 ```{r}
 # use a loop to try all the vd2 combinations
@@ -156,8 +161,6 @@ all_top <- cts_median_top %>%
   as.data.frame() %>% 
   rownames_to_column('mrn') %>% 
   full_join(pheno, by = 'mrn')
-
-
 ```
 ```{r}
 pairwise_adonis <- apply(combi, 1, function(Row){
@@ -173,24 +176,53 @@ pairwise_adonis <- apply(combi, 1, function(Row){
     arrange(mrn) %>% 
     column_to_rownames('mrn')
   
+  # calculate the within group dispersion anova
+  dist_pmv <- vegdist(cts_median_top_sub, method = 'bray')
+  bd <- betadisper(dist_pmv, pheno_sub$MAIT_Vd2)
+  anova_res <- anova(bd)  
+  
+  # get the top N most contributing features
+  sim <- simper(cts_median_top_sub , group = pheno_sub$MAIT_Vd2)
+
+  genus_contri <- summary(sim) %>% 
+    pluck(str_glue("{Row[['V1']]}_{Row[['V2']]}")) %>% 
+    rownames_to_column('genus') %>% 
+    arrange(desc(average)) %>% 
+    head(n = 20)
+  
   if(all.equal(rownames(cts_median_top_sub), pheno_sub$mrn)  == T){
     pmv_pair_vd2 <- adonis(cts_median_top_sub ~ MAIT_Vd2, data=pheno_sub, permutations=999, method = 'bray')
-    return(pmv_pair_vd2$aov.tab$`Pr(>F)`[1])
+    return(list(pw_adonis_pval = pmv_pair_vd2$aov.tab$`Pr(>F)`[1],
+           anova_pval = anova_res$`Pr(>F)`[1],
+           topN_feature_df = genus_contri))
   }else{
     stop("rownames don't match")
     }
-}) 
+})
 
-pairwise_adonis_res <- bind_cols(combi, pval = pairwise_adonis ) %>% 
-  transmute(pair = str_glue('{V1}_{V2}'),
-            pval = pval) %>% 
-  arrange(pval) %>% 
-  mutate(fdr = p.adjust(pval, method = 'BH'))
+pw_adonis_pval_list <- list() 
+for(i in 1:nrow(combi)){
+  pw_adonis_pval_list[[i]]= pairwise_adonis[[i]]$pw_adonis_pval
+}
+
 ```
 
 
 ```{r}
-pheno %>% 
-  count(MAIT_Vd2)
+pairwise_adonis_res <- bind_cols(combi, pairwise_adonis ) %>% 
+  transmute(pair = str_glue('{V1}_{V2}'),
+            pw_adonis_pval,
+            anova_pval) %>% 
+  arrange(pw_adonis_pval) %>% 
+  mutate(fdr_pw_adonis = p.adjust(pw_adonis_pval, method = 'BH'))
+```
+
+
+# the most contributing species
+
+```{r}
+
+
+
 ```
 
