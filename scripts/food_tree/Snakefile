@@ -228,6 +228,89 @@ rule output:
 # the Microbiome data
 ######################################################################
 
+# Train our own classifier
+
+## import the silva OTU fasta seq and taxanomy to qiime
+
+rule import_silva_ref_seq:
+    input:
+        'data/qiime/SILVA_132_QIIME_release/rep_set/rep_set_16S_only/99/silva_132_99_16S.fna'
+    output:
+        'data/qiime/silva_132_99.qza'
+    shell:
+        '''
+        qiime tools import \
+            --type 'FeatureData[Sequence]' \
+            --input-path {input[0]} \
+            --output-path {output[0]}
+        '''
+
+rule import_silva_taxonomy:
+    input:
+        'data/qiime/SILVA_132_QIIME_release/taxonomy/16S_only/99/majority_taxonomy_7_levels.txt'
+    output:
+        'data/qiime/silva_132_99_taxa.qza'
+    shell:
+        '''
+        qiime tools import \
+            --type 'FeatureData[Taxonomy]' \
+            --input-format HeaderlessTSVTaxonomyFormat \
+            --input-path {input[0]} \
+            --output-path {output[0]}
+        '''
+
+# Extract reference reads
+################################
+#Here truncate at 210 cuz this
+# dataset of 1002 samples look
+# so
+###############################
+
+rule extract_ref_reads:
+    input:
+        silva_ref='data/qiime/silva_132_99.qza'
+    output:
+        ref_seq='data/qiime/us_ref-seqs.qza'
+    shell:
+        '''
+        qiime feature-classifier extract-reads \
+            --i-sequences {input.silva_ref} \
+            --p-f-primer AYTGGGYDTAAAGNG \
+            --p-r-primer CCGTCAATTYHTTTRAGT \
+            --p-trunc-len 210 \
+            --p-min-length 180 \
+            --p-max-length 274 \
+            --p-n-jobs 4 \
+            --o-reads {output.ref_seq}
+        '''
+
+
+# train the classifier with Naive Bayes
+
+rule fit_classifier_naive_bayes:
+    input:
+        ref_seq='data/qiime/us_ref-seqs.qza',
+        taxonomy='data/qiime/silva_132_99_taxa.qza'
+    output:
+        classifier='us_classifier.qza'
+    shell:
+        '''
+        qiime feature-classifier fit-classifier-naive-bayes \
+            --i-reference-reads {input.ref_seq} \
+            --i-reference-taxonomy {input.taxonomy} \
+            --o-classifier {output.classifier}
+        '''
+
+
+
+rule class:
+    input:
+        'us_classifier.qza'
+
+
+
+
+
 # the diet data spans from the -10 to 41 relative to transplant, 
 # so need to filter on the stool samples to include near to that period
 '''
