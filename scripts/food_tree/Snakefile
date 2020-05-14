@@ -205,7 +205,7 @@ rule feature_volatility:
     shell:
         '''
         qiime longitudinal feature-volatility \
-            --i-table {input.cts} \
+         1   --i-table {input.cts} \
             --m-metadata-file {input.meta} \
             --p-state-column faith_pd \
             --p-individual-id-column mrn \
@@ -292,7 +292,7 @@ rule fit_classifier_naive_bayes:
         ref_seq='data/qiime/us_ref-seqs.qza',
         taxonomy='data/qiime/silva_132_99_taxa.qza'
     output:
-        classifier='us_classifier.qza'
+        classifier='data/qiime/us_classifier.qza'
     shell:
         '''
         qiime feature-classifier fit-classifier-naive-bayes \
@@ -301,14 +301,38 @@ rule fit_classifier_naive_bayes:
             --o-classifier {output.classifier}
         '''
 
+# the above two steps are done on the cluster cuz it takes shorter time
 
+
+# Test the classifier
+
+rule test_classifier_on_our_data:
+    input:
+        classifier='data/qiime/us_classifier.qza',
+        rep_seq='data/qiime/pe-demux_dada2_rep_seqs.qza'
+    output:
+        'data/qiime/us_taxonomy.qza'
+    shell:
+        '''
+        qiime feature-classifier classify-sklearn \
+            --i-classifier {input.classifier} \
+            --i-reads {input.rep_seq} \
+            --o-classification {output[0]}
+        '''
+
+rule visualize_our_taxonomy:
+    input:
+        'data/qiime/us_taxonomy.qza'
+    output:
+        'data/qiime/us_taxonomy.qzv'
+    shell:
+        'qiime metadata tabulate \
+            --m-input-file {input[0]} \
+            --o-visualization {output[0]}'
 
 rule class:
     input:
-        'us_classifier.qza'
-
-
-
+        'data/qiime/us_taxonomy.qzv'
 
 
 # the diet data spans from the -10 to 41 relative to transplant, 
@@ -321,3 +345,52 @@ rule filter_stool_samples_close_to_diet:
         'data/finalized/pe-demux_dada2_filtered_close_to_diet_data.qza'
     shell:
 '''
+
+# Alpha rarefaction plotting
+# need to use the pheno table for the stool samples
+# here use pe-demux_dada2_filtered.qza cuz on the cluster only keeping the features in the insertion tree
+
+rule visualize_alpha_rarefaction:
+    input:
+        cts='data/qiime/pe-demux_dada2_filtered.qza',
+        tree='data/qiime/greengenes_insertion-tree.qza',
+        meta='data/pheno/samples_pheno_67.tsv'
+    output:
+        'data/qiime/us_alpha-rarefaction.qzv'
+    shell:
+        '''
+        qiime diversity alpha-rarefaction \
+            --i-table {input.cts} \
+            --i-phylogeny {input.tree} \
+            --p-max-depth 4000 \
+            --m-metadata-file {input.meta} \
+            --o-visualization {output[0]}
+        '''
+
+ 
+# use the above visualization to decide the sampling depth for normalization in the core metrics step
+# where does the curve start to level out?
+
+rule core_metrics_phylogenetic:
+    input:
+        cts='data/qiime/pe-demux_dada2_filtered.qza',
+        tree='data/qiime/greengenes_insertion-tree.qza',
+        meta='data/pheno/samples_pheno_67.tsv',
+        sampling_depth='1000'
+    output:
+        'data/qiime/core-metrics-results'
+    shell:
+        '''
+        qiime diversity core-metrics-phylogenetic \
+            --i-phylogeny {input.tree} \
+            --i-table {input.cts} \
+            --p-sampling-depth {input.sampling_depth} \
+            --m-metadata-file {input.meta}  \
+            --output-dir {output[0]}
+        '''
+
+
+
+rule rare:
+    input:
+        'data/qiime/core-metrics-results'

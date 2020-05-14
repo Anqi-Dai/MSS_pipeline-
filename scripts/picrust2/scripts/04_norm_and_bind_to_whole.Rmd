@@ -70,3 +70,20 @@ bile_res %>%
   ggsave('../figs/All KOs related to secondary bile acid biosynthesis.jpg', width = 6, height = 4)
 ```
 
+```{r}
+# 2020-5-14
+# get oriana's her interested samples
+samps <- read_csv('~/Downloads/rest_samples_KO.csv')
+
+rest <- res %>% 
+  filter(sampleid %in% samps$sampleid)
+
+rest %>% 
+  count(sampleid)
+
+length(intersect(samps$sampleid, res %>% distinct(sampleid) %>% pull(sampleid)))
+
+rest %>% 
+  write_csv('../data/rest_samples_KO_all.csv')
+```
+

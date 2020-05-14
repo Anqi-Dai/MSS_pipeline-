@@ -45,6 +45,8 @@ samples %>%
 
 samples <- read_csv('../data/pheno/samples_pheno_67.csv')
 
+samples %>% 
+  write_tsv('../data/pheno/samples_pheno_67.tsv')
 ```
 
 
