@@ -115,7 +115,7 @@ impor_feature <- importance(mod_vd2, type=1) %>%
   as.data.frame() %>% 
   rownames_to_column(var = 'genus') %>% 
   arrange(MeanDecreaseAccuracy)
-
+ 
 
 # plot the err rate change
 mod_vd2  %>% 
@@ -333,45 +333,61 @@ castori <- get_table_from_database('samples_castori_ag')
 get_table_from_database_predefined_filter('asv_counts_ag')
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
 ANNOT <- get_table_from_database('asv_annotation_blast_ag')
+
+get_table_from_database("multivariate_clean_frozen_set_ag")
+get_table_from_database("frozen_set_ag")
+```
+
+
+
+
+
+
+# Test: use RF to predict/classify day relative to transplant
+
+```{r}
+frozen_set_ag %>% 
+  count(institution)
+
+frozen_set_ag %>% 
+  filter(institution == 'MSK_allo') %>% 
+  filter(day_relative_to_hct < 100) %>% 
+  gghistogram('day_relative_to_hct', bins = 100)
+
+# [-20,-10] and [15, 25] in msk patients samples 
+set.seed(988)
+N_samp <- 125
+  
+stb_sub <- frozen_set_ag %>% 
+  filter(institution == 'MSK_allo') %>% 
+  filter(day_relative_to_hct %in% -20:-10 | day_relative_to_hct %in% 15:25 ) %>% 
+  mutate(grp = if_else(day_relative_to_hct > 0, 'post', 'pre')) %>% 
+  arrange(patient_id, grp, day_relative_to_hct) %>% 
+  distinct(patient_id, grp, .keep_all = T) %>% 
+  split(.$grp) %>% 
+  map_dfr(~ sample_n(tbl = ., size = N_samp))  %>% 
+  mutate(grp = factor(grp, levels = c('pre','post')))
+
+stb_sub %>% 
+  count(grp)
+
+stb_sub %>% 
+  count(patient_id) %>% 
+  arrange(desc(n)) 
+
+
 ```
 
 ```{r}
-stb <- sub %>% 
-  left_join(allo %>% 
-              mutate(src = if_else(str_detect(source, 'Cord' ), 
-                             'cord',
-                             if_else(str_detect(source, 'SBA|CD34'), 
-                                     'TCD',
-                                     'unmodified'))) %>% 
-              mutate(intensity = if_else(intensity %in% c('Ablative','ABLATIVE'), 'ablative',
-                                         if_else(intensity %in% c('NONABL','Nonablative'), 'nonablative','reduced'))) %>%  
-              mutate(intensity = factor(intensity, levels = c('ablative','reduced','nonablative'))) %>% 
-              filter(str_detect(indication, fixed('initial', ignore_case = T))) %>%  
-              select(mrn, hct, src, intensity), by  = 'mrn') %>% 
-  left_join(castori %>% 
-              filter(sampletype == 'Stool' | sampletype == 'stool') %>% 
-              select(mrn, sampleid, datecollection), by = 'mrn') %>% 
-  mutate(drt = datecollection - hct)  %>% 
-  filter(drt %in% -20:24)   %>% 
-  left_join(asv_alpha_diversity_ag %>% 
-              select(sampleid, simpson_reciprocal, count_total), by = 'sampleid') %>% 
-  filter(!is.na(count_total)) %>% 
-  filter(count_total >= 400)
+# get the relative abundance for the top 50 genera count matrix
 
-stb %>% 
-  count(Enterococcus.30)
-
-stb %>% 
-  distinct(mrn)
-```
-
-```{r}
-# get the count of those samples and then median relab
 cts <- asv_counts_ag %>% 
-  filter(sampleid %in% stb$sampleid) %>% 
+  filter(sampleid %in% stb_sub$sampleid) %>% 
   select(asv_key, sampleid, count) %>% 
   spread(key = 'sampleid', value = 'count', fill = 0) %>% 
   arrange(asv_key)  
+
+ncol(cts) - 1
 
 annot <- ANNOT %>% 
   filter(asv_key %in% cts$asv_key) %>% 
@@ -394,6 +410,8 @@ cts_all <- cts %>%
   mutate(relab = cnt/count_total) %>% 
   select(sampleid, taxa_genus, relab) 
   
+# top 50
+N <- 50
 topN_genus <- cts_all %>% 
   group_by(taxa_genus) %>% 
   summarise(genus_sum = sum(relab)) %>% 
@@ -403,29 +421,66 @@ topN_genus <- cts_all %>%
 
 cts_top <- cts_all %>% 
   filter(taxa_genus %in% topN_genus) %>% 
-  left_join(stb %>% distinct(sampleid,mrn )) %>% 
-  group_by(mrn, taxa_genus) %>% 
-  summarise(med_relab = median(relab)) %>% 
-  spread(key = 'taxa_genus', value = 'med_relab') %>% 
-  arrange(mrn) %>% 
-  column_to_rownames('mrn') %>% 
-  as.matrix()
+  spread(key = 'taxa_genus', value = 'relab') %>% 
+  arrange(sampleid) 
 
-sub_pheno <- stb %>% 
-  distinct(mrn, Enterococcus.30) %>% 
-  arrange(mrn) %>% 
-  mutate(mrn = as.character(mrn)) %>% 
-  mutate(Enterococcus.30 = as.factor(Enterococcus.30))
+dim(cts_top)
+stb_sub %>% 
+  count(grp)
+```
 
-all.equal(rownames(cts_top), sub_pheno$mrn)
+
+```{r}
+# split to training and test set
+# training 70% of each group, test: remaining
+train_num <- stb_sub %>% 
+  count(grp) %>% 
+  distinct(n) %>% 
+  summarise(num = round(n * 0.7)) %>% 
+  pull(num)
+
+set.seed(1001)
+train_samples <- stb_sub %>% 
+  split(.$grp) %>% 
+  map_dfr(~ sample_n(tbl = ., size = train_num)) %>% 
+  pull(sampleid)
+
+test_samples <- setdiff(stb_sub$sampleid, train_samples)
+  
+
+# get the counts and the pheno of the train and test
+train_cts <- cts_top %>% 
+  filter(sampleid %in% train_samples) %>% 
+  arrange(sampleid) %>% 
+  column_to_rownames('sampleid') %>% 
+  as.matrix() 
+  
+train_pheno <- stb_sub %>% 
+  filter(sampleid %in% rownames(train_cts)) %>% 
+  arrange(sampleid) 
+
+test_cts <- cts_top %>% 
+  filter(!sampleid %in% train_samples) %>% 
+  arrange(sampleid) %>% 
+  column_to_rownames('sampleid') %>% 
+  as.matrix() 
+
+test_pheno <- stb_sub %>% 
+  filter(sampleid %in% rownames(test_cts)) %>% 
+  arrange(sampleid) 
+
+
+#
+all.equal(rownames(train_cts), train_pheno$sampleid)
+all.equal(rownames(test_cts), test_pheno$sampleid)
 ```
 
 ```{r}
 set.seed(123)  
-mod_entero <- randomForest(cts_top, sub_pheno$Enterococcus.30, importance = T) 
-mod_entero
+mod <- randomForest(train_cts, train_pheno$grp, importance = T) 
+mod
 
-impor_feature <- importance(mod_entero, type=1) %>% 
+impor_feature <- importance(mod, type=1) %>% 
   as.data.frame() %>% 
   rownames_to_column(var = 'genus') %>% 
   arrange(desc(MeanDecreaseAccuracy))
@@ -433,8 +488,10 @@ impor_feature <- importance(mod_entero, type=1) %>%
 impor_feature %>% 
   head
 
+#varImpPlot(mod) 
+
 # plot the err rate change
-mod_entero  %>% 
+mod  %>% 
   pluck('err.rate') %>% 
   as.data.frame() %>% 
   mutate(ntree = seq(1, nrow(.))) %>% 
@@ -442,8 +499,22 @@ mod_entero  %>%
   ggline(x = 'ntree', y = 'ERR', color = 'type', palette = 'jco') +
   labs(x = 'Number of trees', 
        y = 'Error rate',
-       title = 'Error rate')
+       title = 'Error rate')  +
+  ylim(0, 1)    
 
 ```
+  
+```{r}
+# if use the day relative to transplant which is a continuous variable to do prediction
+set.seed(777)  
+mod_drt <- randomForest(train_cts, train_pheno$day_relative_to_hct, importance = T) 
+mod_drt  
 
+#sqrt(sum((mod_drt$predicted - sub_pheno$day_relative_to_hct)^2) / nrow(sub_pheno))
+# test on the test set
+yhat.bag <- predict(mod_drt, newdata=test_cts)
+plot(yhat.bag, test_pheno$day_relative_to_hct)
+abline(0,1)
+```
+  
   
