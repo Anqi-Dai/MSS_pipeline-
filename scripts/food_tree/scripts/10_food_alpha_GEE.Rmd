@@ -33,14 +33,31 @@ formular_intensity <- formula(faith_pd ~ foodDayRT + foodDayRT^2 + intensity)
 #   ggboxplot(y = 'faith_pd', add = 'jitter')
 ```
 ```{r}
+# all of them , without splitting
+faith %>% 
+  ggscatter('foodDayRT', 'faith_pd', 
+             alpha = 0.8,size = 1,
+            #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
+            ylab = 'alpha diversity (Faith)', xlab = 'Day relative to transplant',
+            title = 'Foods diversity in whole population',  
+            add = "loess", 
+            add.params = list(color = "blue", fill = "black"),
+            conf.int = TRUE)  +
+  ggsave('../figs/alpha_div_all.jpg', width = 5, height = 5)
+```
+
+
+```{r}
 # visualization
 faith %>% 
   ggscatter('foodDayRT', 'faith_pd', 
             color = 'intensity', palette = 'lancet', alpha = 0.8,size = 1,
             #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
             ylab = 'alpha diversity (Faith)', xlab = 'Day relative to transplant',
-            title = 'Food alpha diversity split by intensity',
-            add = "loess", conf.int = TRUE) 
+            title = 'Foods diversity by conditioning intensity',
+            add = "loess", conf.int = TRUE)  +
+  theme(legend.position = 'none') +
+  ggsave('../figs/alpha_div_by_intensity.jpg', width = 5, height = 5)
 
 
 faith %>% 
@@ -48,9 +65,9 @@ faith %>%
             color = 'source', palette = 'nejm', alpha = 0.8, size = 1,
             #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
             ylab = 'alpha diversity (Faith)', xlab = 'Day relative to transplant',
-            title = 'Food alpha diversity split by source',
+            title = 'Food alpha diversity by source',
             add = "loess", conf.int = TRUE)
-
+ 
 ```
 
 
