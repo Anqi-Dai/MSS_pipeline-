@@ -87,8 +87,7 @@ cts_median_top <- cts_median %>%
   spread('genus', 'med_relab') %>% 
   arrange(mrn) %>% 
   full_join(pheno, by = 'mrn') %>% 
-  select(-mrn) %>% 
-  as.matrix()
+  select(-mrn) 
 
 colnames(cts_median_top)
 ```
@@ -100,7 +99,9 @@ colnames(cts_median_top)
 ```{r}
 set.seed(100) # so that if we use the same seed we are gonna get the same "random" result.
 
-mod_recon <- randomForest(MAIT_reconstitution ~ ., data = cts_median_top %>% select(-MAIT_Vd2), importance = T)
+df_recon <- cts_median_top %>% select(-MAIT_Vd2)
+
+mod_recon <- randomForest(MAIT_reconstitution ~ ., data = , importance = T)
 
 mod_recon
 
@@ -155,10 +156,8 @@ knitr::include_graphics('/Volumes/vandenBrinkLab/Angel_Dai/NEJM_tsne.png')
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 
-allo <- get_table_from_database('patient_allo_ag')
-castori <- get_table_from_database('samples_castori_ag')
+
 get_table_from_database_predefined_filter('asv_counts_ag')
-get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
 ANNOT <- get_table_from_database('asv_annotation_blast_ag')
 
 get_table_from_database("multivariate_clean_frozen_set_ag")
@@ -209,14 +208,14 @@ cts <- asv_counts_ag %>%
 # how many samples counts in the db
 ncol(cts) - 1
 
-# to get the full taxa level of genus for us to summarize later
+# to get the taxa level of genus for us to summarize later
 annot <- ANNOT %>% 
   filter(asv_key %in% cts$asv_key) %>% 
   mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
          family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
          genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
          species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
+  mutate(taxa_genus = str_glue('g__{genus}'))
 
 
 # replace the asv_key with the genus taxa level
@@ -250,12 +249,11 @@ cts_top <- cts_all %>%
   arrange(sampleid) 
 
 dim(cts_top)
-
 ```
 
 
 ```{r}
-# split to training and test set
+# split to training and test set 
 # training 70% of each group, test: remaining
 train_num <- stb_sub %>% 
   count(grp) %>% 
@@ -269,50 +267,31 @@ train_samples <- stb_sub %>%
   map_dfr(~ sample_n(tbl = ., size = train_num)) %>% 
   pull(sampleid)
 
-test_samples <- setdiff(stb_sub$sampleid, train_samples)
-  
+# get the counts and the pheno for the train and test set
+cts_pheno <- cts_top %>% 
+  inner_join(stb_sub %>% select(sampleid, day_relative_to_hct, grp), by = 'sampleid')
 
-# get the counts and the pheno of the train and test
-train_cts <- cts_top %>% 
+train_df <- cts_pheno %>% 
   filter(sampleid %in% train_samples) %>% 
-  arrange(sampleid) %>% 
-  column_to_rownames('sampleid') %>% 
-  as.matrix() 
-  
-train_pheno <- stb_sub %>% 
-  filter(sampleid %in% rownames(train_cts)) %>% 
-  arrange(sampleid) 
+  ungroup() %>% 
+  select(-sampleid)
 
-test_cts <- cts_top %>% 
+test_df <- cts_pheno %>% 
   filter(!sampleid %in% train_samples) %>% 
-  arrange(sampleid) %>% 
-  column_to_rownames('sampleid') %>% 
-  as.matrix() 
+  ungroup() %>% 
+  select(-sampleid)
 
-test_pheno <- stb_sub %>% 
-  filter(sampleid %in% rownames(test_cts)) %>% 
-  arrange(sampleid) 
-
-
-#
-all.equal(rownames(train_cts), train_pheno$sampleid)
-all.equal(rownames(test_cts), test_pheno$sampleid)
+colnames(train_df)
 ```
+
+## Classify on pre and post
 
 ```{r}
 set.seed(123)  
-mod <- randomForest(train_cts, train_pheno$grp, importance = T) 
+mod <- randomForest(grp ~ ., data = train_df %>% select(-day_relative_to_hct), importance = T) 
 mod
 
-impor_feature <- importance(mod, type=1) %>% 
-  as.data.frame() %>% 
-  rownames_to_column(var = 'genus') %>% 
-  arrange(desc(MeanDecreaseAccuracy))
-
-impor_feature %>% 
-  head
-
-#varImpPlot(mod) 
+varImpPlot(mod) 
 
 # plot the err rate change
 mod  %>% 
@@ -324,45 +303,65 @@ mod  %>%
   labs(x = 'Number of trees', 
        y = 'Error rate',
        title = 'Error rate')  +
-  ylim(0, 1)    
+  ylim(0, 1) 
 
+
+# predict the grouping label on the test set
+pred <- predict(mod, newdata=test_df %>% select(-day_relative_to_hct, -grp))    
+pre_matrix <- table(test_df$grp, pred)
+pre_matrix
 ```
+  
+## Regression to predict day_relative_to_hct which is a continuous variable
   
 ```{r}
 # if use the day relative to transplant which is a continuous variable to do prediction
-set.seed(777)  
-mod_drt <- randomForest(train_cts, train_pheno$day_relative_to_hct, importance = T) 
+set.seed(777)   
+mod_drt <- randomForest(day_relative_to_hct ~ ., data = train_df %>% select(-grp), importance = T) 
 mod_drt  
 
 #sqrt(sum((mod_drt$predicted - sub_pheno$day_relative_to_hct)^2) / nrow(sub_pheno))
+
 # test on the test set
-yhat.bag <- predict(mod_drt, newdata=test_cts)
-plot(yhat.bag, test_pheno$day_relative_to_hct)
-abline(0,1) 
+drt_predict <- predict(mod_drt, newdata=test_df)
+
+data_frame(RF_predict = drt_predict, 
+           true_value = test_df$day_relative_to_hct) %>% 
+  ggscatter('RF_predict', 'true_value') +
+  geom_abline(intercept = 0, slope = 1, color = 'red')
+
 ```
 
-# the simper method
+The true data is bimodal, not really continuous. So the predicted values have some deviation.
+
+# How do we continue from the mait project
+
+The vegan way: bray-curtis dissimilarity   
+
 
 ```{r}
 set.seed(998)
-library(vegan)
-pmv_mait <- adonis(cts_median_top ~ MAIT_reconstitution, data=pheno, permutations=999, method = 'bray')
+library(vegan) 
+cts_median_top_df <- cts_median_top %>% select(Abiotrophia:Veillonella)
+pmv_mait <- adonis(cts_median_top_df ~ MAIT_reconstitution, data=cts_median_top, permutations=999, method = 'bray')
 pmv_mait
 
-pmv_vd2 <- adonis(cts_median_top ~ MAIT_Vd2, data=pheno, permutations=999, method = 'bray')
+pmv_vd2 <- adonis(cts_median_top_df ~ MAIT_Vd2, data=cts_median_top, permutations=999, method = 'bray')
 pmv_vd2
 
 
 # to see the within group dispersion
-dist_pmv <- vegdist(cts_median_top, method = 'bray')
+dist_pmv <- vegdist(cts_median_top_df, method = 'bray')
 bd <- betadisper(dist_pmv, pheno$MAIT_Vd2)
 boxplot(bd)
-anova(bd)        
+anova(bd) 
+
+colnames(cts_median_top)
 ```
 
 ```{r}
 # use a loop to try all the vd2 combinations
-vd2_4 <- pheno %>% 
+vd2_4 <- cts_median_top %>% 
   mutate(MAIT_Vd2 = as.character(MAIT_Vd2)) %>% 
   distinct(MAIT_Vd2) %>% 
   pull(MAIT_Vd2)
@@ -370,43 +369,38 @@ vd2_4 <- pheno %>%
 combi <- combinations(vd2_4, 2) %>% 
   as.data.frame() 
   
-combi
-
-all_top <- cts_median_top %>% 
-  as.data.frame() %>% 
-  rownames_to_column('mrn') %>% 
-  full_join(pheno, by = 'mrn')
+combi 
 ```
 
 ```{r}
 set.seed(1001)
 pairwise_adonis <- apply(combi, 1, function(Row){
 
-  pheno_sub <- pheno %>% 
-    filter(MAIT_Vd2 %in% c(Row[['V1']],Row[['V2']])) %>% 
+  pheno_sub <- pheno %>%
+    filter(MAIT_Vd2 %in% c(Row[['V1']],Row[['V2']])) %>%
     arrange(mrn)
-  
-  cts_median_top_sub <- cts_median_top %>% 
-    as.data.frame() %>% 
-    rownames_to_column('mrn') %>% 
-    filter(mrn %in% pheno_sub$mrn) %>% 
-    arrange(mrn) %>% 
+
+  cts_median_top_sub <- cts_median_top %>%
+    as.data.frame() %>%
+    rownames_to_column('mrn') %>%
+    filter(mrn %in% pheno_sub$mrn) %>%
+    arrange(mrn) %>%
     column_to_rownames('mrn')
-  
+
   # calculate the within group dispersion anova
   dist_pmv <- vegdist(cts_median_top_sub, method = 'bray')
   bd <- betadisper(dist_pmv, pheno_sub$MAIT_Vd2)
-  anova_res <- anova(bd)  
-  
+  anova_res <- anova(bd)
+
   # get the top N most contributing features
   sim <- simper(cts_median_top_sub , group = pheno_sub$MAIT_Vd2)
 
-  genus_contri <- summary(sim) %>% 
-    pluck(str_glue("{Row[['V1']]}_{Row[['V2']]}")) %>% 
-    rownames_to_column('genus') %>% 
-    arrange(desc(average)) %>% 
+  genus_contri <- summary(sim) %>%
+    pluck(str_glue("{Row[['V1']]}_{Row[['V2']]}")) %>%
+    rownames_to_column('genus') %>%
+    arrange(desc(average)) %>%
     head(n = 20)
-  
+
   if(all.equal(rownames(cts_median_top_sub), pheno_sub$mrn)  == T){
     pmv_pair_vd2 <- adonis(cts_median_top_sub ~ MAIT_Vd2, data=pheno_sub, permutations=999, method = 'bray')
     return(list(pw_adonis_pval = pmv_pair_vd2$aov.tab$`Pr(>F)`[1],
@@ -417,33 +411,33 @@ pairwise_adonis <- apply(combi, 1, function(Row){
     }
 })
 
-pw_adonis_pval_list <- list() 
+pw_adonis_pval_list <- list()
 for(i in 1:nrow(combi)){
   pw_adonis_pval_list[[i]]= pairwise_adonis[[i]]$pw_adonis_pval
 }
 
 
-anova_pval_list <- list() 
+anova_pval_list <- list()
 for(i in 1:nrow(combi)){
   anova_pval_list[[i]]= pairwise_adonis[[i]]$anova_pval
 }
 
 
 pw_adonis_pval_df <- pw_adonis_pval_list %>%
-  as.data.frame() %>% 
-  gather('id', 'adonis_pval') %>% 
+  as.data.frame() %>%
+  gather('id', 'adonis_pval') %>%
   select(-id)
 
 
 anova_pval_df <- anova_pval_list %>%
-  as.data.frame() %>% 
-  gather('id', 'anova_pval') %>% 
-  select(-id) 
+  as.data.frame() %>%
+  gather('id', 'anova_pval') %>%
+  select(-id)
 
-pairwise_adonis_res <- bind_cols(combi, pw_adonis_pval_df, anova_pval_df) %>% 
+pairwise_adonis_res <- bind_cols(combi, pw_adonis_pval_df, anova_pval_df) %>%
   transmute(pair = str_glue('{V1}_{V2}'),
             adonis_pval,
-            anova_pval) %>% 
+            anova_pval) %>%
   mutate(fdr_pw_adonis = p.adjust(adonis_pval, method = 'BH'))
 
 pairwise_adonis_res
@@ -452,54 +446,54 @@ pairwise_adonis_res
 
 ```{r}
 pairwise_adonis[[1]]$topN_feature_df
- 
-pairwise_adonis[[2]]$topN_feature_df 
+
+pairwise_adonis[[2]]$topN_feature_df
 ```
 
 
 # take a look at the pcoa of the two comparisons that are significant above
 
 ```{r}
-# for the none and Vd2	
+# for the none and Vd2
 Row <- list(V1 = 'none', V2 = 'Vd2') # have a relatively bigger sample size
 #Row <- list(V1 = 'none', V2 = 'both')
 #Row <- list(V1 = 'Vd2', V2 = 'MAIT')
-pheno_sub <- pheno %>% 
-  filter(MAIT_Vd2 %in% c(Row[['V1']],Row[['V2']])) %>% 
+pheno_sub <- pheno %>%
+  filter(MAIT_Vd2 %in% c(Row[['V1']],Row[['V2']])) %>%
   arrange(mrn)
 
-cts_median_top_sub <- cts_median_top %>% 
-  as.data.frame() %>% 
-  rownames_to_column('mrn') %>% 
-  filter(mrn %in% pheno_sub$mrn) %>% 
-  arrange(mrn) %>% 
+cts_median_top_sub <- cts_median_top %>%
+  as.data.frame() %>%
+  rownames_to_column('mrn') %>%
+  filter(mrn %in% pheno_sub$mrn) %>%
+  arrange(mrn) %>%
   column_to_rownames('mrn')
 
 # calculate the within group dispersion anova
 dist_pmv <- vegdist(cts_median_top_sub, method = 'bray')
 
-bc <- cmdscale(dist_pmv, k = 2) 
+bc <- cmdscale(dist_pmv, k = 2)
 
-bc %>% 
-    as.data.frame() %>% 
-    rownames_to_column('mrn') %>% 
-    full_join(pheno_sub, by = 'mrn') %>% 
+bc %>%
+    as.data.frame() %>%
+    rownames_to_column('mrn') %>%
+    full_join(pheno_sub, by = 'mrn') %>%
     ggscatter(x = 'V1', y = 'V2', color =  'MAIT_Vd2',  palette = 'jco') +
-    labs(x = 'PCo 1', y = 'PCo 2', title = 'PCoA (BC distance)') 
+    labs(x = 'PCo 1', y = 'PCo 2', title = 'PCoA (BC distance)')
 
 ```
 
 
 ```{r}
 # wanna try to see it in 3D
-# 1. get the distance matrix 
+# 1. get the distance matrix
 distance_matrix <- as.matrix(dist_pmv)
 distance_matrix %>% write.table('../data/none_vd2_BC_matrix.tsv', sep = '\t', row.names = T)
 
 # also write out the pheno_sub to tsv
-pheno_sub %>% 
+pheno_sub %>%
   # cuz they will only accept certain strings to be first column name
-  rename(sampleid = mrn) %>% 
+  rename(sampleid = mrn) %>%
   write_tsv('../data/none_vd2_pheno.tsv')
 ```
 
