@@ -518,4 +518,5 @@ The PCoA suggests there is a trend in separating pairs of subgroups. Collecting 
 The permanova significant results could be driven by the sample size. The more samples you have the smaller the p value tends to be.
 
 
+
   

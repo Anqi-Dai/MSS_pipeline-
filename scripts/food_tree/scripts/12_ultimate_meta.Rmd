@@ -1,5 +1,5 @@
 ---
-title: "Compile the most comprehensive meta pheno table"
+title: "Compile the most comprehensive meta pheno table for diet!!!"
 output: html_document
 --- 
 
@@ -214,6 +214,14 @@ meta <- meta %>%
 
 
 summary(meta$Fibers_total)
+
+meta <- meta %>% 
+  # remove PHI columns
+  select(-indication, -onset) %>% 
+  rename(sampleid = `#SampleID`) 
+  # deidentify the mrn, could use part of the dietID
+  #mutate(mrn = str_extract(sampleid, pattern = '^Pt...'))
+
 ```
 
 ```{r}

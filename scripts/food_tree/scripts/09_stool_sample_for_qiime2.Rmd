@@ -126,24 +126,6 @@ range(samples$drt)
 
 
 
-# upload the tables to database 
-
-```{r}
-bile <- read_csv('../../picrust2/data/normalized_picrust2_pred_metagenome_KO_secondary_bile_counts.csv')
-
-source('/Volumes/vandenBrinkLab/gomesa/2Angel/scripts/create_table_AD.R')
-
-create_table_prepare(bile)
-
-create_table_type(2)
-
-# upload data
-
-source('/Volumes/vandenBrinkLab/gomesa/2Angel/scripts/upload_data_from_query_OTU_AD.R')
-
-upload_data_from_query_OTU(2)
-
-get_table_from_database('bile_picrust_ad')
 ```
 
 
