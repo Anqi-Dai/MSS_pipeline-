@@ -19,8 +19,10 @@ dtb <- read_tsv('../data/finalized/meta_data_67.tsv')
 stb <- read_tsv('../data/pheno/samples_pheno_67.tsv') %>% 
   # remove the duplicates on same day
   arrange(mrn, drt, desc(count_total)) %>% 
-  distinct(mrn, drt, .keep_all = T) %>% 
-  filter(drt %in% -5:46)
+  distinct(mrn, drt, sampleid) %>% 
+  filter(drt %in% -5:46) %>% 
+  distinct(mrn, drt, .keep_all = T)
+
 ```
 
 # Visualize how the diet data and stool data distribute across the patients  
@@ -33,7 +35,6 @@ dtb_ <- dtb %>%
   mutate(mrn_Fdrt = str_glue('{mrn}d{foodDayRT}'))
 
 stb_ <- stb %>% 
-  select(mrn, drt) %>% 
   arrange(drt) %>% 
   mutate(mrn_drt = str_glue('{mrn}d{drt}'))
 
@@ -41,24 +42,65 @@ stb_ <- stb %>%
 dtb_stb_join <- stb_ %>% 
   full_join(dtb_ %>% rename(drt = foodDayRT), by  = c('mrn','drt')) %>% 
   mutate(mrn_drt = str_glue('{mrn}d{drt}')) %>% 
-  mutate(diet_data = if_else(mrn_drt %in% dtb_$mrn_Fdrt, 5, 0),
-         stool_data = if_else(mrn_drt %in% stb_$mrn_drt, 5, 0)) %>% 
-  gather(key = 'type', value = 'collectedYN', diet_data:stool_data)
-```
+  # use fake number 4 to represent there IS a sample on that day
+  mutate(diet_data = if_else(mrn_drt %in% dtb_$mrn_Fdrt, 4, 0),
+         stool_data = if_else(mrn_drt %in% stb_$mrn_drt, 4, 0)) 
+  
 
 
-```{r}
-dtb_stb_join %>% 
+dtb_stb_join %>%  
+  gather(key = 'type', value = 'collectedYN', diet_data:stool_data) %>% 
   # hide the mrn
   mutate(mrn = as.numeric(as.factor(mrn))) %>% 
   mutate(mrn = str_glue("P{str_pad(mrn, 3, 'left', '0')}")) %>% 
   ggbarplot(x = 'drt', y = 'collectedYN', fill = 'type', palette = 'npg', xlab = 'Day relative to transplant',
             ylab = '', title = 'Sample collection for both diet and stool data' ) +
-  facet_grid(mrn~ .) +
+  facet_grid(mrn ~ .) +
   theme_bw() +
   theme(legend.position = 'top',
         axis.text.y = element_blank()) +
   scale_fill_manual(values = c('#469990','#9a6324')) +
   ggsave('../figs/stool_diet_pair_dist.pdf', width = 12, height = 40)
+```
+
+# Get the pair of one stool sample with the previous 1,2,3,4,5 days diet's sum
+
+```{r}
+
+```
+
+# Another pair: for every patient, the mean of micriobiome and the mean of diet
+
+I currently included all the stool samples from -5 to 46. some patients don't have diet near that one stool sample that is pretty far from the major sample collection period. Need to get rid of those
+ 
+```{r}
+# remove all the stool samples collected >= 2 days after the latest diet sample for every patient
+# get the latest diet sample for every patient
+dtb_latest_dsample <- dtb %>% 
+  arrange(mrn, desc(foodDayRT)) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  select(mrn, foodDayRT)  
+
+# join the lastest dsample day to the stb 
+stb_dsample_diff_tobe_removed <- stb %>% 
+  filter(drt > 0) %>% 
+  left_join(dtb_latest_dsample, by = 'mrn')  %>% 
+  mutate(diff = drt - foodDayRT) %>% 
+  filter(diff >= 2) %>% 
+  pull(sampleid)
+
+# the final stb to be kept for this analysis: calculating mean of diet and mean of micriobiome
+stb_final_mean <- stb %>% 
+  filter(!sampleid %in% stb_dsample_diff_tobe_removed)
+
+
+#  and to filter in qiime2 you can use a meta table and create a column to mark which samples to keep and which to remove
+filter_meta <- read_tsv('../data/pheno/samples_pheno_67.tsv') %>% 
+  mutate(keep = if_else(sampleid %in% stb_final_mean$sampleid, 'keep', 'no')) %>% 
+  select(mrn, sampleid, keep, count_total)
+
+filter_meta %>% 
+  select(-mrn) %>% 
+  write_tsv('../data/finalized/stool/filter_stool_close_to_diet_meta.tsv')
 ```
 

@@ -334,18 +334,6 @@ rule class:
     input:
         'data/qiime/us_taxonomy.qzv'
 
-
-# the diet data spans from the -10 to 41 relative to transplant, 
-# so need to filter on the stool samples to include near to that period
-'''
-rule filter_stool_samples_close_to_diet:
-    input:
-        'data/finalized/pe-demux_dada2.qza'
-    output:
-        'data/finalized/pe-demux_dada2_filtered_close_to_diet_data.qza'
-    shell:
-'''
-
 # Alpha rarefaction plotting
 # need to use the pheno table for the stool samples
 # here use pe-demux_dada2_filtered.qza cuz on the cluster only keeping the features in the insertion tree
@@ -394,3 +382,35 @@ rule core_metrics_phylogenetic:
 rule rare:
     input:
         'data/qiime/core-metrics-results'
+
+
+
+#########################################################################
+# This section is for calculating beta diversity for our stool samples
+# however you lump the stool samples together
+########################################################################
+
+# the diet data spans from the -10 to 41 relative to transplant, 
+# so need to filter on the stool samples to include near to that period
+
+# here I'm gonna use the samples I organized from the R script 13: stb_final_mean
+# and to filter you can use a meta table and create a column to mark which samples to keep and which to remove
+
+rule filter_stool_samples_close_to_diet:
+    input:
+        ALL_in_tree='data/finalized/pe-demux_dada2_filtered.qza',
+        meta='data/finalized/stool/filter_stool_close_to_diet_meta.tsv'
+    output:
+        'data/finalized/stool/pe-demux_dada2_filtered_close_to_diet_data.qza'
+    shell:
+        '''
+        qiime feature-table filter-samples \
+            --i-table {input.ALL_in_tree} \
+            --m-metadata-file {input.meta} \
+            --p-where "[keep]='keep'" \
+            --o-filtered-table {output[0]}
+        '''
+
+rule stool:
+    input:
+        'data/finalized/stool/pe-demux_dada2_filtered_close_to_diet_data.qza'
