@@ -102,5 +102,8 @@ filter_meta <- read_tsv('../data/pheno/samples_pheno_67.tsv') %>%
 filter_meta %>% 
   select(-mrn) %>% 
   write_tsv('../data/finalized/stool/filter_stool_close_to_diet_meta.tsv')
+
+filter_meta %>% 
+  write_csv('../data/finalized/stool/filter_stool_close_to_diet_meta.csv')
 ```
 

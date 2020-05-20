@@ -395,7 +395,7 @@ rule rare:
 
 # here I'm gonna use the samples I organized from the R script 13: stb_final_mean
 # and to filter you can use a meta table and create a column to mark which samples to keep and which to remove
-
+'''
 rule filter_stool_samples_close_to_diet:
     input:
         ALL_in_tree='data/finalized/pe-demux_dada2_filtered.qza',
@@ -403,14 +403,138 @@ rule filter_stool_samples_close_to_diet:
     output:
         'data/finalized/stool/pe-demux_dada2_filtered_close_to_diet_data.qza'
     shell:
-        '''
+        '
         qiime feature-table filter-samples \
             --i-table {input.ALL_in_tree} \
             --m-metadata-file {input.meta} \
             --p-where "[keep]='keep'" \
             --o-filtered-table {output[0]}
+        '
+'''
+
+
+##########################
+# For procrustes between mean microbiome and mean diet
+#########################
+
+###########
+# microbe data
+##########
+
+rule convert_mean_microbe_relab_table_to_biom:
+    input:
+        'data/finalized/stool/mean_microbe_relab_per_pt.tsv'
+    output:
+        'data/finalized/stool/mean_microbe_relab_per_pt.biom'
+    shell:
+        'biom convert -i  {input[0]} -o {output[0]} --to-hdf5 --table-type="Table"'
+
+rule convert_above_table_to_qza:
+    input:
+        'data/finalized/stool/mean_microbe_relab_per_pt.biom'
+    output:
+        'data/finalized/stool/mean_microbe_relab_per_pt.qza'
+    shell:
+        'qiime tools import --input-path {input[0]} --output-path  {output[0]} --type "FeatureTable[Frequency]"' 
+
+# for species relab data calculate the braycurtis distance! lalala
+
+rule calculate_mean_microbe_braycurtis_distance:
+    input:
+        'data/finalized/stool/mean_microbe_relab_per_pt.qza'
+    output:
+        'data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_distance_matrix.qza'
+    shell:
         '''
+        qiime diversity beta \
+            --i-table {input[0]} \
+            --p-metric  braycurtis \
+            --o-distance-matrix {output[0]}
+        '''
+
+# do the PCoA
+
+rule mean_microbe_braycurtis_PCoA:
+    input:
+        'data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_distance_matrix.qza'
+    output:
+        'data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_pcoa.qza'
+    shell:
+        'qiime diversity pcoa \
+            --i-distance-matrix {input[0]} \
+            --o-pcoa {output[0]}'
+
+
+###########
+# diet data
+##########
+
+rule convert_mean_food_to_biom:
+    input:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt.tsv'
+    output:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt.biom'
+    shell:
+        'biom convert -i  {input[0]} -o {output[0]} --to-hdf5 --table-type="Table"'
+
+rule convert_mean_food_to_qza:
+    input:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt.biom'
+    output:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt.qza'
+    shell:
+        'qiime tools import --input-path {input[0]} --output-path  {output[0]} --type "FeatureTable[Frequency]"'
+
+
+rule cal_unweighted_unifrac_for_mean_food:
+    input:
+        cts='data/finalized/mean_foodID_dehydrated_weight_per_pt.qza',
+        tree='data/finalized/output_food_tree_datatree.qza'
+    output:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
+    shell:
+        '''
+        qiime diversity beta-phylogenetic \
+            --i-table {input.cts} \
+            --i-phylogeny {input.tree} \
+            --p-metric unweighted_unifrac \
+            --o-distance-matrix {output[0]}
+        '''
+
+rule pcoa_unweighted_unifrac_mean_food:
+    input:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
+    output:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
+    shell:
+        'qiime diversity pcoa \
+            --i-distance-matrix {input[0]} \
+            --o-pcoa {output[0]}'
+
+
+#############
+# the procrustes
+#############
+
+
+rule mean_microbe_food_procrustes:
+    input:
+        food_pcoa='data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza',
+        microbe_pcoa='data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_pcoa.qza'
+    output:
+        'data/finalized/mean_procrustes'
+    shell:
+        '''
+        qiime diversity procrustes-analysis \
+            --i-reference {input.food_pcoa} \
+            --i-other {input.microbe_pcoa} \
+            --output-dir {output[0]} 
+        '''
+
+# can be visualized in emperor
+
+
 
 rule stool:
     input:
-        'data/finalized/stool/pe-demux_dada2_filtered_close_to_diet_data.qza'
+        'data/finalized/mean_procrustes'
