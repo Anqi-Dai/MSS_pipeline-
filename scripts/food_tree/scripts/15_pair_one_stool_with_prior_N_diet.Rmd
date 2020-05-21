@@ -39,27 +39,29 @@ s1 <- stb %>%
 ```
 
 # Pair the stool with previous 2 day of diet and count how many pairs for each patient
-
+ 
 ```{r}
 pts <- stb %>% 
   distinct(mrn) %>% 
   pull(mrn)
-
-p2_res <- list()
-
+ 
 for (pt in pts){
-  #pt = 23575
   
-  stool_samp_for_pt_df =  stb %>% filter(mrn == pt) 
+  stool_samp_for_pt_df =  stb %>% filter(mrn == pt) %>% 
+    mutate(p1dF = drt - 1,
+           p2dF = drt - 2)
   diet_sapmle_for_pt_df = dtb %>% filter(mrn == pt)
   
   apply(stool_samp_for_pt_df, 1, function(Row){
-    if(Row[['drt']] %in% diet_sapmle_for_pt_df$foodDayRT){
-      print(Row[['sampleid']] )
-    }else{
-      print('not qualified') 
+    if(Row[['p1dF']] %in% diet_sapmle_for_pt_df$foodDayRT & Row[['p2dF']] %in% diet_sapmle_for_pt_df$foodDayRT){
+
+      ret = data_frame(
+        p1dF = Row[['p1dF']],
+        p2dF = Row[['p2dF']],
+        sampleid = Row[['sampleid']]
+      )
+      write_csv(ret, str_glue('../data/finalized/paired/p2day/{pt}_{Row[["sampleid"]]}.csv'))
     }
   })
 }
 ```
-
