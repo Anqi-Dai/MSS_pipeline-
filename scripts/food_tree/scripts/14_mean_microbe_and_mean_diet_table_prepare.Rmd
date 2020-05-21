@@ -90,4 +90,27 @@ food_mean %>%
 # and then go to qiime and do something simimlar to the microbe
 ```
 
+# doing procrustes myself using vegan package
+
+```{r}
+library(vegan)
+scts <- cts_all %>% 
+  gather('mrn', 'mean_relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  spread('taxa_species','mean_relab') %>% 
+  column_to_rownames('mrn')
+
+scts.bray <- vegdist(scts, method = "bray")
+add <-  !(is.euclid(scts.bray))
+pcoa.scts <- cmdscale(scts.bray, k = nrow(scts)-1, eig = TRUE, add = add)
+ordiplot(pcoa.scts, type = "text", main = "PCoA for Species Data, Bray Distances")
+```
+
+```{r}
+fcts <- food_mean %>% 
+  gather('mrn','mean_dewt', names(.)[2]:names(.)[ncol(.)]) %>% 
+  spread('Food_code','mean_dewt') %>% 
+  column_to_rownames('mrn')
+
+
+```
 
