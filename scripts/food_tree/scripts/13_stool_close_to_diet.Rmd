@@ -63,11 +63,7 @@ dtb_stb_join %>%
   ggsave('../figs/stool_diet_pair_dist.pdf', width = 12, height = 40)
 ```
 
-# Get the pair of one stool sample with the previous 1,2,3,4,5 days diet's sum
 
-```{r}
-
-```
 
 # Another pair: for every patient, the mean of micriobiome and the mean of diet
 

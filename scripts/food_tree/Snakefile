@@ -574,8 +574,22 @@ rule mean_microbe_food_procrustes:
 
 # can be visualized in emperor
 
-
+rule visualize_mean_procrustes_with_emperor:
+    input:
+        food_pcoa='data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza',
+        microbe_pcoa='data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_pcoa.qza',
+        meta='data/finalized/pheno/meta_food_deID_67.tsv'
+    output:
+        'data/finalized/mean_procrustes_emperor_vis.qzv'
+    shell:
+        '''
+        qiime emperor procrustes-plot \
+            --i-reference-pcoa {input.food_pcoa} \
+            --i-other-pcoa {input.microbe_pcoa} \
+            --m-metadata-file {input.meta} \
+            --o-visualization {output[0]}
+        '''
 
 rule stool:
     input:
-        'data/finalized/mean_food_microbe_mantel_test.qzv'
+        'data/finalized/mean_procrustes_emperor_vis.qzv'

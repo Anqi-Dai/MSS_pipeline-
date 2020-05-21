@@ -1,0 +1,65 @@
+---
+title: "Pair the stool with previous N day of diet for every patient"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# load the tables
+
+```{r}
+# load the current dtable(diet) and stb(stool)
+dtb <- read_tsv('../data/finalized/meta_data_67.tsv')
+
+# for stool samples, now only looking at samples marked with "keep"
+stb <- read_csv('../data/finalized/stool/filter_stool_close_to_diet_meta.csv') %>% 
+  filter(keep == 'keep') %>% 
+  select(sampleid, mrn, drt)
+```
+
+# Pair the stool with previous 1 day of diet and count how many pairs for each patient
+
+```{r}
+# looking at 23575
+d1 <- dtb %>% 
+  filter(mrn == 23575) %>% 
+  select(mrn, foodDayRT)
+
+s1 <- stb %>% 
+  filter(mrn == 23575) %>% 
+  select(mrn, drt) %>% 
+  mutate(desired_Fdrt = drt - 1) %>% 
+  filter(desired_Fdrt %in% d1$foodDayRT)
+```
+
+# Pair the stool with previous 2 day of diet and count how many pairs for each patient
+
+```{r}
+pts <- stb %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+p2_res <- list()
+
+for (pt in pts){
+  #pt = 23575
+  
+  stool_samp_for_pt_df =  stb %>% filter(mrn == pt) 
+  diet_sapmle_for_pt_df = dtb %>% filter(mrn == pt)
+  
+  apply(stool_samp_for_pt_df, 1, function(Row){
+    if(Row[['drt']] %in% diet_sapmle_for_pt_df$foodDayRT){
+      print(Row[['sampleid']] )
+    }else{
+      print('not qualified') 
+    }
+  })
+}
+```
+

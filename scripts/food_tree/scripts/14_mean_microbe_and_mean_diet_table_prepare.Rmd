@@ -63,6 +63,10 @@ cts_all <- cts %>%
   # get the mean relab for the species for every pt
   group_by(mrn, taxa_species) %>% 
   summarise(mean_relab = mean(relab)) %>% 
+  ungroup() %>% 
+  # deidentify here
+  mutate(mrn = as.numeric(as.factor(mrn))) %>% 
+  mutate(mrn = str_glue("P{str_pad(mrn, 3, 'left', '0')}")) %>% 
   spread(key = 'mrn', value = 'mean_relab', fill = 0)
 
 
@@ -81,6 +85,10 @@ food_mean <- final %>%
   select(mrn, Food_code, dehydrated_weight) %>% 
   group_by(mrn, Food_code) %>% 
   summarise(mean_dewt = mean(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  # deidentify here
+  mutate(mrn = as.numeric(as.factor(mrn))) %>% 
+  mutate(mrn = str_glue("P{str_pad(mrn, 3, 'left', '0')}")) %>% 
   spread(key = 'mrn', value = 'mean_dewt', fill = 0)
 
 food_mean %>% 
@@ -88,6 +96,22 @@ food_mean %>%
 
 # and then go to qiime and do something simimlar to the microbe
 ```
+
+# the meta to go with the emperor vis, need to deidentify
+
+```{r}
+# i don't need any specific grouping gonna just put the fake mrn there
+meta <- read_tsv('../data/finalized/meta_data_67.tsv') %>% 
+  mutate(mrn = as.numeric(as.factor(mrn))) %>% 
+  mutate(mrn = str_glue("P{str_pad(mrn, 3, 'left', '0')}")) %>% 
+  distinct(mrn) %>% 
+  arrange(mrn) %>% 
+  rename(sampleid = mrn) 
+
+meta %>% 
+  write_tsv('../data/finalized/pheno/meta_food_deID_67.tsv')
+```
+
 
 # doing procrustes myself using vegan package
 
@@ -107,13 +131,21 @@ microbe_pcoa <- read_tsv('../data/finalized/stool/mean_microbe_relab_per_pt_bray
   as.matrix()
 
 # the procrustes
-pro.mean <- procrustes(food_pcoa,microbe_pcoa,  symmetric = TRUE)
+pro.mean <- procrustes(food_pcoa, microbe_pcoa)
 pro.mean
    
-plot(pro.mean, kind = 1)
+plot(pro.mean, kind = 1) 
 plot(pro.mean, kind = 2)
 
 protest_mean <- protest(X = food_pcoa, Y = microbe_pcoa,  permutations = 999)
-protest_mean
+protest_mean 
+
+
+```
+
+# recreat the stretching plot in ggplot
+
+```{r}
+
 ```
 
