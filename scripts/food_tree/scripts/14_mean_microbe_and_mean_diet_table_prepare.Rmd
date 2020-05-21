@@ -22,6 +22,7 @@ nrow(stb)
 # the mean microbe composition table 
 
 ```{r}
+set.seed(1)  
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database_predefined_filter('asv_counts_ag')
@@ -69,8 +70,6 @@ cts_all %>%
   write_tsv('../data/finalized/stool/mean_microbe_relab_per_pt.tsv')
 
 # and then following will be going to snakefile to do the qiime way. 
-
-
 ```
 
 # the mean food counts table 
@@ -94,23 +93,27 @@ food_mean %>%
 
 ```{r}
 library(vegan)
-scts <- cts_all %>% 
-  gather('mrn', 'mean_relab', names(.)[2]:names(.)[ncol(.)]) %>% 
-  spread('taxa_species','mean_relab') %>% 
-  column_to_rownames('mrn')
 
-scts.bray <- vegdist(scts, method = "bray")
-add <-  !(is.euclid(scts.bray))
-pcoa.scts <- cmdscale(scts.bray, k = nrow(scts)-1, eig = TRUE, add = add)
-ordiplot(pcoa.scts, type = "text", main = "PCoA for Species Data, Bray Distances")
-```
+# I should be able to use the pcoa produced by qiime right .
+# the ordination.txt contains a list of values and I need to extract the "sites"
+food_pcoa <- read_tsv('../data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa/ordination.txt', skip = 9, col_names = F)  %>% 
+  filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+  column_to_rownames('X1') %>% 
+  as.matrix()
 
-```{r}
-fcts <- food_mean %>% 
-  gather('mrn','mean_dewt', names(.)[2]:names(.)[ncol(.)]) %>% 
-  spread('Food_code','mean_dewt') %>% 
-  column_to_rownames('mrn')
+microbe_pcoa <- read_tsv('../data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_pcoa/ordination.txt', skip = 9, col_names = F)  %>% 
+  filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+  column_to_rownames('X1') %>% 
+  as.matrix()
 
+# the procrustes
+pro.mean <- procrustes(food_pcoa,microbe_pcoa,  symmetric = TRUE)
+pro.mean
+   
+plot(pro.mean, kind = 1)
+plot(pro.mean, kind = 2)
 
+protest_mean <- protest(X = food_pcoa, Y = microbe_pcoa,  permutations = 999)
+protest_mean
 ```
 

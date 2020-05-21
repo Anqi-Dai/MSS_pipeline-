@@ -512,6 +512,47 @@ rule pcoa_unweighted_unifrac_mean_food:
             --o-pcoa {output[0]}'
 
 
+###############
+# output the pcoa
+# and do it in R with vegan
+##############
+
+rule export_mean_food_pcoa:
+    input:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
+    output:
+        'data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa'
+    shell:
+        'qiime tools export --input-path {input[0]} --output-path {output[0]}'
+
+
+rule export_mean_microbe_pcoa:
+    input:
+        'data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_pcoa.qza'
+    output:
+        'data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_pcoa'
+    shell:
+        'qiime tools export --input-path {input[0]} --output-path {output[0]}'
+
+# Apply a two-sided Mantel test to identify correlation between two distance matrices
+
+rule mean_both_mantel_test:
+    input:
+        food_distance='data/finalized/mean_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza',
+        microbe_distance='data/finalized/stool/mean_microbe_relab_per_pt_braycurtis_distance_matrix.qza'
+    output:
+        'data/finalized/mean_food_microbe_mantel_test.qzv'
+    shell:
+        '''
+        qiime diversity mantel \
+            --i-dm1 {input.food_distance} \
+            --i-dm2 {input.microbe_distance} \
+            --p-method 'spearman' \
+            --p-permutations 999 \
+            --o-visualization {output[0]}
+        '''
+
+
 #############
 # the procrustes
 #############
@@ -537,4 +578,4 @@ rule mean_microbe_food_procrustes:
 
 rule stool:
     input:
-        'data/finalized/mean_procrustes'
+        'data/finalized/mean_food_microbe_mantel_test.qzv'
