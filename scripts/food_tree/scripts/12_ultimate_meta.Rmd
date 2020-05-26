@@ -227,7 +227,7 @@ meta <- meta %>%
 ```{r}
 # write out deid version
 meta  %>% 
-  mutate(mrn = as.numeric(as.factor(mrn))) %>% 
-  mutate(mrn = str_glue("P{str_pad(mrn, 3, 'left', '0')}")) %>% 
+  mutate(PID = as.numeric(as.factor(mrn))) %>% 
+  mutate(PID = str_glue("P{str_pad(PID, 3, 'left', '0')}")) %>% 
   write_tsv('../data/finalized/meta_data_67.tsv')
 ```

@@ -9,15 +9,154 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
 ```
 
 # get the abx data censoring information from Corrado
 
 ```{r}
+abx <- read_csv('../data/finalized/abx/abx_all_samples_with_censoring_info.csv') %>% 
+  select(mrn, sampleid, censoring_event)
+
+keep_samples <- read_csv('../data/finalized/stool/filter_stool_close_to_diet_meta.csv') %>% 
+  filter(keep == 'keep') 
+
+# our current samples cohort
+sdtb <- read_csv('../data/finalized/stool_diet_pair_dist.csv') %>% 
+  filter(sampleid %in% keep_samples$sampleid) %>% 
+  left_join(abx, by = c("sampleid", "mrn"))
+
+nrow(sdtb)
+
+
+length(intersect(abx$sampleid, sdtb$sampleid))
+
+# T means should be censored F means should not
+```
+
+```{r}
+# visualize the censoring for each stool sample for each patient
+sdtb %>% 
+  select(sampleid, mrn, drt, censoring_event) %>% 
+  mutate(height = 4) %>% 
+  ggbarplot(x = 'drt', y = 'height', fill = 'censoring_event', palette = 'jco', xlab = 'Day relative to transplant',
+            ylab = '', title = '' ) +
+  facet_grid(mrn ~ .) +
+  theme_bw() +
+  theme(legend.position = 'top',
+        axis.text.y = element_blank()) +
+  ggsave('../figs/stool_sample_abx_censoring.pdf', width = 12, height = 40)
+
+sdtb_plot <- sdtb %>% 
+  mutate(stool_low = 0, stool_high = 3) %>% 
+  mutate(diet_low = 3, diet_high = if_else(diet_data == 0, 3, 6))
+
+sdtb_plot %>% 
+  gather(key = 'type', value = 'value', stool_low:diet_high)
+```
+
+# select the patients that have at least one uncensored and censored sample each and do a mean procrustes
+
+```{r}
+# the sub cohorts that I'm gonna do this procrustes
+abx_stb <- sdtb %>% 
+  group_by(mrn, censoring_event) %>% 
+  summarise(cnt = n()) %>% 
+  spread('censoring_event', 'cnt', fill = 0) %>% 
+  filter(`FALSE` >= 1 & `TRUE` >= 1)
+
+abx_stb_pts <- abx_stb %>% 
+  pull(mrn)
+```
+  
+# split the stool samples to be the uncensored and censored ones (mean of each)
+
+ 
+```{r}
+# get the split date point, the latest day of the F samples 
+split_day <- sdtb %>%  
+  filter(mrn %in% abx_stb_pts) %>% 
+  filter(censoring_event == FALSE) %>% 
+  mutate(stool_drt = str_extract(mrn_drt, 'd.+$')) %>% 
+  mutate(stool_drt = str_replace(stool_drt, 'd','')) %>% 
+  mutate(stool_drt = as.numeric(stool_drt)) %>% 
+  arrange(mrn, desc(stool_drt)) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  select(mrn, split_day = stool_drt)
+
 
 ```
 
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_counts_ag')
+ANNOT <- get_table_from_database('asv_annotation_blast_ag')
 
 
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% sdtb$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
 
+annot <- ANNOT %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa_species = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the species
+cts_abx <- cts %>% 
+  full_join(annot %>%  select(asv_key, taxa_species), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa_species) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) %>% 
+  select(sampleid, taxa_species, relab) %>% 
+  left_join(sdtb %>% select(mrn, sampleid, drt), by = 'sampleid') %>% 
+  inner_join(split_day, by  = 'mrn')
+```
+
+
+```{r}
+# split by the day previously defined
+abx_split_list <- cts_abx %>% 
+  split(.$mrn) %>% 
+  map(~ split(x = ., f = .$drt <= .$split_day))
+
+# F means post abx 
+# T means pre   
+
+names(abx_split_list)
+
+post_df <- abx_split_list %>% 
+  map_dfr(~ pluck(.x = ., 'FALSE')) 
+ 
+pre_df <- abx_split_list %>% 
+  map_dfr(~ pluck(.x = ., 'TRUE')) 
+      
+# get the mean species relab for each patient in each group
+pre_mean <- pre_df %>% 
+  # get the mean relab for the species for every pt
+  group_by(mrn, taxa_species) %>% 
+  summarise(mean_relab = mean(relab)) %>% 
+  ungroup() %>% 
+  spread(key = 'mrn', value = 'mean_relab', fill = 0)
+
+post_mean <- post_df %>% 
+  # get the mean relab for the species for every pt
+  group_by(mrn, taxa_species) %>% 
+  summarise(mean_relab = mean(relab)) %>% 
+  ungroup() %>% 
+  spread(key = 'mrn', value = 'mean_relab', fill = 0)
+     
+```
 

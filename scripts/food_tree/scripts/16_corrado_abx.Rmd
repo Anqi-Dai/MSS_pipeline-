@@ -34,7 +34,7 @@ conf_population <- "all"
 # between day -10 and day 30). Use "NULL" to keep all samples
 # relative to transplant date. this period we have the most samples
 conf_day_min <- -20
-conf_day_max <- 30
+conf_day_max <- 41 #!!!!!! changed this to suit the diet project sample collection range
 
 # Do you want to censor samples collected during/after antibiotic treatment? (TRUE/FALSE)
 
