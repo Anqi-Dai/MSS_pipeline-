@@ -1,0 +1,23 @@
+---
+title: "Pre and post abx procrustes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# get the abx data censoring information from Corrado
+
+```{r}
+
+```
+
+
+
+
+

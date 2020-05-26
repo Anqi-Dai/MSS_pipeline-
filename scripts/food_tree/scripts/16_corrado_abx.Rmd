@@ -1,0 +1,156 @@
+---
+title: "Corrado abx censoring information"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library (readxl)
+library(tidyverse)
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+
+source ("misc_atb_plot_functions.R")
+
+
+# Request the tables I need from Postgres DB
+patients <- get_table_from_database("patient_allo_ag")[,-1]
+samples <- get_table_from_database(table_name = "samples_castori_ag")[,c(2,3,5:7)]
+get_table_from_database_predefined_filter(table = "asv_alpha_diversity_ag")
+alphadiv <- asv_alpha_diversity_ag
+antibiotics <- get_table_from_database ("antibiotics_antibacterial_multicenter_ag")
+```
+
+```{r config}
+# Choose which population to study (either "all" or "nutrition")
+
+conf_population <- "all"
+
+
+# Specify days interval (relative to HCT date) for samples to be analyzed (e.g. you can decide to only keep samples collected
+# between day -10 and day 30). Use "NULL" to keep all samples
+# relative to transplant date. this period we have the most samples
+conf_day_min <- -20
+conf_day_max <- 30
+
+# Do you want to censor samples collected during/after antibiotic treatment? (TRUE/FALSE)
+
+conf_censor_by_atb <- TRUE
+
+
+# Select which antibiotics you want to censor for (can choose among "vancomycin_oral", "vancomycin_iv", "ciprofloxacin", "other_atb")
+# At the moment, the script groups together any other antibiotic that is not Vanco or Cipro. To change this you need to work on
+# the function "add_atb_info_and_cleanup" in "misc_atb_plot_functions.R"
+# this list contains the most frequently used abx
+
+conf_atbs_to_censor <- c("vancomycin_oral",
+                         "vancomycin_iv",
+                         "azithromycin",
+                         "cefepime",
+                         "ciprofloxacin",
+                         "imipenem_cilastatin",
+                         "ertapenem",
+                         "levofloxacin",
+                         "linezolid",
+                         "meropenem",
+                         "metronidazole",
+                         "piperacillin_tazobactam",
+                         "sulfamethoxazole_trimethoprim",
+                         "atb_other")    # all possible choices
+
+conf_plot_description <- "All patients, censoring for all antibiotics"
+
+
+# Antibiotics will continue to censor samples for conf_atb_days_from_stop after being discontinued
+########################################
+# the abx period: start and stop of a abx
+# the microbiome period: -20 to 0 day of stool sample collection
+# any overlap between the two we will consider the abx has effect on the microbiome and would wanna censor that.
+########################################
+conf_atb_days_from_stop <- 20
+
+
+# Specify day intervals to separate samples into bins (t1, t2)
+# You can change the labels for the groups, but then you will have to also change the script below anywhere "t1" and "t2" appear
+# So far I have only worked with two groups. It should not be too difficult to increase the number of groups, but it will
+# require some tweaking / debugging
+
+conf_groups <- list ("t1" = -20:-6,
+                     "t2" = -5:0)
+
+
+# Specify the best (preferred, aim) day for each group defined above. These days will be used by "group_samples" function if it will be
+# called with arguments "paired" == TRUE OR "only_one_per_pt_per_group" == TRUE, to keep only the one sample closest to these days
+# see the funtcion the function "group_samples" in "sample_grouping_and_antibiotic_censoring.R" for more details
+
+conf_best_days <- c(-10, -2)
+
+
+# I only use this second grouping to color all three areas of plot in fig. 1A, but could be used in future for further analysis..
+
+conf_groups_2 <- conf_groups
+conf_groups_2[["t3"]] <- 1:30
+conf_best_days_2 <- append (conf_best_days, 10)
+
+
+# Include healthy volunteers in the analysis by groups?
+
+conf_include_healthy <- TRUE
+
+
+# Specify the palette for the plots (one ot "brewer")
+
+conf_palette <- "Dark2"
+
+
+# Specify vertical limits for plots
+# since different populations have different values, this allows to adjust limits separately for the two populations
+
+if (conf_population == "all") {
+  
+  conf_y_min <- -5
+  conf_y_max <- 65
+  conf_y_text <- 60
+
+} else if (conf_population == "nutrition") {
+  
+  conf_y_min <- -5
+  conf_y_max <- 60
+  conf_y_text <- 55
+  
+}
+
+
+# Specify horizontal limits for plots
+
+conf_x_min <- conf_day_min
+conf_x_max <- conf_day_max
+
+
+# Set format of p-value in plots
+
+conf_p_format <- "p.signif"
+
+
+# Location to the excel table with NRI scores for nutrition patients (it's in the VdB lab shared drive)
+
+#conf_NRI_table_path <- "Y:/Nutrition and microbiota/NRI_dietpatients_updated_3.10.2020.xlsx"
+
+
+# Prefix for plot file names
+
+conf_plot_prefix <- "alpha"
+
+```
+
+
+```{r}
+abx_all <- add_atb_info_and_cleanup(samples, patients, antibiotics)
+
+abx_all %>% 
+  write_csv('../data/finalized/abx/abx_all_samples_with_censoring_info.csv')
+```
+
