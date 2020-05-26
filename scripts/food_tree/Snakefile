@@ -109,6 +109,9 @@ rule viz:
         'data/finalized/unweighted_unifrac_distance_emperor_faith_pd.qzv',
         'data/finalized/unweighted_unifrac_distance_emperor_foodDayRT.qzv'
 
+rule emperor:
+    input:
+        'data/finalized/unweighted_unifrac_distance_emperor.qzv', 'data/finalized/unweighted_unifrac_distance_emperor_faith_pd.qzv'
 
 # so that I can do a ggplot
 rule export_pcoa_matrix:

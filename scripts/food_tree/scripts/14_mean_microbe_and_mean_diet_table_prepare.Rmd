@@ -133,7 +133,10 @@ microbe_pcoa <- read_tsv('../data/finalized/stool/mean_microbe_relab_per_pt_bray
 # the procrustes
 pro.mean <- procrustes(food_pcoa, microbe_pcoa)
 pro.mean
-   
+```
+
+
+```{r}
 plot(pro.mean, kind = 1) 
 plot(pro.mean, kind = 2)
 
