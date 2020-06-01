@@ -70,7 +70,6 @@ abx_stb_pts <- abx_stb %>%
 ```
   
 # split the stool samples to be the uncensored and censored ones (mean of each)
-
  
 ```{r}
 # get the split date point, the latest day of the F samples 
@@ -82,18 +81,82 @@ split_day <- sdtb %>%
   mutate(stool_drt = as.numeric(stool_drt)) %>% 
   arrange(mrn, desc(stool_drt)) %>% 
   distinct(mrn, .keep_all = T) %>% 
-  select(mrn, split_day = stool_drt)
+  select(mrn, split_day = stool_drt) %>% 
+  mutate(d_split_day = split_day - 2 )
 
 
 ```
+
+# split the diet data in a similar way, according to one day (-2 day relative to the microbiome split day) and then take the mean in each
+
+Some patients do not have diet samples in the pre time, so need to remove these patients from the stool samples cohort
+
+```{r}
+dcts <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
+  select(mrn, Food_code, dehydrated_weight,DayRT ) %>% 
+  inner_join(split_day %>% select(mrn, d_split_day), by = 'mrn')
+
+keep_pts <- dcts %>% 
+  mutate(pre = if_else(DayRT <= d_split_day, 'true', 'false')) %>% 
+  group_by(mrn, pre) %>% 
+  summarise(ct = n()) %>% 
+  filter(pre == 'true') %>% 
+  arrange(ct) %>% 
+  pull(mrn)
+
+dcts_f <- dcts %>% 
+  filter(mrn %in% keep_pts)
+
+# split by the d_split_day
+dcts_f_split_list <- dcts_f %>% 
+  split(.$mrn) %>% 
+  map(~ split(x = ., f = .$DayRT <= .$d_split_day))
+
+# F means post abx 
+# T means pre   
+
+names(dcts_f_split_list)
+
+post_df_d <- dcts_f_split_list %>% 
+  map_dfr(~ pluck(.x = ., 'FALSE')) 
+ 
+pre_df_d <- dcts_f_split_list %>% 
+  map_dfr(~ pluck(.x = ., 'TRUE')) 
+
+# get the mean dehy weight for each food code in each group
+pre_mean_d <- pre_df_d %>% 
+  group_by(mrn, Food_code) %>% 
+  summarise(mean_dewt = mean(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  spread(key = 'mrn', value = 'mean_dewt', fill = 0)
+
+post_mean_d <- post_df_d %>% 
+  group_by(mrn, Food_code) %>% 
+  summarise(mean_dewt = mean(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  spread(key = 'mrn', value = 'mean_dewt', fill = 0)
+
+pre_mean_d %>% 
+  write_tsv('../data/finalized/pre_abx_diet_foodID_dehydrated_weight_per_pt.tsv')
+
+
+post_mean_d %>% 
+  write_tsv('../data/finalized/post_abx_diet_foodID_dehydrated_weight_per_pt.tsv')
+
+# and then go to qiime to finish the diet part
+```
+
+# split the microbiome data 
 
 ```{r}
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database_predefined_filter('asv_counts_ag')
 ANNOT <- get_table_from_database('asv_annotation_blast_ag')
+```
 
 
+```{r}
 cts <- asv_counts_ag %>% 
   filter(sampleid %in% sdtb$sampleid) %>% 
   select(asv_key, sampleid, count) %>% 
@@ -122,7 +185,8 @@ cts_abx <- cts %>%
   mutate(relab = cnt/count_total) %>% 
   select(sampleid, taxa_species, relab) %>% 
   left_join(sdtb %>% select(mrn, sampleid, drt), by = 'sampleid') %>% 
-  inner_join(split_day, by  = 'mrn')
+  inner_join(split_day, by  = 'mrn') %>% 
+  filter(mrn %in% keep_pts)
 ```
 
 
@@ -159,4 +223,6 @@ post_mean <- post_df %>%
   spread(key = 'mrn', value = 'mean_relab', fill = 0)
      
 ```
+
+
 
