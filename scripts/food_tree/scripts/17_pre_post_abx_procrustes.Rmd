@@ -1,10 +1,16 @@
 ---
 title: "Pre and post abx procrustes"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -221,8 +227,98 @@ post_mean <- post_df %>%
   summarise(mean_relab = mean(relab)) %>% 
   ungroup() %>% 
   spread(key = 'mrn', value = 'mean_relab', fill = 0)
+
+pre_mean %>% 
+  write_tsv('../data/finalized/pre_abx_stool_relab_species.tsv')
+
+post_mean %>% 
+  write_tsv('../data/finalized/post_abx_stool_relab_species.tsv')
      
 ```
 
+# calculating the pcoa of the stool and the diet using qiime
+   
+# importing the pcoa results in R
 
+```{r}
+# library(vegan)  
+# 
+# # pre
+# pre_mean_df <- pre_mean %>% 
+#   column_to_rownames('mrn') 
+# 
+# dist_pre_stool <- vegdist(pre_mean_df, method = 'bray')
+#  
+# pcoa_pre <- cmdscale(dist_pre_stool, k = nrow(pre_mean_df)-1,  eig = TRUE, add = T) 
+# 
+# 
+# # post 
+# post_mean_df <- post_mean %>% 
+#   column_to_rownames('mrn')
+# 
+# dist_post_stool <- vegdist(post_mean_df, method = 'bray')
+#  
+# pcoa_post <- cmdscale(dist_post_stool, k = nrow(post_mean_df) - 1,  eig = TRUE, add = T) 
+```
+
+```{r}
+# importing the diet pcoa from qiime 
+diet_pre_pcoa <- read_tsv('../data/finalized/pre_abx_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa/ordination.txt', skip = 9, col_names = F)  %>% 
+  filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+  column_to_rownames('X1') %>% 
+  as.matrix()
+
+diet_post_pcoa <- read_tsv('../data/finalized/post_abx_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa/ordination.txt', skip = 9, col_names = F)  %>% 
+  filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+  column_to_rownames('X1') %>% 
+  as.matrix()
+```
+
+```{r}
+# import the stool BC pcoa from qiime
+stool_pre_pcoa <- read_tsv('../data/finalized/pre_abx_stool_relab_species_braycurtis_pcoa/ordination.txt', skip = 9, col_names = F)  %>% 
+  filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+  column_to_rownames('X1') %>% 
+  as.matrix()
+
+stool_post_pcoa <- read_tsv('../data/finalized/post_abx_stool_relab_species_braycurtis_pcoa/ordination.txt', skip = 9, col_names = F)  %>% 
+  filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+  column_to_rownames('X1') %>% 
+  as.matrix()
+```
+
+
+# procrustes of pre abx
+
+```{r}
+# the procrustes
+set.seed(1)
+pro_pre_abx <- procrustes(diet_pre_pcoa, stool_pre_pcoa)
+pro_pre_abx
+
+plot(pro_pre_abx, kind = 1) 
+#plot(pro_pre_abx, kind = 2)
+
+protest_pre<- protest(X = diet_pre_pcoa, Y = stool_pre_pcoa,  permutations = 999)
+protest_pre 
+```
+
+# procrustes of post abx
+
+```{r}
+pro_post_abx <- procrustes(diet_post_pcoa, stool_post_pcoa)
+pro_post_abx
+
+plot(pro_post_abx, kind = 1) 
+#plot(pro_post_abx, kind = 2)
+
+protest_post<- protest(X = diet_post_pcoa, Y = stool_post_pcoa,  permutations = 999)
+protest_post 
+```
+
+Reasons for the above results that are not in concordant with our hypothesis:
+
+- Most of the stool samples are affected by abx under the current criterion
+- The limits the patients that we can test
+- The sample size in the pre and post period is dramatically different 
 

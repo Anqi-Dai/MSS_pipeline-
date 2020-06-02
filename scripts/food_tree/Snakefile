@@ -651,6 +651,63 @@ rule export_food_pcoa:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 
 
+###########
+# microbe data
+# have to use qiime too cuz using R vegan the matrix dimension just don't seem right
+##########
+
+
+rule convert_stool_relab_table_to_biom:
+    input:
+        'data/finalized/{time}_stool_relab_species.tsv'
+    output:
+        'data/finalized/{time}_stool_relab_species.biom'
+    shell:
+        'biom convert -i  {input[0]} -o {output[0]} --to-hdf5 --table-type="Table"'
+
+rule convert_stool_table_to_qza:
+    input:
+        'data/finalized/{time}_stool_relab_species.biom'
+    output:
+        'data/finalized/{time}_stool_relab_species.qza'
+    shell:
+        'qiime tools import --input-path {input[0]} --output-path  {output[0]} --type "FeatureTable[Frequency]"' 
+
+# for species relab data calculate the braycurtis distance
+
+rule calculate_stool_microbe_braycurtis_distance:
+    input:
+        'data/finalized/{time}_stool_relab_species.qza'
+    output:
+        'data/finalized/{time}_stool_relab_species_braycurtis_distance_matrix.qza'
+    shell:
+        '''
+        qiime diversity beta \
+            --i-table {input[0]} \
+            --p-metric  braycurtis \
+            --o-distance-matrix {output[0]}
+        '''
+
+rule stool_microbe_braycurtis_PCoA:
+    input:
+        'data/finalized/{time}_stool_relab_species_braycurtis_distance_matrix.qza'
+    output:
+        'data/finalized/{time}_stool_relab_species_braycurtis_pcoa.qza'
+    shell:
+        'qiime diversity pcoa \
+            --i-distance-matrix {input[0]} \
+            --o-pcoa {output[0]}'
+
+rule export_stool_microbe_pcoa:
+    input:
+        'data/finalized/{time}_stool_relab_species_braycurtis_pcoa.qza'
+    output:
+        'data/finalized/{time}_stool_relab_species_braycurtis_pcoa'
+    shell:
+        'qiime tools export --input-path {input[0]} --output-path {output[0]}'
+
+
+
 rule stool:
     input:
-        expand('data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa', time = ['pre_abx','post_abx'])
+        expand('data/finalized/{time}_stool_relab_species_braycurtis_pcoa', time = ['pre_abx','post_abx'])
