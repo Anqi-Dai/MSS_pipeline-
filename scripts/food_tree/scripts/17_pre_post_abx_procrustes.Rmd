@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(vegan)
 ```
 
 # get the abx data censoring information from Corrado
