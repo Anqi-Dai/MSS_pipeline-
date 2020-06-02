@@ -197,11 +197,13 @@ fns <- folders %>%
 # n meaning how many samples 
 summary_grp <- fns %>% 
   count(grp, mrn) %>% 
-  mutate(mrn = as.numeric(mrn)) %>% 
-  mutate(mrn = as.numeric(as.factor(mrn))) %>% 
-  mutate(mrn = str_glue("P{str_pad(mrn, 3, 'left', '0')}"))   
+  mutate(mrn = as.numeric(mrn))
 
+summary_grp %>% 
+  count(grp)
 
+fns %>% 
+  count(mrn)
 # 
 summary_grp %>% 
   ggboxplot(y = 'n', add = 'jitter', 
@@ -212,6 +214,14 @@ summary_grp %>%
   theme_cleveland() +
   scale_y_continuous(breaks  = seq(0, 26, 2)) +
   ggsave('../figs/paired_group_summary_samples_n.jpg', width = 8, height = 7)
+
+```
+
+```{r}
+summary_grp %>% 
+  arrange(n) %>% 
+  write_csv('../data/finalized/paired/paired_group_summary_stats.csv')
+
 
 ```
 

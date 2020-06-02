@@ -1,0 +1,170 @@
+---
+title: "patients subset previous N day correlation"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+```
+
+```{r}
+asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
+
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+ANNOT <- get_table_from_database('asv_annotation_blast_ag')
+```
+
+
+```{r}
+paired_stats <- read_csv('../data/finalized/paired/paired_group_summary_stats.csv')
+
+# look at the p5day and select the patients that have at least 4 such pairs
+subset_pts <- paired_stats %>% 
+  filter(grp == 'p5day') %>% 
+  filter(n >= 4) %>% 
+  pull(mrn)
+```
+
+# p5day
+
+```{r}
+# gather all the csv contents info into a df 
+fns_all <- list.files('../data/finalized/paired/p5day/', full.names = T)
+
+all <- fns_all %>% 
+  set_names(fns_all) %>% 
+  map(~ read_csv(file = ., col_names = T, col_types = cols(.default = col_character()))) %>% 
+  bind_rows() %>% 
+  mutate(mrn = as.numeric(mrn)) %>% 
+  filter(mrn %in% subset_pts) %>% 
+  mutate(ID = str_glue('{mrn}_{sampleid}'))
+```
+
+```{r}
+# the all food records
+food <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
+  select(mrn, Food_code, dehydrated_weight,DayRT ) %>% 
+  rename(Fdrt = DayRT) %>% 
+  mutate(Fdrt = as.character(Fdrt))
+
+# for every mrn every qualified stool sample I want a sum of the previous N days dehydrated weitght for that food code
+pair_food <- apply(all, 1, function(Row){
+  df = food %>% 
+    filter(mrn == Row[['mrn']]) %>% 
+    filter(Fdrt %in% c(Row[['p1dF']], Row[['p2dF']],Row[['p3dF']],Row[['p4dF']],Row[['p5dF']])) %>% 
+    group_by(Food_code) %>% 
+    summarise(sum_dewt = sum(dehydrated_weight))
+  
+  return(df)
+})
+
+names(pair_food) <- all$ID
+
+pair_food_df <- pair_food %>% 
+  bind_rows(.id = 'ID') %>% 
+  separate(ID, into = c('mrn','sampleid'), sep = '_') 
+
+pair_pt_food <- pair_food_df %>% 
+  split(.$mrn) %>% 
+  map(~ select(.data = ., -mrn) %>% 
+        spread(key = 'sampleid', value = 'sum_dewt', fill = 0))
+
+```
+
+```{r}
+# get the microbiome counts data of those stool samples
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% all$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
+
+annot <- ANNOT %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa_species = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the species
+cts_spilt_pt <- cts %>% 
+  full_join(annot %>%  select(asv_key, taxa_species), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa_species) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) %>% 
+  select(sampleid, taxa_species, relab) %>% 
+  left_join(all %>% select(mrn, sampleid), by  = 'sampleid') %>% 
+  arrange(mrn, sampleid) %>% 
+  split(.$mrn) %>% 
+  map(~ select(.data = ., -mrn) %>% 
+        spread(key = 'sampleid', value = 'relab'))
+
+```
+
+```{r}
+# output the files to be run thru snakemake using the qiime
+
+# for the stool
+for(pt in as.character(subset_pts)){
+  cts_spilt_pt %>% 
+    pluck(pt) %>% 
+    write_tsv(str_glue('../data/finalized/p5day_{pt}_stool_relab_species.tsv'))
+}
+
+names_loop <- data_frame(
+  name = as.character(subset_pts) 
+) %>% 
+    transmute(name = str_glue('p5day_{name}')) %>% 
+  write_csv('../data/finalized/names_loop.csv', col_names = F)
+
+# for the food
+for(pt in as.character(subset_pts)){
+  pair_pt_food %>% 
+    pluck(pt) %>% 
+    write_tsv(str_glue('../data/finalized/p5day_{pt}_diet_foodID_dehydrated_weight_per_pt.tsv'))
+}
+```
+
+```{r}
+# after getting the results from qiime 
+set.seed(123)
+# a function to do the procrustes as a pair
+fns_both <- data_frame(
+  pt = as.character(subset_pts)
+) %>% 
+  mutate(sfn = str_glue('../data/finalized/p5day_{pt}_stool_relab_species_braycurtis_pcoa/ordination.txt'),
+         dfn = str_glue('../data/finalized/p5day_{pt}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa/ordination.txt'))
+
+procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
+  return(protest_res$signif)
+}) %>% 
+  gather(key = 'mrn', value = 'pval') %>% 
+  mutate(mrn = fns_both$pt) %>% 
+  arrange(pval)
+```
+

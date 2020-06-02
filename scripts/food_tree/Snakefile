@@ -707,7 +707,16 @@ rule export_stool_microbe_pcoa:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 
 
+# the loop variable for this part
+with open('data/finalized/names_loop.csv') as f:
+    content = f.readlines()
+
+times_mrn = [x.strip() for x in content]
 
 rule stool:
     input:
-        expand('data/finalized/{time}_stool_relab_species_braycurtis_pcoa', time = ['pre_abx','post_abx'])
+        expand('data/finalized/{time}_stool_relab_species_braycurtis_pcoa', time = times_mrn)
+
+rule food:
+    input:
+        expand('data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = times_mrn)
