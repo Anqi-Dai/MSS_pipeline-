@@ -1,10 +1,16 @@
 ---
 title: "patients subset previous N day correlation"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -21,6 +27,8 @@ connect_database(config_file = '~/dbConfig.txt')
 ANNOT <- get_table_from_database('asv_annotation_blast_ag')
 ```
 
+## Use a subset of patient cohort: has to have at least 4 pairs that one stool sample is paired with previous 5 days of diet
+
 ```{r}
 paired_stats <- read_csv('../data/finalized/paired/paired_group_summary_stats.csv')
 
@@ -31,8 +39,6 @@ subset_pts <- paired_stats %>%
   pull(mrn)
 ```
 
-
-
 ```{r}
 # the all food records
 food <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
@@ -41,6 +47,7 @@ food <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>%
   mutate(Fdrt = as.character(Fdrt))
 ```
 
+## Make paired count matrix for food and microbiome data. Diet data summed for the days
 
 ```{r}
 # a function to loop over p2day ... p5day
@@ -162,16 +169,26 @@ pndays %>%
   map(~ loop_prior_N_day(pnday = .))
 
 ```
+
+## Using the PCOA produced by qiime to do the procrustes analysis 
+
 ```{r}
 # after getting the results from qiime 
 set.seed(123)
-# a function to do the procrustes as a pair
-fns_both <- data_frame(
-  pt = as.character(subset_pts)
-) %>% 
-  mutate(sfn = str_glue('../data/finalized/p5day_{pt}_stool_relab_species_braycurtis_pcoa/ordination.txt'),
-         dfn = str_glue('../data/finalized/p5day_{pt}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa/ordination.txt'))
 
+# sort out the fns that I need to do a procrustes on
+fns_both <- data_frame(
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = '_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = '_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//','')) %>% 
+  separate(ID, into = c('pNday','mrn'), sep = '_') %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
+
+
+# a function to do the procrustes as a pair
 procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
     filter(! X1 %in% c('Biplot','Site constraints')) %>% 
@@ -184,9 +201,31 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
     as.matrix()
   
   protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
-  return(protest_res$signif)
+  return( protest_res$signif)
 }) %>% 
   gather(key = 'mrn', value = 'pval') %>% 
-  mutate(mrn = fns_both$pt) %>% 
+  mutate(mrn = fns_both$mrn,
+         pNday = fns_both$pNday) %>% 
   arrange(pval)
 ```
+
+## Visualize the results
+
+```{r}
+# plot and visualize
+procrustes_Nday_df <- procrustes_Nday %>% 
+  mutate(neglogPval = -log10(pval)) %>% 
+  mutate(day = str_extract(pNday, pattern = '\\d')) 
+
+procrustes_Nday_df %>% 
+  ggboxplot(x = 'day', y = 'neglogPval', 
+            ylab = '-log10(pval)', xlab = 'Number of days combined',
+            title = '') +
+  geom_jitter(aes(color = mrn), size = 5, alpha = 0.99, width = 0.05) +
+  geom_line(aes(group = mrn), color = "grey", alpha = 0.5) +
+  theme(legend.position = 'none') +
+  ggsave('../figs/pNday_sub_pts_boxplot.pdf', width = 6, height = 4) 
+
+
+```
+

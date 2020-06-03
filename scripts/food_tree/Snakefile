@@ -3,6 +3,7 @@ This Snakefile carries out diet project work with qiime2 **LOCALLTY**
 
 To run, source activate qiime2-2020.2
 '''
+from glob import glob
 
 rule all:
     input:
@@ -602,27 +603,27 @@ rule visualize_mean_procrustes_with_emperor:
 
 rule convert_food_to_biom:
     input:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt.tsv'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.tsv'
     output:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt.biom'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.biom'
     shell:
         'biom convert -i  {input[0]} -o {output[0]} --to-hdf5 --table-type="Table"'
 
 rule convert_biom_to_qza:
     input:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt.biom'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.biom'
     output:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt.qza'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.qza'
     shell:
         'qiime tools import --input-path {input[0]} --output-path  {output[0]} --type "FeatureTable[Frequency]"'
 
 
 rule cal_unweighted_unifrac_for_food:
     input:
-        cts='data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt.qza',
+        cts='data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.qza',
         tree='data/finalized/output_food_tree_datatree.qza'
     output:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
     shell:
         '''
         qiime diversity beta-phylogenetic \
@@ -634,9 +635,9 @@ rule cal_unweighted_unifrac_for_food:
 
 rule pcoa_unweighted_unifrac_food:
     input:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
     output:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
     shell:
         'qiime diversity pcoa \
             --i-distance-matrix {input[0]} \
@@ -644,9 +645,9 @@ rule pcoa_unweighted_unifrac_food:
 
 rule export_food_pcoa:
     input:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
     output:
-        'data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa'
+        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa'
     shell:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 
@@ -659,17 +660,17 @@ rule export_food_pcoa:
 
 rule convert_stool_relab_table_to_biom:
     input:
-        'data/finalized/{time}_stool_relab_species.tsv'
+        'data/finalized/paired/pNday/{time}_stool_relab_species.tsv'
     output:
-        'data/finalized/{time}_stool_relab_species.biom'
+        'data/finalized/paired/pNday/{time}_stool_relab_species.biom'
     shell:
         'biom convert -i  {input[0]} -o {output[0]} --to-hdf5 --table-type="Table"'
 
 rule convert_stool_table_to_qza:
     input:
-        'data/finalized/{time}_stool_relab_species.biom'
+        'data/finalized/paired/pNday/{time}_stool_relab_species.biom'
     output:
-        'data/finalized/{time}_stool_relab_species.qza'
+        'data/finalized/paired/pNday/{time}_stool_relab_species.qza'
     shell:
         'qiime tools import --input-path {input[0]} --output-path  {output[0]} --type "FeatureTable[Frequency]"' 
 
@@ -677,9 +678,9 @@ rule convert_stool_table_to_qza:
 
 rule calculate_stool_microbe_braycurtis_distance:
     input:
-        'data/finalized/{time}_stool_relab_species.qza'
+        'data/finalized/paired/pNday/{time}_stool_relab_species.qza'
     output:
-        'data/finalized/{time}_stool_relab_species_braycurtis_distance_matrix.qza'
+        'data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_distance_matrix.qza'
     shell:
         '''
         qiime diversity beta \
@@ -690,9 +691,9 @@ rule calculate_stool_microbe_braycurtis_distance:
 
 rule stool_microbe_braycurtis_PCoA:
     input:
-        'data/finalized/{time}_stool_relab_species_braycurtis_distance_matrix.qza'
+        'data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_distance_matrix.qza'
     output:
-        'data/finalized/{time}_stool_relab_species_braycurtis_pcoa.qza'
+        'data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa.qza'
     shell:
         'qiime diversity pcoa \
             --i-distance-matrix {input[0]} \
@@ -700,23 +701,44 @@ rule stool_microbe_braycurtis_PCoA:
 
 rule export_stool_microbe_pcoa:
     input:
-        'data/finalized/{time}_stool_relab_species_braycurtis_pcoa.qza'
+        'data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa.qza'
     output:
-        'data/finalized/{time}_stool_relab_species_braycurtis_pcoa'
+        'data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa'
     shell:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 
 
 # the loop variable for this part
-with open('data/finalized/names_loop.csv') as f:
+
+with open('data/finalized/paired/pNday/p5day_names_loop.csv') as f:
     content = f.readlines()
 
-times_mrn = [x.strip() for x in content]
+times5_mrn = [x.strip() for x in content]
+
+with open('data/finalized/paired/pNday/p4day_names_loop.csv') as f:
+    content = f.readlines()
+
+times4_mrn = [x.strip() for x in content]
+
+
+with open('data/finalized/paired/pNday/p3day_names_loop.csv') as f:
+    content = f.readlines()
+
+times3_mrn = [x.strip() for x in content]
+
+
+with open('data/finalized/paired/pNday/p2day_names_loop.csv') as f:
+    content = f.readlines()
+
+times2_mrn = [x.strip() for x in content]
+
+
+loop_vars = times2_mrn +  times3_mrn + times4_mrn + times5_mrn
 
 rule stool:
     input:
-        expand('data/finalized/{time}_stool_relab_species_braycurtis_pcoa', time = times_mrn)
+        expand('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa', time = loop_vars)
 
 rule food:
     input:
-        expand('data/finalized/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = times_mrn)
+        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = loop_vars)
