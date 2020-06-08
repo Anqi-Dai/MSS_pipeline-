@@ -1,0 +1,71 @@
+---
+title: "correlate food group and nutrient with stool alpha diversity"
+output: html_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)  
+```
+
+```{r}
+foods <- read_tsv('../data/finalized/meta_data_67.tsv') %>% 
+  select(mrn, Fdrt = foodDayRT, egg_total:Sugars_perc) %>% 
+  gather(key = 'type', value = 'value', egg_total:Sugars_perc)
+```
+
+```{r}
+# previous 3 days food all types average
+fns_all <- list.files(str_glue('../data/finalized/paired/p3day/'), full.names = T)
+  
+all <- fns_all %>% 
+    set_names(fns_all) %>% 
+    map(~ read_csv(file = ., col_names = T, col_types = cols(.default = col_character()))) %>% 
+    bind_rows() %>% 
+    mutate(mrn = as.numeric(mrn))
+    
+subset_pts <- all %>% 
+  count(mrn)  %>% 
+  arrange(n) %>% 
+  filter(n >= 4) %>% 
+  pull(mrn)
+
+all_p3day <- all %>% 
+  filter(mrn %in% subset_pts) %>% 
+  mutate(ID = str_glue('{mrn}_{sampleid}'))
+```
+
+```{r}
+type_items <-  foods %>% 
+  distinct(type) %>% 
+  pull(type) 
+
+pair_p3day_food <- apply(all_p3day, 1, function(Row){
+    foods %>% 
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(Fdrt %in% c(Row[['p1dF']], Row[['p2dF']],Row[['p3dF']])) %>% 
+        group_by(type) %>% 
+        summarise(ave_type = mean(value))
+})
+
+names(pair_p3day_food) <- all_p3day$ID
+
+pair_p3day_food_res <- bind_rows(pair_p3day_food, .id = 'ID') %>% 
+  separate(ID, into = c('mrn','sampleid'), sep = '_') 
+
+```
+
+```{r}
+# get the diversity of those stool samples
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+
+pair_p3day <- pair_p3day_food_res  %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal, shannon), by = 'sampleid')
+```
+

@@ -14,3 +14,4 @@
 /scripts/Rmd/*/data/*
 /scripts/*/software/*
 *.snakemake
+*.ipynb_checkpoints
