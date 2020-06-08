@@ -1,10 +1,16 @@
 ---
 title: "correlate food group and nutrient with stool alpha diversity"
-output: html_document 
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -17,6 +23,8 @@ foods <- read_tsv('../data/finalized/meta_data_67.tsv') %>%
   select(mrn, Fdrt = foodDayRT, egg_total:Sugars_perc) %>% 
   gather(key = 'type', value = 'value', egg_total:Sugars_perc)
 ```
+
+## Select a subset patients cohort that each pt has at least 4 pairs(stool and previous 3 days diet
 
 ```{r}
 # previous 3 days food all types average
@@ -39,6 +47,8 @@ all_p3day <- all %>%
   mutate(ID = str_glue('{mrn}_{sampleid}'))
 ```
 
+## Get the average of the food group and the nutrients in percentage and in gram weight
+
 ```{r}
 type_items <-  foods %>% 
   distinct(type) %>% 
@@ -59,6 +69,8 @@ pair_p3day_food_res <- bind_rows(pair_p3day_food, .id = 'ID') %>%
 
 ```
 
+## Get the stool alpha diversity from db
+
 ```{r}
 # get the diversity of those stool samples
 source('~/db_connect_simple.R')
@@ -66,6 +78,40 @@ connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
 
 pair_p3day <- pair_p3day_food_res  %>% 
-  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal, shannon), by = 'sampleid')
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal, shannon), by = 'sampleid')   
+```
+
+## Spearman correlation and plot
+
+```{r}
+nutrients <- c('Carbohydrates','Fat','Fibers','Proteing','Sodium','Sugars')
+
+spearman_res <- pair_p3day %>% 
+  split(.$type) %>% 
+  map_dfr(~ round(cor.test(.$ave_type, 
+                           .$simpson_reciprocal, 
+                           method = 'spearman', 
+                           exact = F)$estimate, 2)) %>% 
+  gather(key = 'type', value = 'rho') %>% 
+  arrange(rho) %>% 
+  separate(type, into = c('item','grp'), sep = '_') %>% 
+  mutate(type = if_else(item %in%  nutrients, 'nutrient', 'food_group'))
+
+spearman_res %>% 
+  filter(type == 'nutrient') %>% 
+  ggbarplot(x = 'item', y = 'rho', fill = 'salmon', label = T, lab.size = 2.5,
+            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
+  facet_grid(grp ~ .) +
+  theme_cleveland() 
+
+
+
+spearman_res %>% 
+  filter(type == 'food_group') %>% 
+  ggbarplot(x = 'item', y = 'rho', fill = 'salmon', label = T, lab.size = 2.5,
+            title = 'Spearman cor between ave food group metric & stool alpha diversity') +
+  facet_grid(grp ~ .) +
+  theme_cleveland() 
+
 ```
 
