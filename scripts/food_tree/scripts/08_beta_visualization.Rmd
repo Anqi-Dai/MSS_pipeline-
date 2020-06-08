@@ -127,6 +127,9 @@ food_groups_sub_total %>%
   ggsave('../figs/pcoa_food_group_total.jpg', height = 10, width = 15)
 ```
 
+ 
+
+
 
 ```{r}
 # join the coords with the pheno

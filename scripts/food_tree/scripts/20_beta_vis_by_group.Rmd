@@ -1,0 +1,147 @@
+---
+title: "beta vis by group"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(vegan)
+library(ape)
+library(ggpubr)
+library(viridis)
+library(RColorBrewer)
+```
+
+```{r}
+#Check the beta distance matrix
+beta_un_uni <- read.delim('../data/finalized/unweighted_unifrac/distance-matrix.tsv', sep = '\t', row.names = 1)
+food_dist <- as.dist(beta_un_uni)
+
+meta <- read_tsv('../data/finalized/meta_data_67.tsv') %>% 
+  rename(did = names(.)[1])
+
+#pcoa
+pcoa_f <- as.data.frame(pcoa(food_dist)$vectors) %>% 
+  select(Axis.1, Axis.2, Axis.3) %>% 
+  rownames_to_column('did') %>% 
+  full_join(meta, by = 'did')
+ 
+
+# the percent variance
+eigen <- pcoa(food_dist)$values$Eigenvalues
+
+percent_var <- signif(eigen/sum(eigen), 3)*100
+```
+
+## food group
+
+```{r}
+food_groups_sub <- pcoa_f %>% 
+  select(did, Axis.1, Axis.2, Axis.3, foodDayRT, egg_total,egg_perc, milk_total, milk_perc, fruit_total, fruit_perc,sugar_total, sugar_perc, grain_perc, grain_total, meat_total, meat_perc, veggie_total, veggie_perc,legume_total, legume_perc, fats_perc, fats_total)
+
+food_groups_sub_total <- food_groups_sub %>% 
+  select(did, Axis.1, Axis.2, Axis.3, ends_with('total')) %>% 
+  gather('food_group_total', 'dedywt', names(.)[5]:names(.)[ncol(.)]) 
+
+# food groups total log transform the dewt
+pseudo_cnt <- food_groups_sub_total %>% 
+  filter(dedywt > 0) %>% 
+  arrange(dedywt) %>% 
+  slice(1) %>% 
+  mutate(pseudo = dedywt*0.1) %>% 
+  pull(pseudo)
+
+food_groups_sub_total_log <- food_groups_sub_total %>% 
+  mutate(dedywt = dedywt + pseudo_cnt) %>% 
+  mutate(log_dewt = log10(dedywt))
+```
+
+
+```{r}
+food_groups_sub_total_log %>% 
+  ggplot(aes(x = Axis.1, y = Axis.2, col = log_dewt)) +
+  geom_point(alpha=0.5, size = 2.5) +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme_classic() +
+  theme(legend.position = 'top') +
+  labs(title = 'PCoA of unweighted unifrac distance diet data PC1 VS PC2') + 
+  #scale_colour_manual(values = rev(brewer.pal(10,"RdYlBu"))) +
+  scale_color_viridis() +
+  facet_wrap(~food_group_total) +
+  ggsave('../figs/pcoa_food_group_total_log_12.jpg', height = 10, width = 15)
+
+ 
+food_groups_sub_total_log %>% 
+  ggplot(aes(x = Axis.2, y = Axis.3, col = log_dewt)) +
+  geom_point(alpha=0.5, size = 2.5) +
+  xlab(paste0("PC 1 [",percent_var[2],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[3],"%]")) +
+  theme_classic() +
+  theme(legend.position = 'top') +
+  labs(title = 'PCoA of unweighted unifrac distance diet data PC2 VS PC3') + 
+  #scale_colour_manual(values = rev(brewer.pal(10,"RdYlBu"))) +
+  scale_color_viridis() +
+  facet_wrap(~food_group_total) +
+  ggsave('../figs/pcoa_food_group_total_log_23.jpg', height = 10, width = 15)
+```
+
+## nutrient
+
+```{r}
+nutrients_sub_total <- pcoa_f %>% 
+  select(did, Axis.1, Axis.2, Axis.3, Carbohydrates_total, Fat_total, Fibers_total, Proteing_total, Sodium_total, Sugars_total) %>%   
+  gather('nutrients_total', 'dedywt', names(.)[5]:names(.)[ncol(.)]) 
+
+
+pseudo_cnt <- nutrients_sub_total %>% 
+  filter(dedywt > 0) %>% 
+  arrange(dedywt) %>% 
+  slice(1) %>% 
+  mutate(pseudo = dedywt*0.1) %>% 
+  pull(pseudo)
+
+nutrients_sub_total_log <- nutrients_sub_total %>% 
+  mutate(dedywt = dedywt + pseudo_cnt) %>% 
+  mutate(log_dewt = log10(dedywt))
+```
+
+```{r}
+nutrients_sub_total_log %>% 
+  ggplot(aes(x = Axis.1, y = Axis.2, col = log_dewt)) +
+  geom_point(alpha=0.5, size = 2.5) +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme_classic() +
+  theme(legend.position = 'top') +
+  labs(title = 'PCoA of unweighted unifrac distance diet data PC1 VS PC2') + 
+  #scale_colour_manual(values = rev(brewer.pal(10,"RdYlBu"))) +
+  scale_color_viridis() +
+  facet_wrap(~nutrients_total) +
+  ggsave('../figs/nutrients_total_log_12.jpg', height = 10, width = 15)
+
+ 
+nutrients_sub_total_log %>% 
+  ggplot(aes(x = Axis.2, y = Axis.3, col = log_dewt)) +
+  geom_point(alpha=0.5, size = 2.5) +
+  xlab(paste0("PC 1 [",percent_var[2],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[3],"%]")) +
+  theme_classic() +
+  theme(legend.position = 'top') +
+  labs(title = 'PCoA of unweighted unifrac distance diet data PC2 VS PC3') + 
+  #scale_colour_manual(values = rev(brewer.pal(10,"RdYlBu"))) +
+  scale_color_viridis() +
+  facet_wrap(~nutrients_total) +
+  ggsave('../figs/nutrients_total_log_23.jpg', height = 10, width = 15)
+```
+
