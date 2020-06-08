@@ -64,6 +64,7 @@ pseudo_cnt <- food_groups_sub_total %>%
 food_groups_sub_total_log <- food_groups_sub_total %>% 
   mutate(dedywt = dedywt + pseudo_cnt) %>% 
   mutate(log_dewt = log10(dedywt))
+
 ```
 
 

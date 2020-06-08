@@ -88,30 +88,89 @@ nutrients <- c('Carbohydrates','Fat','Fibers','Proteing','Sodium','Sugars')
 
 spearman_res <- pair_p3day %>% 
   split(.$type) %>% 
-  map_dfr(~ round(cor.test(.$ave_type, 
-                           .$simpson_reciprocal, 
-                           method = 'spearman', 
-                           exact = F)$estimate, 2)) %>% 
-  gather(key = 'type', value = 'rho') %>% 
-  arrange(rho) %>% 
-  separate(type, into = c('item','grp'), sep = '_') %>% 
-  mutate(type = if_else(item %in%  nutrients, 'nutrient', 'food_group'))
+  map(function(df){
+    test = cor.test(df$ave_type, 
+                   df$simpson_reciprocal, 
+                   method = 'spearman', 
+                   exact = F)
+    return(list(rho = round(test$estimate, 2),
+                pval = test$p.value))
+  }) %>% 
+  bind_rows(.id = 'ID') %>% 
+  separate(ID, into = c('item','grp'), sep = '_') %>% 
+  mutate(type = if_else(item %in%  nutrients, 'nutrient', 'food_group')) %>% 
+  mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
+  mutate(neglogFDR = -log(FDR))
+```
 
+
+```{r}
 spearman_res %>% 
   filter(type == 'nutrient') %>% 
-  ggbarplot(x = 'item', y = 'rho', fill = 'salmon', label = T, lab.size = 2.5,
+  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
+            color = 'grp', palette = 'jama',
             title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
-  facet_grid(grp ~ .) +
   theme_cleveland() 
-
 
 
 spearman_res %>% 
   filter(type == 'food_group') %>% 
-  ggbarplot(x = 'item', y = 'rho', fill = 'salmon', label = T, lab.size = 2.5,
-            title = 'Spearman cor between ave food group metric & stool alpha diversity') +
-  facet_grid(grp ~ .) +
+  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
+            color = 'grp', palette = 'jama',
+            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
+  theme_cleveland()   
+```
+
+## censor samples that are exposed to the list of empiric antibiotics
+
+```{r}
+censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_meropenem',	'active_atb_ertapenem',		'active_atb_cefepime',		'active_atb_linezolid',	'active_atb_metro',	'active_atb_piptazo')
+
+abx_all <- read_csv('../data/finalized/abx/abx_all_samples_with_censoring_info.csv')
+ 
+abx_this_censor_samples <- abx_all %>% 
+  filter(sampleid %in% pair_p3day$sampleid) %>% 
+  select(sampleid, active_atb_cipro:active_atb_other) %>% 
+  gather(key = 'abx_type', value = 'value', names(.)[2]:names(.)[ncol(.)]) %>% 
+  filter(abx_type %in% censor_abx) %>% 
+  filter(value == T) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+```
+
+```{r}
+# redo the above but remove the censored samples
+spearman_res_rm <- pair_p3day %>% 
+  filter(!sampleid %in% abx_this_censor_samples) %>% 
+  split(.$type) %>% 
+  map(function(df){
+    test = cor.test(df$ave_type, 
+                   df$simpson_reciprocal, 
+                   method = 'spearman', 
+                   exact = F)
+    return(list(rho = round(test$estimate, 2),
+                pval = test$p.value))
+  }) %>% 
+  bind_rows(.id = 'ID') %>% 
+  separate(ID, into = c('item','grp'), sep = '_') %>% 
+  mutate(type = if_else(item %in%  nutrients, 'nutrient', 'food_group')) %>% 
+  mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
+  mutate(neglogFDR = -log(FDR))
+
+
+spearman_res_rm %>% 
+  filter(type == 'nutrient') %>% 
+  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
+            color = 'grp', palette = 'jama',
+            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
   theme_cleveland() 
 
+
+spearman_res_rm %>% 
+  filter(type == 'food_group') %>% 
+  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
+            color = 'grp', palette = 'jama',
+            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
+  theme_cleveland()   
 ```
 
