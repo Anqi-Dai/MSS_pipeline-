@@ -174,3 +174,12 @@ spearman_res_rm %>%
   theme_cleveland()   
 ```
 
+## Correlate alpha div with second level food group
+
+```{r}
+food <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
+  select(mrn, Food_code, dehydrated_weight,DayRT ) %>% 
+  rename(Fdrt = DayRT) %>% 
+  mutate(Fdrt = as.character(Fdrt))
+```
+
