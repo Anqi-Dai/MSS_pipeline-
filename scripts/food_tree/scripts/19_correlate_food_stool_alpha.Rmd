@@ -177,9 +177,98 @@ spearman_res_rm %>%
 ## Correlate alpha div with second level food group
 
 ```{r}
-food <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
-  select(mrn, Food_code, dehydrated_weight,DayRT ) %>% 
+# the nodes and the second level food group
+nodes <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = cols(.default = col_character())) %>% 
+  filter(str_length(Level.code) == 2) %>% 
+  # remove the ones ending with 0 like 20 and 50
+  filter(!str_detect(Level.code, '0$'))
+  
+```
+
+
+```{r}
+# the food dewt count data at level 2 group.
+food_level2 <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
+  select(mrn, Food_code, dehydrated_weight, DayRT ) %>% 
   rename(Fdrt = DayRT) %>% 
-  mutate(Fdrt = as.character(Fdrt))
+  mutate(Fdrt = as.character(Fdrt)) %>% 
+  mutate(Level.code = str_sub(Food_code, start = 1, end = 2)) %>% 
+  group_by(mrn, Fdrt, Level.code) %>% 
+  summarise(sum_dewt_l2 = sum(dehydrated_weight)) %>% 
+  left_join(nodes , by  = 'Level.code') %>% 
+  rename(description = Main.food.description)
+  
+```
+
+```{r}
+# pair the stool with the mean previous 3 day's level 2 food group weight
+
+pair_p3day_food_level2 <- apply(all_p3day, 1, function(Row){
+    food_level2 %>% 
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(Fdrt %in% c(Row[['p1dF']], Row[['p2dF']],Row[['p3dF']])) %>% 
+        group_by(Level.code, description) %>% 
+        summarise(ave_level2 = mean(sum_dewt_l2))
+})
+
+names(pair_p3day_food_level2) <- all_p3day$ID
+
+# also join with the stool alpha diversity
+pair_p3day_food_level2_res <- bind_rows(pair_p3day_food_level2, .id = 'ID') %>% 
+  separate(ID, into = c('mrn','sampleid'), sep = '_') %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal), by = 'sampleid')
+
+
+# filter out the level 2 food groups that have too few items
+level2_num_rm <- pair_p3day_food_level2_res %>% 
+  count(Level.code) %>% 
+  filter(n < 10) %>% 
+  pull(Level.code)
+
+# filter out the the above group and also the stool samples that have been affected by the serious abx
+pair_p3day_food_level2_res_fil <- pair_p3day_food_level2_res %>% 
+  filter(! Level.code %in% level2_num_rm) %>% 
+  filter(! sampleid %in% abx_this_censor_samples)     
+
+# spearman test
+spearman_res <- pair_p3day_food_level2_res_fil %>% 
+  split(.$Level.code) %>% 
+  map(function(df){
+    test = cor.test(df$ave_level2, 
+                   df$simpson_reciprocal, 
+                   method = 'spearman', 
+                   exact = F)
+    return(list(rho = round(test$estimate, 2),
+                pval = test$p.value))
+  }) %>% 
+  bind_rows(.id = 'ID') %>% 
+  mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
+  mutate(neglogFDR = -log(FDR)) %>% 
+  arrange(desc(neglogFDR)) %>% 
+  rename(Level.code = ID) %>% 
+  left_join(nodes , by  = 'Level.code') %>% 
+  filter(!is.na(pval))
+
+# join with the med weight for the level 2 food group
+pair_p3day_food_level2_res_fil_med_wt <- pair_p3day_food_level2_res_fil %>% 
+  ungroup() %>% 
+  group_by(Level.code) %>% 
+  summarise(med_wt = median(ave_level2))
+
+spearman_res_plot <- spearman_res %>% 
+  inner_join(pair_p3day_food_level2_res_fil_med_wt, by  = 'Level.code')
+  
+
+```
+
+```{r}
+# plot
+spearman_res_plot %>% 
+  ggscatter(x = 'rho', y = 'neglogFDR', size = 'med_wt',
+            xlab = 'Spearman rho', ylab = '-log(FDR)', title = 'Volcano plot level 2 food group dewt VS simpson r diversity', color = 'Level.code',
+            alpha = 0.7 , label = 'Level.code', repel = T, legend = 'none') +
+  geom_hline(yintercept = c(2.3,3), linetype = 'dashed', col = 'red') +
+  geom_vline(xintercept = 0, linetype = 'dashed', col = 'red') +
+  ggsave('../figs/spearman_level2_food_simpson.pdf', width = 8, height = 7)
 ```
 
