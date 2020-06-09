@@ -15,6 +15,7 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 
 ```{r}
 library(tidyverse)
+library(kableExtra)
 library(ggpubr)  
 ```
 
@@ -117,7 +118,7 @@ spearman_res %>%
   filter(type == 'food_group') %>% 
   ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
             color = 'grp', palette = 'jama',
-            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
+            title = 'Spearman cor between ave food group metric & stool alpha diversity') +
   theme_cleveland()   
 ```
 
@@ -170,7 +171,7 @@ spearman_res_rm %>%
   filter(type == 'food_group') %>% 
   ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
             color = 'grp', palette = 'jama',
-            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
+            title = 'Spearman cor between ave food group metric & stool alpha diversity') +
   theme_cleveland()   
 ```
 
@@ -265,10 +266,26 @@ spearman_res_plot <- spearman_res %>%
 # plot
 spearman_res_plot %>% 
   ggscatter(x = 'rho', y = 'neglogFDR', size = 'med_wt',
-            xlab = 'Spearman rho', ylab = '-log(FDR)', title = 'Volcano plot level 2 food group dewt VS simpson r diversity', color = 'Level.code',
-            alpha = 0.7 , label = 'Level.code', repel = T, legend = 'none') +
+            xlab = 'Spearman rho', ylab = '-log(FDR)', 
+            title = 'Volcano plot level 2 food group dewt VS simpson r diversity', 
+            #color = 'Level.code', legend = 'none',
+            alpha = 0.7 , label = 'Level.code', repel = T) +
   geom_hline(yintercept = c(2.3,3), linetype = 'dashed', col = 'red') +
   geom_vline(xintercept = 0, linetype = 'dashed', col = 'red') +
   ggsave('../figs/spearman_level2_food_simpson.pdf', width = 8, height = 7)
+```
+```{r}
+# show the level code and its corresponding description
+spearman_res_plot %>% 
+  arrange(Level.code) %>% 
+  kable() %>% 
+  kable_styling(full_width = F, position = 'left')
+```
+
+```{r}
+# out put the res_fil table for another script that I calculate the correlation with family level taxon
+pair_p3day_food_level2_res_fil %>% 
+  write_csv('../data/finalized/paired/pair_p3day_food_level2_res_fil.csv')
+
 ```
 

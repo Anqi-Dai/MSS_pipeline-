@@ -1,0 +1,57 @@
+---
+title: "correlate food with microbiome family taxon"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_counts_ag')
+get_table_from_database('asv_annotation_blast_ag')
+```
+
+```{r}
+pair3 <- read_csv('../data/finalized/paired/pair_p3day_food_level2_res_fil.csv')
+
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% pair3$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
+
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa_spp = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+
+
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the genera
+cts_all <- cts %>% 
+  full_join(annot %>%  select(asv_key, taxa_spp), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa_spp) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) %>% 
+  select(sampleid, taxa_spp, relab) 
+
+pair3_both <- pair3 %>% 
+  left_join(cts_all , by  = 'sampleid')
+```
+
