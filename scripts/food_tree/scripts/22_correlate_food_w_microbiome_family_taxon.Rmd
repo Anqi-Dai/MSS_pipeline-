@@ -47,32 +47,45 @@ annot <- asv_annotation_blast_ag %>%
          family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
          genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
          species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_spp = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+  mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
 
 
 # replace the asv_key with the genus taxa level
 # summarize from asv level to genus level
 # get the relative abundance for the genera
 cts_all <- cts %>% 
-  full_join(annot %>%  select(asv_key, taxa_spp), by  = 'asv_key') %>% 
+  full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
   select(-asv_key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_spp) %>% 
+  group_by(sampleid, taxa_genus) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
   left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_spp, relab) 
+  select(sampleid, taxa_genus, relab)  
+
+cts_all_keep_feature <- cts_all %>% 
+  spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
+  column_to_rownames('taxa_genus')
+
+# filtering:  only microbiome features that are present in >= minmum-prevlence (e.g. 10% of patients)  of the samples and above some minimum relative abundance, (e.g. >=0.0001).
+
+pass_thre_num <- ceiling(ncol(cts_all_keep_feature) * 0.1)
+
+counts_fil_keep_feature <- rownames(cts_all_keep_feature[rowSums(cts_all_keep_feature > 0.001) >= pass_thre_num, ])
+
+cts_all_fil <- cts_all %>% 
+  filter(taxa_genus %in% counts_fil_keep_feature)
 
 pair3_both <- pair3 %>% 
-  left_join(cts_all , by  = 'sampleid')
+  left_join(cts_all_fil , by  = 'sampleid')
 ```
 
 ```{r}
 # every species relab and correlate with the level 2 food group ave weight
 
 pair3_both_spearm <- pair3_both %>% 
-  split(.$taxa_spp) %>% 
+  split(.$taxa_genus) %>% 
   map(function(df){
      df %>% 
         split(.$Level.code) %>% 
@@ -85,7 +98,7 @@ pair3_both_spearm <- pair3_both %>%
                       pval = test$p.value))}) %>% 
         bind_rows(.id = 'Level.code')
   }) %>% 
-  bind_rows(.id = 'taxa_spp') %>% 
+  bind_rows(.id = 'taxa_genus') %>% 
   filter(!is.na(rho)) %>% 
   mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
   mutate(neglogFDR = -log(FDR)) %>% 
@@ -97,11 +110,13 @@ pair3_both_spearm <- pair3_both %>%
 # get the sig ones (FDR < 0.1)
 pair3_both_spearm_sig <- pair3_both_spearm %>% 
   filter(FDR < 0.1) %>% 
-  mutate(taxa_spp = str_extract(taxa_spp, 'f__.+$')) %>% 
+  mutate(family_genus = str_extract(taxa_genus, 'f__.+$')) %>% 
+  mutate(genus = str_extract(taxa_genus, '\\|g__.+$'),
+         genus = str_replace(genus, '\\|g__','')) %>% 
   # join with the node lables 
   left_join(nodes , by  = 'Level.code') %>% 
   rename(description = Main.food.description) %>% 
-  mutate(spp = str_extract(taxa_spp, 's__.+$')) %>% 
+  #mutate(spp = str_extract(taxa_spp, 's__.+$')) %>% 
   # to add a tiny amount to avoid the FDR == 0 situation  
   mutate(FDR = if_else(FDR == 0, FDR + 10^-6, FDR)) %>% 
   mutate(neglogFDR = -log(FDR)) %>% 
@@ -114,10 +129,16 @@ pair3_both_spearm_sig <- pair3_both_spearm %>%
 # trying to plot like the diet paper fig4 a
   
 pair3_both_spearm_sig %>% 
-  ggscatter(x = 'rho', y = 'spp', size = 'neglogFDR', label = 'spp', repel = T) +
+  ggscatter(x = 'rho', y = 'family_genus', size = 'neglogFDR', label = 'genus', repel = T,
+            xlab = 'Spearman rho', ylab = 'Species name', 
+            title = 'Spearman cor between stool sample genus relab and previous three days diet\nlevel 2 food group dehydrated weight FDR < 0.1 result') +
   facet_grid(desc_l1 ~ ., scales = "free", space = "free_y") +
   theme_bw() +
-  theme(axis.text.y=element_text(size=8)) +
-  ggsave('../figs/pair3_both_spearman_spp_taxon_food_L2_sig.pdf', height = 40, width = 10) 
+  geom_text(aes(x = 1.5, label = description), nudge_x = 1) +
+  geom_vline(xintercept = c(0.5, -0.5), linetype = 'dashed', color = 'red') +
+  geom_vline(xintercept = 1, color = 'black') +
+  theme(axis.text.y=element_text(size=8),
+        legend.position = 'none') +
+  ggsave('../figs/pair3_both_spearman_genus_taxon_food_L2_sig.pdf', height = 40, width = 15) 
 ```
 
