@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
-library(ggpubr)
+library(ggpubr) 
 ```
 
 ```{r}
@@ -22,6 +22,14 @@ get_table_from_database('asv_annotation_blast_ag')
 ```{r}
 pair3 <- read_csv('../data/finalized/paired/pair_p3day_food_level2_res_fil.csv')
 
+nodes <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = cols(.default = col_character())) %>% 
+  filter(str_length(Level.code) == 2) %>% 
+  # remove the ones ending with 0 like 20 and 50
+  filter(!str_detect(Level.code, '0$'))
+```
+
+
+```{r}
 cts <- asv_counts_ag %>% 
   filter(sampleid %in% pair3$sampleid) %>% 
   select(asv_key, sampleid, count) %>% 
@@ -54,4 +62,44 @@ cts_all <- cts %>%
 pair3_both <- pair3 %>% 
   left_join(cts_all , by  = 'sampleid')
 ```
+
+```{r}
+# every species relab and correlate with the level 2 food group ave weight
+
+pair3_both_spearm <- pair3_both %>% 
+  split(.$taxa_spp) %>% 
+  map(function(df){
+     df %>% 
+        split(.$Level.code) %>% 
+        map(function(df_l2){
+          test = suppressWarnings(cor.test(df_l2$ave_level2, 
+                         df_l2$relab, 
+                         method = 'spearman', 
+                         exact = F))
+          return(list(rho = round(test$estimate, 2),
+                      pval = test$p.value))}) %>% 
+        bind_rows(.id = 'Level.code')
+  }) %>% 
+  bind_rows(.id = 'taxa_spp') %>% 
+  filter(!is.na(rho)) %>% 
+  mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
+  mutate(neglogFDR = -log(FDR)) %>% 
+  arrange(desc(neglogFDR)) 
+
+```
+
+```{r}
+# get the sig ones (FDR < 0.1)
+pair3_both_spearm_sig <- pair3_both_spearm %>% 
+  filter(FDR < 0.1) %>% 
+  mutate(taxa_spp = str_extract(taxa_spp, 'f__.+$')) %>% 
+  # join with the node lables 
+  left_join(nodes , by  = 'Level.code') %>% 
+  rename(description = Main.food.description) %>% 
+  mutate(spp = str_extract(taxa_spp, 's__.+$')) %>% 
+  # to add a tiny amount to avoid the FDR == 0 situation  
+  mutate(FDR = if_else(FDR == 0, FDR + 10^-6, FDR)) %>% 
+  mutate(neglogFDR = -log(FDR)) 
+```
+
 
