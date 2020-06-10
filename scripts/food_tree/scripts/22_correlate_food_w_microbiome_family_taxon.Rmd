@@ -112,12 +112,12 @@ pair3_both_spearm_sig <- pair3_both_spearm %>%
 
 ```{r}
 # trying to plot like the diet paper fig4 a
-
+  
 pair3_both_spearm_sig %>% 
   ggscatter(x = 'rho', y = 'spp', size = 'neglogFDR', label = 'spp', repel = T) +
-  facet_grid(desc_l1 ~ .) +
+  facet_grid(desc_l1 ~ ., scales = "free", space = "free_y") +
   theme_bw() +
-  theme(axis.text.y=element_text(size=2)) +
+  theme(axis.text.y=element_text(size=8)) +
   ggsave('../figs/pair3_both_spearman_spp_taxon_food_L2_sig.pdf', height = 40, width = 10) 
 ```
 
