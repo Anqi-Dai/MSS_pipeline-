@@ -82,6 +82,13 @@ pair3_both <- pair3 %>%
 ```
 
 ```{r}
+# out put the cts_all_fil these are the qualified samples genus relab for the genus that have relab > 0.001 in >= 10% of samples
+cts_all_fil %>% 
+  write_csv('../data/finalized/paired/pair_p3day_qualified_stool_sampled_genus_relab.csv')
+```
+
+
+```{r}
 # every species relab and correlate with the level 2 food group ave weight
 
 pair3_both_spearm <- pair3_both %>% 
@@ -134,11 +141,72 @@ pair3_both_spearm_sig %>%
             title = 'Spearman cor between stool sample genus relab and previous three days diet\nlevel 2 food group dehydrated weight FDR < 0.1 result') +
   facet_grid(desc_l1 ~ ., scales = "free", space = "free_y") +
   theme_bw() +
-  geom_text(aes(x = 1.5, label = description), nudge_x = 1) +
+  geom_text(aes(x = 1.5, label = description)) +
   geom_vline(xintercept = c(0.5, -0.5), linetype = 'dashed', color = 'red') +
   geom_vline(xintercept = 1, color = 'black') +
   theme(axis.text.y=element_text(size=8),
         legend.position = 'none') +
   ggsave('../figs/pair3_both_spearman_genus_taxon_food_L2_sig.pdf', height = 40, width = 15) 
+```
+
+```{r}
+spe <- read.csv ('https://raw.githubusercontent.com/zdealveindy/anadat-r/master/data/DoubsSpe.csv', row.names = 1)
+env <- read.csv ('https://raw.githubusercontent.com/zdealveindy/anadat-r/master/data/DoubsEnv.csv', row.names = 1)
+spa <- read.csv ('https://raw.githubusercontent.com/zdealveindy/anadat-r/master/data/DoubsSpa.csv', row.names = 1)
+ 
+library(vegan) 
+
+
+spe_ <- spe %>% 
+  rownames_to_column('site') %>% 
+  mutate(sum = rowSums(.[2:ncol(.)])) %>% 
+  arrange(sum) %>% 
+  filter(sum > 0) %>% 
+  select(-sum) %>% 
+  column_to_rownames('site')
+
+env_ <- env[-8,]
+  
+
+spe.cca <- cca(spe_ ~ ., env_) 
+
+summary(spe.cca) 
+
+plot(spe.cca, scaling=1, display=c("sp","lc","cn"), main="Triplot CCA
+DoubsSp ~ DoubsEnv - scaling 1") 
+
+
+plot(spe.cca, scaling=1, display=c("lc", "cn"), main="Biplot CCA DoubsSp
+~ DoubsEnv - scaling 1") 
+
+plot(spe.cca, display=c("sp","lc","cn"), main="Triplot CCA DoubsSp ~
+DoubsEnv - scaling 2") 
+
+plot(spe.cca, scaling=2, display=c("sp", "cn"), main="Biplot CCA
+DoubsSp ~ DoubsEnv - scaling 2") 
+
+anova(spe.cca, step=1000) 
+
+
+anova(spe.cca, by="axis", step=1000) 
+
+
+DoubsSp.cca.step.forward <- ordistep(cca(spe_ ~ 1, data=env_),
+scope=formula(spe.cca), direction="forward", pstep=1000) 
+
+DoubsSp.cca.pars <- cca(spe_ ~ das + alt + oxy + deb + nit + pen, data=env_)
+summary(DoubsSp.cca.pars)
+
+
+anova.cca(DoubsSp.cca.pars, step=1000) 
+
+anova.cca(DoubsSp.cca.pars, step=1000, by="axis") 
+
+vif.cca(spe.cca)
+
+vif.cca(DoubsSp.cca.pars)
+
+#Since the vif (variance inflation factor) of das is higher than 10 we should probably rerun
+#the procedure without das. Then rerun the permutation tests and diagnostics again.
 ```
 

@@ -1,0 +1,112 @@
+---
+title: "CCA"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vegan)
+library(ggpubr)
+```
+**Assumptions**
+
+Response variables show unimodal distributions across objects. If dealing with a sites × species (or OTUs) matrix, this suggests that a sampling gradient must be long enough to allow the increase and decrease of a given species or OTU across the sites sampled. Gradients that are too short may manifest linear responses and may be better handled by redundancy analysis (RDA), although CCA may also handle linear relationships.
+Explanatory variables show linear, causal relationships to the response data. If one is unsure if their is a causal relationship between an explanatory variable and the response data, interpretation should be performed with care.
+
+**Warnings**
+
+The variables in the explanatory matrix should be chosen with care, i.e. there should be good rationale behind their inclusion. If explanatory variables are included too liberally, there is an increased risk of distorting the resulting CCA results.
+Only examine the significance and effects of individual axes if the overall CCA solution is found to be significant.
+The algorithm used to compute a CCA solution and the exact meaning of the scaling modes may vary across implementations. Carefully review how results should be interpreted in each implementation used.
+
+
+```{r}
+pair3 <- read_csv('../data/finalized/paired/pair_p3day_food_level2_res_fil.csv')
+
+# load the cts_all_fil these are the qualified samples genus relab for the genus that have relab > 0.001 in >= 10% of samples
+cts_all_fil <- read_csv('../data/finalized/paired/pair_p3day_qualified_stool_sampled_genus_relab.csv')
+
+N <- 30
+
+# keep the top 30 cuz cca can't allow too many features at a time
+cts_all_top_genus <- cts_all_fil %>% 
+  group_by(taxa_genus) %>% 
+  summarise(sum_relab = sum(relab)) %>% 
+  top_n(n = N, wt = sum_relab) %>% 
+  pull(taxa_genus)
+
+# get the top features count matrix in raw count
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% pair3$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
+
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
+
+
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the genera
+cts_raw_top <- cts %>% 
+  full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa_genus) %>% 
+  summarise(cnt = sum(count)) %>% 
+  filter(taxa_genus %in% cts_all_top_genus) %>% 
+  spread(key = 'sampleid', value = 'cnt') %>% 
+  mutate(taxa_genus = str_extract(taxa_genus, 'g__.+$'),
+         taxa_genus = str_replace(taxa_genus, 'g__','')) %>% 
+  gather(key = 'sampleid', value = 'cnt', names(.)[2]:names(.)[ncol(.)]) %>% 
+  spread(key = 'taxa_genus', value = 'cnt') %>% 
+  arrange(sampleid) %>% 
+  column_to_rownames('sampleid')
+  
+```
+
+```{r}
+# the env(meta data )
+meta <- read_tsv('../data/finalized/meta_data_67.tsv')
+
+# pair3 %>% 
+#   distinct(mrn , sampleid) %>% 
+#   count(mrn)
+
+# key info of the patients as the meta
+ptinfo <- meta %>% 
+  distinct(mrn, intensity, source, age_at_hsct, sex, admit_bmi)
+
+# the table that also has nutrients data
+both_metric <- read_csv('../data/finalized/paired/pair_p3day_food_group_n_nutrients_res.csv') 
+
+pheno <-  both_metric %>% 
+  filter(str_detect(type, '_total$')) %>% 
+  # include only the qualified samples
+  filter(sampleid %in% rownames(cts_raw_top)) %>% 
+  ungroup() %>% 
+  spread(key = 'type', value = 'ave_type', fill = 0) %>% 
+  left_join(ptinfo, by = 'mrn') %>% 
+  mutate(intensity = factor(intensity),
+         source = factor(source),
+         sex = factor(sex)) %>% 
+  # sort the sampleid
+  arrange(sampleid) %>% 
+  select(-mrn) %>% 
+  column_to_rownames('sampleid')
+```
+
+```{r}
+
+```
+

@@ -70,6 +70,13 @@ pair_p3day_food_res <- bind_rows(pair_p3day_food, .id = 'ID') %>%
 
 ```
 
+```{r}
+# output this table the stool sample are uncensored here
+pair_p3day_food_res %>% 
+  write_csv('../data/finalized/paired/pair_p3day_food_group_n_nutrients_res.csv')
+```
+
+
 ## Get the stool alpha diversity from db
 
 ```{r}
