@@ -107,6 +107,34 @@ pheno <-  both_metric %>%
 ```
 
 ```{r}
+pair3.cca <- cca(cts_raw_top ~ ., pheno) 
+summary(pair3.cca)
 
+plot(pair3.cca, scaling=1, display=c("sp","lc","cn"), main="") 
+
+plot(pair3.cca, scaling=1, display=c("lc", "cn"), main="Biplot") 
+
+plot(pair3.cca, display=c("sp","lc","cn"), main="Triplot CCA  scaling 2") 
+
+anova(pair3.cca, step=1000) 
+
+anova(pair3.cca, by="axis", step=1000) 
+
+cca.step.forward <- ordistep(cca(cts_raw_top ~ 1, data=pheno),
+scope=formula(pair3.cca), direction="forward", pstep=1000) 
+```
+
+```{r}
+# parsimonious 
+cca.pars <- cca(cts_raw_top ~ Sodium_total + Fibers_total + intensity + veggie_total +      age_at_hsct + sex + admit_bmi + source + Proteing_total +      milk_total + fruit_total + Carbohydrates_total + Sugars_total , data=pheno)
+summary(cca.pars)
+
+anova.cca(cca.pars, step=1000)   
+anova.cca(cca.pars, step=1000, by="axis") 
+
+vif.cca(pair3.cca)
+vif.cca(cca.pars)
+#Since the vif (variance inflation factor) of das is higher than 10 we should probably rerun
+#the procedure without das. Then rerun the permutation tests and diagnostics again.
 ```
 
