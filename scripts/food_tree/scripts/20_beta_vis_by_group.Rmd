@@ -86,8 +86,8 @@ food_groups_sub_total_log %>%
 food_groups_sub_total_log %>% 
   ggplot(aes(x = Axis.2, y = Axis.3, col = log_dewt)) +
   geom_point(alpha=0.5, size = 2.5) +
-  xlab(paste0("PC 1 [",percent_var[2],"%]")) +
-  ylab(paste0("PC 2 [",percent_var[3],"%]")) +
+  xlab(paste0("PC 2 [",percent_var[2],"%]")) +
+  ylab(paste0("PC 3 [",percent_var[3],"%]")) +
   theme_classic() +
   theme(legend.position = 'top') +
   labs(title = 'PCoA of unweighted unifrac distance diet data PC2 VS PC3') + 
@@ -135,8 +135,8 @@ nutrients_sub_total_log %>%
 nutrients_sub_total_log %>% 
   ggplot(aes(x = Axis.2, y = Axis.3, col = log_dewt)) +
   geom_point(alpha=0.5, size = 2.5) +
-  xlab(paste0("PC 1 [",percent_var[2],"%]")) +
-  ylab(paste0("PC 2 [",percent_var[3],"%]")) +
+  xlab(paste0("PC 2 [",percent_var[2],"%]")) +
+  ylab(paste0("PC 3 [",percent_var[3],"%]")) +
   theme_classic() +
   theme(legend.position = 'top') +
   labs(title = 'PCoA of unweighted unifrac distance diet data PC2 VS PC3') + 

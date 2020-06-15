@@ -143,7 +143,7 @@ plot(pro.mean, kind = 2)
 protest_mean <- protest(X = food_pcoa, Y = microbe_pcoa,  permutations = 999)
 protest_mean 
 
-protest_mean$symmetric
+#protest_mean$symmetric
 ```
 
 # recreat the stretching plot in ggplot

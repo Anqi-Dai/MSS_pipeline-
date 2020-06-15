@@ -1,0 +1,178 @@
+---
+title: "Unifrac distances"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+```
+
+## What is unifrac distance
+
+[UniFrac](https://en.wikipedia.org/wiki/UniFrac#:~:text=UniFrac%20is%20a%20distance%20metric,observed%20organisms%20in%20the%20computation.) (unique fraction) is a distance metric used for comparing biological communities. It differs from dissimilarity measures such as Bray-Curtis dissimilarity in that it incorporates information on the relative relatedness of community members by incorporating phylogenetic distances between observed organisms in the computation.
+
+```{r}
+include_graphics('/Volumes/vandenBrinkLab/Angel_Dai/pictures/unifrac.jpg')
+```
+
+Branch length that is unique to the red or green sample is purple, and branch length that is observed in both samples is black.
+
+### The benefits of incorporating phylogenetic information
+
+```{r}
+knitr::include_graphics('/Volumes/vandenBrinkLab/Angel_Dai/pictures/pd.jpg')
+```
+
+
+## Weighted and unweighted unifrac 
+
+Both weighted (quantitative) and unweighted (qualitative) variants of UniFrac are widely used in microbial ecology, where the former accounts for abundance of observed organisms, while the latter only considers their presence or absence.
+
+- Weighted unifrac weights the branch lengths by the abundances of bugs, thus emphasizing the dominant bug.
+- Unweighted unifrac emphaiszes the minor bugs in general.
+
+## Comparing with bray curtis
+
+"If I observe a significant difference between two groups of samples when using the bray-curtis metric, but not when using the unifrac metric (beta-diversity analysis), is it correct to say that the OTUs which differ between the two groups are phylogenetically close to each other, and therefore there is a high level of shared branch length in the community which would not generate a significant difference when using the unifrac distance(s)"
+
+## Calculations
+
+The methods are adapted from the [phyloseq tutorial](https://bioconductor.org/help/course-materials/2017/BioC2017/Day1/Workshops/Microbiome/MicrobiomeWorkflowII.html). 
+
+```{r}
+library(phyloseq)
+library(phangorn)
+library(dada2)
+library(DECIPHER)
+```
+
+### Load db tables
+
+```{r}
+# load tables from the db
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_counts_ag')
+get_table_from_database('asv_sequences_ag')
+get_table_from_database('asv_annotation_blast_ag')
+```
+
+```{r}
+# the table that has pheno information
+pheno <- read_csv('final_pheno.csv') 
+
+# get the unique asv_seq to build a tree.
+seqtab <- asv_counts_ag %>% 
+  filter(sampleid %in% pheno$postgres_ID) %>% 
+  select(asv_key, sampleid, count) %>% 
+  left_join(asv_sequences_ag %>% select(asv_key, asv_sequence), by  = 'asv_key')
+
+seqtab %>% 
+  head() %>% 
+  kable() %>% 
+  kable_styling(full_width = F, position = 'left')
+
+seqs <- seqtab %>% 
+  distinct(asv_sequence) %>% 
+  pull(asv_sequence)
+
+names(seqs) <- seqs
+
+length(seqs)
+
+# tree building
+alignment <- AlignSeqs(DNAStringSet(seqs), anchor=NA)
+phang.align <- phyDat(as(alignment, "matrix"), type="DNA")
+dm <- dist.ml(phang.align)
+treeNJ <- NJ(dm) # Note, tip order != sequence order
+fit = pml(treeNJ, data=phang.align)
+fitGTR <- update(fit, k=4, inv=0.2)
+fitGTR <- optim.pml(fitGTR, model="GTR", optInv=TRUE, optGamma=TRUE,
+ rearrangement = "stochastic", control = pml.control(trace = 0))
+detach("package:phangorn", unload=TRUE)
+```
+
+```{r}
+# the sequence df
+sequences <- seqtab %>% 
+  distinct(asv_sequence, .keep_all = T) %>% 
+  arrange(asv_key)    
+ 
+# the asv count table
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% pheno$postgres_ID) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key) %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+all.equal(rownames(cts), sequences$asv_key)
+
+rownames(cts) <- sequences$asv_sequence
+
+cts %>% 
+  head() %>% 
+  kable() %>% 
+  kable_styling(full_width = F, position = 'left')
+
+# the sample df needs to be a pheno table with sampleid as the row name
+sampledf <- pheno %>% 
+  select(-Sample_ID, -has_16S) %>% 
+  dplyr::rename(fid = sampleid) %>% 
+  dplyr::rename(sampleid = postgres_ID) %>% 
+  column_to_rownames('sampleid')
+
+sampledf <- sampledf[colnames(cts),]
+
+sampledf %>% 
+  head() %>% 
+  kable() %>% 
+  kable_styling(full_width = F, position = 'left')
+
+# the annotations
+asvs <- sequences$asv_key
+
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% asvs) %>% 
+  dplyr::select(asv_key:species) %>% 
+  arrange(asv_key) %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+all.equal(rownames(annot) , sequences$asv_key)
+
+rownames(annot) <- sequences$asv_sequence
+
+annot %>% 
+  head() %>% 
+  kable() %>% 
+  kable_styling(full_width = F, position = 'left')
+
+colnames(annot) <- c("Kingdom", "Phylum",  "Class",  "Order",  "Family", "Genus", "Species" )
+  
+# so the asv sequences need to be in the row names since the tree has it
+ps <- phyloseq(otu_table(cts, taxa_are_rows=T), 
+               sample_data(sampledf), 
+               tax_table(annot), 
+               phy_tree(fitGTR$tree))
+
+ps
+
+ps %>% 
+  write_rds('../data/ps.RDS')
+
+```
+

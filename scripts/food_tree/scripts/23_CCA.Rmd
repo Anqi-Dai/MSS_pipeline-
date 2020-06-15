@@ -12,6 +12,7 @@ library(tidyverse)
 library(vegan)
 library(ggpubr)
 ```
+
 **Assumptions**
 
 Response variables show unimodal distributions across objects. If dealing with a sites × species (or OTUs) matrix, this suggests that a sampling gradient must be long enough to allow the increase and decrease of a given species or OTU across the sites sampled. Gradients that are too short may manifest linear responses and may be better handled by redundancy analysis (RDA), although CCA may also handle linear relationships.
@@ -23,6 +24,7 @@ The variables in the explanatory matrix should be chosen with care, i.e. there s
 Only examine the significance and effects of individual axes if the overall CCA solution is found to be significant.
 The algorithm used to compute a CCA solution and the exact meaning of the scaling modes may vary across implementations. Carefully review how results should be interpreted in each implementation used.
 
+## Data preparation 
 
 ```{r}
 pair3 <- read_csv('../data/finalized/paired/pair_p3day_food_level2_res_fil.csv')
@@ -32,6 +34,10 @@ cts_all_fil <- read_csv('../data/finalized/paired/pair_p3day_qualified_stool_sam
 
 N <- 30
 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('asv_annotation_blast_ag')
+
 # keep the top 30 cuz cca can't allow too many features at a time
 cts_all_top_genus <- cts_all_fil %>% 
   group_by(taxa_genus) %>% 
@@ -39,6 +45,8 @@ cts_all_top_genus <- cts_all_fil %>%
   top_n(n = N, wt = sum_relab) %>% 
   pull(taxa_genus)
 
+
+asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 # get the top features count matrix in raw count
 cts <- asv_counts_ag %>% 
   filter(sampleid %in% pair3$sampleid) %>% 
@@ -107,8 +115,61 @@ pheno <-  both_metric %>%
 ```
 
 ```{r}
+# square root transformation
+cts_raw_top <- sqrt(cts_raw_top)
+```
+
+
+## CCA
+
+```{r} 
+data <- read.csv("https://raw.githubusercontent.com/rgriff23/Mosquito_ecology/master/Analysis/data.csv", row.names=1)
+```
+
+
+```{r}
+set.seed(123)
 pair3.cca <- cca(cts_raw_top ~ ., pheno) 
+
+
+# VIFs
+vif.cca(pair3.cca)
+
+# It seems we have some problematic redundancy in our predictor variables. A principled way to choose which variable(s) to drop is to use the drop1 function, which compares the change in AIC the results from dropping each variable from the full model:
+drop1(pair3.cca, test="perm")
+
+# drop legume_total
+pheno_update <- pheno %>% 
+  select(-source )
+
+pair3.cca <- cca(cts_raw_top ~ ., pheno_update) 
+vif.cca(pair3.cca)
+
+drop1(pair3.cca, test="perm")
+
+pheno_update2 <- pheno_update %>% 
+  select(-grain_total )
+
+pair3.cca <- cca(cts_raw_top ~ ., pheno_update2) 
+vif.cca(pair3.cca)
+
+drop1(pair3.cca, test="perm")
+
+
+#
+pheno_update3 <- pheno_update2 %>% 
+  select(-meat_total, -fats_total, -Sugars_total, -milk_total,-Fibers_total,-Proteing_total, -Fat_total )
+
+pair3.cca <- cca(cts_raw_top ~ ., pheno_update3) 
+vif.cca(pair3.cca)
+
+```
+
+
+```{r}
 summary(pair3.cca)
+# As for CA, the species are shown as red crosses and samples as black circles
+plot(pair3.cca)# Each possible factor is plotted at the centroid of the samples on that type, shown as an "X". To find out which one is which, look at last element of the summary of the cca object.
 
 plot(pair3.cca, scaling=1, display=c("sp","lc","cn"), main="") 
 
@@ -126,8 +187,13 @@ scope=formula(pair3.cca), direction="forward", pstep=1000)
 
 ```{r}
 # parsimonious 
-cca.pars <- cca(cts_raw_top ~ Sodium_total + Fibers_total + intensity + veggie_total +      age_at_hsct + sex + admit_bmi + source + Proteing_total +      milk_total + fruit_total + Carbohydrates_total + Sugars_total , data=pheno)
+cca.pars <- cca(cts_raw_top ~ Sodium_total + Fibers_total + intensity + veggie_total +      age_at_hsct + sex + admit_bmi + source + Proteing_total +  milk_total + fruit_total + Carbohydrates_total + Sugars_total , data=pheno)
 summary(cca.pars)
+
+plot(cca.pars, scaling = 'species', display=c("species", "bp"))
+#points(cca.pars,display='species')
+text(cca.pars,, scaling = 'species', display ='species')
+
 
 anova.cca(cca.pars, step=1000)   
 anova.cca(cca.pars, step=1000, by="axis") 
