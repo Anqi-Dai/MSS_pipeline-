@@ -115,6 +115,7 @@ cts <- asv_counts_ag %>%
   filter(sampleid %in% pheno$postgres_ID) %>% 
   select(asv_key, sampleid, count) %>% 
   spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   arrange(asv_key) %>% 
   column_to_rownames('asv_key') %>% 
   as.matrix()
@@ -171,8 +172,63 @@ ps <- phyloseq(otu_table(cts, taxa_are_rows=T),
 
 ps
 
-ps %>% 
-  write_rds('../data/ps.RDS')
+
+```
+
+### Relative abundance in counts
+
+```{r}
+# transform the count to relative abundance
+cts_relab <- cts %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = count/count_total) %>% 
+  select(sampleid, asv_key, relab) %>% 
+  spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
+  arrange(asv_key) %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix() 
+
+rownames(cts_relab) <- sequences$asv_sequence
+
+tree <- read_rds('../../../../IL22/data/ps_tree.RDS')
+
+ps_relab <- phyloseq(otu_table(cts_relab, taxa_are_rows=T), 
+               sample_data(sampledf), 
+               tax_table(annot), 
+               tree)
+
+
+out_unifrac_relab <- ordinate(ps_relab, method = "PCoA",distance ="unifrac")
+
+plot_ordination(ps_relab, out_unifrac_relab, col = "Response_Status",  shape = 'Timepoint')
+
+out_wunifrac_relab <- ordinate(ps_relab, method = "PCoA",distance ="wunifrac")
+
+plot_ordination(ps_relab, out_wunifrac_relab, col = "Response_Status",  shape = 'Timepoint')
+
+out_bray_log <- ordinate(ps_relab,  method = "MDS", distance = "bray")
+
+plot_ordination(ps_relab, out_bray_log, col = "Response_Status",  shape = 'Timepoint')
+```
+
+### log transformed counts
+
+```{r}
+pslog <- transform_sample_counts(ps, function(x) log(1 + x))
+
+out_unifrac_log <- ordinate(pslog, method = "PCoA",distance ="unifrac")
+
+plot_ordination(pslog, out_unifrac_log, col = "Response_Status",  shape = 'Timepoint') 
+
+out_wunifrac_log <- ordinate(pslog, method = "PCoA",distance ="wunifrac")
+
+plot_ordination(pslog, out_wunifrac_log, col = "Response_Status",  shape = 'Timepoint') 
+
+
+out_bray_log <- ordinate(pslog,  method = "MDS", distance = "bray")
+
+plot_ordination(pslog, out_bray_log, col = "Response_Status",  shape = 'Timepoint')
 
 ```
 
