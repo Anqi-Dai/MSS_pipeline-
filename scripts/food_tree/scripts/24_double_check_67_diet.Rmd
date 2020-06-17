@@ -1,0 +1,93 @@
+---
+title: "double check my 67 diet cleaning"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+```
+
+```{r}
+# some cleaning , remove unnecessary columns, filter out some unnecessary rows, change column types
+all <- read_excel('../data/source/new_list.xls') %>% 
+  filter(!str_detect(Food_NSC, '^\\*\\*\\*\\*\\*\\*\\*')) %>% 
+  filter(Por_eaten != 'na') %>% 
+  select(- ...1, - Food, -Unit, -Por_ordered, -SFA_g, -Cholesterol_mg, -MUFA_g, -PUFA_g, -Name) %>% 
+  mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
+  filter(Por_eaten > 0) %>% 
+  filter(Food_NSC %in% all_code$Food_NSC) %>%  
+  mutate(Date = mdy(Date)) %>% 
+  # get rid of the + in the values
+  mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$',''),
+           Proteing_g = str_replace_all(Proteing_g, '\\+$',''),
+           Fat_g = str_replace_all(Fat_g, '\\+$',''),
+           Carbohydrates_g = str_replace_all(Carbohydrates_g, '\\+$',''),
+           Fibers_g = str_replace_all(Fibers_g, '\\+$',''),
+           Sugars_g = str_replace_all(Sugars_g, '\\+$',''),
+           Sodium_mg = str_replace_all(Sodium_mg, '\\+$','')) %>% 
+    mutate(Calories_kcal = as.numeric(Calories_kcal),
+           Proteing_g = as.numeric(Proteing_g),
+           Fat_g = as.numeric(Fat_g),
+           Carbohydrates_g = as.numeric(Carbohydrates_g),
+           Fibers_g = as.numeric(Fibers_g),
+           Sugars_g = as.numeric(Sugars_g),
+           Sodium_mg = as.numeric(Sodium_mg)) 
+```
+
+## correct the outliers
+
+```{r}
+outlier_cor <- read_csv('../data/outlier_very_obvious_peter.csv') %>% 
+  select(Food_NSC, Por_eaten:Sodium_mg)
+
+outlier_to_be_corrected <- all %>% 
+  filter(Food_NSC %in% outlier_cor$Food_NSC)  %>% 
+  distinct(Food_NSC, Por_eaten, .keep_all = T) %>% 
+  select(MRN:Por_eaten) %>% 
+  left_join(outlier_cor) %>% 
+  arrange(Food_NSC)
+
+# decided to manually corrected for those above
+outlier_to_be_corrected %>% 
+  write_csv('../data/source/outlier_to_be_corrected_angel.csv')
+
+cereal <- outlier_to_be_corrected %>% 
+  filter(Food_NSC == 'Cereal, Cheerios') %>% 
+  mutate(ratio = Por_eaten/3) %>% 
+  mutate(Calories_kcal = 300,
+          Proteing_g = 9,
+          Fat_g = 6, 
+          Carbohydrates_g = 60, 
+          Fibers_g = 9,
+          Sugars_g = 3,
+          Sodium_mg = 420) %>% 
+  split(.$Por_eaten) %>% 
+  map_dfr(~ mutate(.data = .,   
+                   Calories_kcal = Calories_kcal*ratio,
+                   Proteing_g = Proteing_g*ratio,
+                   Fat_g = Fat_g*ratio,
+                   Carbohydrates_g = Carbohydrates_g*ratio,
+                   Fibers_g = Fibers_g*ratio,
+                   Sugars_g = Sugars_g*ratio,
+                   Sodium_mg = Sodium_mg*ratio)) %>% 
+  select(-ratio)
+```
+
+
+```{r}
+# combine the corrected ones
+other <- read_csv('../data/source/outlier_to_be_corrected_angel.csv') %>% 
+  mutate(Date = mdy(Date))
+
+all_outlier <- bind_rows(
+  other,
+  cereal
+)
+```
+
