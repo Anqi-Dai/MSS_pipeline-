@@ -50,11 +50,14 @@ multiple <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>
 
 multiple %>% 
   write_csv('../data/source/foods_to_be_split.csv')
+
+# the current cleaned table
+final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
 ```
 
 # new 30
 
-## in the list of unique foods with new food codes, ignore the NA ones and ignore the one with 2 items
+## in the list of unique foods with new food codes, ignore the NA ones and ignore the one with 2 items, and combine with the codes I previously have
 
 ```{r}
 new_unique <- read_excel('../data/new30_FNDDS_Peter.xlsx') %>% 
@@ -79,7 +82,36 @@ all_code %>%
   write_csv('../data/cleaned_diet_data/all_food_nsc_with_code.csv')
 ```
 
+## get the food code for all items in the new 30 pts
+
 ```{r}
-new_all <- read_excel('../data/source/new30_all.xlsx') 
+new_all <- read_excel('../data/source/new30_all.xlsx')  %>% 
+  select(- ...1, - Food) %>% 
+  left_join(all_code, by = 'Food_NSC')
+
+# find the distinct foods (also the portion eaten) that have NA or blanks
+new_all_blanks <- new_all %>% 
+  select(Food_NSC: Sodium_mg) %>% 
+  distinct()  %>% 
+  filter(Por_eaten != 'na') %>% 
+  mutate(Por_eaten = if_else(str_detect(Por_eaten, '^.'), str_glue('0{Por_eaten}'), Por_eaten)) %>% 
+  mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
+  filter(Por_eaten > 0) %>% 
+  select(-Unit, -Por_ordered) %>% 
+  filter(!str_detect(Food_NSC, '^\\*\\*\\*\\*\\*\\*\\*')) %>% 
+  filter(is.na(Calories_kcal) | 
+           is.na(Proteing_g) |
+           is.na(Fat_g) |
+           is.na(Carbohydrates_g) |
+           is.na(Fibers_g) |
+           is.na(Sugars_g) |
+           is.na(Sodium_mg) ) %>% 
+  arrange(Food_NSC)
+
+
+length(intersect(new_all_blanks$Food_NSC, final$Food_NSC))
+
+new_all_blanks %>% 
+  write_csv('../data/source/new_30_records_with_NA.csv')
 ```
 
