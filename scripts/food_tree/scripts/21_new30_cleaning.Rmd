@@ -36,4 +36,50 @@ unknown <- new %>%
 unknown %>% 
   write_csv('../data/source/new30_unknown_food_nsc.csv')
 ```
+```{r}
+# 
+final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
+  filter(Food_NSC %in% c('Cheese and Crackers Snack Pack','Cheese and Crackers, SF','2017 Panini, Mozzarella Cheese & Tomato (3.5)','2017 Sandwich, Tomato & Mozzarella Pesto Panini','Pie, Apple a La Mode','2017 Salad, Shrimp Caesar - Entree (1.5)','Lettuce and Tomato Garnish'))
+```
+```{r}
+# the food in the first 67 patients that have 2 items food
+multiple <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
+  filter(Food_NSC %in% c('Cheese and Crackers Snack Pack','Cheese and Crackers, SF','2017 Panini, Mozzarella Cheese & Tomato (3.5)','2017 Sandwich, Tomato & Mozzarella Pesto Panini','Pie, Apple a La Mode','2017 Salad, Shrimp Caesar - Entree (1.5)','Lettuce and Tomato Garnish')) %>% 
+  select(Food_NSC: Sodium_mg) %>% 
+  distinct()
+
+multiple %>% 
+  write_csv('../data/source/foods_to_be_split.csv')
+```
+
+# new 30
+
+## in the list of unique foods with new food codes, ignore the NA ones and ignore the one with 2 items
+
+```{r}
+new_unique <- read_excel('../data/new30_FNDDS_Peter.xlsx') %>% 
+  filter(Food.Code != 'NA') %>% 
+  filter(is.na(...6)) %>% 
+  select(Food_NSC:FNDDS.Main.Food.Description)
+
+
+# the previous unique food and food code I have 
+uniq_food_code <- uniq_food %>% 
+  distinct(item1_value_raw_raw, Food.Code, FNDDS.Main.Food.Description) %>% 
+  rename(Food_NSC = item1_value_raw_raw) %>% 
+  mutate(Food.Code = as.character(Food.Code))
+
+# ALL of the unique food nsc and its code!
+all_code <- bind_rows(
+  uniq_food_code,
+  new_unique
+)
+
+all_code %>% 
+  write_csv('../data/cleaned_diet_data/all_food_nsc_with_code.csv')
+```
+
+```{r}
+new_all <- read_excel('../data/source/new30_all.xlsx') 
+```
 

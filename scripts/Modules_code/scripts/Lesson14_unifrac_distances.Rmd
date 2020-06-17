@@ -66,16 +66,19 @@ source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database_predefined_filter('asv_counts_ag')
 get_table_from_database('asv_sequences_ag')
-get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_annotation_blast_ag') 
 ```
 
 ```{r}
 # the table that has pheno information
-pheno <- read_csv('final_pheno.csv') 
+pheno <- read_csv('final_pheno.csv') %>% 
+  dplyr::rename(fid = sampleid) %>% 
+  dplyr::rename(sampleid = postgres_ID) %>% 
+  select(-Sample_ID, -has_16S)
 
 # get the unique asv_seq to build a tree.
 seqtab <- asv_counts_ag %>% 
-  filter(sampleid %in% pheno$postgres_ID) %>% 
+  filter(sampleid %in% pheno$sampleid) %>% 
   select(asv_key, sampleid, count) %>% 
   left_join(asv_sequences_ag %>% select(asv_key, asv_sequence), by  = 'asv_key')
 
@@ -112,10 +115,9 @@ sequences <- seqtab %>%
  
 # the asv count table
 cts <- asv_counts_ag %>% 
-  filter(sampleid %in% pheno$postgres_ID) %>% 
+  filter(sampleid %in% pheno$sampleid) %>% 
   select(asv_key, sampleid, count) %>% 
   spread(key = 'sampleid', value = 'count', fill = 0) %>% 
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   arrange(asv_key) %>% 
   column_to_rownames('asv_key') %>% 
   as.matrix()
@@ -130,10 +132,7 @@ cts %>%
   kable_styling(full_width = F, position = 'left')
 
 # the sample df needs to be a pheno table with sampleid as the row name
-sampledf <- pheno %>% 
-  select(-Sample_ID, -has_16S) %>% 
-  dplyr::rename(fid = sampleid) %>% 
-  dplyr::rename(sampleid = postgres_ID) %>% 
+sampledf <- pheno  %>% 
   column_to_rownames('sampleid')
 
 sampledf <- sampledf[colnames(cts),]
@@ -179,8 +178,9 @@ ps
 
 ```{r}
 # transform the count to relative abundance
-cts_relab <- cts %>% 
-  gather(key = 'sampleid', value = 'count', names(.)[2]:names(.)[ncol(.)]) %>% 
+cts_relab <-  asv_counts_ag %>% 
+  filter(sampleid %in% pheno$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
   left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   mutate(relab = count/count_total) %>% 
   select(sampleid, asv_key, relab) %>% 
@@ -191,12 +191,12 @@ cts_relab <- cts %>%
 
 rownames(cts_relab) <- sequences$asv_sequence
 
-tree <- read_rds('../../../../IL22/data/ps_tree.RDS')
+#tree <- read_rds('../../../../IL22/data/ps_tree.RDS')
 
 ps_relab <- phyloseq(otu_table(cts_relab, taxa_are_rows=T), 
                sample_data(sampledf), 
                tax_table(annot), 
-               tree)
+               phy_tree(fitGTR$tree))
 
 
 out_unifrac_relab <- ordinate(ps_relab, method = "PCoA",distance ="unifrac")
