@@ -14,6 +14,8 @@ library(lubridate)
 ```
 
 ```{r}
+all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code.csv')
+
 # some cleaning , remove unnecessary columns, filter out some unnecessary rows, change column types
 all <- read_excel('../data/source/new_list.xls') %>% 
   filter(!str_detect(Food_NSC, '^\\*\\*\\*\\*\\*\\*\\*')) %>% 
@@ -53,22 +55,22 @@ outlier_to_be_corrected <- all %>%
   left_join(outlier_cor) %>% 
   arrange(Food_NSC)
 
-# decided to manually corrected for those above
-outlier_to_be_corrected %>% 
-  write_csv('../data/source/outlier_to_be_corrected_angel.csv')
 
-cereal <- outlier_to_be_corrected %>% 
-  filter(Food_NSC == 'Cereal, Cheerios') %>% 
-  mutate(ratio = Por_eaten/3) %>% 
-  mutate(Calories_kcal = 300,
-          Proteing_g = 9,
-          Fat_g = 6, 
-          Carbohydrates_g = 60, 
-          Fibers_g = 9,
-          Sugars_g = 3,
-          Sodium_mg = 420) %>% 
-  split(.$Por_eaten) %>% 
-  map_dfr(~ mutate(.data = .,   
+# ok I have to do this programmatically
+outlier_cor_res <- outlier_to_be_corrected %>% 
+  arrange(Food_NSC, Calories_kcal) %>% 
+  group_by(Food_NSC) %>% 
+  mutate(Calories_kcal = Calories_kcal[1],
+         Proteing_g = Proteing_g[1],
+         Fat_g = Fat_g[1],
+         Carbohydrates_g = Carbohydrates_g[1],
+         Fibers_g = Fibers_g[1],
+         Sugars_g = Sugars_g[1],
+         Sodium_mg = Sodium_mg[1]) %>% 
+  split(.$Food_NSC) %>% 
+  map_dfr(~ mutate(.data = ., ratio = Por_eaten/Por_eaten[1]) %>% 
+        split(.$Por_eaten) %>% 
+        map_dfr(~ mutate(.data = .,   
                    Calories_kcal = Calories_kcal*ratio,
                    Proteing_g = Proteing_g*ratio,
                    Fat_g = Fat_g*ratio,
@@ -76,18 +78,6 @@ cereal <- outlier_to_be_corrected %>%
                    Fibers_g = Fibers_g*ratio,
                    Sugars_g = Sugars_g*ratio,
                    Sodium_mg = Sodium_mg*ratio)) %>% 
-  select(-ratio)
-```
-
-
-```{r}
-# combine the corrected ones
-other <- read_csv('../data/source/outlier_to_be_corrected_angel.csv') %>% 
-  mutate(Date = mdy(Date))
-
-all_outlier <- bind_rows(
-  other,
-  cereal
-)
+        select(-ratio))
 ```
 
