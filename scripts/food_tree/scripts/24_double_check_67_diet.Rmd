@@ -23,6 +23,7 @@ all <- read_excel('../data/source/new_list.xls') %>%
   select(- ...1, - Food, -Unit, -Por_ordered, -SFA_g, -Cholesterol_mg, -MUFA_g, -PUFA_g, -Name) %>% 
   mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
   filter(Por_eaten > 0) %>% 
+  # I have a code for them
   filter(Food_NSC %in% all_code$Food_NSC) %>%  
   mutate(Date = mdy(Date)) %>% 
   # get rid of the + in the values
@@ -79,5 +80,82 @@ outlier_cor_res <- outlier_to_be_corrected %>%
                    Sugars_g = Sugars_g*ratio,
                    Sodium_mg = Sodium_mg*ratio)) %>% 
         select(-ratio))
+
+
+# integrate these to the original all df expanding 30 to 240
+outlier_or_not <- all %>% 
+  split(.$Food_NSC %in% outlier_cor$Food_NSC)
+
+corrected_all <- outlier_or_not %>% 
+  pluck('TRUE') %>% 
+  select(MRN: Por_eaten) %>% 
+  left_join(outlier_cor_res %>% select(Food_NSC:Sodium_mg), by = c('Food_NSC','Por_eaten'))
+
+all_cor1 <- bind_rows(
+  corrected_all,
+  outlier_or_not %>% pluck('FALSE')
+)
+```
+
+## correct the ones with ridiculous calories
+
+```{r}
+peter1 <- read_csv('../data/source/All_data_check_calories_peter.csv')
+peter2 <- read_csv('../data/source/All_data_to_be_checked_peter.csv')
+peter_cal <- bind_rows(peter1, peter2) %>% 
+  select(Food_NSC, Por_eaten:Sodium_mg) %>% 
+  filter(! Food_NSC %in% outlier_cor_res$Food_NSC)
+colnames(peter_cal)
+
+length(intersect(peter_cal$Food_NSC, outlier_cor_res$Food_NSC))
+
+# don't wanna re-correct the outlier_cor_res ones, so just remove those appear in that list
+
+# now do the things very similar to how I correct the outliers
+all_peter_cal <- all_cor1 %>% 
+  filter(Food_NSC %in% peter_cal$Food_NSC) %>% 
+  distinct(Food_NSC, Por_eaten, .keep_all = T) %>% 
+  select(MRN:Por_eaten) %>% 
+  left_join(peter_cal) %>% 
+  arrange(Food_NSC)
+
+# use the ratio to correct other portions
+cal_cor_res <- all_peter_cal %>% 
+  arrange(Food_NSC, Calories_kcal) %>% 
+  group_by(Food_NSC) %>% 
+  mutate(Calories_kcal = Calories_kcal[1],
+         Proteing_g = Proteing_g[1],
+         Fat_g = Fat_g[1],
+         Carbohydrates_g = Carbohydrates_g[1],
+         Fibers_g = Fibers_g[1],
+         Sugars_g = Sugars_g[1],
+         Sodium_mg = Sodium_mg[1]) %>% 
+  split(.$Food_NSC) %>% 
+  map_dfr(~ mutate(.data = ., ratio = Por_eaten/Por_eaten[1]) %>% 
+        split(.$Por_eaten) %>% 
+        map_dfr(~ mutate(.data = .,   
+                   Calories_kcal = Calories_kcal*ratio,
+                   Proteing_g = Proteing_g*ratio,
+                   Fat_g = Fat_g*ratio,
+                   Carbohydrates_g = Carbohydrates_g*ratio,
+                   Fibers_g = Fibers_g*ratio,
+                   Sugars_g = Sugars_g*ratio,
+                   Sodium_mg = Sodium_mg*ratio)) %>% 
+        select(-ratio))
+
+
+# integrate
+cal_or_not <- all_cor1 %>% 
+  split(.$Food_NSC %in% cal_cor_res$Food_NSC)
+
+corrected_all_cal <- cal_or_not %>% 
+  pluck('TRUE') %>% 
+  select(MRN: Por_eaten) %>% 
+  left_join(cal_cor_res %>% select(Food_NSC:Sodium_mg), by = c('Food_NSC','Por_eaten'))
+
+all_cor2 <- bind_rows(
+  corrected_all_cal,
+  cal_or_not %>% pluck('FALSE')
+)
 ```
 
