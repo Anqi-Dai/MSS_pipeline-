@@ -47,35 +47,35 @@ annot <- asv_annotation_blast_ag %>%
          family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
          genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
          species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
+  mutate(taxa_family = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}'))
 
 
 # replace the asv_key with the genus taxa level
 # summarize from asv level to genus level
 # get the relative abundance for the genera
 cts_all <- cts %>% 
-  full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
+  full_join(annot %>%  select(asv_key, taxa_family), by  = 'asv_key') %>% 
   select(-asv_key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_genus) %>% 
+  group_by(sampleid, taxa_family) %>% 
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
   left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_genus, relab)  
+  select(sampleid, taxa_family, relab)  
 
 cts_all_keep_feature <- cts_all %>% 
   spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
-  column_to_rownames('taxa_genus')
+  column_to_rownames('taxa_family')
 
-# filtering:  only microbiome features that are present in >= minmum-prevlence (e.g. 10% of patients)  of the samples and above some minimum relative abundance, (e.g. >=0.0001).
+# filtering:  only microbiome features that are present in >= minmum-prevlence (e.g. 10% of patients)  of the samples and above some minimum relative abundance, (e.g. >= XXX).
 
 pass_thre_num <- ceiling(ncol(cts_all_keep_feature) * 0.1)
 
-counts_fil_keep_feature <- rownames(cts_all_keep_feature[rowSums(cts_all_keep_feature > 0.001) >= pass_thre_num, ])
+counts_fil_keep_feature <- rownames(cts_all_keep_feature[rowSums(cts_all_keep_feature > 0.01) >= pass_thre_num, ])
 
 cts_all_fil <- cts_all %>% 
-  filter(taxa_genus %in% counts_fil_keep_feature)
+  filter(taxa_family %in% counts_fil_keep_feature)
 
 pair3_both <- pair3 %>% 
   left_join(cts_all_fil , by  = 'sampleid')
@@ -84,7 +84,11 @@ pair3_both <- pair3 %>%
 ```{r}
 # out put the cts_all_fil these are the qualified samples genus relab for the genus that have relab > 0.001 in >= 10% of samples
 cts_all_fil %>% 
-  write_csv('../data/finalized/paired/pair_p3day_qualified_stool_sampled_genus_relab.csv')
+  write_csv('../data/finalized/paired/pair_p3day_qualified_stool_sampled_family_relab.csv')
+
+cts_all_fil %>% 
+  ungroup() %>% 
+  distinct(taxa_family)
 ```
 
 
@@ -92,7 +96,7 @@ cts_all_fil %>%
 # every species relab and correlate with the level 2 food group ave weight
 
 pair3_both_spearm <- pair3_both %>% 
-  split(.$taxa_genus) %>% 
+  split(.$taxa_family) %>% 
   map(function(df){
      df %>% 
         split(.$Level.code) %>% 
@@ -105,7 +109,7 @@ pair3_both_spearm <- pair3_both %>%
                       pval = test$p.value))}) %>% 
         bind_rows(.id = 'Level.code')
   }) %>% 
-  bind_rows(.id = 'taxa_genus') %>% 
+  bind_rows(.id = 'taxa_family') %>% 
   filter(!is.na(rho)) %>% 
   mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
   mutate(neglogFDR = -log(FDR)) %>% 
@@ -117,9 +121,7 @@ pair3_both_spearm <- pair3_both %>%
 # get the sig ones (FDR < 0.1)
 pair3_both_spearm_sig <- pair3_both_spearm %>% 
   filter(FDR < 0.1) %>% 
-  mutate(family_genus = str_extract(taxa_genus, 'f__.+$')) %>% 
-  mutate(genus = str_extract(taxa_genus, '\\|g__.+$'),
-         genus = str_replace(genus, '\\|g__','')) %>% 
+  mutate(family = str_extract(taxa_family, 'f__.+$'))  %>% 
   # join with the node lables 
   left_join(nodes , by  = 'Level.code') %>% 
   rename(description = Main.food.description) %>% 
@@ -136,9 +138,9 @@ pair3_both_spearm_sig <- pair3_both_spearm %>%
 # trying to plot like the diet paper fig4 a
   
 pair3_both_spearm_sig %>% 
-  ggscatter(x = 'rho', y = 'family_genus', size = 'neglogFDR', label = 'genus', repel = T,
+  ggscatter(x = 'rho', y = 'family', size = 'neglogFDR', label = 'family', repel = T,
             xlab = 'Spearman rho', ylab = 'Species name', 
-            title = 'Spearman cor between stool sample genus relab and previous three days diet\nlevel 2 food group dehydrated weight FDR < 0.1 result') +
+            title = 'Spearman cor between stool sample family relab and previous three days diet\nlevel 2 food group dehydrated weight FDR < 0.1 result (abundance threshold > 0.01)') +
   facet_grid(desc_l1 ~ ., scales = "free", space = "free_y") +
   theme_bw() +
   geom_text(aes(x = 1.5, label = description)) +
@@ -146,7 +148,7 @@ pair3_both_spearm_sig %>%
   geom_vline(xintercept = 1, color = 'black') +
   theme(axis.text.y=element_text(size=8),
         legend.position = 'none') +
-  ggsave('../figs/pair3_both_spearman_genus_taxon_food_L2_sig.pdf', height = 40, width = 15) 
+  ggsave('../figs/pair3_both_spearman_family_taxon_food_L2_sig.pdf', height = 20, width = 15) 
 ```
 
 ```{r}

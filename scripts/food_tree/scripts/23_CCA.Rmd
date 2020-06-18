@@ -155,7 +155,7 @@ vif.cca(pair3.cca)
 
 drop1(pair3.cca, test="perm")
 
-
+ 
 #
 pheno_update3 <- pheno_update2 %>% 
   select(-meat_total, -fats_total, -Sugars_total, -milk_total,-Fibers_total,-Proteing_total, -Fat_total )
@@ -168,6 +168,11 @@ vif.cca(pair3.cca)
 
 ```{r}
 summary(pair3.cca)
+```
+
+**Scores shown. These must include some of the alternatives species or sp for species scores, sites or wa for site scores, lc for linear constraints or ``LC scores'', or bp for biplot arrows or cn for centroids of factor constraints instead of an arrow.**
+
+```{r}
 # As for CA, the species are shown as red crosses and samples as black circles
 plot(pair3.cca)# Each possible factor is plotted at the centroid of the samples on that type, shown as an "X". To find out which one is which, look at last element of the summary of the cca object.
 
@@ -181,24 +186,25 @@ anova(pair3.cca, step=1000)
 
 anova(pair3.cca, by="axis", step=1000) 
 
-cca.step.forward <- ordistep(cca(cts_raw_top ~ 1, data=pheno),
-scope=formula(pair3.cca), direction="forward", pstep=1000) 
+cca.step.forward <- ordistep(cca(cts_raw_top ~ 1, data=pheno_update3),
+scope=formula(pair3.cca), direction="forward", pstep=1000) # remove legume_total
 ```
 
 ```{r}
 # parsimonious 
-cca.pars <- cca(cts_raw_top ~ Sodium_total + Fibers_total + intensity + veggie_total +      age_at_hsct + sex + admit_bmi + source + Proteing_total +  milk_total + fruit_total + Carbohydrates_total + Sugars_total , data=pheno)
+cca.pars <- cca( cts_raw_top ~ Sodium_total + intensity + Carbohydrates_total +      admit_bmi + age_at_hsct + sex + veggie_total + sugar_total +      fruit_total + egg_total  , data=pheno_update3)
 summary(cca.pars)
+```
 
+
+```{r}
+# display the species and the quantitative predictors : the nutrients level
 plot(cca.pars, scaling = 'species', display=c("species", "bp"))
-#points(cca.pars,display='species')
-text(cca.pars,, scaling = 'species', display ='species')
-
 
 anova.cca(cca.pars, step=1000)   
 anova.cca(cca.pars, step=1000, by="axis") 
 
-vif.cca(pair3.cca)
+
 vif.cca(cca.pars)
 #Since the vif (variance inflation factor) of das is higher than 10 we should probably rerun
 #the procedure without das. Then rerun the permutation tests and diagnostics again.
