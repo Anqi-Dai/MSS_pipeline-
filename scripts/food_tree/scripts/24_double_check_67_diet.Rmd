@@ -159,3 +159,31 @@ all_cor2 <- bind_rows(
 )
 ```
 
+## check the NA ones
+
+```{r}
+all_cor2 %>% 
+  gather(key = 'item', value = 'value', Por_eaten:Sodium_mg) %>% 
+  filter(is.na(value)) %>% 
+  nrow
+# good there is no NA now
+
+
+# to keep all of the unique rows (all values in the row should be unique)
+all_cor3 <- all_cor2 %>% 
+  distinct() 
+```
+
+## the calories == 0 ones that I need peter to give me the gram weight, all of the patients together
+
+```{r}
+old_cal0 <-  all_cor3 %>% 
+  filter(Calories_kcal == 0) %>% 
+  select(Food_NSC:Sodium_mg) %>% 
+  distinct(Food_NSC, Por_eaten, Calories_kcal)
+
+
+# WAIT FOR PETER TO CORRECT NA ONES FOR THIS PART CUZ SOME OF THE NA ONES SHOULD BE ZERO
+new_cal0 <- read_csv('../data/cleaned_diet_data/new_all_cleaned_with_NA.csv')
+```
+
