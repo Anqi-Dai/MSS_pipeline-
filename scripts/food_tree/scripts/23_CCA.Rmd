@@ -109,12 +109,26 @@ meta <- read_tsv('../data/finalized/meta_data_67.tsv')
 ptinfo <- meta %>% 
   distinct(mrn, intensity, source, age_at_hsct, sex, admit_bmi)
 
+
+# the table that has the info of which samples have to be censored(removed)
+censor_samples <- read_csv('../data/cleaned_stool_data/abx_censor_samples_67.csv')
+
 # the table that also has nutrients data
+# this is NOT censoring the abx samples 
 both_metric <- read_csv('../data/finalized/paired/pair_p3day_food_group_n_nutrients_res.csv') 
 
+
+
+# ADD THE stool sample day relative to transplant cuz that is an important factor
+stb_this <- read_csv('../data/finalized/stool/filter_stool_close_to_diet_meta.csv') %>% 
+  filter(sampleid %in% rownames(cts_raw_top)) %>% 
+  select(sampleid, drt)
+  
+# AND ALSO THE mrn
+ 
 pheno <-  both_metric %>% 
   filter(str_detect(type, '_total$')) %>% 
-  # include only the qualified samples
+  # include only the qualified samples(censored)
   filter(sampleid %in% rownames(cts_raw_top)) %>% 
   ungroup() %>% 
   spread(key = 'type', value = 'ave_type', fill = 0) %>% 
@@ -124,10 +138,11 @@ pheno <-  both_metric %>%
          sex = factor(sex)) %>% 
   # sort the sampleid
   arrange(sampleid) %>% 
-  select(-mrn) %>% 
-  column_to_rownames('sampleid') %>% 
+  select(-mrn) %>%
   # remove the total in the column names 
-  rename_all(funs(str_replace(., '_total$','') ))
+  rename_all(funs(str_replace(., '_total$','') )) %>% 
+  full_join(stb_this, by = 'sampleid') %>% 
+  column_to_rownames('sampleid') 
 ```
 
 ```{r}
@@ -161,10 +176,9 @@ pheno1 <- pheno %>%
 ```{r}
 set.seed(123)
 pair3.cca <- cca(cts_sqrt_top ~ ., pheno1) 
-summary(pair3.cca)
-screeplot(pair3.cca)
 # VIFs
 vif.cca(pair3.cca)
+
 
 # should remove source probably correlate with intensity
 pheno2 <- pheno1 %>% 
@@ -174,9 +188,18 @@ pair3.cca2 <- cca(cts_sqrt_top ~ ., pheno2)
 vif.cca(pair3.cca2)
 ```
 ```{r}
-summary(pair3.cca2) 
+#summary(pair3.cca2) 
 pair3.cca2
-screeplot(pair3.cca2)# this is plotting the Eigenvalues for constrained axes
+```
+
+
+```{r}
+#screeplot(pair3.cca2)# this is plotting the Eigenvalues for constrained axes
+
+barplot(pair3.cca2$CCA$eig/pair3.cca2$tot.chi, names.arg = 1:pair3.cca2$CCA$rank, cex.names = 0.8, ylab="variance explained of total variation", xlab="CCA axis")
+
+barplot(pair3.cca2$CCA$eig/pair3.cca2$CCA$tot.chi, names.arg = 1:pair3.cca2$CCA$rank, cex.names = 0.8, ylab="variance explained of total constrained variation", xlab="CCA axis")
+
 ```
 
 #### The visualization
@@ -189,9 +212,11 @@ screeplot(pair3.cca2)# this is plotting the Eigenvalues for constrained axes
 
 ```{r}
 # n stands for none just the frame
+pdf("../figs/cca_foodgroups_pheno_biplot.pdf", width = 10, height = 10) 
 plot(pair3.cca2, display=c("species", "bp"), type="n", ylab="CCA2", main="Species", scaling="species")
 text(pair3.cca2, display="species", col="black", scaling="species", cex = 0.5 )
-text(pair3.cca2, display="bp", col="red", cex = 0.7)
+text(pair3.cca2, display="bp", col="red", cex = 0.9)
+dev.off() 
 
 # less milk and less sugar and less intense conditioning
 ```
@@ -234,7 +259,7 @@ pair3.cca2_margin_pval
 ```{r}
 
 pheno_nut <- pheno %>% 
-  select(all_of(nutrients_names), age_at_hsct, sex, admit_bmi, intensity)
+  select(all_of(nutrients_names), age_at_hsct, sex, admit_bmi, intensity, drt)
 
 ```
 
@@ -255,8 +280,13 @@ vif.cca(pair3.cca_nut2)
 #### Summaries
 
 ```{r}
-summary(pair3.cca_nut2)
-screeplot(pair3.cca_nut2)
+pair3.cca_nut2
+
+#summary(pair3.cca_nut2)
+barplot(pair3.cca_nut2$CCA$eig/pair3.cca_nut2$tot.chi, names.arg = 1:pair3.cca_nut2$CCA$rank, cex.names = 0.8, ylab="variance explained of total variation", xlab="CCA axis")
+
+barplot(pair3.cca_nut2$CCA$eig/pair3.cca_nut2$CCA$tot.chi, names.arg = 1:pair3.cca_nut2$CCA$rank, cex.names = 0.8, ylab="variance explained of total constrained variation", xlab="CCA axis")
+
 ```
 
 
@@ -264,11 +294,11 @@ screeplot(pair3.cca_nut2)
 
 ```{r}
 # n stands for none just the frame
+pdf("../figs/cca_nutrients_pheno_biplot.pdf", width = 10, height = 10) 
 plot(pair3.cca_nut2, display=c("species", "bp"), type="n", ylab="CCA2", main="Species", scaling="species")
 text(pair3.cca_nut2, display="species", col="black", scaling="species", cex = 0.5 )
 text(pair3.cca_nut2, display="bp", col="red", cex = 0.7)
-
-
+dev.off()
 ```
 
 
@@ -297,4 +327,6 @@ pair3.cca2_margin_pval <- pair3.cca2_margin %>%
 pair3.cca2_margin_pval
 #cca.step.forward <- ordistep(cca(cts_sqrt_top ~ 1, data=pheno2),scope=formula(pair3.cca2), direction="forward",pstep=1000) # remove legume_total
 ```
+
+
 

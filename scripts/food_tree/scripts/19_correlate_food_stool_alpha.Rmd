@@ -135,7 +135,7 @@ spearman_res %>%
 censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_meropenem',	'active_atb_ertapenem',		'active_atb_cefepime',		'active_atb_linezolid',	'active_atb_metro',	'active_atb_piptazo')
 
 abx_all <- read_csv('../data/finalized/abx/abx_all_samples_with_censoring_info.csv')
- 
+  
 abx_this_censor_samples <- abx_all %>% 
   filter(sampleid %in% pair_p3day$sampleid) %>% 
   select(sampleid, active_atb_cipro:active_atb_other) %>% 
@@ -144,6 +144,9 @@ abx_this_censor_samples <- abx_all %>%
   filter(value == T) %>% 
   distinct(sampleid) %>% 
   pull(sampleid)
+
+abx_this_censor_samples %>% 
+  write_csv('../data/cleaned_stool_data/abx_censor_samples_67.csv')
 ```
 
 ```{r}
