@@ -1,10 +1,16 @@
 ---
 title: "CCA"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 ```
 
 ```{r}
@@ -12,6 +18,9 @@ library(tidyverse)
 library(vegan)
 library(ggpubr)
 ```
+
+
+Now that we’ve created our matrix it is usually a good idea to make sure everything looks ok - the row and column sums (i.e., marginal sums) provide one reasonable metric to see overall how the data is structured in a very coarse way.
 
 **Assumptions**
 
@@ -30,7 +39,11 @@ The algorithm used to compute a CCA solution and the exact meaning of the scalin
 pair3 <- read_csv('../data/finalized/paired/pair_p3day_food_level2_res_fil.csv')
 
 # load the cts_all_fil these are the qualified samples genus relab for the genus that have relab > 0.001 in >= 10% of samples
-cts_all_fil <- read_csv('../data/finalized/paired/pair_p3day_qualified_stool_sampled_genus_relab.csv')
+cts_all_fil <- read_csv('../data/finalized/paired/pair_p3day_qualified_stool_sampled_family_relab.csv')
+
+cts_all_fil %>% 
+  ungroup() %>% 
+  distinct(taxa_family)
 
 N <- 30
 
@@ -39,11 +52,11 @@ connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database('asv_annotation_blast_ag')
 
 # keep the top 30 cuz cca can't allow too many features at a time
-cts_all_top_genus <- cts_all_fil %>% 
-  group_by(taxa_genus) %>% 
+cts_all_top_family <- cts_all_fil %>% 
+  group_by(taxa_family) %>% 
   summarise(sum_relab = sum(relab)) %>% 
   top_n(n = N, wt = sum_relab) %>% 
-  pull(taxa_genus)
+  pull(taxa_family)
 
 
 asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
@@ -60,24 +73,25 @@ annot <- asv_annotation_blast_ag %>%
          family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
          genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
          species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
+  mutate(taxa_family = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}'))
 
 
 # replace the asv_key with the genus taxa level
 # summarize from asv level to genus level
 # get the relative abundance for the genera
 cts_raw_top <- cts %>% 
-  full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
+  full_join(annot %>%  select(asv_key, taxa_family), by  = 'asv_key') %>% 
   select(-asv_key) %>% 
   gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_genus) %>% 
+  group_by(sampleid, taxa_family) %>% 
   summarise(cnt = sum(count)) %>% 
-  filter(taxa_genus %in% cts_all_top_genus) %>% 
+  filter(taxa_family %in% cts_all_top_family) %>% 
   spread(key = 'sampleid', value = 'cnt') %>% 
-  mutate(taxa_genus = str_extract(taxa_genus, 'g__.+$'),
-         taxa_genus = str_replace(taxa_genus, 'g__','')) %>% 
+  mutate(taxa_family = str_extract(taxa_family, 'f__.+$'),
+         taxa_family = str_replace(taxa_family, 'f__','')) %>% 
+  filter(taxa_family!='NA') %>% 
   gather(key = 'sampleid', value = 'cnt', names(.)[2]:names(.)[ncol(.)]) %>% 
-  spread(key = 'taxa_genus', value = 'cnt') %>% 
+  spread(key = 'taxa_family', value = 'cnt') %>% 
   arrange(sampleid) %>% 
   column_to_rownames('sampleid')
   
@@ -111,102 +125,108 @@ pheno <-  both_metric %>%
   # sort the sampleid
   arrange(sampleid) %>% 
   select(-mrn) %>% 
-  column_to_rownames('sampleid')
+  column_to_rownames('sampleid') %>% 
+  # remove the total in the column names 
+  rename_all(funs(str_replace(., '_total$','') ))
 ```
 
 ```{r}
 # square root transformation
-cts_raw_top <- sqrt(cts_raw_top)
+cts_sqrt_top <- sqrt(cts_raw_top)
 ```
 
 
 ## CCA
 
-```{r} 
-data <- read.csv("https://raw.githubusercontent.com/rgriff23/Mosquito_ecology/master/Analysis/data.csv", row.names=1)
+- CCA is appropriate for modeling unimodal or hump-shaped responses to explanatory variables (rather than linear as with RDA).
+- Inertia is another name for variation or variance in this case. “Total” refers to total variance, “Constrained” refers to the amount of variance explained by the explanatory variables, “Unconstrained” refers to the residual variance. Constrained + Unconstrained = Total. 
+
+### Diet--food groups
+
+```{r}
+nutrients_names <- data_frame(
+  colname = colnames(pheno)
+) %>% 
+  filter(str_detect(colname, "^[:upper:]")) %>% 
+  pull(colname)
+
+
+pheno1 <- pheno %>% 
+  select(-all_of(nutrients_names))
+  
 ```
 
+#### The model
 
 ```{r}
 set.seed(123)
-pair3.cca <- cca(cts_raw_top ~ ., pheno) 
-
-
+pair3.cca <- cca(cts_sqrt_top ~ ., pheno1) 
+summary(pair3.cca)
+screeplot(pair3.cca)
 # VIFs
 vif.cca(pair3.cca)
 
-# It seems we have some problematic redundancy in our predictor variables. A principled way to choose which variable(s) to drop is to use the drop1 function, which compares the change in AIC the results from dropping each variable from the full model:
-drop1(pair3.cca, test="perm")
+# should remove source probably correlate with intensity
+pheno2 <- pheno1 %>% 
+  select(-source)
 
-# drop legume_total
-pheno_update <- pheno %>% 
-  select(-source )
-
-pair3.cca <- cca(cts_raw_top ~ ., pheno_update) 
-vif.cca(pair3.cca)
-
-drop1(pair3.cca, test="perm")
-
-pheno_update2 <- pheno_update %>% 
-  select(-grain_total )
-
-pair3.cca <- cca(cts_raw_top ~ ., pheno_update2) 
-vif.cca(pair3.cca)
-
-drop1(pair3.cca, test="perm")
-
- 
-#
-pheno_update3 <- pheno_update2 %>% 
-  select(-meat_total, -fats_total, -Sugars_total, -milk_total,-Fibers_total,-Proteing_total, -Fat_total )
-
-pair3.cca <- cca(cts_raw_top ~ ., pheno_update3) 
-vif.cca(pair3.cca)
-
+pair3.cca2 <- cca(cts_sqrt_top ~ ., pheno2) 
+vif.cca(pair3.cca2)
+```
+```{r}
+summary(pair3.cca2) 
+pair3.cca2
+screeplot(pair3.cca2)# this is plotting the Eigenvalues for constrained axes
 ```
 
+#### The visualization
+
+**species or sp for species scores, sites or wa for site scores, lc for linear constraints or ``LC scores'', or bp for biplot arrows or cn for centroids of factor constraints instead of an arrow.**
+
+**As for CA, the species are shown as red crosses and samples as black circles**
+
+**Each possible factor is plotted at the centroid of the samples on that type, shown as an "X". To find out which one is which, look at last element of the summary of the cca object.**
 
 ```{r}
-summary(pair3.cca)
+# n stands for none just the frame
+plot(pair3.cca2, display=c("species", "bp"), type="n", ylab="CCA2", main="Species", scaling="species")
+text(pair3.cca2, display="species", col="black", scaling="species", cex = 0.5 )
+text(pair3.cca2, display="bp", col="red", cex = 0.7)
+
+# less milk and less sugar and less intense conditioning
 ```
 
-**Scores shown. These must include some of the alternatives species or sp for species scores, sites or wa for site scores, lc for linear constraints or ``LC scores'', or bp for biplot arrows or cn for centroids of factor constraints instead of an arrow.**
+
+Enterobacteriaceae are Gram-negative bacteria of a large family that includes Escherichia coli, Klebsiella, Salmonella, Shigella and Yersinia pestis. From: Saliva Protection and Transmissible Diseases, 2017.
+
+
+The Enterococcaceae are a family of Gram-positive bacteria placed in the order Lactobacillales. Representative genera include Enterococcus, Melissococcus, Pilibacter, Tetragenococcus, and Vagococcus. In this family are some important lactic acid bacteria which produce lactic acid as the major metabolic end product.
+
+
+### The statistical test
 
 ```{r}
-# As for CA, the species are shown as red crosses and samples as black circles
-plot(pair3.cca)# Each possible factor is plotted at the centroid of the samples on that type, shown as an "X". To find out which one is which, look at last element of the summary of the cca object.
+# the whole model
+anova(pair3.cca2, step=1000) 
 
-plot(pair3.cca, scaling=1, display=c("sp","lc","cn"), main="") 
+# axis
+anova(pair3.cca2, by="axis", step=1000) 
 
-plot(pair3.cca, scaling=1, display=c("lc", "cn"), main="Biplot") 
+# individual predictors
+anova.cca(pair3.cca2, step=1000, by="margin")
 
-plot(pair3.cca, display=c("sp","lc","cn"), main="Triplot CCA  scaling 2") 
+pair3.cca2_margin <- anova.cca(pair3.cca2, step=1000, by="margin")
 
-anova(pair3.cca, step=1000) 
+pair3.cca2_margin_pval <- pair3.cca2_margin %>% 
+  rownames_to_column('predictor') %>% 
+  rename(pval = names(.)[ncol(.)]) %>% 
+  filter(!is.na(pval)) %>% 
+  mutate(fdr = p.adjust(pval, method = 'BH')) %>% 
+  arrange(fdr)
 
-anova(pair3.cca, by="axis", step=1000) 
 
-cca.step.forward <- ordistep(cca(cts_raw_top ~ 1, data=pheno_update3),
-scope=formula(pair3.cca), direction="forward", pstep=1000) # remove legume_total
+pair3.cca2_margin_pval
+#cca.step.forward <- ordistep(cca(cts_sqrt_top ~ 1, data=pheno2),scope=formula(pair3.cca2), direction="forward",pstep=1000) # remove legume_total
 ```
 
-```{r}
-# parsimonious 
-cca.pars <- cca( cts_raw_top ~ Sodium_total + intensity + Carbohydrates_total +      admit_bmi + age_at_hsct + sex + veggie_total + sugar_total +      fruit_total + egg_total  , data=pheno_update3)
-summary(cca.pars)
-```
-
-
-```{r}
-# display the species and the quantitative predictors : the nutrients level
-plot(cca.pars, scaling = 'species', display=c("species", "bp"))
-
-anova.cca(cca.pars, step=1000)   
-anova.cca(cca.pars, step=1000, by="axis") 
-
-
-vif.cca(cca.pars)
-#Since the vif (variance inflation factor) of das is higher than 10 we should probably rerun
-#the procedure without das. Then rerun the permutation tests and diagnostics again.
-```
 

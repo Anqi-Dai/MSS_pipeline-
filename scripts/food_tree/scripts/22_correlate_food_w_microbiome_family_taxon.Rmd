@@ -72,7 +72,7 @@ cts_all_keep_feature <- cts_all %>%
 
 pass_thre_num <- ceiling(ncol(cts_all_keep_feature) * 0.1)
 
-counts_fil_keep_feature <- rownames(cts_all_keep_feature[rowSums(cts_all_keep_feature > 0.01) >= pass_thre_num, ])
+counts_fil_keep_feature <- rownames(cts_all_keep_feature[rowSums(cts_all_keep_feature > 0.001) >= pass_thre_num, ])
 
 cts_all_fil <- cts_all %>% 
   filter(taxa_family %in% counts_fil_keep_feature)
