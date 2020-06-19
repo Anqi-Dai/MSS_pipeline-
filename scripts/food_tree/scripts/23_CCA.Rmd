@@ -229,4 +229,72 @@ pair3.cca2_margin_pval
 #cca.step.forward <- ordistep(cca(cts_sqrt_top ~ 1, data=pheno2),scope=formula(pair3.cca2), direction="forward",pstep=1000) # remove legume_total
 ```
 
+### Diet--nutrients 
+
+```{r}
+
+pheno_nut <- pheno %>% 
+  select(all_of(nutrients_names), age_at_hsct, sex, admit_bmi, intensity)
+
+```
+
+#### The model
+
+```{r}
+pair3.cca_nut <- cca(cts_sqrt_top ~ ., pheno_nut) 
+vif.cca(pair3.cca_nut)
+
+# remove fat and protein?
+pheno_nut2 <- pheno_nut %>% 
+  select(-Fat, -Proteing)
+
+pair3.cca_nut2 <- cca(cts_sqrt_top ~ ., pheno_nut2) 
+vif.cca(pair3.cca_nut2)
+```
+
+#### Summaries
+
+```{r}
+summary(pair3.cca_nut2)
+screeplot(pair3.cca_nut2)
+```
+
+
+#### The visualization
+
+```{r}
+# n stands for none just the frame
+plot(pair3.cca_nut2, display=c("species", "bp"), type="n", ylab="CCA2", main="Species", scaling="species")
+text(pair3.cca_nut2, display="species", col="black", scaling="species", cex = 0.5 )
+text(pair3.cca_nut2, display="bp", col="red", cex = 0.7)
+
+
+```
+
+
+### The statistical test
+
+```{r}
+# the whole model
+anova(pair3.cca_nut2, step=1000) 
+
+# axis
+anova(pair3.cca_nut2, by="axis", step=1000) 
+
+# individual predictors
+anova.cca(pair3.cca_nut2, step=1000, by="margin")
+
+pair3.cca2_margin <- anova.cca(pair3.cca_nut2, step=1000, by="margin")
+
+pair3.cca2_margin_pval <- pair3.cca2_margin %>% 
+  rownames_to_column('predictor') %>% 
+  rename(pval = names(.)[ncol(.)]) %>% 
+  filter(!is.na(pval)) %>% 
+  mutate(fdr = p.adjust(pval, method = 'BH')) %>% 
+  arrange(fdr)
+
+ 
+pair3.cca2_margin_pval
+#cca.step.forward <- ordistep(cca(cts_sqrt_top ~ 1, data=pheno2),scope=formula(pair3.cca2), direction="forward",pstep=1000) # remove legume_total
+```
 
