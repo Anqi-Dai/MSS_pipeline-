@@ -228,7 +228,7 @@ Enterobacteriaceae are Gram-negative bacteria of a large family that includes Es
 The Enterococcaceae are a family of Gram-positive bacteria placed in the order Lactobacillales. Representative genera include Enterococcus, Melissococcus, Pilibacter, Tetragenococcus, and Vagococcus. In this family are some important lactic acid bacteria which produce lactic acid as the major metabolic end product.
 
 
-### The statistical test
+#### The statistical test
 
 ```{r}
 # the whole model
@@ -302,7 +302,7 @@ dev.off()
 ```
 
 
-### The statistical test
+#### The statistical test
 
 ```{r}
 # the whole model
