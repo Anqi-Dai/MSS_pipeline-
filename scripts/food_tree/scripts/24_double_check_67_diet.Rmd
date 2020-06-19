@@ -193,9 +193,9 @@ multiple_clean <- multiple %>%
 
 # the food code for these newly created items that need to be added to my food code db
 multiple_clean_code <- multiple_clean %>% 
-  distinct(Food_NSC, Food.Code, FNDDS.Main.Food.Description)
-
-
+  ungroup() %>% 
+  distinct(Food_NSC, Food.Code, FNDDS.Main.Food.Description) 
+  
 
 final_all_code <- bind_rows(
   all_code,
@@ -208,10 +208,55 @@ final_all_code %>%
 
 ```{r}
 # are there other portions for those foods?
+# now expand the multiples to other portions 
 multiple_all <- all_cor3 %>% 
   filter(Food_NSC %in% multiple$item1_value_raw_raw) %>% 
   distinct(Food_NSC, Por_eaten, Calories_kcal) %>% 
-  arrange(Food_NSC)
+  arrange(Food_NSC) %>% 
+  left_join(multiple_clean, by = c('Food_NSC'='item1_value_raw_raw','Calories_kcal'='total_cal')) %>% 
+  select(-component)
+
+
+# decided to output and manually correct it
+multiple_all %>% 
+  write_csv('../data/multiple_all_manually.csv')
+
+# load back the manually corrected ones
+multiple_all_cor <- read_csv('../data/multiple_all_manually_Angel.csv')
+
+multiple_df_all <-  all_cor3 %>% 
+  filter(Food_NSC %in% multiple$item1_value_raw_raw) %>% 
+  select(MRN:Por_eaten) %>% 
+  left_join(multiple_all_cor, by = c('Food_NSC','Por_eaten')) %>% 
+  select(-Calories_kcal, -Food.Code, -FNDDS.Main.Food.Description) %>% 
+  select(-Food_NSC) %>% 
+  rename(Food_NSC = Food_NSC.y) %>% 
+  select(MRN:Meal, Food_NSC, Por_eaten:Sodium_mg) %>% 
+  rename(Calories_kcal = Calories_kcal.y)
+```
+
+
+```{r}
+# finally I can split the all_cor3 df and change this part about the multiples
+all_cor3_split <- all_cor3 %>% 
+  split(.$Food_NSC %in% multiple$item1_value_raw_raw)
+
+all_cor4 <- bind_rows(
+  all_cor3_split %>% 
+    pluck('FALSE'),
+  multiple_df_all
+)    
+```
+
+```{r}
+# see the overlap of the food codes and the food_nsc 
+library(ggvenn)
+two_list <- list(code = final_all_code$Food_NSC,
+                      all_df = all_cor4$Food_NSC)
+   
+ggvenn(two_list)
+
+# that's good. cuz the current food code includes the new 30 pts'
 ```
 
 
