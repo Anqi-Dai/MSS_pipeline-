@@ -181,4 +181,17 @@ old <- read_csv('../data/cleaned_diet_data/diet_records_corrected_67.csv')
 combined <- bind_rows(old, new)
 ```
 
+# now find the unique item names with calories == 0
+
+```{r}
+cal_0 <- combined %>% 
+  filter(Calories_kcal == 0) %>% 
+  distinct(Food_NSC,Por_eaten ) %>% 
+  arrange(Food_NSC) 
+
+cal_0 %>% 
+  write_csv('../data/cal_0_food_nsc_all.csv')
+
+
+```
 
