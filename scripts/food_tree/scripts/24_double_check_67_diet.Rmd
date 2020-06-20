@@ -256,7 +256,12 @@ two_list <- list(code = final_all_code$Food_NSC,
    
 ggvenn(two_list)
 
-# that's good. cuz the current food code includes the new 30 pts'
+# that's good. cuz the current food code includes the new 30 pts' 
+```
+
+```{r}
+all_cor4 %>% 
+  write_csv('../data/cleaned_diet_data/diet_records_corrected_67.csv')
 ```
 
 

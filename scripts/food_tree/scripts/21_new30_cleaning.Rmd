@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 library(readxl)
+library(lubridate)
 ```
 
 ```{r}
@@ -85,6 +86,8 @@ all_code %>%
 ## get the food code for all items in the new 30 pts
 
 ```{r}
+all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv')
+
 new_all <- read_excel('../data/source/new30_all.xlsx')  %>% 
   select(- ...1, - Food) %>% 
   left_join(all_code, by = 'Food_NSC') %>% 
@@ -93,7 +96,19 @@ new_all <- read_excel('../data/source/new30_all.xlsx')  %>%
   mutate(Por_eaten = if_else(str_detect(Por_eaten, '^.'), str_glue('0{Por_eaten}'), Por_eaten)) %>% 
   mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
   filter(Por_eaten > 0) %>% 
-  select(-Unit, -Por_ordered) 
+  select(-Unit, -Por_ordered)  %>% 
+  # remove the + symbol
+   mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$',''),
+           Proteing_g = str_replace_all(Proteing_g, '\\+$',''),
+           Fat_g = str_replace_all(Fat_g, '\\+$',''),
+           Carbohydrates_g = str_replace_all(Carbohydrates_g, '\\+$',''),
+           Fibers_g = str_replace_all(Fibers_g, '\\+$',''),
+           Sugars_g = str_replace_all(Sugars_g, '\\+$',''),
+           Sodium_mg = str_replace_all(Sodium_mg, '\\+$','')) %>% 
+  mutate_at(vars(ends_with('g')), funs(as.numeric)) %>% 
+  mutate(Calories_kcal = as.numeric(Calories_kcal))  %>% 
+  select(-Food.Code, -FNDDS.Main.Food.Description) 
+  
 
 new_all %>% 
   write_csv('../data/cleaned_diet_data/new_all_cleaned_with_NA.csv')
@@ -119,10 +134,51 @@ new_all_blanks <- new_all %>%
            is.na(Sodium_mg) ) %>% 
   arrange(Food_NSC)
 
-
-length(intersect(new_all_blanks$Food_NSC, final$Food_NSC))
-
+ 
 new_all_blanks %>% 
   write_csv('../data/source/new_30_records_with_NA.csv')
 ```
+
+ 
+## THE NA corrected version from peter
+
+```{r}
+na_cor <- read_excel('../data/new_30_records_with_NA_Peter.xlsx') %>% 
+  filter(Calories_kcal != 'NA') %>% 
+  mutate_at(vars(ends_with('g')), funs(as.numeric)) %>% 
+  mutate(Calories_kcal = as.numeric(Calories_kcal)) %>% 
+  distinct()
+  
+
+
+# merge into the original new 30 df
+new_all_split_NA <- new_all %>% 
+  split(.$Food_NSC %in% na_cor$Food_NSC)
+
+cor_all_NA <- new_all_split_NA %>% 
+  pluck('TRUE') %>% 
+  select(MRN: Por_eaten) %>% 
+  left_join(na_cor, by = c('Food_NSC','Por_eaten'))
+
+NA_cor_all_df <- bind_rows(
+  new_all_split_NA %>% 
+    pluck('FALSE'),
+  cor_all_NA
+)  
+colnames(NA_cor_all_df)
+
+new <- NA_cor_all_df %>% 
+  select(-Name) %>% 
+  mutate(Date = mdy(Date))
+```
+
+
+# combine the above like essential diet columns from old and the new to create a ALL table
+
+```{r}
+old <- read_csv('../data/cleaned_diet_data/diet_records_corrected_67.csv')
+
+combined <- bind_rows(old, new)
+```
+
 
