@@ -1,0 +1,76 @@
+---
+title: "Convertion and get total weight and dehydrated weight for the foods"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# load the tables that need to do these
+
+```{r}
+other_need <- read_csv('../data/cleaned_diet_data/other_need_with_code.csv') %>% 
+  rename(Food_code = Food.Code,
+         description = FNDDS.Main.Food.Description)%>% 
+  mutate(Food_code = as.character(Food_code))
+
+cal0_weight <- read_csv('../data/cleaned_diet_data/cal0_weight_with_code.csv') %>% 
+  rename(Food_code = Food.Code,
+         description = FNDDS.Main.Food.Description) %>% 
+  mutate(Food_code = as.character(Food_code))
+```
+
+# load the fndds table and do the joining
+
+```{r}
+engy <- read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  select(Food_code, Energy_kcal, Water_g) %>% 
+  mutate(Energy_kcal = as.numeric(Energy_kcal),
+         Water_g = as.numeric(Water_g))
+```
+
+```{r}
+# double check if I have cal == 0 in the other_need
+other_need %>% 
+  filter(Calories_kcal == 0)
+
+
+other_need_conversion <-  other_need %>% 
+  left_join(engy, by  = 'Food_code')  %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0.0001, total_weight*(1 - Water_g/100))) %>% 
+  select(-Energy_kcal, -total_weight, -Water_g) %>% 
+  mutate(Date = mdy(Date))
+```
+
+```{r}
+# for the cal0 weight I don't  need the energy to do the conversion I can just minus the water portion
+cal0_weight_conversion <- cal0_weight %>% 
+  left_join(engy %>% select(Food_code, Water_g), by  = 'Food_code')  %>% 
+  mutate(dehydrated_weight = total_weight*(1 - Water_g/100)) %>% 
+  select(-total_weight, -Water_g)
+```
+
+```{r}
+# the final result that has the dehydrated weight!
+combined_dehy <- bind_rows(other_need_conversion, cal0_weight_conversion)   
+```
+
+# convert the sodium mg to g
+
+```{r}
+combined_dehy_clean <- combined_dehy %>% 
+  mutate(Sodium_mg = Sodium_mg/1000) %>% 
+  rename(Sodium_g = Sodium_mg) 
+
+combined_dehy_clean %>% write_csv('../data/cleaned_diet_data/FINAL_97_with_code.csv')
+```
+
+

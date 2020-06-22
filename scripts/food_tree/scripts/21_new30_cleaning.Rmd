@@ -277,11 +277,46 @@ cal0_peter_clean <- cal0_peter %>%
 cal0_split <- combined2 %>% 
   split(.$Food_NSC %in% cal0_peter_items)
 
-cal0_join <- cal0_split %>% 
+cal0_join_with_other <- cal0_split %>% 
   pluck('TRUE') %>%  
   left_join(cal0_peter_clean) %>% 
-  filter(is.na(total_weight))  
+  filter(is.na(total_weight))  %>% 
+  select(-Unit, -total_weight)
+
+
+# for the stuff in the above result that is NA in the gram weight goddamn messed up calories for the food! do a calculation instead
+cal0_weight <- cal0_split %>% 
+  pluck('TRUE') %>%  
+  left_join(cal0_peter_clean) %>% 
+  filter(!is.na(total_weight))  %>% 
+  select(-Unit) %>% 
+  # join by the food code
+  left_join(all_code, by = 'Food_NSC')
+
+# most of the cal!=0 stuff that needs the fndds conversion
+other_need <- bind_rows(
+  cal0_split %>% pluck('FALSE'),
+  cal0_join_with_other
+) %>% 
+  # join by the food code
+  left_join(all_code, by = 'Food_NSC')
+
+```
+
+```{r}
+cal0_weight %>% 
+  write_csv('../data/cleaned_diet_data/cal0_weight_with_code.csv')
+
+other_need %>% 
+  write_csv('../data/cleaned_diet_data/other_need_with_code.csv')
 ```
 
 
 ## correct the Specials, Apple Cinnamon Crepes (2)
+
+```{r}
+# one thing I need to correct is this   Specials, Apple Cinnamon Crepes in other_need
+other_need %>% 
+  filter(str_detect(Food_NSC, 'Apple Cinnamon'))
+```
+ ok I will manually correct in the csv file
