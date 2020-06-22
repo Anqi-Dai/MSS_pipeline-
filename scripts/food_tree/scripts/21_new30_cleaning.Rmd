@@ -192,6 +192,96 @@ cal_0 <- combined %>%
 cal_0 %>% 
   write_csv('../data/cal_0_food_nsc_all.csv')
 
-
+combined %>% 
+  filter(Food_NSC == 'Specials, Apple Cinnamon Crepes (2)')
 ```
 
+
+```{r}
+# get the unit for these items 
+new_w_unit <- read_excel('../data/source/new30_all.xlsx')  %>% 
+  select(- ...1, - Food) %>% 
+  filter(Por_eaten != 'na') %>% 
+  mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
+  filter(Por_eaten > 0) %>% 
+  distinct(Food_NSC, Unit, Por_eaten)
+
+# old pts with unit 
+old <- read_excel('../data/source/new_list.xls') %>% 
+  filter(!str_detect(Food_NSC, '^\\*\\*\\*\\*\\*\\*\\*')) %>% 
+  filter(Por_eaten != 'na') %>% 
+  mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
+  filter(Por_eaten > 0) %>% 
+  # I have a code for them
+  filter(Food_NSC %in% all_code$Food_NSC) %>%  
+  mutate(Date = mdy(Date)) %>% 
+  # get rid of the + in the values
+  mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$',''),
+           Proteing_g = str_replace_all(Proteing_g, '\\+$',''),
+           Fat_g = str_replace_all(Fat_g, '\\+$',''),
+           Carbohydrates_g = str_replace_all(Carbohydrates_g, '\\+$',''),
+           Fibers_g = str_replace_all(Fibers_g, '\\+$',''),
+           Sugars_g = str_replace_all(Sugars_g, '\\+$',''),
+           Sodium_mg = str_replace_all(Sodium_mg, '\\+$','')) %>% 
+    mutate(Calories_kcal = as.numeric(Calories_kcal),
+           Proteing_g = as.numeric(Proteing_g),
+           Fat_g = as.numeric(Fat_g),
+           Carbohydrates_g = as.numeric(Carbohydrates_g),
+           Fibers_g = as.numeric(Fibers_g),
+           Sugars_g = as.numeric(Sugars_g),
+           Sodium_mg = as.numeric(Sodium_mg))  %>% 
+  distinct(Food_NSC, Unit, Por_eaten)
+
+all_w_unit <- bind_rows(
+  old, new_w_unit
+)
+
+cal_0_w_unit <- all_w_unit %>% 
+  inner_join(cal_0) %>% 
+  arrange(Food_NSC)
+
+cal_0_w_unit %>% 
+  write_csv('../data/cal_0_food_nsc_all_with_unit.csv')
+```
+
+
+# what's next:
+
+peter send me the updated gram weight for the watery stuff
+
+```{r}
+cal0_peter <- read_excel('../data/cal_0_food_nsc_all_with_unit_Peter.xls')
+
+# the things that should be removed from combined
+na_rm <- cal0_peter %>% 
+  filter(`gram weight` == 'NA') %>% 
+  distinct(Food_NSC) %>% 
+  pull(Food_NSC)
+
+combined2 <- combined %>% 
+  filter(! Food_NSC %in% na_rm)
+
+cal0_peter_items <- cal0_peter %>% 
+  filter(`gram weight` != 'NA')  %>% 
+  rename(total_weight = `gram weight`) %>% 
+  mutate(total_weight = as.numeric(total_weight)) %>% 
+  distinct(Food_NSC) %>% 
+  pull(Food_NSC)
+
+cal0_peter_clean <- cal0_peter %>% 
+  filter(`gram weight` != 'NA')  %>% 
+  rename(total_weight = `gram weight`) %>% 
+  mutate(total_weight = as.numeric(total_weight)) %>% 
+  distinct()
+
+cal0_split <- combined2 %>% 
+  split(.$Food_NSC %in% cal0_peter_items)
+
+cal0_join <- cal0_split %>% 
+  pluck('TRUE') %>%  
+  left_join(cal0_peter_clean) %>% 
+  filter(is.na(total_weight))  
+```
+
+
+## correct the Specials, Apple Cinnamon Crepes (2)
