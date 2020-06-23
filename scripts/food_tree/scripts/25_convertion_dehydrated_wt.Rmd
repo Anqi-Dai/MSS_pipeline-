@@ -80,11 +80,20 @@ source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 
 get_table_from_database('patient_allo_ag')
+```
+
+
+```{r}
+combined_dehy_clean <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
+
 
 diet_pt <- patient_allo_ag %>% 
   filter(str_detect(indication, fixed('initial', ignore_case = T))) %>% 
   filter(mrn %in% combined_dehy_clean$MRN) 
     
+
+diet_pt %>% 
+  write_csv('../data/cleaned_patients/diet_patient_allo.csv')
 
 # there is one patient I don't have transplant info!
 setdiff(combined_dehy_clean$MRN, diet_pt$mrn)   
@@ -92,5 +101,17 @@ setdiff(combined_dehy_clean$MRN, diet_pt$mrn)
 # that's cuz he's a very new transplant patients. this january!
 ```
 
+## for now first just ignore that one patient that we don't have transplant info of
+
+```{r}
+combined_final <- combined_dehy_clean %>% 
+  rename(mrn = MRN) %>% 
+  inner_join(diet_pt %>% select(mrn, hct), by = "mrn") %>% 
+  mutate(fdrt = Date - hct) %>% 
+  select(-hct, -Date)
+
+combined_final %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
+```
 
  

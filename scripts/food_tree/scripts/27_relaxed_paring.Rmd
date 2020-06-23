@@ -1,0 +1,74 @@
+---
+title: "Relax paring threshold"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**For the 67 patients**
+
+# fill in the diet matrix
+
+```{r}
+dtb67 <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
+  select(-key, )
+```
+
+
+## create *0* counts for the entero nutrition info
+
+```{r}
+entero <- read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>% 
+  filter(mrn %in% dtb67$mrn) %>% 
+  rename(DayRT = Days.Post.HSCT) %>% 
+  mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
+  select(mrn, DayRT, nut_type)
+```
+ 
+```{r}
+# to see if there is overlap between the normal diet and the above one
+overlap <- entero %>% 
+  inner_join(dtb67) %>% 
+  distinct(mrn, DayRT, nut_type)
+
+overlap %>% 
+  distinct(nut_type)
+
+# since all of the overlap are TPN which doesn't go thru colon, so ignore them  in the entero table
+```
+ 
+```{r}
+entero_clean <- entero %>% 
+  left_join(overlap, by = c("mrn", "DayRT")) %>% 
+  filter(is.na(nut_type.y))  %>% 
+  rename(nut_type = nut_type.x) %>% 
+  select(-nut_type.y)
+  
+```
+ 
+ 
+```{r}
+# use all of the foods this patients has ever eaten as the food_nsc
+
+```
+ 
+## create *NA* counts for the missing days 
+
+
+# make one stool with previous 3 days diet pairing
+
+There has to be one real day's data in the previous 3 days
+
+```{r}
+a <- c(1,2,NA)
+mean(a, na.rm = T)
+
+a <- c(1,2,0)
+mean(a)    
+```
+
+
+
+

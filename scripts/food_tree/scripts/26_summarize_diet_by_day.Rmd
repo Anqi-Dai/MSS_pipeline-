@@ -14,6 +14,30 @@ library(tidyverse)
 Summarize the diet data by day for each patient. and get the gram weight and the percentage for the food group and nutrients. 
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv') %>% 
+  filter(is.na(Food_code)) %>% 
+  distinct(Food_NSC, .keep_all = T)
+
+# check if there is any NA
+any(is.na(dtb))
+
+
+all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv') %>% 
+  filter(Food_NSC %in% dtb$Food_NSC)
+
+intersect(all_code$Food_NSC, dtb$Food_NSC)
+```
+```{r}
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('samples_castori_ag')
+
+one <- samples_castori_ag %>% 
+  filter(mrn == 38084143)
+
+cts <- read_csv('../data/asv_counts_ag_Feb17.csv') %>% 
+  filter(sampleid %in% one$sampleid)
+cts %>% 
+  distinct(sampleid)
 ```
 
