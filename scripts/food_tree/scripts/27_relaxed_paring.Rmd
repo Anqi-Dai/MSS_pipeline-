@@ -118,7 +118,8 @@ abx_all_stool_censor_samples <- abx_all %>%
 
 qua_stool <- all_stool %>% 
   filter(!sampleid %in% abx_all_stool_censor_samples) %>% 
-  select(mrn, sampleid, drt)
+  select(mrn, sampleid, drt) %>% 
+  mutate(id = paste0("row", 1:nrow(.)))
 
 qua_stool %>% 
   count(mrn) %>% 
@@ -135,10 +136,30 @@ qual_stool_df <- qua_stool %>%
   mutate(p1d = drt-1,
          p2d = drt-2,
          p3d = drt-3) %>% 
-  select(-sampleid, -drt)
+  select(-sampleid, -drt, -id)
 
 # use the non fake diet counts table and get the stool samples that should be removed -- not even one day
+no_real_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_, p3d_){
+  df = dtb67 %>% 
+    filter(mrn == mrn_) %>% 
+    filter(DayRT == p1d_ | DayRT == p2d_ |DayRT == p3d_ ) %>% 
+    nrow()
+  
+  return(df)
+}
 
+qual_stool2 <- pmap(qual_stool_df, function(mrn, p1d, p2d, p3d){
+    no_real_diet_d_to_be_rm_stool_s(mrn, p1d, p2d, p3d)
+  }) %>% 
+  set_names(paste0("row", 1:nrow(qual_stool_df))) %>% 
+  bind_rows() %>% 
+  gather(key = 'id', value = 'num_d_records') %>% 
+  arrange(num_d_records) %>% 
+  full_join(qua_stool, by  = 'id')
+  
+qual_stool_sampled_final <- qual_stool2 %>% 
+  filter(num_d_records > 0)  %>% 
+  select(-id, -num_d_records)
 ```
 
 
