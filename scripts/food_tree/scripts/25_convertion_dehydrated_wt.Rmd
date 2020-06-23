@@ -69,8 +69,28 @@ combined_dehy <- bind_rows(other_need_conversion, cal0_weight_conversion)
 combined_dehy_clean <- combined_dehy %>% 
   mutate(Sodium_mg = Sodium_mg/1000) %>% 
   rename(Sodium_g = Sodium_mg) 
+ 
+combined_dehy_clean %>% write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
+```
 
-combined_dehy_clean %>% write_csv('../data/cleaned_diet_data/FINAL_97_with_code.csv')
+# convert the date to day relative to transplant
+
+```{r}
+source('~/db_connect_simple.R') 
+connect_database(config_file = '~/dbConfig.txt')
+
+get_table_from_database('patient_allo_ag')
+
+diet_pt <- patient_allo_ag %>% 
+  filter(str_detect(indication, fixed('initial', ignore_case = T))) %>% 
+  filter(mrn %in% combined_dehy_clean$MRN) 
+    
+
+# there is one patient I don't have transplant info!
+setdiff(combined_dehy_clean$MRN, diet_pt$mrn)   
+
+# that's cuz he's a very new transplant patients. this january!
 ```
 
 
+ 
