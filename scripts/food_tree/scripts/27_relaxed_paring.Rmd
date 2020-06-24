@@ -89,7 +89,9 @@ No need to create cuz we are gonna ignore it.
 ## the combined table(include fake data)
 
 ```{r}
-filled <- bind_rows(dtb67, fake_enteral)
+filled <- bind_rows(dtb67, fake_enteral) %>% 
+  mutate(Sodium_mg = Sodium_mg/1000) %>% 
+  rename(Sodium_g = Sodium_mg)
 ```
 
 # make one stool with previous 3 days diet pairing
@@ -162,6 +164,33 @@ qual_stool_sampled_final <- qual_stool2 %>%
   select(-id, -num_d_records)
 ```
 
+```{r}
+mean(c(1,2,NA), na.rm = T)
+mean(c(1,2,0), na.rm = T)
+```
 
 
+## get the gram weight and the percentage for the food groups and nutrients for each patient on each diet data day
+
+```{r}
+nutrients_df <- filled %>% 
+  select(mrn, DayRT, Proteing_g:Sodium_g) %>% 
+  gather('nutrient', 'gram', names(.)[3]:names(.)[ncol(.)]) 
+
+nutrients_day_nut_total  <- nutrients_df %>% 
+  group_by(mrn, DayRT, nutrient) %>% 
+  summarise(nut_day_total = sum(gram))
+
+# the denominator is all the nutrients summed together for that day for that patient
+nutrients_day_denomi <- nutrients_df %>% 
+  group_by(mrn, DayRT) %>% 
+  summarise(all_tol_day = sum(gram))
+
+nutrients_all  <- nutrients_day_nut_total %>% 
+  left_join(nutrients_day_denomi) %>% 
+  mutate(nut_day_perc = round(nut_day_total/all_tol_day, 2)) %>% 
+  mutate(nutrient = str_replace(nutrient, '_g$','')) %>% 
+  mutate(nutrient = str_glue('Nut_{nutrient}'))
+
+```
 
