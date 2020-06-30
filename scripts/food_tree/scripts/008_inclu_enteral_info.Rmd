@@ -1,0 +1,102 @@
+---
+title: "integrating enteral nutrition info"
+output: html_document   
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+This is going to include all patients enteral info, but currently only have 67's.
+
+# fill in the diet matrix  
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt.csv') %>% 
+  select(mrn,fdrt, Meal, Food_NSC, Por_eaten:Sodium_g, Food_code:description, dehydrated_weight )
+
+```
+
+
+## create *0* counts for the entero nutrition info
+
+```{r}
+entero <- read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>% 
+  filter(mrn %in% dtb$mrn) %>% 
+  rename(DayRT = Days.Post.HSCT) %>% 
+  mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
+  select(mrn, DayRT, nut_type)
+
+```
+ 
+```{r}
+# to see if there is overlap between the normal diet and the above one
+overlap <- entero %>% 
+  inner_join(dtb67) %>% 
+  distinct(mrn, DayRT, nut_type)
+
+overlap %>% 
+  distinct(nut_type)
+
+# since all of the overlap are TPN which doesn't go thru colon, so ignore them  in the entero table
+```
+ 
+```{r}
+entero_clean <- entero %>% 
+  left_join(overlap, by = c("mrn", "DayRT")) %>% 
+  filter(is.na(nut_type.y))  %>% 
+  rename(nut_type = nut_type.x) %>% 
+  select(-nut_type.y) %>% 
+  select(- nut_type)
+```
+ 
+```{r}
+ftb_colnames <- colnames(dtb67)
+```
+ 
+ 
+```{r}
+# use all of the foods this patients has ever eaten as the food_nsc
+create_fake_food_cts_for_enteral_patient <- function(mrn_, DayRT_){
+  this_pt = dtb67 %>% 
+    filter(mrn == mrn_) %>% 
+    distinct(mrn, Food_NSC, Food_code, description) %>% 
+    mutate(DayRT = DayRT_, 
+           Meal = "fake meal",
+           Menu = 'fake menu',
+           Por_eaten = 0,
+           Calories_kcal = 0, 
+           Proteing_g = 0, 
+           Fat_g = 0,
+           Carbohydrates_g = 0,
+           Fibers_g = 0,
+           Sugars_g =0,
+           Sodium_mg =0,
+           dehydrated_weight = 0) %>% 
+    select(all_of(ftb_colnames))
+}
+         
+fake_enteral <- pmap_dfr(entero_clean, function(mrn, DayRT){
+  create_fake_food_cts_for_enteral_patient(mrn, DayRT)
+} )
+
+```
+ 
+## create *NA* counts for the missing days 
+
+No need to create cuz we are gonna ignore it.
+
+
+## the combined table(include fake data)
+
+```{r}
+filled <- bind_rows(dtb67, fake_enteral) %>% 
+  mutate(Sodium_mg = Sodium_mg/1000) %>% 
+  rename(Sodium_g = Sodium_mg)
+```
+
+

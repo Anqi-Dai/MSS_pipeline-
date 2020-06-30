@@ -10,10 +10,10 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r setup, include=FALSE}
 library(tidyverse)
-library(ggpubr) 
+library(ggpubr)  
 ```
 
-## Beta diversity
+## Beta diversity calculations
 
 The counts table can't have a column that is completely all zeros. 
 
@@ -25,3 +25,7 @@ fcts <- read_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.tsv
 ```
 
 good no zero columns so that I can directly use that table and the following is in snakefile with qiime
+
+
+
+
