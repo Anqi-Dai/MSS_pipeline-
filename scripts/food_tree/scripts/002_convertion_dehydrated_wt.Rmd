@@ -9,6 +9,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(readxl)
+library(lubridate)
 ```
 
 # load the tables that need to do these
@@ -69,37 +71,21 @@ combined_dehy <- bind_rows(other_need_conversion, cal0_weight_conversion)
 combined_dehy_clean <- combined_dehy %>% 
   mutate(Sodium_mg = Sodium_mg/1000) %>% 
   rename(Sodium_g = Sodium_mg) 
- 
-combined_dehy_clean %>% write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
 ```
 
-# convert the date to day relative to transplant
+# output the combined_dehy_clean
+
+this is the table with all the core diet info including dehydrated weight
 
 ```{r}
-source('~/db_connect_simple.R') 
-connect_database(config_file = '~/dbConfig.txt')
-
-get_table_from_database('patient_allo_ag')
+combined_dehy_clean %>% 
+  rename(mrn = MRN) %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
 ```
 
 
-```{r}
-combined_dehy_clean <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
 
 
-diet_pt <- patient_allo_ag %>% 
-  filter(str_detect(indication, fixed('initial', ignore_case = T))) %>% 
-  filter(mrn %in% combined_dehy_clean$MRN) 
-    
-
-diet_pt %>% 
-  write_csv('../data/cleaned_patients/diet_patient_allo.csv')
-
-# there is one patient I don't have transplant info!
-setdiff(combined_dehy_clean$MRN, diet_pt$mrn)   
-
-# that's cuz he's a very new transplant patients. this january!
-```
 
 ## for now first just ignore that one patient that we don't have transplant info of
 

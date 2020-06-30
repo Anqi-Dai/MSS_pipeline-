@@ -1,0 +1,82 @@
+---
+title: "the patient info meta data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This script is for organizing the meta data of the patient info, including transplant and nutrition info. intensity and source from the patient allo ag table. age, sex and admit_bmi from the nutrition_demographics_ag table.
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+#dbListTables(con) %>% data.frame() %>% filter(grepl('nutri',.))
+```
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
+```
+
+
+## the demographic info
+
+```{r}
+# the current nutritional info that we have
+
+#nutri <- get_table_from_database('nutrition_ag')
+demogr <- get_table_from_database('nutrition_demographics_ag')
+
+# the info from this table that I wanna integrate into my meta
+demo <- demogr %>% 
+  select(mrn, sex, age_at_hsct, admit_bmi) %>% 
+  filter(mrn %in% dtb$mrn)
+
+nrow(demo)
+
+# THERE ARE A DOZEN NA FOR THE PATIENTS the sex age and bmi column
+demo %>% 
+  filter(is.na(sex))
+
+# ignore this table for now
+```
+
+## the transplant info, only the source and intensity for now
+
+also getting the age and sex from this table
+
+```{r}
+get_table_from_database('patient_allo_ag')
+
+other <- patient_allo_ag %>% 
+  filter(str_detect(indication, fixed('initial', ignore_case = T))) %>% 
+  select(mrn, source , intensity, hct, age, sex) %>%  
+  filter(mrn %in% dtb$mrn) %>% 
+  mutate(source = if_else(str_detect(source, 'Cord' ), 
+                             'cord',
+                             if_else(str_detect(source, 'SBA|CD34'), 
+                                     'TCD',
+                                     'unmodified'))) %>% 
+  mutate(intensity = if_else(intensity %in% c('Ablative','ABLATIVE'), 'ablative',
+                                         if_else(intensity %in% c('NONABL','Nonablative'), 'nonablative','reduced'))) 
+
+
+new1 <- tibble(
+  mrn = 38084143,
+  source = 'TCD',
+  intensity = 'ablative',
+  hct = ymd('2020, January 17'),
+  age = 61.1,
+  sex = 'M'
+)
+
+ptb <- bind_rows(other, new1)
+ 
+# output this table this is the patient meta table
+ptb %>% 
+  write_csv('../data/cleaned_patients/diet_patients_97.csv')
+```
