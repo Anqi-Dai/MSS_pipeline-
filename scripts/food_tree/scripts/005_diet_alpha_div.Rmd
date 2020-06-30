@@ -1,5 +1,5 @@
 ---
-title: ""
+title: "Compute per day diet alpha diversity for every patient using qiime"
 output: html_document
 ---
 
@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(tidyverse)
+library(tidyverse) 
 ```
 
 Convert the date of the hct to fdrt. 
@@ -27,3 +27,40 @@ dtb1 <- dtb %>%
   select(-hct, -Date)   
 ```
 
+# create the fid consists of mrn and fdrt, and then format the table needed to compute the food alpha diversity
+
+```{r}
+fcts <-  dtb1 %>% 
+  mutate(fid = str_glue('P{mrn}d{fdrt}')) %>% 
+  select(fid, Food_code, dehydrated_weight) %>% 
+  group_by(fid, Food_code) %>% 
+  summarise(daily_de_wt = sum(dehydrated_weight)) %>% 
+  spread(key = 'fid', value = 'daily_de_wt', fill = 0) 
+
+fcts %>% 
+  write_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.tsv')
+```
+
+```{bash} 
+biom convert -i ../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.tsv -o ../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.biom --to-hdf5 --table-type="Table"
+
+qiime tools import \
+  --input-path ../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.biom \
+  --output-path ../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.qza \
+  --type 'FeatureTable[Frequency]' 
+
+qiime tools import \
+  --input-path ../data/cleaned_tree/output_food_tree_datatree.newick \
+  --output-path ../data/cleaned_tree/output_food_tree_datatree.qza \
+  --type 'Phylogeny[Rooted]'
+
+qiime diversity alpha-phylogenetic \
+  --i-table ../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.qza  \
+  --i-phylogeny ../data/cleaned_tree/output_food_tree_datatree.qza \
+  --p-metric faith_pd \
+  --o-alpha-diversity ../data/cleaned_diet_data/FINAL_97_faith_pd.qza
+
+
+# export to tsv format
+qiime tools export --input-path ../data/cleaned_diet_data/FINAL_97_faith_pd.qza --output-path ../data/cleaned_diet_data/FINAL_97_faith_pd
+```

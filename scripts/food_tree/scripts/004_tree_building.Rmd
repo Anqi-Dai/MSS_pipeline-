@@ -28,20 +28,21 @@ library(readxl)
 # need to get rid of the all the special characters, so that you will only see underscores
 # all!!!! including the semicolon damn the semi colon
 
+
 # uniq_food is a table with the food_nsc and food code and description
 uniq_food <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv') %>% 
   select(-Food_NSC) %>% 
   distinct() 
 
 
+
 food_database <- uniq_food %>% 
   rename(FoodID = Food.Code,
          Main.food.description = FNDDS.Main.Food.Description) %>% 
   mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 
-  mutate(Main.food.description = str_replace_all(Main.food.description,"'",""))
-
-
+  mutate(Main.food.description = str_replace_all(Main.food.description,"'",""))  
 ```
+
 
 
 # the nodes
@@ -88,29 +89,9 @@ newickstring <- paste("foodtreeroot", apply(main.join, 1, function(xx) paste(xx[
 # create a proper taxonomy string for QIIME
 taxonomy <- apply(main.join, 1, function(xx) paste(xx[-1], collapse=";"))
 
-final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F)
-```
-
-
-```{r}
-#######################################################
-# remove the three items that are not in the feature table
-#######################################################
-# remove3 <- setdiff(final.table %>% 
-#          pull(Main.food.description) , food_cts %>% mutate(main_food_desc = str_replace_all(main_food_desc, ' ', '_')) %>% 
-#           pull(main_food_desc)
-#           )
-
-# final.table <- final.table 
-# # %>% 
-# #   filter(!Main.food.description %in% remove3)
-# 
-# # to see the overlap between the food id in the feature table and the food id in the tree file
-# length(intersect(final.table$FoodID, food_cts$FoodID))
-# 
-# # recreate the newick string that will be in the tree file replacing the main food desc with food id
-# final.table <- final.table %>% 
-#   mutate(newickstring = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{FoodID}'))
+final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F) %>% 
+  # THE BELOW IS ESSENTIAL, THAT WE WANNA USE FOOD ID INSTEAD OF DESCRIPTION TO REPRESENT THE FOOD
+  mutate(newickstring = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{FoodID}'))
 ```
 
 # make the tree in newick
