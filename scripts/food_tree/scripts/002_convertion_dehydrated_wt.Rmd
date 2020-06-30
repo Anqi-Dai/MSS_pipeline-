@@ -78,26 +78,11 @@ combined_dehy_clean <- combined_dehy %>%
 this is the table with all the core diet info including dehydrated weight
 
 ```{r}
-combined_dehy_clean %>% 
+combined_dehy_clean %>%  
   rename(mrn = MRN) %>% 
+  # some records that we made sure can be removed 
+  filter(!is.na(Food_code)) %>% 
   write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
 ```
 
 
-
-
-
-## for now first just ignore that one patient that we don't have transplant info of
-
-```{r}
-combined_final <- combined_dehy_clean %>% 
-  rename(mrn = MRN) %>% 
-  inner_join(diet_pt %>% select(mrn, hct), by = "mrn") %>% 
-  mutate(fdrt = Date - hct) %>% 
-  select(-hct, -Date)
-
-combined_final %>% 
-  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
-```
-
- 
