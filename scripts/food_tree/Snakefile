@@ -9,6 +9,7 @@ rule all:
     input:
         'data/finalized/unweighted_unifrac_distance_matrix.qza'
         
+sample_dir = '/Users/daia1/pipeline/scripts/food_tree/data/cleaned_diet_data'
 
 #############################################################
 # The diet data 
@@ -16,26 +17,26 @@ rule all:
 
 rule convert_dehywt_table_to_biom:
     input:
-        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.tsv'
+        '{sample_dir}/FINAL_97_food_code_counts_matrix.tsv'
     output:
-        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.biom'
+        '{sample_dir}/FINAL_97_food_code_counts_matrix.biom'
     shell:
         'biom convert -i  {input[0]} -o {output[0]} --to-hdf5 --table-type="Table"'
 
 rule convert_dehywt_table_to_qza:
     input:
-        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.biom'
+        '{sample_dir}/FINAL_97_food_code_counts_matrix.biom'
     output:
-        'data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.qza'
+        '{sample_dir}/FINAL_97_food_code_counts_matrix.qza'
     shell:
         'qiime tools import --input-path {input[0]} --output-path  {output[0]} --type "FeatureTable[Frequency]"' 
 
 rule cal_unweighted_unifrac:
     input:
-        cts='data/finalized/all_patients_food_dehywt_table_w_fooID_by_day.qza',
-        tree='data/finalized/output_food_tree_datatree.qza'
+        cts='{sample_dir}/FINAL_97_food_code_counts_matrix.qza',
+        tree='data/cleaned_tree/output_food_tree_datatree.qza'
     output:
-        'data/finalized/unweighted_unifrac_distance_matrix.qza'
+        '{sample_dir}/FINAL_97_unweighted_unifrac_distance_matrix.qza'
     shell:
         '''
         qiime diversity beta-phylogenetic \
@@ -44,6 +45,20 @@ rule cal_unweighted_unifrac:
             --p-metric unweighted_unifrac \
             --o-distance-matrix {output[0]}
         '''
+
+# export so that I can visualize in ggplot
+rule export_food_unifrac:
+    input:
+        '{sample_dir}/FINAL_97_unweighted_unifrac_distance_matrix.qza'
+    output:
+        '{sample_dir}/FINAL_97_unweighted_unifrac_distance_matrix'
+    shell:
+        'qiime tools export --input-path {input[0]} --output-path {output[0]}'
+
+
+rule funifrac:
+    input:
+        sample_dir+'/FINAL_97_unweighted_unifrac_distance_matrix'
 
 rule pcoa_unweighted_unifrac:
     input:

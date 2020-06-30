@@ -95,10 +95,6 @@ faith %>%
 
 
 
-
-
-
-
 # by source
 
 ```{r}
