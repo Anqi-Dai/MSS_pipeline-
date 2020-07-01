@@ -1,0 +1,22 @@
+---
+title: "Selecting stool samples and the no empirical abx affected qualified stool samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# selecting stool samples for the patients and also close to diet data
+
+
+# which stool samples affected by the empirical abx
+
+
+# visualiz on the diet and stool pairing
+
+

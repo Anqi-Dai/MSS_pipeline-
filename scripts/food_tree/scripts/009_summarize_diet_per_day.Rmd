@@ -65,13 +65,32 @@ total_per_group <- fgrps_df %>%
   group_by(mrn, fdrt, fgrp1) %>% 
   summarise(grp_tol = sum(dehydrated_weight))
 
-# joined together
+# joined together 
 fgroup_all <- total_per_group %>% 
   left_join(total_daily) %>% 
   mutate(grp_frac = grp_tol/daily_tol) %>% 
   arrange(mrn, fdrt, fgrp1) %>% 
   ungroup()  %>% 
   left_join(nodes, by = 'fgrp1') %>% 
-  mutate(grp_frac = if_else(is.nan(grp_frac), 0, grp_frac))
+  mutate(grp_frac = if_else(is.nan(grp_frac), 0, grp_frac)) %>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets',
+  ))
+```
+```{r}
+# output these two tables
+fgroup_all %>% 
+  write_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv')
+
+nutrients_all %>% 
+  write_csv('../data/cleaned_diet_data/summarize_nutrients_pt_daily.csv')
 ```
 

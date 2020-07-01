@@ -1,0 +1,118 @@
+---
+title: "Compile the most comprehensive meta pheno table for diet!!!"
+output: html_document
+--- 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+Create a comprehensive meta data table so that I can qiime view 
+
+# this meta table has dietID as for each row, a diet record for each patient on one specific day
+
+## add faith results and transplant info
+
+```{r}
+#create a diet sample ID like the our usual sample id that combines the info of the mrn and the day
+# the dietID gonna be my sampleid
+
+# use the food id instead of the main food description which is a long string
+final <- read_csv('../data/finalized/all_patients_record_w_food_code.csv')
+
+# create fake ID number for patient mrn
+link <- final %>% distinct(mrn) %>% 
+  mutate(pt = str_pad(seq(1, nrow(.)), width = 3, side = 'left',pad = '0')) %>% 
+  mutate(pt = str_glue('Pt{pt}'))
+
+final <- final %>% 
+  left_join(link, by  = 'mrn') %>% 
+  mutate(DayRT = as.character(DayRT)) %>% 
+  mutate(DayRT = str_replace(DayRT, '-','_')) %>% 
+  mutate(dietID = str_glue('{pt}d{DayRT}')) 
+
+# the table that has key transplant information
+pheno <- read_csv('../data/pheno/final_pheno.csv')
+
+
+# get the faith for each diet sample
+faith <- read_csv('../data/finalized/alpha_faith_daily_all.csv') %>% 
+  left_join(link, by = 'mrn') %>% 
+  mutate(DayRT = as.character(DayRT)) %>% 
+  mutate(DayRT = str_replace(DayRT, '-','_')) %>% 
+  mutate(dietID = str_glue('{pt}d{DayRT}')) 
+
+# get the EN TPN info for the patients
+en <- read_csv('../data/finalized/TPN_EN_all.csv') %>% 
+  # just color by the mrn that is either en or tpn
+  distinct(mrn, type) %>% 
+  distinct(mrn, .keep_all = T)
+
+tpns <- en %>% 
+  filter(type == 'TPN') %>% 
+  pull(mrn)
+
+ens <- en %>% 
+  filter(type == 'EN') %>% 
+  pull(mrn)
+```
+
+```{r}
+# join them together
+meta <- final %>% 
+  distinct(dietID, mrn, DayRT) %>% 
+  left_join(pheno, by  = 'mrn') %>% 
+  full_join(faith %>% 
+              select(dietID, faith_pd), by = 'dietID') %>% 
+  # change the first column name to work on qiime
+  rename(`#SampleID` = names(.)[1]) %>% 
+  rename(foodDayRT = DayRT) %>% 
+  # change back the foodDayRT to be numeric
+  mutate(foodDayRT = str_replace(foodDayRT,'_','-')) %>% 
+  mutate(foodDayRT = as.numeric(foodDayRT)) %>% 
+  mutate(entronutri = if_else(mrn %in% ens, "EN", 
+                              if_else(mrn %in% tpns, "TPN", 'none')))
+```
+
+## add nutrition and demographic info
+
+```{r}
+# the current nutritional info that we have
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+dbListTables(con) %>% data.frame() %>% filter(grepl('nutri',.))
+nutri <- get_table_from_database('nutrition_ag')
+demogr <- get_table_from_database('nutrition_demographics_ag')
+
+# the info from this table that I wanna integrate into my meta
+demo <- demogr %>% 
+  select(mrn, sex, age_at_hsct, admit_bmi) %>% 
+  filter(mrn %in% meta$mrn)
+
+demo %>% 
+  summary
+
+demo %>% 
+  count(sex)
+
+
+meta <- meta %>% 
+  left_join(demo , by = 'mrn')
+```
+
+
+
+
+
+
+```{r}
+# write out deid version
+meta  %>% 
+  mutate(PID = as.numeric(as.factor(mrn))) %>% 
+  mutate(PID = str_glue("P{str_pad(PID, 3, 'left', '0')}")) %>% 
+  write_tsv('../data/finalized/meta_data_67.tsv')
+```
