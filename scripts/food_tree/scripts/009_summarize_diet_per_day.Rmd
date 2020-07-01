@@ -1,10 +1,10 @@
 ---
 title: "Summarise food group & nutrients by gram and perc per day per patient"
-output: html_document
+output: html_document  
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE)  
 ```
 
 Summarize the diet data by day for each patient. and get the gram weight and the percentage for the food group and nutrients. 
@@ -14,30 +14,64 @@ library(tidyverse)
 ```
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv') 
-ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')  
-
-dtb1 <- dtb %>% 
-  left_join(ptb %>% select(mrn, hct), by = "mrn") %>% 
-  mutate(fdrt = Date - hct) %>% 
-  select(-hct, -Date)  
+# load my current comprehensive diet table 
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')  
 ```
- 
 
+## summarize on the nutrients 
+ 
 ```{r}
-nutrients_df <- filled %>% 
-  select(mrn, DayRT, Proteing_g:Sodium_g) %>% 
+nutrients_df <- dtb %>%  
+  select(mrn, fdrt, Proteing_g:Sodium_g) %>% 
   gather('nutrient', 'gram', names(.)[3]:names(.)[ncol(.)]) 
+
 nutrients_day_nut_total  <- nutrients_df %>% 
-  group_by(mrn, DayRT, nutrient) %>% 
+  group_by(mrn, fdrt, nutrient) %>% 
   summarise(nut_day_total = sum(gram))
+
 # the denominator is all the nutrients summed together for that day for that patient
 nutrients_day_denomi <- nutrients_df %>% 
-  group_by(mrn, DayRT) %>% 
+  group_by(mrn, fdrt) %>%  
   summarise(all_tol_day = sum(gram))
+
 nutrients_all  <- nutrients_day_nut_total %>% 
   left_join(nutrients_day_denomi) %>% 
-  mutate(nut_day_perc = round(nut_day_total/all_tol_day, 2)) %>% 
+  mutate(nut_day_frac = round(nut_day_total/all_tol_day, 2)) %>% 
   mutate(nutrient = str_replace(nutrient, '_g$','')) %>% 
-  mutate(nutrient = str_glue('Nut_{nutrient}'))
+  mutate(nutrient = str_glue('Nut_{nutrient}')) %>% 
+  mutate(nut_day_frac = if_else(is.nan(nut_day_frac), 0, nut_day_frac))
 ```
+
+## summarize on the food groups
+
+```{r}
+nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code,
+         fdesc = Main.food.description)
+
+fgrps_df <- dtb %>% 
+  select(mrn, fdrt, dehydrated_weight, Food_code) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1))
+
+# the total dehydated weight for a patient for one day
+total_daily <- fgrps_df %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(daily_tol = sum(dehydrated_weight))
+
+
+# the total dehydated weight for a patient for one day for a single food group
+total_per_group <- fgrps_df %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(grp_tol = sum(dehydrated_weight))
+
+# joined together
+fgroup_all <- total_per_group %>% 
+  left_join(total_daily) %>% 
+  mutate(grp_frac = grp_tol/daily_tol) %>% 
+  arrange(mrn, fdrt, fgrp1) %>% 
+  ungroup()  %>% 
+  left_join(nodes, by = 'fgrp1') %>% 
+  mutate(grp_frac = if_else(is.nan(grp_frac), 0, grp_frac))
+```
+
