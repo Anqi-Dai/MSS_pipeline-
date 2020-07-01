@@ -22,32 +22,35 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt.csv'
 ```
 
 
-## create *0* counts for the entero nutrition info
+## create *0* counts for the entero nutrition info (TPN)
+
+EN needs to have the specific nutrition information!
 
 ```{r}
 entero <- read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>% 
   filter(mrn %in% dtb$mrn) %>% 
-  rename(DayRT = Days.Post.HSCT) %>% 
+  rename(fdrt = Days.Post.HSCT) %>% 
   mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
-  select(mrn, DayRT, nut_type)
+  select(mrn, fdrt, nut_type) %>% 
+  filter(nut_type == 'TPN')
 
 ```
  
 ```{r}
 # to see if there is overlap between the normal diet and the above one
 overlap <- entero %>% 
-  inner_join(dtb67) %>% 
-  distinct(mrn, DayRT, nut_type)
+  inner_join(dtb) %>% 
+  distinct(mrn, fdrt, nut_type)
 
 overlap %>% 
   distinct(nut_type)
 
-# since all of the overlap are TPN which doesn't go thru colon, so ignore them  in the entero table
+# since all of the overlap are TPN which doesn't go thru colon, so ignore them in the entero table
 ```
- 
+  
 ```{r}
 entero_clean <- entero %>% 
-  left_join(overlap, by = c("mrn", "DayRT")) %>% 
+  left_join(overlap, by = c("mrn", "fdrt")) %>% 
   filter(is.na(nut_type.y))  %>% 
   rename(nut_type = nut_type.x) %>% 
   select(-nut_type.y) %>% 
@@ -55,19 +58,18 @@ entero_clean <- entero %>%
 ```
  
 ```{r}
-ftb_colnames <- colnames(dtb67)
+ftb_colnames <- colnames(dtb)
 ```
  
  
 ```{r}
 # use all of the foods this patients has ever eaten as the food_nsc
-create_fake_food_cts_for_enteral_patient <- function(mrn_, DayRT_){
-  this_pt = dtb67 %>% 
+create_fake_food_cts_for_enteral_patient <- function(mrn_, fdrt_){
+  this_pt = dtb %>% 
     filter(mrn == mrn_) %>% 
     distinct(mrn, Food_NSC, Food_code, description) %>% 
-    mutate(DayRT = DayRT_, 
+    mutate(fdrt = fdrt_, 
            Meal = "fake meal",
-           Menu = 'fake menu',
            Por_eaten = 0,
            Calories_kcal = 0, 
            Proteing_g = 0, 
@@ -75,13 +77,13 @@ create_fake_food_cts_for_enteral_patient <- function(mrn_, DayRT_){
            Carbohydrates_g = 0,
            Fibers_g = 0,
            Sugars_g =0,
-           Sodium_mg =0,
+           Sodium_g =0,
            dehydrated_weight = 0) %>% 
     select(all_of(ftb_colnames))
 }
          
-fake_enteral <- pmap_dfr(entero_clean, function(mrn, DayRT){
-  create_fake_food_cts_for_enteral_patient(mrn, DayRT)
+fake_enteral <- pmap_dfr(entero_clean, function(mrn, fdrt){
+  create_fake_food_cts_for_enteral_patient(mrn, fdrt)
 } )
 
 ```
@@ -94,9 +96,7 @@ No need to create cuz we are gonna ignore it.
 ## the combined table(include fake data)
 
 ```{r}
-filled <- bind_rows(dtb67, fake_enteral) %>% 
-  mutate(Sodium_mg = Sodium_mg/1000) %>% 
-  rename(Sodium_g = Sodium_mg)
+filled <- bind_rows(dtb, fake_enteral) 
 ```
 
 
