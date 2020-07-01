@@ -119,4 +119,21 @@ stb5 <- stb4 %>%
 
 # visualize on the diet and stool pairing
 
+```{r}
+# the diet data
+library(ggpubr)
+stb5_plot <- stb5 %>% 
+  mutate(y = 0.8)
+
+dtb %>% 
+  select(mrn, fdrt) %>% 
+  mutate(y = 1) %>% 
+  ggscatter(x = 'fdrt', y = 'y', color = 'forestgreen') +
+  geom_point(data = stb5_plot, aes(x = sdrt, y  = y)) +
+  facet_wrap(~mrn) +
+  theme_bw() +
+  ylim(0.5, 1.2) +
+  theme(strip.text.x = element_blank()) +#hide the mrns
+  ggsave('../figs/97_all_pair.pdf', width = 30, height = 12)
+```
 
