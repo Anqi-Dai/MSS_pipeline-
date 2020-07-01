@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE) 
 ```
 
 ```{r}
@@ -22,19 +22,22 @@ samples <- get_table_from_database(table_name = "samples_castori_ag")[,c(2,3,5:7
 get_table_from_database_predefined_filter(table = "asv_alpha_diversity_ag")
 alphadiv <- asv_alpha_diversity_ag
 antibiotics <- get_table_from_database ("antibiotics_antibacterial_multicenter_ag")
+list_table_from_database() %>% 
+  tibble() %>% 
+  filter(str_detect(., 'anti'))
 ```
 
 ```{r config}
 # Choose which population to study (either "all" or "nutrition")
 
-conf_population <- "all"
+conf_population <- "all"  
 
 
 # Specify days interval (relative to HCT date) for samples to be analyzed (e.g. you can decide to only keep samples collected
 # between day -10 and day 30). Use "NULL" to keep all samples
 # relative to transplant date. this period we have the most samples
 conf_day_min <- -20
-conf_day_max <- 41 #!!!!!! changed this to suit the diet project sample collection range
+conf_day_max <- 60 #!!!!!! changed this to suit the diet project sample collection range
 
 # Do you want to censor samples collected during/after antibiotic treatment? (TRUE/FALSE)
 
@@ -151,6 +154,6 @@ conf_plot_prefix <- "alpha"
 abx_all <- add_atb_info_and_cleanup(samples, patients, antibiotics)
 
 abx_all %>% 
-  write_csv('../data/finalized/abx/abx_all_samples_with_censoring_info.csv')
+  write_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info.csv')
 ```
 

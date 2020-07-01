@@ -109,6 +109,8 @@ stb4 %>%
   distinct(mrn, sdrt)# 9 are duplicated on the same day
 ```
 
+# what about the same day there are two stool samples
+
 ```{r}
 # remove the duplicated samples on the same day for now
 stb5 <- stb4 %>% 
@@ -116,24 +118,78 @@ stb5 <- stb4 %>%
   distinct(mrn, sdrt, .keep_all = T)
 ```
 
+# has to have at least one real diet data in the previous three days (for the later pairing)
 
+```{r}
+# list the previous three days drt for every stool sample 
+qual_stool_df <- stb5 %>% 
+  mutate(p1d = sdrt-1,
+         p2d = sdrt-2, 
+         p3d = sdrt-3) %>% 
+  select(mrn, p1d, p2d, p3d)
+
+# use the no fake diet counts table and get the stool samples that should be removed -- not even one day
+dtb_real <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt.csv')
+
+no_real_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_, p3d_){
+  df = dtb_real %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt == p1d_ | fdrt == p2d_ |fdrt == p3d_ ) %>% 
+    nrow()
+  return(df)
+}
+
+qual_stool2 <- pmap(qual_stool_df, function(mrn, p1d, p2d, p3d){
+    no_real_diet_d_to_be_rm_stool_s(mrn, p1d, p2d, p3d)
+  }) %>% 
+  set_names(paste0("row", 1:nrow(qual_stool_df))) %>% 
+  bind_rows() %>% 
+  gather(key = 'id', value = 'num_d_records') %>% 
+  arrange(num_d_records) %>% 
+  full_join(stb5 %>% 
+              mutate(id = paste0("row", 1:nrow(.))), by  = 'id')
+  
+stb6 <- qual_stool2 %>% 
+  filter(num_d_records > 0)  %>%   
+  select(-id, -num_d_records)
+```
+ 
 # visualize on the diet and stool pairing
 
 ```{r}
 # the diet data
 library(ggpubr)
-stb5_plot <- stb5 %>% 
+stb6_plot <- stb6 %>% 
   mutate(y = 0.8)
 
 dtb %>% 
   select(mrn, fdrt) %>% 
   mutate(y = 1) %>% 
   ggscatter(x = 'fdrt', y = 'y', color = 'forestgreen') +
-  geom_point(data = stb5_plot, aes(x = sdrt, y  = y)) +
+  geom_point(data = stb6_plot, aes(x = sdrt, y  = y)) +
   facet_wrap(~mrn) +
   theme_bw() +
-  ylim(0.5, 1.2) +
+  ylim(0.7, 1.1) +
   theme(strip.text.x = element_blank()) +#hide the mrns
   ggsave('../figs/97_all_pair.pdf', width = 30, height = 12)
+```
+
+```{r}
+# one thing I need to check does corrado's abx table cover all of my samples
+yes <- abx_all %>% 
+  filter(sampleid %in% stb3$sampleid)
+
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+no <- stb3 %>% 
+  filter(sampleid %in% setdiff(stb3$sampleid, yes$sampleid)) %>% 
+  left_join(ptb ) %>%  
+  distinct(mrn, hct) %>% 
+  arrange(hct)
+
+antibiotics %>% 
+  filter(patient_id %in% no$mrn)
+
+# pretty recent transplant 
 ```
 
