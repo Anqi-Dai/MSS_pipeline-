@@ -259,10 +259,10 @@ cts_fam <- cts %>%
   summarise(cnt = sum(count)) %>% 
   # get the total count from the db to calculate the relab
   left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_family, relab)  
+  mutate(relab = cnt/count_total) 
 
 cts_all_keep_feature <- cts_fam %>% 
+  select(sampleid, taxa_family, relab) %>% 
   spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
   column_to_rownames('taxa_family')
 
@@ -275,5 +275,7 @@ counts_fil_keep_feature <- rownames(cts_all_keep_feature[rowSums(cts_all_keep_fe
 cts_fam_fil <- cts_fam %>% 
   filter(taxa_family %in% counts_fil_keep_feature)
 
+cts_fam_fil %>% 
+  write_csv('../data/cleaned_stool/NOW_cts_fam_fil_long.csv')
 ```
 

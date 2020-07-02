@@ -48,8 +48,10 @@ mean_p3d_diet_df <- pmap(stb_pair, function(mrn, p1d, p2d, p3d){
   set_names(paste0("row", 1:nrow(stb_pair))) %>% 
   bind_rows(.id = 'ID') %>% 
   spread('type', 'ave_gram') %>%  # this is the ave gram for previous 3 days in each fg and nut for every stool sample that is qualified
-  full_join(stb, by = "ID")
+  full_join(stb, by = "ID") %>% 
+  select(-ID)
 
-
+mean_p3d_diet_df %>% 
+  write_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv')
 ```
 

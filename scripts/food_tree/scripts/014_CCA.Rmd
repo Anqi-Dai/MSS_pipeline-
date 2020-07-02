@@ -35,114 +35,33 @@ The algorithm used to compute a CCA solution and the exact meaning of the scalin
 
 ## Data preparation 
 
-```{r}
-pair3 <- read_csv('../data/finalized/paired/pair_p3day_food_level2_res_fil.csv')
+### at the family level 
 
+```{r}
 # load the cts_all_fil these are the qualified samples genus relab for the genus that have relab > 0.001 in >= 10% of samples
-cts_all_fil <- read_csv('../data/finalized/paired/pair_p3day_qualified_stool_sampled_family_relab.csv')
+cts_all_fil <- read_csv('../data/cleaned_stool/NOW_cts_fam_fil_long.csv')
 
 cts_all_fil %>% 
   ungroup() %>% 
-  distinct(taxa_family)
+  distinct(taxa_family) %>% 
+  nrow
 
-N <- 30
-
-source('~/db_connect_simple.R')
-connect_database(config_file = '~/dbConfig.txt')
-get_table_from_database('asv_annotation_blast_ag')
-
-# keep the top 30 cuz cca can't allow too many features at a time
-cts_all_top_family <- cts_all_fil %>% 
-  group_by(taxa_family) %>% 
-  summarise(sum_relab = sum(relab)) %>% 
-  top_n(n = N, wt = sum_relab) %>% 
-  pull(taxa_family)
-
-
-asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
-# get the top features count matrix in raw count
-cts <- asv_counts_ag %>% 
-  filter(sampleid %in% pair3$sampleid) %>% 
-  select(asv_key, sampleid, count) %>% 
-  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
-  arrange(asv_key)  
-
-annot <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% cts$asv_key) %>% 
-  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
-         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
-         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
-         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_family = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}'))
-
-
-# replace the asv_key with the genus taxa level
-# summarize from asv level to genus level
-# get the relative abundance for the genera
-cts_raw_top <- cts %>% 
-  full_join(annot %>%  select(asv_key, taxa_family), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
-  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_family) %>% 
-  summarise(cnt = sum(count)) %>% 
-  filter(taxa_family %in% cts_all_top_family) %>% 
-  spread(key = 'sampleid', value = 'cnt') %>% 
+# the count to be raw count for CCA and spread it to wider format with sampleid as the rownames 
+cts_raw_top <- cts_all_fil %>% 
+  select(sampleid, taxa_family, cnt) %>% 
   mutate(taxa_family = str_extract(taxa_family, 'f__.+$'),
          taxa_family = str_replace(taxa_family, 'f__','')) %>% 
   filter(taxa_family!='NA') %>% 
-  gather(key = 'sampleid', value = 'cnt', names(.)[2]:names(.)[ncol(.)]) %>% 
-  spread(key = 'taxa_family', value = 'cnt') %>% 
+  spread(key = 'taxa_family', value  = 'cnt') %>% 
   arrange(sampleid) %>% 
-  column_to_rownames('sampleid')
+  column_to_rownames('sampleid') 
   
 ```
 
 ```{r}
-# the env(meta data )
-meta <- read_tsv('../data/finalized/meta_data_67.tsv')
-
-# pair3 %>% 
-#   distinct(mrn , sampleid) %>% 
-#   count(mrn)
-
-# key info of the patients as the meta
-ptinfo <- meta %>% 
-  distinct(mrn, intensity, source, age_at_hsct, sex, admit_bmi)
-
-
-# the table that has the info of which samples have to be censored(removed)
-censor_samples <- read_csv('../data/cleaned_stool_data/abx_censor_samples_67.csv')
-
-# the table that also has nutrients data
-# this is NOT censoring the abx samples 
-both_metric <- read_csv('../data/finalized/paired/pair_p3day_food_group_n_nutrients_res.csv') 
-
-
-
-# ADD THE stool sample day relative to transplant cuz that is an important factor
-stb_this <- read_csv('../data/finalized/stool/filter_stool_close_to_diet_meta.csv') %>% 
-  filter(sampleid %in% rownames(cts_raw_top)) %>% 
-  select(sampleid, drt)
-  
-# AND ALSO THE mrn
- 
-pheno <-  both_metric %>% 
-  filter(str_detect(type, '_total$')) %>% 
-  # include only the qualified samples(censored)
-  filter(sampleid %in% rownames(cts_raw_top)) %>% 
-  ungroup() %>% 
-  spread(key = 'type', value = 'ave_type', fill = 0) %>% 
-  left_join(ptinfo, by = 'mrn') %>% 
-  mutate(intensity = factor(intensity),
-         source = factor(source),
-         sex = factor(sex)) %>% 
-  # sort the sampleid
-  arrange(sampleid) %>% 
-  select(-mrn) %>%
-  # remove the total in the column names 
-  rename_all(funs(str_replace(., '_total$','') )) %>% 
-  full_join(stb_this, by = 'sampleid') %>% 
-  column_to_rownames('sampleid') 
+# the env (meta data ) with explanatory variables
+pheno <- read_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv') %>% 
+  arrange(sampleid) 
 ```
 
 ```{r}
@@ -159,15 +78,9 @@ cts_sqrt_top <- sqrt(cts_raw_top)
 ### Diet--food groups
 
 ```{r}
-nutrients_names <- data_frame(
-  colname = colnames(pheno)
-) %>% 
-  filter(str_detect(colname, "^[:upper:]")) %>% 
-  pull(colname)
-
 
 pheno1 <- pheno %>% 
-  select(-all_of(nutrients_names))
+  select(starts_with('fg'), intensity, sdrt)
   
 ```
 
@@ -175,16 +88,8 @@ pheno1 <- pheno %>%
 
 ```{r}
 set.seed(123)
-pair3.cca <- cca(cts_sqrt_top ~ ., pheno1) 
+pair3.cca2 <- cca(cts_sqrt_top ~ ., pheno1) 
 # VIFs
-vif.cca(pair3.cca)
-
-
-# should remove source probably correlate with intensity
-pheno2 <- pheno1 %>% 
-  select(-source)
-
-pair3.cca2 <- cca(cts_sqrt_top ~ ., pheno2) 
 vif.cca(pair3.cca2)
 ```
 ```{r}
@@ -259,7 +164,7 @@ pair3.cca2_margin_pval
 ```{r}
 
 pheno_nut <- pheno %>% 
-  select(all_of(nutrients_names), age_at_hsct, sex, admit_bmi, intensity, drt)
+  select(starts_with('Nut'), intensity, sdrt)
 
 ```
 
@@ -271,7 +176,7 @@ vif.cca(pair3.cca_nut)
 
 # remove fat and protein?
 pheno_nut2 <- pheno_nut %>% 
-  select(-Fat, -Proteing)
+  select(-Nut_Proteing)
 
 pair3.cca_nut2 <- cca(cts_sqrt_top ~ ., pheno_nut2) 
 vif.cca(pair3.cca_nut2)
@@ -301,7 +206,6 @@ text(pair3.cca_nut2, display="bp", col="red", cex = 0.7)
 dev.off()
 ```
 
-
 #### The statistical test
 
 ```{r}
@@ -321,12 +225,8 @@ pair3.cca2_margin_pval <- pair3.cca2_margin %>%
   rename(pval = names(.)[ncol(.)]) %>% 
   filter(!is.na(pval)) %>% 
   mutate(fdr = p.adjust(pval, method = 'BH')) %>% 
-  arrange(fdr)
-
+  arrange(fdr)    
  
 pair3.cca2_margin_pval
 #cca.step.forward <- ordistep(cca(cts_sqrt_top ~ 1, data=pheno2),scope=formula(pair3.cca2), direction="forward",pstep=1000) # remove legume_total
 ```
-
-
-
