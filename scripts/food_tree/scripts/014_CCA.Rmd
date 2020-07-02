@@ -1,14 +1,14 @@
 ---
-title: "CCA"
+title: "CCA" 
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
-output:
+output: 
   html_document:
-    toc: true
+    toc: true 
     toc_float: true
     toc_depth: 3
 ---
-
+ 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 ```
@@ -61,12 +61,15 @@ cts_raw_top <- cts_all_fil %>%
 ```{r}
 # the env (meta data ) with explanatory variables
 pheno <- read_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv') %>% 
-  arrange(sampleid) 
+  arrange(sampleid) %>% 
+  mutate(intensity = as.factor(intensity)) %>% 
+  mutate(mrn = as.numeric(as.factor(mrn))) %>% 
+  mutate(mrn = str_glue("P{str_pad(mrn, 2, 'left', '0')}"))
 ```
 
 ```{r}
 # square root transformation
-cts_sqrt_top <- sqrt(cts_raw_top)
+cts_sqrt_top <- sqrt(cts_raw_top) 
 ```
 
 
@@ -80,16 +83,26 @@ cts_sqrt_top <- sqrt(cts_raw_top)
 ```{r}
 
 pheno1 <- pheno %>% 
-  select(starts_with('fg'), intensity, sdrt)
+  select(starts_with('fg'), intensity, sdrt, mrn)
   
 ```
 
 #### The model
 
 ```{r}
+# if not including the mrn
+pheno_ <- pheno %>% 
+  select(starts_with('fg'), intensity, sdrt)
+
+pair3.cca2_ <- cca(cts_sqrt_top ~ ., pheno_) 
+pair3.cca2_
+```
+
+
+```{r}
 set.seed(123)
 pair3.cca2 <- cca(cts_sqrt_top ~ ., pheno1) 
-# VIFs
+# VIFsaa
 vif.cca(pair3.cca2)
 ```
 ```{r}
@@ -115,13 +128,13 @@ barplot(pair3.cca2$CCA$eig/pair3.cca2$CCA$tot.chi, names.arg = 1:pair3.cca2$CCA$
 
 **Each possible factor is plotted at the centroid of the samples on that type, shown as an "X". To find out which one is which, look at last element of the summary of the cca object.**
 
-```{r}
+```{r out.width='100%'}
 # n stands for none just the frame
-pdf("../figs/cca_foodgroups_pheno_biplot.pdf", width = 10, height = 10) 
+#pdf("../figs/cca_foodgroups_pheno_biplot.pdf", width = 10, height = 10) 
 plot(pair3.cca2, display=c("species", "bp"), type="n", ylab="CCA2", main="Species", scaling="species")
 text(pair3.cca2, display="species", col="black", scaling="species", cex = 0.5 )
-text(pair3.cca2, display="bp", col="red", cex = 0.9)
-dev.off() 
+text(pair3.cca2, display="bp", col="red", cex = 0.4)
+#dev.off() 
 
 # less milk and less sugar and less intense conditioning
 ```
@@ -137,15 +150,15 @@ The Enterococcaceae are a family of Gram-positive bacteria placed in the order L
 
 ```{r}
 # the whole model
-anova(pair3.cca2, step=1000) 
+anova(pair3.cca2, step=100) 
 
 # axis
-anova(pair3.cca2, by="axis", step=1000) 
+anova(pair3.cca2, by="axis", step=100) 
 
 # individual predictors
-anova.cca(pair3.cca2, step=1000, by="margin")
+anova.cca(pair3.cca2, step=100, by="margin")
 
-pair3.cca2_margin <- anova.cca(pair3.cca2, step=1000, by="margin")
+pair3.cca2_margin <- anova.cca(pair3.cca2, step=100, by="margin")
 
 pair3.cca2_margin_pval <- pair3.cca2_margin %>% 
   rownames_to_column('predictor') %>% 
@@ -164,7 +177,7 @@ pair3.cca2_margin_pval
 ```{r}
 
 pheno_nut <- pheno %>% 
-  select(starts_with('Nut'), intensity, sdrt)
+  select(starts_with('Nut'), intensity, sdrt, mrn)
 
 ```
 
@@ -197,28 +210,28 @@ barplot(pair3.cca_nut2$CCA$eig/pair3.cca_nut2$CCA$tot.chi, names.arg = 1:pair3.c
 
 #### The visualization
 
-```{r}
+```{r out.width='100%'}
 # n stands for none just the frame
-pdf("../figs/cca_nutrients_pheno_biplot.pdf", width = 10, height = 10) 
+#pdf("../figs/cca_nutrients_pheno_biplot.pdf", width = 10, height = 10) 
 plot(pair3.cca_nut2, display=c("species", "bp"), type="n", ylab="CCA2", main="Species", scaling="species")
 text(pair3.cca_nut2, display="species", col="black", scaling="species", cex = 0.5 )
 text(pair3.cca_nut2, display="bp", col="red", cex = 0.7)
-dev.off()
+#dev.off()
 ```
 
 #### The statistical test
 
 ```{r}
 # the whole model
-anova(pair3.cca_nut2, step=1000) 
+anova(pair3.cca_nut2, step=100) 
 
 # axis
-anova(pair3.cca_nut2, by="axis", step=1000) 
+anova(pair3.cca_nut2, by="axis", step=100) 
 
 # individual predictors
-anova.cca(pair3.cca_nut2, step=1000, by="margin")
+anova.cca(pair3.cca_nut2, step=100, by="margin")
 
-pair3.cca2_margin <- anova.cca(pair3.cca_nut2, step=1000, by="margin")
+pair3.cca2_margin <- anova.cca(pair3.cca_nut2, step=100, by="margin")
 
 pair3.cca2_margin_pval <- pair3.cca2_margin %>% 
   rownames_to_column('predictor') %>% 

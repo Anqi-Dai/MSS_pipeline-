@@ -1,0 +1,52 @@
+---
+title: "Redundancy anlysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(vegan)
+library(tidyverse)
+```
+
+# load the tables
+
+```{r}
+cts <- read_csv('../data/cleaned_stool/NOW_cts_fam_fil_long.csv') %>% 
+  select(sampleid, taxa_family, relab) %>% 
+  mutate(taxa_family = str_extract(taxa_family, 'f__.+$'),
+         taxa_family = str_replace(taxa_family, 'f__','')) %>% 
+  filter(taxa_family!='NA') %>% 
+  spread(key = 'taxa_family', value  = 'relab') %>% 
+  arrange(sampleid) %>% 
+  column_to_rownames('sampleid')  
+  
+pheno <- read_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv')%>% 
+  arrange(sampleid) %>% 
+  mutate(mrn = as.factor(mrn),
+         intensity = as.factor(intensity)) %>% 
+  column_to_rownames('sampleid')
+```
+
+
+# run RDA
+
+```{r}
+pheno1 <- pheno %>%  
+  select(starts_with('fg'), intensity, sdrt, mrn) 
+
+
+rda_fg <- rda(cts ~ ., pheno1)  
+# VIFs
+vif.cca(rda_fg)
+```
+
+```{r}
+iris.d <- iris[, 1:4]
+ord <- rda(iris.d ~ Species, data = iris)
+ord
+```
+
