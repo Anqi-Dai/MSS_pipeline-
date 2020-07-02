@@ -111,10 +111,11 @@ stb4 %>%
 
 # what about the same day there are two stool samples
 
+select one of the samples and ignore the other. take the one with the earlier sampeid by alphanumeric sorting
+
 ```{r}
-# remove the duplicated samples on the same day for now
 stb5 <- stb4 %>% 
-  arrange(mrn, sdrt, desc(count_total)) %>% 
+  arrange(mrn, sdrt, sampleid) %>% 
   distinct(mrn, sdrt, .keep_all = T)
 ```
 
@@ -190,6 +191,18 @@ no <- stb3 %>%
 antibiotics %>% 
   filter(patient_id %in% no$mrn)
 
-# pretty recent transplant 
+no_abx_pt <- no %>% pull(mrn)
+# pretty recent transplant don't have the abx usage information
+```
+
+# for now (2020-7-2) just use the 97-24=73 patients selected stool samples
+
+```{r}
+stb99 <- stb6 %>%  
+  filter(!mrn %in% no_abx_pt) %>% 
+  select(-count_total)  
+
+stb99 %>% 
+  write_csv('../data/cleaned_stool/NOW_selected_stool_samples.csv')
 ```
 
