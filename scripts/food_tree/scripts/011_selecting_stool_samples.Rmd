@@ -201,8 +201,79 @@ no_abx_pt <- no %>% pull(mrn)
 stb99 <- stb6 %>%  
   filter(!mrn %in% no_abx_pt) %>% 
   select(-count_total)  
-
-stb99 %>% 
+ 
+stb99 %>%    
   write_csv('../data/cleaned_stool/NOW_selected_stool_samples.csv')
+```
+
+```{r}
+# visualize the pairing in this
+stb99_plot <- stb99 %>% 
+  mutate(y = 0.8)
+  
+dtb %>% 
+  select(mrn, fdrt) %>% 
+  mutate(y = 1) %>% 
+  ggscatter(x = 'fdrt', y = 'y', color = 'forestgreen') +
+  geom_point(data = stb99_plot, aes(x = sdrt, y  = y)) +
+  facet_wrap(~mrn) +
+  theme_bw() + 
+  ylim(0.7, 1.1) +
+  theme(strip.text.x = element_blank()) +#hide the mrns
+  ggsave('../figs/NOW_97_all_pair.pdf', width = 30, height = 12)
+```
+
+```{r}
+# getting the relab of the family and genus in these stool samples
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_counts_ag')
+get_table_from_database('asv_annotation_blast_ag')
+```
+```{r}
+stb99 <- read_csv('../data/cleaned_stool/NOW_selected_stool_samples.csv')
+
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% stb99$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
+
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa_family = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}'),
+         taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
+
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the genera
+cts_fam <- cts %>% 
+  full_join(annot %>%  select(asv_key, taxa_family), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa_family) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) %>% 
+  select(sampleid, taxa_family, relab)  
+
+cts_all_keep_feature <- cts_fam %>% 
+  spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
+  column_to_rownames('taxa_family')
+
+# filtering:  only microbiome features that are present in >= minmum-prevlence (e.g. 10% of samples)  of the samples and above some minimum relative abundance, (e.g. >= XXX).
+
+pass_thre_num <- ceiling(ncol(cts_all_keep_feature) * 0.1)
+
+counts_fil_keep_feature <- rownames(cts_all_keep_feature[rowSums(cts_all_keep_feature > 0.001) >= pass_thre_num, ])
+
+cts_fam_fil <- cts_fam %>% 
+  filter(taxa_family %in% counts_fil_keep_feature)
+
 ```
 
