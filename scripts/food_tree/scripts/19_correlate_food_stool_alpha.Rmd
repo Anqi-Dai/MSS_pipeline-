@@ -19,171 +19,64 @@ library(kableExtra)
 library(ggpubr)  
 ```
 
-```{r}
-foods <- read_tsv('../data/finalized/meta_data_67.tsv') %>% 
-  select(mrn, Fdrt = foodDayRT, egg_total:Sugars_perc) %>% 
-  gather(key = 'type', value = 'value', egg_total:Sugars_perc)
-```
 
-## Select a subset patients cohort that each pt has at least 4 pairs(stool and previous 3 days diet
+## the table with stool and p3d mean diet
 
 ```{r}
-# previous 3 days food all types average
-fns_all <- list.files(str_glue('../data/finalized/paired/p3day/'), full.names = T)
-  
-all <- fns_all %>% 
-    set_names(fns_all) %>% 
-    map(~ read_csv(file = ., col_names = T, col_types = cols(.default = col_character()))) %>% 
-    bind_rows() %>% 
-    mutate(mrn = as.numeric(mrn))
-    
-subset_pts <- all %>% 
-  count(mrn)  %>% 
-  arrange(n) %>% 
-  filter(n >= 4) %>% 
-  pull(mrn)
-
-all_p3day <- all %>% 
-  filter(mrn %in% subset_pts) %>% 
-  mutate(ID = str_glue('{mrn}_{sampleid}'))
+p3d_mean <- read_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv')
 ```
-
-## Get the average of the food group and the nutrients in percentage and in gram weight
-
-```{r}
-type_items <-  foods %>% 
-  distinct(type) %>% 
-  pull(type) 
-
-pair_p3day_food <- apply(all_p3day, 1, function(Row){
-    foods %>% 
-        filter(mrn == Row[['mrn']]) %>% 
-        filter(Fdrt %in% c(Row[['p1dF']], Row[['p2dF']],Row[['p3dF']])) %>% 
-        group_by(type) %>% 
-        summarise(ave_type = mean(value))
-})
-
-names(pair_p3day_food) <- all_p3day$ID
-
-pair_p3day_food_res <- bind_rows(pair_p3day_food, .id = 'ID') %>% 
-  separate(ID, into = c('mrn','sampleid'), sep = '_') 
-
-```
-
-```{r}
-# output this table the stool sample are uncensored here
-pair_p3day_food_res %>% 
-  write_csv('../data/finalized/paired/pair_p3day_food_group_n_nutrients_res.csv')
-```
-
 
 ## Get the stool alpha diversity from db
 
 ```{r}
 # get the diversity of those stool samples
-source('~/db_connect_simple.R')
+source('~/db_connect_simple.R')   
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
 
-pair_p3day <- pair_p3day_food_res  %>% 
-  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal, shannon), by = 'sampleid')   
+p3d_mean_df <- p3d_mean  %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal), by = 'sampleid')  %>% 
+  gather('type', 'p3d_ave', fg_egg:Nut_Sugars)
 ```
-
+ 
 ## Spearman correlation and plot
 
 ```{r}
-nutrients <- c('Carbohydrates','Fat','Fibers','Proteing','Sodium','Sugars')
-
-spearman_res <- pair_p3day %>% 
+spearman_res <- p3d_mean_df %>% 
   split(.$type) %>% 
   map(function(df){
-    test = cor.test(df$ave_type, 
+    test = cor.test(df$p3d_ave, 
                    df$simpson_reciprocal, 
                    method = 'spearman', 
                    exact = F)
     return(list(rho = round(test$estimate, 2),
                 pval = test$p.value))
   }) %>% 
-  bind_rows(.id = 'ID') %>% 
-  separate(ID, into = c('item','grp'), sep = '_') %>% 
-  mutate(type = if_else(item %in%  nutrients, 'nutrient', 'food_group')) %>% 
+  bind_rows(.id = 'type') %>% 
+  mutate(grp = if_else(str_detect(type, '^Nut'), 'nutrient', 'food_group')) %>% 
   mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
-  mutate(neglogFDR = -log(FDR))
+  mutate(neglogFDR = -log10(FDR)) %>% 
+  arrange(neglogFDR)
 ```
 
 
-```{r}
-spearman_res %>% 
-  filter(type == 'nutrient') %>% 
-  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
-            color = 'grp', palette = 'jama',
-            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
-  theme_cleveland() 
 
+
+```{r}
 
 spearman_res %>% 
-  filter(type == 'food_group') %>% 
-  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
-            color = 'grp', palette = 'jama',
-            title = 'Spearman cor between ave food group metric & stool alpha diversity') +
-  theme_cleveland()   
+  ggscatter(x = 'type', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
+             palette = 'jama', color = 'brown2',
+            ylab = 'spearman rho',
+            title = 'Spearman cor between diet metric & stool sample alpha diversity') +
+  facet_wrap(~grp,scales = "free") +
+  theme_cleveland()  
+
+
 ```
 
-## censor samples that are exposed to the list of empiric antibiotics
-
-```{r}
-censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_meropenem',	'active_atb_ertapenem',		'active_atb_cefepime',		'active_atb_linezolid',	'active_atb_metro',	'active_atb_piptazo')
-
-abx_all <- read_csv('../data/finalized/abx/abx_all_samples_with_censoring_info.csv')
-  
-abx_this_censor_samples <- abx_all %>% 
-  filter(sampleid %in% pair_p3day$sampleid) %>% 
-  select(sampleid, active_atb_cipro:active_atb_other) %>% 
-  gather(key = 'abx_type', value = 'value', names(.)[2]:names(.)[ncol(.)]) %>% 
-  filter(abx_type %in% censor_abx) %>% 
-  filter(value == T) %>% 
-  distinct(sampleid) %>% 
-  pull(sampleid)
-
-abx_this_censor_samples %>% 
-  write_csv('../data/cleaned_stool_data/abx_censor_samples_67.csv')
-```
-
-```{r}
-# redo the above but remove the censored samples
-spearman_res_rm <- pair_p3day %>% 
-  filter(!sampleid %in% abx_this_censor_samples) %>% 
-  split(.$type) %>% 
-  map(function(df){
-    test = cor.test(df$ave_type, 
-                   df$simpson_reciprocal, 
-                   method = 'spearman', 
-                   exact = F)
-    return(list(rho = round(test$estimate, 2),
-                pval = test$p.value))
-  }) %>% 
-  bind_rows(.id = 'ID') %>% 
-  separate(ID, into = c('item','grp'), sep = '_') %>% 
-  mutate(type = if_else(item %in%  nutrients, 'nutrient', 'food_group')) %>% 
-  mutate(FDR = p.adjust(pval, method = 'BH')) %>% 
-  mutate(neglogFDR = -log(FDR))
 
 
-spearman_res_rm %>% 
-  filter(type == 'nutrient') %>% 
-  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
-            color = 'grp', palette = 'jama',
-            title = 'Spearman cor between ave nutrient metric & stool alpha diversity') +
-  theme_cleveland() 
-
-
-spearman_res_rm %>% 
-  filter(type == 'food_group') %>% 
-  ggscatter(x = 'item', y = 'rho', size = 'neglogFDR', label = T, lab.size = 1,
-            color = 'grp', palette = 'jama',
-            title = 'Spearman cor between ave food group metric & stool alpha diversity') +
-  theme_cleveland()   
-```
 
 ## Correlate alpha div with second level food group
 
