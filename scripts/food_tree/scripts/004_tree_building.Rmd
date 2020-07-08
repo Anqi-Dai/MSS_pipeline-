@@ -44,7 +44,6 @@ food_database <- uniq_food %>%
 ```
 
 
-
 # the nodes
 
 ```{r}
@@ -117,5 +116,18 @@ graphlan.py guide_1.xml food_tree.png --dpi 300 --size 3.5
 # radialNetwork( useRtreeList)
 ```
 
+# output the foodID taxanomy into a table that could be used in taxUMAP
+
+```{r}
+actual_foodids <- read_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.tsv') %>% 
+  pull(Food_code)
+
+food_taxa <- final.table %>% 
+  filter(FoodID %in% actual_foodids) %>% 
+  select(L1, L2, L3, L4, FoodID)
+
+food_taxa %>% 
+  write_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv')
+```
 
 

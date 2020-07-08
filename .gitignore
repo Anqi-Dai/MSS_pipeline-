@@ -15,3 +15,4 @@
 /scripts/*/software/*
 *.snakemake
 *.ipynb_checkpoints
+/scripts/*/softwares/*

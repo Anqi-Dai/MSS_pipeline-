@@ -1,0 +1,39 @@
+---
+title: "prepare for the taxUMAP"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+To run the taxUMAP of Jonas repo
+
+```{r}
+# formatting the counts table to have samples in the rows
+cts <- read_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.tsv') %>% 
+  gather('fid', 'gram', names(.)[2]:names(.)[ncol(.)])
+
+fid_sum <- cts %>% 
+  group_by(fid) %>% 
+  summarise(Sum = sum(gram))
+
+cts_all <- cts %>% 
+  left_join(fid_sum)  %>% 
+  mutate(frelab = gram/Sum) %>% 
+  select(Food_code, fid, frelab) %>% 
+  spread(key = 'Food_code', value = 'frelab')
+
+
+cts_all %>% 
+  write_csv('../data/cleaned_diet_data/taxUMAP_food_cts.csv')
+```
+```{r}
+# next is the taxanomy table that should contain taxonomic levels. They should be ordered from left to right in decreasing taxonomic hierarchy 
+# done in tree building script
+```
+

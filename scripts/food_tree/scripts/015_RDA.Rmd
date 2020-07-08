@@ -1,5 +1,5 @@
 ---
-title: "Redundancy anlysis"
+title: "Redundancy analysis"
 output: html_document
 ---
 
@@ -36,17 +36,19 @@ pheno <- read_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv')%>%
 
 ```{r}
 pheno1 <- pheno %>%  
-  select(starts_with('fg'), intensity, sdrt, mrn) 
+  select(starts_with('fg'), intensity, sdrt) 
 
 
 rda_fg <- rda(cts ~ ., pheno1)  
 # VIFs
 vif.cca(rda_fg)
+
+rda_fg
 ```
 
 ```{r}
-iris.d <- iris[, 1:4]
-ord <- rda(iris.d ~ Species, data = iris)
-ord
+plot(rda_fg, display=c("species", "bp"), type="n", ylab="RDA2", main="Species", scaling="species")
+text(rda_fg, display="species", col="black", scaling="species", cex = 0.5 )
+text(rda_fg, display="bp", col="red", cex = 0.4)
 ```
 

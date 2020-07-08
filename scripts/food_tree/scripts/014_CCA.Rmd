@@ -83,7 +83,7 @@ cts_sqrt_top <- sqrt(cts_raw_top)
 ```{r}
 
 pheno1 <- pheno %>% 
-  select(starts_with('fg'), intensity, sdrt, mrn)
+  select(starts_with('fg'), intensity, sdrt)
   
 ```
 
@@ -177,7 +177,7 @@ pair3.cca2_margin_pval
 ```{r}
 
 pheno_nut <- pheno %>% 
-  select(starts_with('Nut'), intensity, sdrt, mrn)
+  select(starts_with('Nut'), intensity, sdrt)
 
 ```
 
