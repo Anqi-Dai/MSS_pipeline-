@@ -26,12 +26,46 @@ cts_all <- cts %>%
   left_join(fid_sum)  %>% 
   mutate(frelab = gram/Sum) %>% 
   select(Food_code, fid, frelab) %>% 
-  spread(key = 'Food_code', value = 'frelab')
+  spread(key = 'Food_code', value = 'frelab') %>% 
+  rename(index_column = fid)
+
+# create pt number for the mrn
+link <- cts_all %>% 
+  select(index_column) %>% 
+  transmute(mrn = str_extract(index_column, 'P.+d')) %>% 
+  mutate(mrn = str_replace(mrn, 'P',''),
+        mrn = str_replace(mrn, 'd$','') ) %>% 
+  distinct() %>% 
+  mutate(pt = seq(1, nrow(.))) %>% 
+  mutate(pt = str_pad(pt, 2, side = 'left', '0')) %>% 
+  mutate(pt = str_glue('P{pt}'))
+
+link_all <- cts_all %>% 
+  select(index_column) %>% 
+  mutate(fid = index_column) %>% 
+  separate(index_column, into = c('mrn','fdrt'), sep = 'd') %>% 
+  mutate(mrn = str_replace(mrn, 'P','')) %>% 
+  left_join(link) %>% 
+  mutate(index_column = str_glue('{pt}d{fdrt}'))
 
 
-cts_all %>% 
-  write_csv('../data/cleaned_diet_data/taxUMAP_food_cts.csv')
+
 ```
+
+
+```{r}
+cts_all %>% 
+  rename(fid = index_column) %>% 
+  full_join(link_all %>% select(fid, index_column)) %>% 
+  select(index_column, names(.)[2]:names(.)[ncol(.)-1]) %>% 
+  write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_food_cts.csv')
+'../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv'
+```
+
+```{bash}
+cp ../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv ../softwares/phylo-umap/taxumap/data/
+```
+
 ```{r}
 # next is the taxanomy table that should contain taxonomic levels. They should be ordered from left to right in decreasing taxonomic hierarchy 
 # done in tree building script
