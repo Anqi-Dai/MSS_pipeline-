@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(viridis)
 ```
 
 To run the taxUMAP of Jonas repo
@@ -60,14 +61,71 @@ cts_all %>%
   select(index_column, names(.)[2]:names(.)[ncol(.)-1]) %>% 
   write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_food_cts.csv')
 '../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv'
-```
 
-```{bash}
-cp ../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv ../softwares/phylo-umap/taxumap/data/
-```
+cts_all %>% 
+  write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_food_cts.csv')
 
+```
 ```{r}
 # next is the taxanomy table that should contain taxonomic levels. They should be ordered from left to right in decreasing taxonomic hierarchy 
 # done in tree building script
 ```
+
+```{r}
+# format the food taxa table 
+ftaxa <- read_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv') %>% 
+  rename(ASV = FoodID)
+
+ftaxa %>% 
+  write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_foodID_taxa.csv')
+```
+
+
+# the umap results
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/wide_food_grp-and_nutrients_total.csv')
+
+faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
+  rename(index_column = X1)
+
+# average number of samples for patients (matter to the neigh param)
+ave <- dtb %>% 
+  count(mrn) %>% 
+  summary(n)
+
+
+```
+```{bash}
+//anaconda2/envs/test/bin/python3.8 run_taxumap.py -m taxumap/data/taxUMAP_food_cts.csv -t taxumap/data/taxUMAP_foodID_taxa.csv --agg_levels L1/L2 --weights 5/0.1 --neigh 24 --min_dist 0.00
+```
+
+
+```{r}
+res <- read_csv('../softwares/phylo-umap/results/embedded.csv') %>% 
+  full_join(faith) %>% 
+  separate(index_column, into = c('mrn','fdrt'), sep = 'd', convert = T) %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) %>% 
+  inner_join(dtb) %>% 
+  rename(u1 = names(.)[3],
+        u2 = names(.)[4] ) %>% 
+  gather('type','gram', names(.)[6]:names(.)[ncol(.)])  %>% 
+  mutate(type = as.factor(type)) %>% 
+  mutate(log_gram = log10(gram + 0.0001))
+
+
+library(ggpubr)
+
+res  %>% 
+  filter(str_detect(type, '^fg')) %>% 
+  ggplot(aes(x = u1, y  = u2, color = log_gram , alpha = 0.2)) +
+  geom_point() +
+  scale_color_viridis() +
+  facet_wrap(~type) +
+  ggsave('../figs/umap_fg.pdf', width = 10, height = 7)
+
+
+```
+
+
 
