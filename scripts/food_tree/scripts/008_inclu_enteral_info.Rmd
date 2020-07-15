@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(lubridate)
 ```
 
 This is going to include all patients enteral info, but currently only have 67's.
@@ -104,5 +105,65 @@ filled <- bind_rows(dtb, fake_enteral)
 filled %>% 
   write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
 ```
- 
+
+
+## combine the EN data (that has a dedicated food code for them)
+
+```{r}
+# the ptb that has the transplant date
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+
+en <- read_csv('../data/cleaned_diet_data/NutritionSupport_DietPatients.csv') %>% 
+  filter(!is.na(Food.Code)) %>% 
+  mutate(meal = 'EN',
+         Por_eaten = 1) %>% 
+  select(mrn = MRN, 
+         Date = `Date Nutrition Support`,
+         Meal = meal,
+         Food_NSC = `EN formula`,
+         Por_eaten,
+         Calories_kcal = `EN calories`,
+         Proteing_g = `EN PRO`,
+         Fat_g = `EN fat`,
+         Carbohydrates_g = `EN CHO`,
+         Fibers_g = `EN Fiber`,
+         Sugars_g = `EN Sugar`,
+         Sodium_g = `EN Sodium`,
+         Food_code = Food.Code,
+         description = FNDDS.Main.Food.Description
+         ) %>% 
+  mutate(Sodium_g = Sodium_g/1000) %>% 
+  mutate(dehydrated_weight = Proteing_g + Fat_g + Carbohydrates_g + Fibers_g + Sugars_g + Sodium_g) %>% 
+  mutate(Date = mdy(Date)) %>% 
+  left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
+  mutate(fdrt = Date - hct) %>% 
+  select(colnames(dtb))
+
+```
+
+```{r}
+# add the above table to the all table and have the final all!!!!
+FINAL <- bind_rows(dtb, en)
+
+FINAL %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+```
+
+
+```{r}
+# update the food code and desc database
+
+current <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv') 
+
+en_code <- en %>% 
+  distinct(Food_NSC, Food_code, description) %>% 
+  rename(Food.Code = Food_code,
+         FNDDS.Main.Food.Description = description)
+
+final_code <- bind_rows(current, en_code)
+final_code %>% 
+  write_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv')
+```
+
   
