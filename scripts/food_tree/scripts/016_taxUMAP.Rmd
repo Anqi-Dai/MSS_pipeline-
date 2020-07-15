@@ -127,5 +127,13 @@ res  %>%
 
 ```
 
+```{r}
+shake <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt.csv') %>% 
+  filter(Food_code == 95103000) %>% 
+  distinct(Food_NSC, Food_code, description)
+
+shake %>% 
+  write_csv('../data/cleaned_diet_data/shake_95103000.csv')
+```
 
 
