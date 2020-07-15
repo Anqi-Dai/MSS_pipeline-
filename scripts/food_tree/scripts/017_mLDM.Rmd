@@ -1,0 +1,42 @@
+---
+title: "the mLDM"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages('../softwares/mLDM/mLDM_1.1.tar.gz', repos=NULL, type="source")
+```
+
+```{r}
+library(mLDM)
+help(mLDM)
+```
+
+   X   N*P matrix  N samples, P otus  OTU table (N = 490, P = 117)
+   M   N*Q matrix  N samples, P environmental factors (Q = 13)
+       We encode 'site' (4 cities), 'Dx_bin' (5 diagnosis states) and 'Gender' (male and female) with 0-1 coding and get 4, 5, 2 features respectively.
+   X_name  OTU numbers for 117 OTUs
+   X_tax   OTU taxonomy for 117 OTUs
+   
+```{r}
+
+```
+   
+```{r}
+load('../softwares/mLDM/CRC/Baxter_CRC.RData')
+X
+```
+
+```{r}
+n = 100
+p = 10
+q = 3
+X <- matrix(floor(runif(n*p, 1, 10)), n, p)
+M <- matrix(runif(n*q), n, q)
+result <- mLDM(X, M, Z_mean = 1, verbose = T)
+```
+

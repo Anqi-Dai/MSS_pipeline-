@@ -27,6 +27,7 @@ list_table_from_database() %>%
   filter(str_detect(., 'anti'))
 ```
 
+
 ```{r config}
 # Choose which population to study (either "all" or "nutrition")
 

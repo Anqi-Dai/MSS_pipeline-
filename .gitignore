@@ -2,6 +2,7 @@
 /output
 /figs
 /data
+/docs
 *.DS_Store
 /scripts/*html
 /scripts/*/figs/*
