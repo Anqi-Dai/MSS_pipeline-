@@ -130,7 +130,7 @@ qual_stool_df <- stb5 %>%
   select(mrn, p1d, p2d, p3d)
 
 # use the no fake diet counts table and get the stool samples that should be removed -- not even one day
-dtb_real <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt.csv')
+dtb_real <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_W_EN.csv.csv')
 
 no_real_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_, p3d_){
   df = dtb_real %>% 

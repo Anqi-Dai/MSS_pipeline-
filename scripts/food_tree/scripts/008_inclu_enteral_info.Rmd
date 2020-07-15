@@ -148,6 +148,20 @@ FINAL <- bind_rows(dtb, en)
 
 FINAL %>% 
   write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+
+
+# and update the no fake diet counts table 
+real <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt.csv')
+ 
+no_fake <- bind_rows(
+  en %>% 
+    mutate(fdrt = as.numeric(fdrt)),
+  real %>% 
+    select(colnames(en))
+)
+
+no_fake %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_W_EN.csv')
 ```
 
 
