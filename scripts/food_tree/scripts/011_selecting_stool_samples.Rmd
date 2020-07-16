@@ -19,6 +19,7 @@ source('~/db_connect_simple.R')
 connect_database(config_file = "~/dbConfig.txt")
 get_table_from_database('samples_castori_ag')
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+get_table_from_database('antibiotics_antibacterial_multicenter_ag')
 ```
 
 # selecting stool samples for the patients and also close to diet data
@@ -102,7 +103,7 @@ abx_this_censor_samples <- abx_all %>%
   pull(sampleid)
  
 stb4 <- stb3 %>% 
-  filter(!sampleid %in% abx_this_censor_samples) %>% 
+  #filter(!sampleid %in% abx_this_censor_samples) %>% 
   arrange(mrn, sdrt)
 
 stb4 %>% 
@@ -130,7 +131,7 @@ qual_stool_df <- stb5 %>%
   select(mrn, p1d, p2d, p3d)
 
 # use the no fake diet counts table and get the stool samples that should be removed -- not even one day
-dtb_real <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_W_EN.csv.csv')
+dtb_real <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_W_EN.csv')
 
 no_real_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_, p3d_){
   df = dtb_real %>% 
@@ -155,6 +156,15 @@ stb6 <- qual_stool2 %>%
   select(-id, -num_d_records)
 ```
  
+**Output this table since we wanna keep all the samples for now regardless of the abx usage(don't wanna just throw these samples away)** 
+ 
+```{r}
+stb6 %>% 
+  write_csv('../data/cleaned_stool/selected_stool_samples_ALL_abx.csv')
+```
+ 
+#########################################################################################################
+
 # visualize on the diet and stool pairing
 
 ```{r}
@@ -188,11 +198,13 @@ no <- stb3 %>%
   distinct(mrn, hct) %>% 
   arrange(hct)
 
-antibiotics %>% 
+antibiotics_antibacterial_multicenter_ag %>% 
   filter(patient_id %in% no$mrn)
 
 no_abx_pt <- no %>% pull(mrn)
 # pretty recent transplant don't have the abx usage information
+
+length(intersect(stb3$sampleid, abx_all$sampleid))
 ```
 
 # for now (2020-7-2) just use the 97-24=73 patients selected stool samples
