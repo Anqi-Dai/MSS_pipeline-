@@ -157,9 +157,19 @@ stb6 <- qual_stool2 %>%
 ```
  
 **Output this table since we wanna keep all the samples for now regardless of the abx usage(don't wanna just throw these samples away)** 
+
+```{r}
+# first of all 
+# only keep ing the stool samples that we have abx info on records
+length(intersect(abx_all$sampleid, stb6$sampleid))
+
+stb7 <- stb6 %>% 
+  filter(sampleid %in% abx_all$sampleid)
+```
+
  
 ```{r}
-stb6 %>% 
+stb7 %>% 
   write_csv('../data/cleaned_stool/selected_stool_samples_ALL_abx.csv')
 ```
  

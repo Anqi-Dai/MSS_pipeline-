@@ -14,8 +14,8 @@ library(tidyverse)
 # load the tables
 
 ```{r}
-stb <- read_csv('../data/cleaned_stool/NOW_selected_stool_samples.csv') %>% 
-  mutate(ID = paste0("row", 1:nrow(stb_pair)))
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_ALL_abx.csv') %>% 
+  mutate(ID = paste0("row", 1:nrow(stb)))
 
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
