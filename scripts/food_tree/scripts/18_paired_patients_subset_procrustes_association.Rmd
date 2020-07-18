@@ -41,10 +41,9 @@ subset_pts <- paired_stats %>%
 
 ```{r}
 # the all food records
-food <- read_csv('../data/finalized/all_patients_record_w_food_code.csv') %>% 
-  select(mrn, Food_code, dehydrated_weight,DayRT ) %>% 
-  rename(Fdrt = DayRT) %>% 
-  mutate(Fdrt = as.character(Fdrt))
+food <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv') %>% 
+  select(mrn, Food_code, dehydrated_weight, fdrt ) %>% 
+  mutate(fdrt = as.character(fdrt))
 ```
 
 ## Make paired count matrix for food and microbiome data. Diet data summed for the days

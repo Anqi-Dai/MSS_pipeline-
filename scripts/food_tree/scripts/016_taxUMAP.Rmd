@@ -49,7 +49,8 @@ link_all <- cts_all %>%
   left_join(link) %>% 
   mutate(index_column = str_glue('{pt}d{fdrt}'))
 
-
+link_all %>% 
+  write_csv('../data/cleaned_diet_data/deidentify_dsample_map.csv')
 
 ```
 
@@ -60,7 +61,7 @@ cts_all %>%
   full_join(link_all %>% select(fid, index_column)) %>% 
   select(index_column, names(.)[2]:names(.)[ncol(.)-1]) %>% 
   write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_food_cts.csv')
-'../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv'
+
 
 cts_all %>% 
   write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_food_cts.csv')

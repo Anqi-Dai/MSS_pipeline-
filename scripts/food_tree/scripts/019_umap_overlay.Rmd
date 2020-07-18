@@ -1,0 +1,47 @@
+---
+title: "UMAP overlay"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# load the data
+
+```{r}
+# the umap coords
+dcoords <- read_csv('../softwares/phylo-umap/taxumap/results/embedding_for_angel.csv')
+
+link <- read_csv('../data/cleaned_diet_data/deidentify_dsample_map.csv')
+
+coord <- dcoords %>% 
+  full_join(link) %>% 
+  select(-fid, -pt) %>% 
+  mutate(p1sdrt = fdrt + 1,
+         p2sdrt = fdrt + 2,
+         p3sdrt = fdrt + 3,
+         p4sdrt = fdrt + 4,
+         p5sdrt = fdrt + 5) 
+
+coord_f <- coord %>% 
+  select(mrn, p1sdrt, p2sdrt, p3sdrt, p4sdrt, p5sdrt)
+```
+
+
+# overlay the mcrobiome data
+
+## find the pairing stool data (closest after the diet sample)
+
+```{r}
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
+```
+
+
+## overlay the stool alpha diversity
+
+## overlay the dominant taxa (phyla)

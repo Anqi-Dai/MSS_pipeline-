@@ -71,6 +71,9 @@ empirical_abx_samples <- abx_all %>%
 
 stb2 <- stb %>% 
    mutate(abx = if_else(sampleid %in% empirical_abx_samples, 'empirical', 'prophylactic'))
+
+stb2 %>% 
+   write_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```
 
 ## get the ave p3d diet data
@@ -94,6 +97,7 @@ Meta <- meta %>%
           intensity = if_else(intensity == 'nonablative', 1, if_else(intensity == 'reduced', 2, 3)),
           source = if_else(source == 'unmodified', 1, if_else(source == 'cord', 2, 3))) %>% 
    mutate(mrn = as.numeric(as.factor(mrn))) %>% 
+   select(Nut_Carbohydrates:abx) %>% 
    column_to_rownames('sampleid') %>% 
    as.matrix()
 
