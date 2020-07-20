@@ -41,6 +41,11 @@ coord_f <- coord %>%
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```
 
+```{r}
+#what's the diffference between node and node mct
+node <- read_tsv('../data/source/NodeLabels.txt')
+mct <- read_tsv('../data/source/NodeLabelsMCT.txt')
+```
 
 ## overlay the stool alpha diversity
 

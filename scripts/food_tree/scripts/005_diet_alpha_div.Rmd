@@ -33,7 +33,11 @@ dtb1 %>%
 # create the fid consists of mrn and fdrt, and then format the table needed to compute the food alpha diversity
 
 ```{r}
-fcts <-  dtb1 %>% 
+# use the dtb with EN data also 
+DTB <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_W_EN.csv')
+
+
+fcts <-  DTB %>% 
   mutate(fid = str_glue('P{mrn}d{fdrt}')) %>% 
   select(fid, Food_code, dehydrated_weight) %>% 
   group_by(fid, Food_code) %>% 
