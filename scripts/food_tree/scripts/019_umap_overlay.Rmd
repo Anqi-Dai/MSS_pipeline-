@@ -9,6 +9,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+
+get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+
 ```
 
 # load the data
@@ -20,7 +26,7 @@ dcoords <- read_csv('../softwares/phylo-umap/taxumap/results/embedding_for_angel
 link <- read_csv('../data/cleaned_diet_data/deidentify_dsample_map.csv')
 
 coord <- dcoords %>% 
-  full_join(link) %>% 
+  inner_join(link) %>% 
   select(-fid, -pt) %>% 
   mutate(p1sdrt = fdrt + 1,
          p2sdrt = fdrt + 2,
@@ -37,16 +43,94 @@ coord_f <- coord %>%
 
 ## find the pairing stool data (closest after the diet sample)
 
+### **Using all the stool samples (including the empirical affected ones)** 
+
 ```{r}
-stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')  
 ```
 
 ```{r}
-#what's the diffference between node and node mct
-node <- read_tsv('../data/source/NodeLabels.txt')
-mct <- read_tsv('../data/source/NodeLabelsMCT.txt')
+closest_s <- apply(coord_f, 1, function(Row){
+  df = stb %>% 
+    filter(mrn == Row[['mrn']]) %>% 
+    filter(sdrt %in% c(Row[['p1sdrt']], Row[['p2sdrt']], Row[['p3sdrt']], Row[['p4sdrt']], Row[['p5sdrt']]))
+  if(nrow(df) == 0) {
+    ret = 'NA'
+  }else {
+    ret = df %>% 
+       arrange(sdrt) %>% 
+      slice(1) %>% 
+      pull(sampleid)
+  }
+  return(ret)
+})  %>% 
+  set_names(coord %>% pull(index_column)) %>% 
+  bind_rows() %>% 
+  gather('index_column', 'sampleid') %>% 
+  full_join(coord)
+
+# some diet data just don't have stool in the following five days
+# so remove them for now
+closest_all <-  closest_s %>% 
+  filter(sampleid != "NA")
 ```
 
+### **porphylactic only stool samples**
+
+```{r}
+closest_s_porphylactic_only <- apply(coord_f, 1, function(Row){
+  df = stb %>% 
+    filter(abx == 'prophylactic') %>% 
+    filter(mrn == Row[['mrn']]) %>% 
+    filter(sdrt %in% c(Row[['p1sdrt']], Row[['p2sdrt']], Row[['p3sdrt']], Row[['p4sdrt']], Row[['p5sdrt']]))
+  if(nrow(df) == 0) {
+    ret = 'NA'
+  }else {
+    ret = df %>% 
+       arrange(sdrt) %>% 
+      slice(1) %>% 
+      pull(sampleid)
+  }
+  return(ret)
+})  %>% 
+  set_names(coord %>% pull(index_column)) %>% 
+  bind_rows() %>% 
+  gather('index_column', 'sampleid') %>% 
+  full_join(coord) %>% 
+  filter(sampleid != "NA") %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))
+```
+
+
+## get the stool alpha diversity from db
+
+```{r}
+
+closest_all_stool <- closest_all %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))
+```
+ 
 ## overlay the stool alpha diversity
+
+```{r}
+library(viridis)
+closest_all_stool %>% 
+  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = simpson_reciprocal)) +
+  geom_point(alpha = 0.7, size = 3) +
+  scale_color_viridis() 
+  
+```
+```{r}
+closest_s_porphylactic_only %>% 
+  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = simpson_reciprocal)) +
+  geom_point(alpha = 0.6, size = 4) +
+  scale_color_viridis(option = 'inferno') 
+  scale_colour_gradient2(  low = "red",
+  mid = "white",
+  high = "blue")
+  scale_colour_gradientn(colours = terrain.colors(10))
+  
+```
+
 
 ## overlay the dominant taxa (phyla)

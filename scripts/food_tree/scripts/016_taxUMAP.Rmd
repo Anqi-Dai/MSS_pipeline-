@@ -64,7 +64,7 @@ cts_all %>%
 
 
 cts_all %>% 
-  write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_food_cts.csv')
+  write_csv('../data/cleaned_diet_data/taxUMAP_food_cts.csv')
 
 ```
 ```{r}
@@ -78,7 +78,7 @@ ftaxa <- read_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv') %>%
   rename(ASV = FoodID)
 
 ftaxa %>% 
-  write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_foodID_taxa.csv')
+  write_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv')
 ```
 
 
