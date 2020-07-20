@@ -14,7 +14,7 @@ source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
-
+get_table_from_database('asv_annotation_blast_ag')
 ```
 
 # load the data
@@ -122,15 +122,122 @@ closest_all_stool %>%
 ```
 ```{r}
 closest_s_porphylactic_only %>% 
-  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = simpson_reciprocal)) +
-  geom_point(alpha = 0.6, size = 4) +
+  mutate(sqrtSR = sqrt(simpson_reciprocal)) %>% 
+  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = sqrtSR)) +
+  geom_point(alpha = 0.6, size = 3) +
   scale_color_viridis(option = 'inferno') 
   scale_colour_gradient2(  low = "red",
   mid = "white",
   high = "blue")
   scale_colour_gradientn(colours = terrain.colors(10))
-  
+   
+```
+
+## make this version of the food maps with the dominant food groups and the second dominant food groups 
+
+Only show the diet samples paired with a stool sample
+
+```{r}
+fcts_fg <- read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv') 
+link <- read_csv('../data/cleaned_diet_data/deidentify_dsample_map.csv')
+
+fcts_fg_dom <- fcts_fg %>%
+  group_by(mrn, fdrt) %>% 
+  arrange(-grp_frac, .by_group = T) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  transmute(fid = str_glue('P{mrn}d{fdrt}'),
+            fg1_dom = fg1_name) %>% 
+  inner_join(link %>% select(fid, index_column))
+
+
+closest_s_porphylactic_only_fg <- closest_s_porphylactic_only %>% 
+  inner_join(fcts_fg_dom)
+
+closest_s_porphylactic_only_fg %>% 
+  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = fg1_dom))+
+  geom_point(alpha = 0.6, size = 3) +
+  scale_color_brewer(palette = "Set1")
 ```
 
 
 ## overlay the dominant taxa (phyla)
+
+```{r}
+# summarize at phylum level for each sample 
+asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
+
+stb_porphy <- stb %>% 
+  filter(abx == 'prophylactic')
+
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% stb_porphy$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
+
+
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species))
+
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the genera
+cts_phy <- cts %>% 
+  full_join(annot %>%  select(asv_key, phylum), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, phylum) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) 
+
+cts_phy %>% 
+  write_csv('../data/cleaned_stool/prophylactic_only_stool_samples_phylum_counts.csv')
+```
+
+```{r}
+# summarize at order level
+cts_order <- cts %>% 
+  full_join(annot %>%  select(asv_key, phylum), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, phylum) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) 
+```
+
+
+```{r}
+# find the phyla with biggest abundance in each sample 
+cts_phy_dominant <- cts_phy %>% 
+  group_by(sampleid) %>%  
+  arrange(-relab, .by_group = T) %>% 
+  slice(1)
+
+cts_phy_dominant %>% 
+  ungroup() %>% 
+  distinct(phylum)
+
+# the sampleid and the corresponding demoniant phylum
+closest_s_porphylactic_domi <- closest_s_porphylactic_only %>% 
+  inner_join(cts_phy_dominant %>% select(sampleid, phylum))
+
+```
+
+```{r}
+library(RColorBrewer)
+closest_s_porphylactic_domi %>% 
+  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = phylum)) +
+  geom_point(alpha = 0.6, size = 3) +
+  scale_color_brewer(palette = "Dark2")
+  
+```
+
