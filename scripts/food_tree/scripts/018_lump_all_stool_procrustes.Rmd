@@ -1,5 +1,5 @@
 ---
-title: "lump all of the stool together and pair with p2,3,4,5 day"
+title: "lump all of the stool together and pair with p 2,3,4,5 day"
 output: html_document
 ---
 
@@ -16,4 +16,3 @@ library(vegan)
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
   filter(abx == 'prophylactic')
 ```
-

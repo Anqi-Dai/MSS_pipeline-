@@ -29,6 +29,20 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
 faith
 ```
 
+```{r}
+# not breaking them into subgroups
+faith %>% 
+  ggscatter('fdrt', 'faith_pd', 
+             alpha = 0.8,size = 1,
+            #ellipse = TRUE, mean.point = TRUE, star.plot = TRUE,
+            ylab = 'Food alpha diversity (Faith)', xlab = 'Day relative to transplant',
+            title = '',
+            add = "loess", 
+            add.params = list(color = "blue", fill = "black"), 
+            conf.int = TRUE) +
+  ggsave('../figs/food_alpha_no_break_down.pdf', width = 5, height = 4)
+```
+
 
 ```{r}
 
