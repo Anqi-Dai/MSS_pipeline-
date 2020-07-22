@@ -58,15 +58,18 @@ loop_prior_N_day <- function(pnday){
   # the paired information
   fns_all <- list.files(str_glue('../data/finalized/paired/{pnday}/'), full.names = T)
   
-  all <- fns_all %>% 
+all <- fns_all %>% 
     set_names(fns_all) %>% 
     map(~ read_csv(file = ., col_names = T, col_types = cols(.default = col_character()))) %>% 
     bind_rows() %>% 
     mutate(mrn = as.numeric(mrn)) %>% 
     filter(mrn %in% subset_pts) %>% 
     mutate(ID = str_glue('{mrn}_{sampleid}'))
-  
-  # for every mrn every qualified stool sample I want a sum of the previous N days dehydrated weitght for that food code
+```
+
+
+```{r}
+# for every mrn every qualified stool sample I want a sum of the previous N days dehydrated weitght for that food code
   pair_food <- apply(all, 1, function(Row){
     if(pnday == 'p5day'){
       df = food %>% 

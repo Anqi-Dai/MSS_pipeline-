@@ -188,21 +188,20 @@ stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```{r}
 # the diet data
 library(ggpubr)
-stb6_plot <- stb6 %>% 
-  mutate(y = 0.8)
+stb_plot <- stb %>% 
+  mutate(y = 0.8) 
 
 dtb %>% 
   select(mrn, fdrt) %>% 
   mutate(y = 1) %>% 
-  ggscatter(x = 'fdrt', y = 'y', color = 'forestgreen') +
-  geom_point(data = stb6_plot, aes(x = sdrt, y  = y)) +
-  facet_wrap(~mrn) +
+  ggscatter(x = 'fdrt', y = 'y', color = 'forestgreen', xlab = 'Day relative to transplant', ylab = '') +
+  geom_point(data = stb_plot, aes(x = sdrt, y  = y, col = abx), size = 1.2) +
+  scale_color_manual(values = c('dimgray','darkgoldenrod2')) +
+  facet_wrap(~mrn, scales = "free") +  
   theme_bw() +
   ylim(0.7, 1.1) +
-  theme(strip.text.x = element_blank()) +#hide the mrns
-  ggsave('../figs/97_all_pair.pdf', width = 30, height = 12)
+  theme(strip.text.x = element_blank(), #hide the mrns
+        axis.text.y = element_blank(),
+        axis.ticks.y = element_blank()) +
+  ggsave('../figs/97_all_pair_all_stool.pdf', width = 30, height = 12)
 ```
-
-
-
-

@@ -67,6 +67,29 @@ cts_long <- cts_relab %>%
 
 ## pairing stool with previous N days
 
+```{r}
+stb
+```
+
+
+```{r}
+test1 <- dtb %>%  
+        filter(mrn ==35594872) %>% 
+        filter(fdrt %in% c(-2)) %>% 
+        group_by(Food_code) %>% 
+        summarise(ave_dewt = mean(dehydrated_weight))
+
+
+test2 <- dtb %>%  
+        filter(mrn ==35594872) %>% 
+        filter(fdrt %in% c(-2, -3)) %>% 
+        group_by(Food_code) %>% 
+        summarise(ave_dewt = mean(dehydrated_weight))
+```
+
+
+
+
 ### previous one day
 
 ```{r}
@@ -156,4 +179,66 @@ p4d <- apply(stb_pNd, 1, function(Row){
 p4d_scts <- cts_long %>% 
   filter(sampleid %in% colnames(p4d)[2:ncol(p4d)]) %>% 
   spread('sampleid', 'relab', fill = 0)
+
+
+p4d_scts %>% 
+  write_csv('../data/cleaned_pair/p4d_scts.csv')
+
+p1d_scts %>% 
+  write_csv('../data/cleaned_pair/p1d_scts.csv')
+
+p2d_scts %>%  
+  write_csv('../data/cleaned_pair/p2d_scts.csv')
+
+p3d_scts %>% 
+  write_csv('../data/cleaned_pair/p3d_scts.csv')
+
+p5d_scts %>% 
+  write_csv('../data/cleaned_pair/p5d_scts.csv')
+
+p1d %>% 
+  write_csv('../data/cleaned_pair/p1d.csv')
+
+p2d %>% 
+  write_csv('../data/cleaned_pair/p2d.csv')
+
+p3d %>% 
+  write_csv('../data/cleaned_pair/p3d.csv')
+
+p4d %>% 
+  write_csv('../data/cleaned_pair/p4d.csv')
+
+p5d %>% 
+  write_csv('../data/cleaned_pair/p5d.csv')
+
+matequal <- function(x, y){is.matrix(x) && is.matrix(y) && dim(x) == dim(y) && all(x == y)}
+	
+
+matequal(a, b)   # FALSE
+matequal(d, b) 
+matequal(p1d %>% column_to_rownames('Food_code') %>% as.matrix(), p2d %>% column_to_rownames('Food_code') %>% as.matrix())
+
+matequal(p4d %>% column_to_rownames('Food_code') %>% as.matrix(), p5d %>% column_to_rownames('Food_code') %>% as.matrix())
+
+matequal(p3d_scts %>% column_to_rownames('taxa_species') %>% as.matrix(), p4d_scts %>% column_to_rownames('taxa_species') %>% as.matrix())
+
 ```
+
+```{r}
+p5d <- apply(stb_pNd, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['fp1d']], Row[['fp2d']], Row[['fp3d']], Row[['fp4d']], Row[['fp5d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(ave_dewt = mean(dehydrated_weight))
+}) %>% 
+  set_names(stb_pNd %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)
+
+# a subset sampleid are kept so use these samples for the species relab too
+p5d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p5d)[2:ncol(p5d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+```
+

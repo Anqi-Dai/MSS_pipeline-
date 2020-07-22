@@ -1,0 +1,139 @@
+---
+title: "Procrustes including all prophylactic stool samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+# get all the prophylactic stool samples that have 5 days previous diet data
+
+## load the data and the database access
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+
+## !!!! here we look at the stool samples affected by prophylactic only
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
+  filter(abx == 'prophylactic')
+```
+
+## sort fdrt for each patient
+
+```{r}
+pt_fdrt <- dtb %>% 
+  distinct(mrn, fdrt)
+
+stb_loop <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5) 
+ 
+check_p5d_diet <-  function(mrn_, p1d_, p2d_, p3d_, p4d_, p5d_){
+  num = pt_fdrt %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_ ,p3d_, p4d_, p5d_ )) %>% 
+    nrow()
+  return(num)
+}
+
+check_p5d_diet_df <- pmap(stb_loop, function(mrn, p1d, p2d, p3d, p4d, p5d){
+    check_p5d_diet(mrn, p1d, p2d, p3d, p4d, p5d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows() %>% 
+  gather('sampleid', 'pNd_num') 
+
+p5d_samples <- check_p5d_diet_df %>% 
+  filter(pNd_num == 5) %>% 
+  pull(sampleid)  
+ 
+stb_loop_sum <- stb %>%  
+  filter(sampleid %in% p5d_samples) %>% 
+  mutate(p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5) 
+  
+```
+
+# sum of previous 1,2,3,4,5 days of diet --- pairing with each stool sample
+
+```{r}
+p1d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%   
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+ 
+p2d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+p3d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+p4d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0) 
+
+p5d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']], Row[['p5d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0) 
+```
+
+
+```{r}
+
+```
+
+
+# output for procrustes in qiime
+
+# import qiime results and do protest
+ 
