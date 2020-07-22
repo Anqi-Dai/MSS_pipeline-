@@ -200,15 +200,32 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
     as.matrix()
   
   protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
-  return( protest_res$signif)
+  return( protest_res$t0)
 }) %>% 
-  gather(key = 'mrn', value = 'pval') %>% 
+  gather(key = 'mrn', value = 'corre') %>% 
   mutate(mrn = fns_both$mrn,
          pNday = fns_both$pNday) %>% 
-  arrange(pval)
+  arrange(corre)
 ```
 
+
+
 ## Visualize the results
+
+```{r}
+# now visualize the correlation instead of the p value
+procrustes_Nday %>% 
+  mutate(day = str_extract(pNday, pattern = '\\d')) %>% 
+  mutate(day = factor(day)) %>% 
+  ggboxplot(x = 'day', y = 'corre', 
+            ylab = 'Correlation in a symmetric Procrustes rotation', xlab = 'Number of days combined',
+            title = '') +
+  #geom_jitter(aes(color = mrn), size = 5, alpha = 0.8, width = 0.05) +
+  #geom_line(aes(group = mrn), color = "grey", alpha = 0.5) +
+  theme(legend.position = 'none') +
+  ggsave('../figs/pNday_sub_pts_boxplot_corre.pdf', width = 6, height = 4) 
+```
+
 
 ```{r}
 # plot and visualize
@@ -220,8 +237,8 @@ procrustes_Nday_df %>%
   ggboxplot(x = 'day', y = 'neglogPval', 
             ylab = '-log10(pval)', xlab = 'Number of days combined',
             title = '') +
-  geom_jitter(aes(color = mrn), size = 5, alpha = 0.8, width = 0.05) +
-  geom_line(aes(group = mrn), color = "grey", alpha = 0.5) +
+  #geom_jitter(aes(color = mrn), size = 5, alpha = 0.8, width = 0.05) +
+  #geom_line(aes(group = mrn), color = "grey", alpha = 0.5) +
   theme(legend.position = 'none') +
   ggsave('../figs/pNday_sub_pts_boxplot.pdf', width = 6, height = 4) 
 

@@ -141,7 +141,7 @@ plot(pro.mean, kind = 1)
 plot(pro.mean, kind = 2)
 
 protest_mean <- protest(X = food_pcoa, Y = microbe_pcoa,  permutations = 999)
-protest_mean 
+protest_mean$t0 
 
 #protest_mean$symmetric
 ```
