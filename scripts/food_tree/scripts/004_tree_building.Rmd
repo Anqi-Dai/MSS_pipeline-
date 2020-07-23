@@ -36,6 +36,7 @@ uniq_food <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.cs
 
 
 
+
 food_database <- uniq_food %>% 
   rename(FoodID = Food.Code,
          Main.food.description = FNDDS.Main.Food.Description) %>% 

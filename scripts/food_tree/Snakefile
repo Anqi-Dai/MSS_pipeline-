@@ -750,10 +750,14 @@ times2_mrn = [x.strip() for x in content]
 
 loop_vars = times2_mrn +  times3_mrn + times4_mrn + times5_mrn
 
+stool_loop_vars = ['prophylactic_p1d_scts','prophylactic_p2d_scts','prophylactic_p3d_scts','prophylactic_p4d_scts','prophylactic_p5d_scts']
+
+food_loop_vars = ['prophylactic_p1d','prophylactic_p2d','prophylactic_p3d','prophylactic_p4d','prophylactic_p5d']
+
 rule stool:
     input:
-        expand('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa', time = loop_vars)
+        expand('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa', time = stool_loop_vars)
 
 rule food:
     input:
-        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = loop_vars)
+        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = food_loop_vars)

@@ -65,7 +65,6 @@ stb_loop_sum <- stb %>%
             p3d = sdrt-3,
             p4d = sdrt-4,
             p5d = sdrt-5) 
-  
 ```
 
 # sum of previous 1,2,3,4,5 days of diet --- pairing with each stool sample
@@ -124,16 +123,68 @@ p5d <- apply(stb_loop_sum, 1, function(Row){
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0) 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)  
 ```
 
 
 ```{r}
+# the species counts data would be :
+cts_long <- read_csv('../data/cleaned_stool/prophylactic_only_stool_samples_species_counts.csv') %>% 
+  filter(sampleid %in% p5d_samples) %>% 
+  select(sampleid, taxa_species, relab) 
+ 
+# since the samples in the diet counts are different so need to subset according to each
+p1d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p1d)[2:ncol(p1d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
 
+p2d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p2d)[2:ncol(p2d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+p3d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p3d)[2:ncol(p3d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+p4d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p4d)[2:ncol(p4d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+p5d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p5d)[2:ncol(p5d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
 ```
 
-
 # output for procrustes in qiime
+
+```{r}
+# output the food id cts table (need to be in a similar format to fit my previously written snakemake rules)
+dcts <- list(p1d = p1d,
+             p2d = p2d,
+             p3d = p3d,
+             p4d = p4d,
+             p5d = p5d)
+
+for (i in 1:length(dcts)){
+  dcts[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/prophylactic_{names(dcts)[i]}_diet_foodID_dehydrated_weight_per_pt.tsv'))
+}
+
+
+scts <- list(
+  p1d_scts = p1d_scts,
+  p2d_scts = p2d_scts,
+  p3d_scts = p3d_scts,
+  p4d_scts = p4d_scts,
+  p5d_scts = p5d_scts
+)
+
+
+for (i in 1:length(scts)){
+  scts[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/prophylactic_{names(scts)[i]}_stool_relab_species.tsv'))
+}
+```
 
 # import qiime results and do protest
  
