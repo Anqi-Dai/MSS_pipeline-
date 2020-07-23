@@ -616,6 +616,17 @@ rule visualize_mean_procrustes_with_emperor:
 # I need to use the tree.
 #####################################################################################
 
+rule covert_tree_to_qza:
+    input:
+        'data/cleaned_tree/output_food_tree_datatree.newick'
+    output:
+        'data/cleaned_tree/output_food_tree_datatree.qza'
+    shell:
+        '''
+        qiime tools import \
+            --input-path {input[0]} --output-path  {output[0]} --type 'Phylogeny[Rooted]'
+        '''
+
 rule convert_food_to_biom:
     input:
         'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.tsv'
@@ -636,7 +647,7 @@ rule convert_biom_to_qza:
 rule cal_unweighted_unifrac_for_food:
     input:
         cts='data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.qza',
-        tree='data/finalized/output_food_tree_datatree.qza'
+        tree='data/cleaned_tree/output_food_tree_datatree.qza'
     output:
         'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
     shell:

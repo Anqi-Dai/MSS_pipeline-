@@ -80,6 +80,8 @@ p1d <- apply(stb_loop_sum, 1, function(Row){
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+p1d <- p1d[, colSums(p1d != 0) > 0]
  
 p2d <- apply(stb_loop_sum, 1, function(Row){
   df = dtb %>%  
@@ -92,6 +94,8 @@ p2d <- apply(stb_loop_sum, 1, function(Row){
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
 
+p2d <- p2d[, colSums(p2d != 0) > 0]
+
 p3d <- apply(stb_loop_sum, 1, function(Row){
   df = dtb %>%  
         filter(mrn == Row[['mrn']]) %>% 
@@ -102,6 +106,9 @@ p3d <- apply(stb_loop_sum, 1, function(Row){
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+p3d <- p3d[, colSums(p3d != 0) > 0]
+
 
 p4d <- apply(stb_loop_sum, 1, function(Row){
   df = dtb %>%  
@@ -114,6 +121,8 @@ p4d <- apply(stb_loop_sum, 1, function(Row){
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'sampleid', value = 'sum_dewt', fill = 0) 
 
+p4d <- p4d[, colSums(p4d != 0) > 0]
+
 p5d <- apply(stb_loop_sum, 1, function(Row){
   df = dtb %>%  
         filter(mrn == Row[['mrn']]) %>% 
@@ -124,6 +133,8 @@ p5d <- apply(stb_loop_sum, 1, function(Row){
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'sampleid', value = 'sum_dewt', fill = 0)  
+
+p5d <- p5d[, colSums(p5d != 0) > 0]
 ```
 
 
@@ -187,4 +198,37 @@ for (i in 1:length(scts)){
 ```
 
 # import qiime results and do protest
+ 
+```{r}
+fns_both <- tibble(
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'prophylactic_p.d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'prophylactic_p.d_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_scts_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//prophylactic_','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
+
+
+# a function to do the procrustes as a pair
+procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
+  return( protest_res$t0)
+}) %>% 
+  gather(key = 'mrn', value = 'corre') %>% 
+  mutate(mrn = fns_both$mrn,
+         pNday = fns_both$pNday) %>% 
+  arrange(corre)
+```
+ 
  

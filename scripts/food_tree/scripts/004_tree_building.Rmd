@@ -32,12 +32,21 @@ library(readxl)
 # uniq_food is a table with the food_nsc and food code and description
 uniq_food <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv') %>% 
   select(-Food_NSC) %>% 
-  distinct() 
+  distinct()  
 
 
+codes <- read_tsv('../data/finalized/paired/pNday/prophylactic_p5d_diet_foodID_dehydrated_weight_per_pt.tsv') %>% 
+  pull(Food_code)
 
+current_all <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv') %>% 
+  distinct(Food_code) %>% 
+  pull(Food_code)
+
+length(intersect(uniq_food$Food.Code, current_all))
 
 food_database <- uniq_food %>% 
+  filter(Food.Code %in% current_all) %>% 
+  distinct(Food.Code, .keep_all = T)  %>%  
   rename(FoodID = Food.Code,
          Main.food.description = FNDDS.Main.Food.Description) %>% 
   mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 
