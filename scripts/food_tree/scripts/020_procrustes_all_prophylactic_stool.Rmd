@@ -351,4 +351,64 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   arrange(corre)
 ```
  
+```{r}
+Xmat <- matrix(rnorm(2000), ncol = 200, nrow = 10) 
+Ymat <- matrix(rnorm(2000), ncol = 200, nrow = 10) 
+library(vegan)
+pss <- protest(Xmat, Ymat, permutations=999)
+pss
+```
  
+## test the procrustes with fake compositional data
+
+```{r}
+library(vegan)
+
+dmat <- matrix(runif(100, min = 1, 10000), ncol = 10, nrow = 10) 
+
+dmat_relab <- sweep(dmat, 2, colSums(dmat), FUN="/")
+
+colSums(dmat_relab) 
+
+smat <- matrix(runif(100, min = 1, 100000), ncol = 10, nrow = 10) 
+
+smat_relab <- sweep(smat, 2, colSums(smat), FUN="/")
+
+colSums(smat_relab) 
+
+
+pss <- protest(dmat_relab, smat_relab, permutations=9999)
+pss
+```
+
+## use the real microbiome matrix and then fake diet (data from the real matrix but from random positions)
+
+```{r}
+# a non_replacement sampling of the original diet matrix 
+dcts_real <- p3d %>% 
+  column_to_rownames('Food_code') %>% 
+  as.matrix()
+
+
+sim_res <- list()
+
+for(i in 2:1000) {
+  sim_res[[i]] <- matrix(sample(x = dcts_real,
+                                size = length(dcts_real),
+                                replace = F), 
+                         ncol = ncol(dcts_real),
+                         nrow = nrow(dcts_real),
+                         dimnames = list(rown = rownames(dcts_real),
+                                         coln = colnames(dcts_real))) %>% 
+    as.data.frame() %>% 
+    rownames_to_column('Food_code')
+}
+
+sim_res[[1]] <-  p3d
+
+for (i in 1:length(sim_res)){
+  sim_res[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/experi_{i}_diet_foodID_dehydrated_weight_per_pt.tsv'))
+}
+```
+

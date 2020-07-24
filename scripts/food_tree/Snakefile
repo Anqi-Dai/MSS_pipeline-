@@ -763,7 +763,7 @@ loop_vars = times2_mrn +  times3_mrn + times4_mrn + times5_mrn
 
 stool_loop_vars = ['prophylactic_p1d_scts','prophylactic_p2d_scts','prophylactic_p3d_scts','prophylactic_p4d_scts','prophylactic_p5d_scts']
 
-food_loop_vars = ['prophylactic_p1d','prophylactic_p2d','prophylactic_p3d','prophylactic_p4d','prophylactic_p5d']
+food_loop_vars = ["experi_{}".format(i) for i in range(1,1001)]
 
 rule stool:
     input:
@@ -771,4 +771,4 @@ rule stool:
 
 rule food:
     input:
-        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = ['experiment_a10d','experiment_a20d'])
+        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = food_loop_vars)
