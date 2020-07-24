@@ -413,7 +413,67 @@ for (i in 1:length(sim_res)){
 }
 ```
 
-```{r}
+Finally after 4 hours .....
 
+```{r}
+fns_both <- tibble(
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'experi_.+_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+) %>% 
+  mutate(sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'prophylactic_p3d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T)) %>% 
+  mutate(ID = str_replace(dfolder, '_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
+
+
+procrustes_Nday_experi <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
+  return( list(pval  = protest_res$signif,
+               corr = protest_res$t0))
+})
+# finally after 1 hour and 20 min its done .....
+```
+
+```{r}
+# format the above table 
+pvals <- procrustes_Nday_experi %>% 
+  select(starts_with('pval')) %>% 
+  gather('ID','pval', names(.)[1]:names(.)[ncol(.)]) %>% 
+  mutate(ID = fns_both$ID)
+
+corrs <- procrustes_Nday_experi %>% 
+  select(starts_with('corr')) %>% 
+  gather('ID','corr', names(.)[1]:names(.)[ncol(.)]) %>% 
+  mutate(ID = fns_both$ID)
+
+both <- pvals %>% 
+  full_join(corrs) %>% 
+  gather('type', 'value', pval:corr)
+
+
+real_data <- both %>% filter(ID == 'experi_1') %>% 
+  mutate(value = round(value, digits = 3))
+
+ann_text <- data.frame(mpg = 15,wt = 5,lab = "Text",
+                       cyl = factor(8,levels = c("4","6","8")))
+
+library(ggpubr)
+both %>% 
+  gghistogram(x = 'value', bins = 100, fill = 'forestgreen') +
+  geom_vline(real_data, mapping = aes(xintercept = value), color = 'red', linetype = 'dashed') +
+  geom_text(data = real_data, mapping = aes(x = value, y = 5,label = value)) +
+  facet_grid(type~.) +
+  ggsave('../figs/procrustes_with_999_experiments.pdf',width = 7, height = 6)
+  
 ```
 
