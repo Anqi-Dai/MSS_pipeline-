@@ -118,20 +118,39 @@ closest_all_stool %>%
   ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = simpson_reciprocal)) +
   geom_point(alpha = 0.7, size = 3) +
   scale_color_viridis() 
-  
+
 ```
+
 ```{r}
-closest_s_porphylactic_only %>% 
-  mutate(sqrtSR = sqrt(simpson_reciprocal)) %>% 
-  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = sqrtSR)) +
-  geom_point(alpha = 0.6, size = 3) +
-  scale_color_viridis(option = 'inferno') 
-  scale_colour_gradient2(  low = "red",
-  mid = "white",
-  high = "blue")
-  scale_colour_gradientn(colours = terrain.colors(10))
-   
+closest_s_porphylactic_only_plot <- closest_s_porphylactic_only %>% 
+  mutate(sqrtSR = sqrt(simpson_reciprocal)) 
+
+brks <- seq(0, 1, 0.1)
+
+quants_sqrtSR <- brks %>% 
+  set_names(brks) %>% 
+  map_dfr(~ quantile(closest_s_porphylactic_only_plot$sqrtSR, .)) %>% 
+  gather('brks', 'value')
+ 
+closest_s_porphylactic_only_plot_df <- closest_s_porphylactic_only_plot %>% 
+  arrange(sqrtSR) %>% 
+  mutate(brks = cut(closest_s_porphylactic_only_plot$sqrtSR, 
+                    breaks = format(quants_sqrtSR %>% pull(value), scientific=F),
+                    include.lowest = T)) %>% 
+  filter(!is.na(brks))
+
+
+closest_s_porphylactic_only_plot_df %>% 
+  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = brks)) +
+  geom_point(alpha = 0.7, size = 3) +
+  scale_colour_manual(values = rev(brewer.pal(11,"RdYlBu"))) +
+  labs(title = 'food umap but colored by closest stool samples sqrt simposon reciprocal')
+
+
 ```
+
+
+
 
 ## make this version of the food maps with the dominant food groups and the second dominant food groups 
 

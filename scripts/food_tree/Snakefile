@@ -767,8 +767,8 @@ food_loop_vars = ['prophylactic_p1d','prophylactic_p2d','prophylactic_p3d','prop
 
 rule stool:
     input:
-        expand('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa', time = stool_loop_vars)
+        expand('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa', time = ['experiment_a10d_scts','experiment_a20d_scts'])
 
 rule food:
     input:
-        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = food_loop_vars)
+        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = ['experiment_a10d','experiment_a20d'])

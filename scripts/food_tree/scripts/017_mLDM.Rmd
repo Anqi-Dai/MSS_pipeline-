@@ -100,12 +100,21 @@ Meta <- meta %>%
    select(Nut_Carbohydrates:abx) %>% 
    column_to_rownames('sampleid') %>% 
    as.matrix()
+```
 
+```{r}
+ctsm_fil %>% 
+   write.csv('../data/ctsm_fil.csv', row.names = T, quote = F)
 
-result <- mLDM(ctsm_fil, Meta, Z_mean = 1)
+Meta %>% 
+   write.csv('../data/Meta.csv', row.names = T, quote = F)
 ```
 
 
+
+```{r}
+result <- mLDM(ctsm_fil, Meta, Z_mean = 1)
+```
 
 
 ```{r}

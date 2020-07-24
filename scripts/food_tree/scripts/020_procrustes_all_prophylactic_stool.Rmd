@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(vegan)
 ```
 
 # get all the prophylactic stool samples that have 5 days previous diet data
@@ -210,6 +211,125 @@ fns_both <- tibble(
          dfn = str_glue('{dfolder}/ordination.txt'))
 
 
+# a function to do the procrustes as a pair
+procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
+  return( protest_res$t0)
+}) %>% 
+  gather(key = 'pNd', value = 'corre') %>% 
+  mutate(pNd = fns_both$ID) %>% 
+  arrange(corre)
+```
+
+# An experiment 
+
+the diet sample 10 days and 20 days after the stool sample collection
+
+## the stool samples that have d sample 10 days and 20 days
+
+```{r}
+
+stb_loop <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            a10d = sdrt+10,
+            a20d = sdrt+20
+            ) 
+ 
+check_if_diet <-  function(mrn_, a10d_, a20d_){
+  num = pt_fdrt %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(a10d_, a20d_  )) %>% 
+    nrow()
+  return(num)
+}
+
+check_if_diet_df <- pmap(stb_loop, function(mrn, a10d, a20d){
+    check_if_diet(mrn, a10d, a20d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows() %>% 
+  gather('sampleid', 'pNd_num') 
+
+a2d_samples <- check_if_diet_df %>% 
+  filter(pNd_num == 2) %>% 
+  pull(sampleid)  
+ 
+stb_loop_sum <- stb %>%  
+  filter(sampleid %in% a2d_samples) %>% 
+  mutate(a10d = sdrt+10,
+        a20d = sdrt+20) 
+```
+
+```{r}
+a10d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%   
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['a10d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+a10d <- a10d[, colSums(a10d != 0) > 0]
+
+a20d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%   
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['a20d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+a20d <- a20d[, colSums(a20d != 0) > 0]
+
+
+a10d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(a10d)[2:ncol(a10d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+a20d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(a20d)[2:ncol(a20d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+
+a10d %>% 
+  write_tsv('../data/finalized/paired/pNday/experiment_a10d_diet_foodID_dehydrated_weight_per_pt.tsv')
+
+a20d %>% 
+  write_tsv('../data/finalized/paired/pNday/experiment_a20d_diet_foodID_dehydrated_weight_per_pt.tsv')
+
+a10d_scts %>% 
+  write_tsv(str_glue('../data/finalized/paired/pNday/experiment_a10d_scts_stool_relab_species.tsv'))
+
+a20d_scts %>% 
+  write_tsv(str_glue('../data/finalized/paired/pNday/experiment_a20d_scts_stool_relab_species.tsv'))
+```
+ 
+```{r}
+fns_both <- tibble(
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'experiment_a..d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'experiment_a..d_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_scts_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//prophylactic_','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
 # a function to do the procrustes as a pair
 procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
