@@ -330,6 +330,7 @@ fns_both <- tibble(
          ID = str_replace(ID, '../data/finalized/paired/pNday//experiment_','')) %>% 
   mutate(sfn = str_glue('{sfolder}/ordination.txt'),
          dfn = str_glue('{dfolder}/ordination.txt'))
+
 # a function to do the procrustes as a pair
 procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
@@ -404,11 +405,15 @@ for(i in 2:1000) {
     rownames_to_column('Food_code')
 }
 
-sim_res[[1]] <-  p3d
+sim_res[[1]] <-  p3d 
 
 for (i in 1:length(sim_res)){
   sim_res[[i]] %>% 
     write_tsv(str_glue('../data/finalized/paired/pNday/experi_{i}_diet_foodID_dehydrated_weight_per_pt.tsv'))
 }
+```
+
+```{r}
+
 ```
 
