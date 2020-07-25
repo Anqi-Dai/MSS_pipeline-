@@ -35,7 +35,7 @@ dat[fac_col] <- lapply(dat[fac_col], factor)
 colnames(dat)
 ```
 
-# the model testing
+# the model testing using the food groups
 
 ```{r}
 mod1 <- lmer(simpson_reciprocal ~ fg_egg +
@@ -48,8 +48,8 @@ mod1 <- lmer(simpson_reciprocal ~ fg_egg +
                fg_veggie+ 
                abx + 
                source + 
-               (1 | mrn), REML = TRUE, data = dat)
-summary(mod1)
+               (1 | mrn), REML = FALSE, data = dat)
+summary(mod1) 
 ```
 
 ```{r}
@@ -62,12 +62,14 @@ mod2 <- lmer(simpson_reciprocal ~ fg_egg +
                fg_sweets+
                fg_veggie+ 
                abx + 
-               (1 | mrn), REML = TRUE, data = dat)
-summary(mod2)
+               (1 | mrn), REML = FALSE, data = dat)
+#summary(mod2)
 
-anova(mod1, mod2, refit=FALSE)
+anova(mod1, mod2)
 ```
+
 **Need to include source **
+
 ```{r}
 mod3 <- lmer(simpson_reciprocal ~ fg_egg +
               fg_fruit+
@@ -80,10 +82,10 @@ mod3 <- lmer(simpson_reciprocal ~ fg_egg +
                abx + 
                source + 
                sex +
-               (1 | mrn), REML = TRUE, data = dat)
-summary(mod3)
+               (1 | mrn), REML = FALSE, data = dat)
+#summary(mod3)
 
-anova(mod1, mod3, refit=FALSE)
+anova(mod1, mod3)
 
 ```
 **No need to include sex**
@@ -100,10 +102,10 @@ mod4 <- lmer(simpson_reciprocal ~ fg_egg +
                abx + 
                source + 
                age +
-               (1 | mrn), REML = TRUE, data = dat)
-summary(mod4)
+               (1 | mrn), REML = FALSE, data = dat)
+#summary(mod4)
  
-anova(mod1, mod4, refit=FALSE)
+anova(mod1, mod4)
 ```
 **Need to include age**   
 
@@ -119,11 +121,13 @@ mod5 <- lmer(simpson_reciprocal ~ fg_egg +
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod5)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod5)
  
-anova(mod5, mod4, refit=FALSE)
+anova(mod5, mod4)
 ```
+**abx and mrn interaction term**
+
 ```{r}
 mod6 <-  lmer(simpson_reciprocal ~ fg_egg +
               fg_fruit+
@@ -136,167 +140,217 @@ mod6 <-  lmer(simpson_reciprocal ~ fg_egg +
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod6)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod6)
  
-anova(mod5, mod6, refit=FALSE)
+anova(mod5, mod6)
 ```
-**no fg_oils**
+**yes fg_oils**
 
 ```{r}
 mod7 <-  lmer(simpson_reciprocal ~ fg_egg +
               fg_fruit+
                fg_grain+
                fg_meat+
-               fg_milk+
-               #fg_oils+
+               #fg_milk+
+               fg_oils+
                fg_sweets+
-               #fg_veggie+ 
+               fg_veggie+ 
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod7)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod7)
  
-anova(mod6, mod7, refit=FALSE)
-
+anova(mod5, mod7)
 ```
-**no fg_veggie**
+
+**yes fg_milk**
 
 ```{r}
 mod8 <-  lmer(simpson_reciprocal ~ fg_egg +
               fg_fruit+
                fg_grain+
-               fg_meat+
-               #fg_milk+
-               #fg_oils+
+               #fg_meat+
+               fg_milk+
+               fg_oils+
                fg_sweets+
-               #fg_veggie+ 
+               fg_veggie+ 
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod8)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod8)
  
-anova(mod8, mod7, refit=FALSE)
+anova(mod5, mod8)
 ```
-**no fg_milk**
+
+**yes meat**
 
 ```{r}
 mod9 <-  lmer(simpson_reciprocal ~ fg_egg +
               fg_fruit+
                #fg_grain+
                fg_meat+
-               #fg_milk+
-               #fg_oils+
+               fg_milk+
+               fg_oils+
                fg_sweets+
-               #fg_veggie+ 
+               fg_veggie+ 
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod9)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod9)
  
-anova(mod8, mod9, refit=FALSE)
+anova(mod5, mod9)
 ```
-**no fg_grain**
+**no grain**
 
 ```{r}
 mod10 <-  lmer(simpson_reciprocal ~ fg_egg +
               #fg_fruit+
                #fg_grain+
                fg_meat+
-               #fg_milk+
-               #fg_oils+
+               fg_milk+
+               fg_oils+
                fg_sweets+
-               #fg_veggie+ 
+               fg_veggie+ 
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod10)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod10)
  
-anova(mod10, mod9, refit=FALSE)
+anova(mod10, mod9)
 ```
 
-**no fruit**
+**yes fruit**
 
 ```{r}
 mod11 <-  lmer(simpson_reciprocal ~ fg_egg +
-              #fg_fruit+
-               #fg_grain+
-               #fg_meat+
-               #fg_milk+
-               #fg_oils+
-               fg_sweets+
-               #fg_veggie+ 
-               abx + 
-               source + 
-               age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod11)
- 
-anova(mod10, mod11, refit=FALSE)
-```
-**yes meat!!!!**
-
-
-```{r}
-mod12 <-  lmer(simpson_reciprocal ~ fg_egg +
-              #fg_fruit+
+              fg_fruit+
                #fg_grain+
                fg_meat+
-               #fg_milk+
-               #fg_oils+
+               fg_milk+
+               fg_oils+
                #fg_sweets+
-               #fg_veggie+ 
+               fg_veggie+ 
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod12)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod11)
  
-anova(mod10, mod12, refit=FALSE)
+anova(mod11, mod9)
 ```
 
 **no fg_sweets**
 
 ```{r}
-mod13 <-  lmer(simpson_reciprocal ~ 
-              #fg_fruit+
+mod12 <-  lmer(simpson_reciprocal ~ fg_egg +
+              fg_fruit+
                #fg_grain+
                fg_meat+
-               #fg_milk+
-               #fg_oils+
+               fg_milk+
+               fg_oils+
                #fg_sweets+
                #fg_veggie+ 
                abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod13)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod12)
  
-anova(mod13, mod12, refit=FALSE)
+anova(mod11, mod12)
+```
+
+**no fg_veggie**
+
+```{r}
+mod13 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               #fg_grain+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+               #fg_sweets+
+               #fg_veggie+ 
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod13)
+ 
+anova(mod13, mod12)
 ```
 
 **no fg_egg**
 
 ```{r}
 mod14 <-  lmer(simpson_reciprocal ~ 
-              #fg_fruit+
+              fg_fruit+
                #fg_grain+
                fg_meat+
-               #fg_milk+
-               #fg_oils+
+               fg_milk+
+               fg_oils+
                #fg_sweets+
                #fg_veggie+ 
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod14)
+ 
+anova(mod13, mod14)
+```
+
+**yes sdrt**
+
+```{r}
+mod15 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               #fg_grain+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+               #fg_sweets+
+               #fg_veggie+ 
+                sdrt+
                #abx + 
                source + 
                age +
-               (1 + abx | mrn), REML = TRUE, data = dat)
-summary(mod14)
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod15)
  
-anova(mod13, mod14, refit=FALSE) 
+anova(mod15, mod14)
 ```
 
-**mod13 is the best**
+**yes abx!**
+
+```{r}
+mod16 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               #fg_grain+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+               #fg_sweets+
+               #fg_veggie+ 
+                sdrt+
+               #abx + 
+               source + 
+                intensity +
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod16)
+ 
+anova(mod16, mod14)
+```
+
+**no intensity!**
+
+```{r}
+summary(mod14)
+```
+
