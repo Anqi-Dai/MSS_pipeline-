@@ -469,11 +469,13 @@ ann_text <- data.frame(mpg = 15,wt = 5,lab = "Text",
 
 library(ggpubr)
 both %>% 
-  gghistogram(x = 'value', bins = 100, fill = 'forestgreen') +
+  gghistogram(x = 'value', bins = 100, fill = 'forestgreen',
+              title= 'Distribution of procrustes correlation and significance\nwith 999 fake diet input data (real data show at dashed line)',
+              xlab = 'value of correlation or significance') +
   geom_vline(real_data, mapping = aes(xintercept = value), color = 'red', linetype = 'dashed') +
-  geom_text(data = real_data, mapping = aes(x = value, y = 5,label = value)) +
+  geom_text(data = real_data, mapping = aes(x = value, y = 200,label = value)) +
   facet_grid(type~.) +
-  ggsave('../figs/procrustes_with_999_experiments.pdf',width = 7, height = 6)
+  ggsave('../figs/procrustes_with_999_experiments.pdf',width = 6, height = 5)
   
 ```
 
