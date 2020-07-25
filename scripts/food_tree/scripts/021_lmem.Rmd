@@ -1,10 +1,16 @@
 ---
 title: "Linear mixed effects model stool alpha diversity"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -22,6 +28,9 @@ stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+
+asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
+get_table_from_database('asv_annotation_blast_ag')
 
 dat <- stb %>% 
   inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal)) %>% 
@@ -49,7 +58,7 @@ mod1 <- lmer(simpson_reciprocal ~ fg_egg +
                abx + 
                source + 
                (1 | mrn), REML = FALSE, data = dat)
-summary(mod1) 
+#summary(mod1) 
 ```
 
 ```{r}
@@ -350,7 +359,214 @@ anova(mod16, mod14)
 
 **no intensity!**
 
+
+
+# model including nutrients terms
+
+```{r}
+mod17 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                Nut_Fibers +
+               sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod17)
+ 
+anova(mod17, mod14)
+```
+
+**no Nut_Fibers**
+
+```{r}
+mod18 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                #Nut_Fibers +
+                Nut_Carbohydrates+
+               sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod18)
+ 
+anova(mod18, mod14)
+```
+
+**no Nut_Carbohydrates**
+
+```{r}
+mod19 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                #Nut_Fibers +
+                #Nut_Carbohydrates+
+                Nut_Fat +
+               sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod19)
+ 
+anova(mod19, mod14)
+```
+
+**no Nut_Fat**
+
+```{r}
+mod20 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                #Nut_Fibers +
+                #Nut_Carbohydrates+
+                #Nut_Fat +
+                Nut_Proteing +
+               sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod20)
+ 
+anova(mod20, mod14)
+```
+
+
+**no Nut_Proteing cuz it's not significant **
+
+```{r}
+mod21 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                #Nut_Fibers +
+                #Nut_Carbohydrates+
+                #Nut_Fat +
+                #Nut_Proteing +
+                Nut_Sodium+
+               sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod21)
+ 
+anova(mod21, mod14)
+```
+
+**no Nut_Sodium**
+
+```{r}
+mod22 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                #Nut_Fibers +
+                #Nut_Carbohydrates+
+                #Nut_Fat +
+                #Nut_Proteing +
+                #Nut_Sodium+
+                Nut_Sugars+
+               sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+#summary(mod22)
+ 
+anova(mod22, mod14)
+```
+
+**no sugars**
+
+no need to include any nutrients terms 
+
+# the final model with stool alpha diversity as the response var
+
 ```{r}
 summary(mod14)
+```
+
+- the older the person, the slightly lower the diversity
+- prophylactically treated patients have higher diversity than empirical
+- the later time points into transplant the slightly lower the diversity
+- oil and meat help boost diversity 
+- fruit decreases diversity 
+
+
+This is in agreement with my spearman correlation plot except with veggie 
+
+# using enterococcus relab as the response
+
+```{r}
+# getting entercoccus genus relab for all the samples 
+cts <- asv_counts_ag %>% 
+    filter(sampleid %in% dat$sampleid) %>% 
+    select(asv_key, sampleid, count) %>% 
+    spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+    arrange(asv_key)  
+  
+annot <- asv_annotation_blast_ag %>% 
+    filter(asv_key %in% cts$asv_key) %>% 
+    mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+           family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+           genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+           species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+    mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
+  
+  # replace the asv_key with the genus taxa level
+  # summarize from asv level to genus level
+  # get the relative abundance for the species
+cts_relab <- cts %>% 
+    full_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
+    select(-asv_key) %>% 
+    gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+    group_by(sampleid, taxa_genus) %>% 
+    summarise(cnt = sum(count)) %>% 
+    # get the total count from the db to calculate the relab
+    left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+    mutate(relab = cnt/count_total)
+
+cts_relab %>% 
+  write_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')
+```
+
+```{r}
+entercoccus <- cts_relab %>% 
+  filter(str_detect(taxa_genus, 'g__Enterococcus')) %>% 
+  select(sampleid, relab)
+
+dat_e <- dat %>% 
+  full_join(entercoccus) %>% 
+  rename(entercoccus_relab = relab)
+```
+
+```{r}
+mod_1 <- lmer(entercoccus_relab ~ 
+              fg_fruit+
+               fg_meat+ 
+               fg_milk+
+               fg_oils+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat_e)
+
+summary(mod_1)
 ```
 
