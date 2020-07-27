@@ -212,7 +212,7 @@ fns_both <- tibble(
 
 
 # a function to do the procrustes as a pair
-procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+prophylactic_protest_Nday <- map2(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
     filter(! X1 %in% c('Biplot','Site constraints')) %>% 
     column_to_rownames('X1') %>% 
@@ -224,12 +224,77 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
     as.matrix()
   
   protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
-  return( protest_res$t0)
-}) %>% 
-  gather(key = 'pNd', value = 'corre') %>% 
-  mutate(pNd = fns_both$ID) %>% 
-  arrange(corre)
+  return( list(pval  = protest_res$signif,
+               corr = protest_res$t0))
+}) 
+
+pvals <- prophylactic_protest_Nday %>% 
+  set_names(fns_both  %>% pull(ID)) %>%  
+  map_dfr(~ pluck(.x = ., 'pval')) %>% 
+  gather('pNd', 'pval')
+
+corrs <-  prophylactic_protest_Nday %>% 
+  set_names(fns_both  %>% pull(ID)) %>% 
+  map_dfr(~ pluck(.x = ., 'corr')) %>% 
+  gather('pNd', 'corr')
+
+allstool_res <- pvals %>% 
+  full_join(corrs)
+
+allstool_res %>% 
+  gather('type', 'value', pval:corr) %>% 
+  ggboxplot(y =  'value', add = 'dotplot', label = 'pNd', repel = T,
+            xlab = '', ylab = '',
+            title = 'procrustes test  (prophylactic stool samples)') +
+  facet_wrap(~ type, scales = 'free_y')
+
+library(kableExtra)
+
+allstool_res %>% 
+  select(-pval) %>% 
+  arrange(-corr) %>% 
+  kable() %>% 
+  kable_styling(full_width = F)
 ```
+
+
+
+```{r}
+## if just look at the procruestes sum of squares
+
+# a function to do the procrustes as a pair
+prophylactic_procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  procrustes_res = procrustes(X = dpcoa, Y = spcoa)
+  return( procrustes_res$ss)
+}) %>% 
+  gather(key = 'pNd', value = 'ss') %>% 
+  mutate(pNd = fns_both$ID)
+
+prophylactic_procrustes_Nday %>% 
+  arrange(ss) %>% 
+  slice(1)
+
+  
+prophylactic_procrustes_Nday %>% 
+  ggboxplot(y =  'ss', add = 'dotplot', label = 'pNd', repel = T,
+            xlab = '', ylab = 'Sum of squares',
+            title = 'procrustes ss (prophylactic stool samples)')
+```
+
+
+
+
+
 
 # An experiment 
 
@@ -471,4 +536,6 @@ both %>%
   ggsave('../figs/procrustes_with_999_experiments.pdf',width = 6, height = 5)
   
 ```
+
+
 

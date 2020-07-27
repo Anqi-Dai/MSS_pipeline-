@@ -761,13 +761,16 @@ times2_mrn = [x.strip() for x in content]
 
 loop_vars = times2_mrn +  times3_mrn + times4_mrn + times5_mrn
 
-stool_loop_vars = ['prophylactic_p1d_scts','prophylactic_p2d_scts','prophylactic_p3d_scts','prophylactic_p4d_scts','prophylactic_p5d_scts']
+stool_loop_vars = ['allstool_p1d_scts','allstool_p2d_scts','allstool_p3d_scts','allstool_p4d_scts','allstool_p5d_scts']
 
-food_loop_vars = ["experi_{}".format(i) for i in range(1,1001)]
+food_loop_vars = ['allstool_p1d','allstool_p2d','allstool_p3d','allstool_p4d','allstool_p5d']
+
+#food_loop_vars = ["experi_{}".format(i) for i in range(1,1001)]
 
 rule stool:
     input:
-        expand('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa', time = ['experiment_a10d_scts','experiment_a20d_scts'])
+        expand('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa', time = stool_loop_vars)
+
 
 rule food:
     input:

@@ -7,42 +7,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-TRYING TO figure out how many previous days to combine if just do a asymmetrical procrustes
-
-# if just look at the procruestes sum of squares
-
 ```{r}
-fns_both <- tibble(
-  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'prophylactic_p.d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
-  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'prophylactic_p.d_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
-) %>% 
-  mutate(ID = str_replace(sfolder, '_scts_stool_relab_species_braycurtis_pcoa', ''),
-         ID = str_replace(ID, '../data/finalized/paired/pNday//prophylactic_','')) %>% 
-  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
-         dfn = str_glue('{dfolder}/ordination.txt')) 
-
-# a function to do the procrustes as a pair
-procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
-  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
-    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
-    column_to_rownames('X1') %>% 
-    as.matrix()
-  
-  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
-    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
-    column_to_rownames('X1') %>% 
-    as.matrix()
-  
-  procrustes_res = procrustes(X = dpcoa, Y = spcoa)
-  return( procrustes_res$ss)
-}) %>% 
-  gather(key = 'pNd', value = 'ss') %>% 
-  mutate(pNd = fns_both$ID)
-
-procrustes_Nday %>% 
-  arrange(ss) %>% 
-  slice(1)
+library(vegan)
+library(tidyverse)
+library(ggpubr)
 ```
+
+
+TRYING TO figure out how many previous days to combine if just do a asymmetrical procrustes
 
 # what if use all stool samples not only prophylactic ones
 
@@ -218,4 +190,83 @@ for (i in 1:length(scts)){
 }
 ```
 
+```{r}
+fns_both <- tibble(
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_scts_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//allstool_','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
+ 
+
+# a function to do the procrustes as a pair
+protest_Nday <- map2(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
+  return( list(pval  = protest_res$signif,
+               corr = protest_res$t0))
+}) 
+
+# make the above to a df and then plot 
+protest_Nday[[1]]$corr
+
+pvals <- protest_Nday %>% 
+  set_names(fns_both  %>% pull(ID)) %>%  
+  map_dfr(~ pluck(.x = ., 'pval')) %>% 
+  gather('pNd', 'pval')
+
+corrs <-  protest_Nday %>% 
+  set_names(fns_both  %>% pull(ID)) %>% 
+  map_dfr(~ pluck(.x = ., 'corr')) %>% 
+  gather('pNd', 'corr')
+
+allstool_res <- pvals %>% 
+  full_join(corrs)
+
+allstool_res %>% 
+  gather('type', 'value', pval:corr) %>% 
+  ggboxplot(y =  'value', add = 'dotplot', label = 'pNd', repel = T,
+            xlab = '', ylab = '',
+            title = 'procrustes test  (all qualified stool samples)') +
+  facet_wrap(~ type, scales = 'free_y')
+  
+ 
+
+```
+
+```{r}
+procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  procrustes_res = procrustes(X = dpcoa, Y = spcoa)
+  return( procrustes_res$ss)
+}) %>% 
+  gather(key = 'pNd', value = 'ss') %>% 
+  mutate(pNd = fns_both$ID)
+
+  
+procrustes_Nday %>% 
+  ggboxplot(y =  'ss', add = 'dotplot', label = 'pNd', repel = T,
+            xlab = '', ylab = 'Sum of squares',
+            title = 'procrustes ss (all qualified stool samples)')
+```
 
