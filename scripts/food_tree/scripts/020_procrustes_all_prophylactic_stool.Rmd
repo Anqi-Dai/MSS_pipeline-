@@ -352,13 +352,6 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   arrange(corre)
 ```
  
-```{r}
-Xmat <- matrix(rnorm(2000), ncol = 200, nrow = 10) 
-Ymat <- matrix(rnorm(2000), ncol = 200, nrow = 10) 
-library(vegan)
-pss <- protest(Xmat, Ymat, permutations=999)
-pss
-```
  
 ## test the procrustes with fake compositional data
 

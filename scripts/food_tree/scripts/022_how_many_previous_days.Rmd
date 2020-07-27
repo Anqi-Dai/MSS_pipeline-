@@ -1,0 +1,221 @@
+---
+title: "HOW MANY DAYS"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+TRYING TO figure out how many previous days to combine if just do a asymmetrical procrustes
+
+# if just look at the procruestes sum of squares
+
+```{r}
+fns_both <- tibble(
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'prophylactic_p.d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'prophylactic_p.d_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_scts_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//prophylactic_','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt')) 
+
+# a function to do the procrustes as a pair
+procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  procrustes_res = procrustes(X = dpcoa, Y = spcoa)
+  return( procrustes_res$ss)
+}) %>% 
+  gather(key = 'pNd', value = 'ss') %>% 
+  mutate(pNd = fns_both$ID)
+
+procrustes_Nday %>% 
+  arrange(ss) %>% 
+  slice(1)
+```
+
+# what if use all stool samples not only prophylactic ones
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
+```
+```{r}
+pt_fdrt <- dtb %>% 
+  distinct(mrn, fdrt)
+
+stb_loop <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5) 
+ 
+check_p5d_diet <-  function(mrn_, p1d_, p2d_, p3d_, p4d_, p5d_){
+  num = pt_fdrt %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_ ,p3d_, p4d_, p5d_ )) %>% 
+    nrow()
+  return(num)
+}
+
+check_p5d_diet_df <- pmap(stb_loop, function(mrn, p1d, p2d, p3d, p4d, p5d){
+    check_p5d_diet(mrn, p1d, p2d, p3d, p4d, p5d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows() %>% 
+  gather('sampleid', 'pNd_num') 
+
+p5d_samples <- check_p5d_diet_df %>% 
+  filter(pNd_num == 5) %>% 
+  pull(sampleid)  
+ 
+stb_loop_sum <- stb %>%  
+  filter(sampleid %in% p5d_samples) %>% 
+  mutate(p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5) 
+```
+
+```{r}
+p1d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%   
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+p1d <- p1d[, colSums(p1d != 0) > 0]
+ 
+p2d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+p2d <- p2d[, colSums(p2d != 0) > 0]
+
+p3d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+
+p3d <- p3d[, colSums(p3d != 0) > 0]
+
+
+p4d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0) 
+
+p4d <- p4d[, colSums(p4d != 0) > 0]
+
+p5d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']], Row[['p5d']])) %>% 
+        group_by(Food_code) %>% 
+        summarise(sum_dewt = sum(dehydrated_weight))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)  
+
+p5d <- p5d[, colSums(p5d != 0) > 0]
+```
+
+```{r}
+# the species counts data would be :
+cts_long <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% p5d_samples) %>% 
+  select(sampleid, taxa_genus, relab) 
+ 
+# since the samples in the diet counts are different so need to subset according to each
+p1d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p1d)[2:ncol(p1d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+p2d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p2d)[2:ncol(p2d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+p3d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p3d)[2:ncol(p3d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+p4d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p4d)[2:ncol(p4d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+
+p5d_scts <- cts_long %>% 
+  filter(sampleid %in% colnames(p5d)[2:ncol(p5d)]) %>% 
+  spread('sampleid', 'relab', fill = 0)
+```
+
+
+```{r}
+# output the food id cts table (need to be in a similar format to fit my previously written snakemake rules)
+dcts <- list(p1d = p1d,
+             p2d = p2d,
+             p3d = p3d,
+             p4d = p4d,
+             p5d = p5d)
+
+for (i in 1:length(dcts)){
+  dcts[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/allstool_{names(dcts)[i]}_diet_foodID_dehydrated_weight_per_pt.tsv'))
+}
+
+
+scts <- list(
+  p1d_scts = p1d_scts,
+  p2d_scts = p2d_scts,
+  p3d_scts = p3d_scts,
+  p4d_scts = p4d_scts,
+  p5d_scts = p5d_scts
+)
+
+
+for (i in 1:length(scts)){
+  scts[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/allstool_{names(scts)[i]}_stool_relab_species.tsv'))
+}
+```
+
+
