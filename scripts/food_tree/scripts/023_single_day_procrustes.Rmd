@@ -1,0 +1,110 @@
+---
+title: "A single day procrustes association"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vegan)
+library(ggpubr)
+```
+
+# how many stool samples (all) have 10 previous days diet in a row 
+
+```{r}
+
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+
+## !!!! here we look at the stool samples affected by prophylactic only
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
+
+pt_fdrt <- dtb %>% 
+  distinct(mrn, fdrt)
+
+stb_loop <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5,
+            p6d = sdrt-6,
+            p7d = sdrt-7,
+            p8d = sdrt-8,
+            p9d = sdrt-9,
+            p10d = sdrt-10) 
+ 
+check_p10d_diet <-  function(mrn_, p1d_, p2d_, p3d_, p4d_, p5d_, p6d_,p7d_,p8d_,p9d_,p10d_){
+  num = pt_fdrt %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_ ,p3d_, p4d_, p5d_ , p6d_,p7d_,p8d_,p9d_,p10d_)) %>% 
+    nrow()
+  return(num)
+}
+
+check_p10d_diet_df <- pmap(stb_loop, function(mrn, p1d, p2d, p3d, p4d, p5d, p6d,p7d,p8d,p9d,p10d){
+    check_p10d_diet(mrn, p1d, p2d, p3d, p4d, p5d, p6d,p7d,p8d,p9d,p10d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows() %>% 
+  gather('sampleid', 'pNd_num') 
+
+p10d_samples <- check_p10d_diet_df %>% 
+  filter(pNd_num == 10) %>% 
+  pull(sampleid) 
+
+stb_loop_sum <- stb %>%  
+  filter(sampleid %in% p10d_samples) %>% 
+  mutate(p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5, 
+            p6d = sdrt-6,
+            p7d = sdrt-7,
+            p8d = sdrt-8,
+            p9d = sdrt-9,
+            p10d = sdrt-10)  
+ 
+loop_vars <- paste(paste('p', seq(1, 10), sep = ''), 'd', sep = '')
+```
+
+```{r}
+single_dcts <- list() 
+ 
+for(i in 1:length(loop_vars)){
+  pnd <- apply(stb_loop_sum, 1, function(Row){
+      df = dtb %>%   
+            filter(mrn == Row[['mrn']]) %>% 
+            filter(fdrt %in% c(Row[[loop_vars[i]]])) %>% 
+            group_by(Food_code) %>% 
+            summarise(sum_dewt = sum(dehydrated_weight))
+      }) %>% 
+      set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+      bind_rows(.id = 'sampleid') %>% 
+      spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+  
+  pnd <- pnd[, colSums(pnd != 0) > 0]
+  single_dcts[[i]] <- pnd
+}
+```
+
+```{r}
+cts_long <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  select(sampleid, taxa_genus, relab) 
+ 
+
+single_scts <- list()
+
+for(i in 1:length(single_dcts)){
+  single_scts[[i]] <- cts_long %>% 
+    filter(sampleid %in% colnames(single_dcts[[i]])[2:ncol(single_dcts[[i]])]) %>% 
+    spread('sampleid', 'relab', fill = 0)
+}
+```
+
