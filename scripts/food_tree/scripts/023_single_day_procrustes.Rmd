@@ -106,5 +106,47 @@ for(i in 1:length(single_dcts)){
     filter(sampleid %in% colnames(single_dcts[[i]])[2:ncol(single_dcts[[i]])]) %>% 
     spread('sampleid', 'relab', fill = 0)
 }
+
+names(single_scts) <- loop_vars
+names(single_dcts) <- loop_vars
+
+for (i in 1:length(single_dcts)){
+  single_dcts[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/single_{names(single_dcts)[i]}_diet_foodID_dehydrated_weight_per_pt.tsv'))
+}
+
+for (i in 1:length(single_scts)){
+  single_scts[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/single_{names(single_scts)[i]}_stool_relab_species.tsv'))
+}
+```
+
+```{r}
+fns_both <- tibble(  
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'single_p.+d_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'single_p.+d_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//single_','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
+
+procrustes_Nday_single <- map2(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
+  procrustes_ss = procrustes(X = dpcoa, Y = spcoa)
+  return( list(pval  = protest_res$signif,
+               corr = protest_res$t0,
+               ss = procrustes_ss$ss))
+}) 
 ```
 
