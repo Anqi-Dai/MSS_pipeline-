@@ -15,7 +15,7 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 
 ```{r}
 library(lmerTest)
-library(tidyverse)
+library(tidyverse) 
 ```
 
 # the data table
@@ -28,7 +28,7 @@ stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
-
+ 
 asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 get_table_from_database('asv_annotation_blast_ag')
 
@@ -42,6 +42,9 @@ fac_col <- c('mrn','source', 'intensity', 'sex', 'abx')
 dat[fac_col] <- lapply(dat[fac_col], factor)  
 
 colnames(dat)
+
+dat %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta.csv')
 ```
 
 # the model testing using the food groups

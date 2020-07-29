@@ -1,0 +1,189 @@
+---
+title: "the other way around linear mixed effects"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lmerTest)
+```
+
+```{r}
+dat <- read_csv('../data/cleaned_stool/all_samples_meta.csv')
+
+fac_col <- c('mrn','source', 'intensity', 'sex', 'abx')
+
+dat[fac_col] <- lapply(dat[fac_col], factor)  
+```
+
+# important food groups one by one
+
+```{r}
+mod23 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+mod24 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               fg_meat+
+               #fg_milk+
+               #fg_oils+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod24)
+
+# yes meat!
+```
+
+
+```{r}
+mod25 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod25)
+# yes fruit but not that big of an impact compared to meat.
+```
+```{r}
+mod26 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               fg_milk+
+               #fg_oils+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod26)
+# yes milk!
+```
+```{r}
+mod27 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               fg_oils+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod27)
+# yes oil!
+```
+
+
+# if only looking at nutrients
+
+```{r}
+mod28 <-  lmer(simpson_reciprocal ~ 
+                Nut_Carbohydrates +
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod28)
+
+# NO Nut_Carbohydrates!
+```
+
+```{r}
+mod29 <-  lmer(simpson_reciprocal ~ 
+                Nut_Fat +
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod29)
+
+# yes Nut_Fat! 
+```
+
+```{r}
+mod30 <-  lmer(simpson_reciprocal ~ 
+                Nut_Proteing +
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod30)
+
+# yes protein!
+```
+```{r}
+mod31 <-  lmer(simpson_reciprocal ~ 
+                Nut_Fibers +
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod31)
+
+# no fiber! 
+```
+```{r}
+mod32 <-  lmer(simpson_reciprocal ~ 
+                Nut_Sugars +
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod32)
+# no Nut_Sugars
+```
+```{r}
+mod33 <-  lmer(simpson_reciprocal ~ 
+                Nut_Sodium +
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod33)
+# yes Nut_Sodium
+```
+
+**sodium, fat, protein is important**
+
+# important food groups one more and one more
+
+```{r}
+
+```
+

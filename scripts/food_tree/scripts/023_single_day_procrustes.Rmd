@@ -150,3 +150,31 @@ procrustes_Nday_single <- map2(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
 }) 
 ```
 
+```{r}
+pvals <- procrustes_Nday_single %>% 
+  set_names(fns_both  %>% pull(ID)) %>%  
+  map_dfr(~ pluck(.x = ., 'pval')) %>% 
+  gather('pNd', 'pval')
+
+corrs <-  procrustes_Nday_single %>% 
+  set_names(fns_both  %>% pull(ID)) %>% 
+  map_dfr(~ pluck(.x = ., 'corr')) %>% 
+  gather('pNd', 'corr')
+
+sss <-  procrustes_Nday_single %>% 
+  set_names(fns_both  %>% pull(ID)) %>% 
+  map_dfr(~ pluck(.x = ., 'ss')) %>% 
+  gather('pNd', 'ss')
+
+single_df <- pvals %>% 
+  full_join(corrs) %>% 
+  full_join(sss)
+
+single_df %>% 
+  gather('type', 'value', pval:ss) %>% 
+  ggboxplot(y =  'value', add = 'dotplot', label = 'pNd', repel = T,
+            xlab = '', ylab = '',
+            title = 'procrustes with a single day diet (stool samples have 10 previous days)') +
+  facet_wrap(~type, scales = 'free_y') 
+```
+
