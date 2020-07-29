@@ -10,15 +10,25 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(lmerTest)
+library(ggpubr)
 ```
 
 ```{r}
-dat <- read_csv('../data/cleaned_stool/all_samples_meta.csv')
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')
 
 fac_col <- c('mrn','source', 'intensity', 'sex', 'abx')
 
 dat[fac_col] <- lapply(dat[fac_col], factor)  
+colnames(dat)
 ```
+
+```{r}
+# visualize how the alpha div change according to time
+dat %>% 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal',alpha = 0.5, 
+   add = "loess", conf.int = TRUE) 
+```
+
 
 # important food groups one by one
 
@@ -34,6 +44,23 @@ mod23 <-  lmer(simpson_reciprocal ~
                age +
                (1 + abx | mrn), REML = FALSE, data = dat)
 
+mod23_2 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                sdrt^2 +
+                #sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+anova(mod23, mod23_2)
+# It doesn't seem I need to use the time square term
+```
+
+
+```{r}
 mod24 <-  lmer(simpson_reciprocal ~ 
               #fg_fruit+
                fg_meat+
@@ -64,7 +91,7 @@ mod25 <-  lmer(simpson_reciprocal ~
                (1 + abx | mrn), REML = FALSE, data = dat)
 
 anova(mod23, mod25)
-# yes fruit but not that big of an impact compared to meat.
+# no fruit 
 ```
 ```{r}
 mod26 <-  lmer(simpson_reciprocal ~ 
@@ -96,8 +123,99 @@ mod27 <-  lmer(simpson_reciprocal ~
 anova(mod23, mod27)
 # yes oil!
 ```
+```{r}
+mod34 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                fg_egg+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
 
+anova(mod23, mod34)
+# yes egg!
+```
 
+```{r}
+mod35 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                #fg_egg+
+                fg_grain+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod35)
+# yes grain!
+```
+```{r}
+mod36 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                #fg_egg+
+                #fg_grain+
+                fg_sweets+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod36)
+#no sweets!
+```
+```{r}
+mod37 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                #fg_egg+
+                #fg_grain+
+                #fg_sweets+
+                fg_legume+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod37)
+# no legume
+```
+```{r}
+mod38 <-  lmer(simpson_reciprocal ~ 
+              #fg_fruit+
+               #fg_meat+
+               #fg_milk+
+               #fg_oils+
+                #fg_egg+
+                #fg_grain+
+                #fg_sweets+
+                #fg_legume+
+                fg_veggie+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = FALSE, data = dat)
+
+anova(mod23, mod38)
+# yes fg_veggie!
+```
+
+ 
 # if only looking at nutrients
 
 ```{r}
@@ -111,7 +229,7 @@ mod28 <-  lmer(simpson_reciprocal ~
 
 anova(mod23, mod28)
 
-# NO Nut_Carbohydrates!
+# yes Nut_Carbohydrates!
 ```
 
 ```{r}
@@ -181,9 +299,16 @@ anova(mod23, mod33)
 
 **sodium, fat, protein is important**
 
-# important food groups one more and one more
+# use some functions to do backward model selection
 
 ```{r}
+# compute correlation matrix for the fg and nut
+fmetrics <- dat %>% 
+  select(fg_egg:Nut_Sugars)
 
+f_cor <- cor(fmetrics, method = "spearman")
+
+library(caret)
+f_cor_res <- findCorrelation(f_cor, names = T, cutoff = 0.8)
 ```
 

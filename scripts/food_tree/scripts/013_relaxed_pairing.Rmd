@@ -42,7 +42,7 @@ mean_p2d_diet <-  function(mrn_, p1d_, p2d_){
     summarise(ave_gram = mean(gram))
   return(df)
 }
-
+ 
 mean_p2d_diet_df <- pmap(stb_pair, function(mrn, p1d, p2d){
     mean_p2d_diet(mrn, p1d, p2d)
   }) %>% 
@@ -50,7 +50,8 @@ mean_p2d_diet_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   bind_rows(.id = 'ID') %>% 
   spread('type', 'ave_gram') %>%  # this is the ave gram for previous 3 days in each fg and nut for every stool sample that is qualified
   full_join(stb, by = "ID") %>% 
-  select(-ID)
+  select(-ID) %>% 
+  filter(!is.na(fg_fruit)) # some samples didn't have diet in p2d but on -3 day, so remove the NAs.
 
 mean_p2d_diet_df %>% 
   write_csv('../data/cleaned_diet_data/paired_mean_p2d_diet_meta.csv')

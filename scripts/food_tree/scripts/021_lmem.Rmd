@@ -6,7 +6,7 @@ output:
   html_document:
     toc: true
     toc_float: true
-    toc_depth: 3
+    toc_depth: 3 
 ---
 
 ```{r setup, include=FALSE}
@@ -21,7 +21,7 @@ library(tidyverse)
 # the data table
 
 ```{r}
-ntb <- read_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv')
+ntb <- read_csv('../data/cleaned_diet_data/paired_mean_p2d_diet_meta.csv')
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 
 # pulling the alpha diversity 
@@ -34,7 +34,8 @@ get_table_from_database('asv_annotation_blast_ag')
 
 dat <- stb %>% 
   inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal)) %>% 
-  full_join(ntb) 
+  inner_join(ntb) %>% 
+  mutate(abx = if_else(abx == 'prophylactic', 'non_empirical', abx))
   # making factors factors
 
 fac_col <- c('mrn','source', 'intensity', 'sex', 'abx')
@@ -44,7 +45,7 @@ dat[fac_col] <- lapply(dat[fac_col], factor)
 colnames(dat)
 
 dat %>% 
-  write_csv('../data/cleaned_stool/all_samples_meta.csv')
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')
 ```
 
 # the model testing using the food groups
