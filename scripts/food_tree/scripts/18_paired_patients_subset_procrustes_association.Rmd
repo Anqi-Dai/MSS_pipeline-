@@ -180,8 +180,8 @@ set.seed(123)
 
 # sort out the fns that I need to do a procrustes on
 fns_both <- data_frame(
-  sfolder = list.files('../data/finalized/paired/pNday/', pattern = '_stool_relab_species_braycurtis_pcoa$', full.names = T),
-  dfolder = list.files('../data/finalized/paired/pNday/', pattern = '_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'p.day.+_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'p.day.+_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)
 ) %>% 
   mutate(ID = str_replace(sfolder, '_stool_relab_species_braycurtis_pcoa', ''),
          ID = str_replace(ID, '../data/finalized/paired/pNday//','')) %>% 
@@ -203,7 +203,8 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
     as.matrix()
   
   protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
-  return( protest_res$t0)
+  return( list(corr = protest_res$t0,
+               pval = protest_res$signif))
 }) %>% 
   gather(key = 'mrn', value = 'corre') %>% 
   mutate(mrn = fns_both$mrn,

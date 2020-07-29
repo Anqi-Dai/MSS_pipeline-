@@ -1,5 +1,5 @@
 ---
-title: "Relaxed pairing"
+title: "Relaxed pairing previous two days"
 output: html_document
 ---
 
@@ -9,12 +9,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(vegan)
 ```
 
 # load the tables
 
 ```{r}
-stb <- read_csv('../data/cleaned_stool/selected_stool_samples_ALL_abx.csv') %>% 
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_ALL_abx.csv') 
+stb <- stb %>% 
   mutate(ID = paste0("row", 1:nrow(stb)))
 
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
@@ -23,27 +25,26 @@ ntb <- read_csv('../data/cleaned_diet_data/wide_food_grp-and_nutrients_total.csv
   gather('type', 'gram', names(.)[3]:names(.)[ncol(.)]) 
 ```
 
-# pairing one stool with mean of previous three days (1-3 days of diet) data
+# pairing one stool with mean of previous two days (1-2 days of diet) data (2020-7-29 modification specifically for the abstract)
   
 ```{r}  
 stb_pair <- stb %>%  
   select(mrn, sdrt) %>% 
   transmute(mrn = mrn,
             p1d = sdrt-1,
-            p2d = sdrt-2, 
-            p3d = sdrt-3) 
+            p2d = sdrt-2) 
  
-mean_p3d_diet <-  function(mrn_, p1d_, p2d_, p3d_){
+mean_p2d_diet <-  function(mrn_, p1d_, p2d_){
   df = ntb %>% 
     filter(mrn == mrn_) %>% 
-    filter(fdrt %in% c(p1d_, p2d_ ,p3d_ )) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
     group_by(type) %>% 
     summarise(ave_gram = mean(gram))
   return(df)
 }
 
-mean_p3d_diet_df <- pmap(stb_pair, function(mrn, p1d, p2d, p3d){
-    mean_p3d_diet(mrn, p1d, p2d, p3d)
+mean_p2d_diet_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_diet(mrn, p1d, p2d)
   }) %>% 
   set_names(paste0("row", 1:nrow(stb_pair))) %>% 
   bind_rows(.id = 'ID') %>% 
@@ -51,7 +52,7 @@ mean_p3d_diet_df <- pmap(stb_pair, function(mrn, p1d, p2d, p3d){
   full_join(stb, by = "ID") %>% 
   select(-ID)
 
-mean_p3d_diet_df %>% 
-  write_csv('../data/cleaned_diet_data/paired_mean_p3d_diet_meta.csv')
+mean_p2d_diet_df %>% 
+  write_csv('../data/cleaned_diet_data/paired_mean_p2d_diet_meta.csv')
 ```
 
