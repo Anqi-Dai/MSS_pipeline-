@@ -1,10 +1,16 @@
 ---
 title: "the other way around linear mixed effects"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
@@ -20,6 +26,8 @@ fac_col <- c('mrn','source', 'intensity', 'sex', 'abx')
 
 dat[fac_col] <- lapply(dat[fac_col], factor)  
 colnames(dat)
+
+summary(dat)
 ```
 
 ```{r}
@@ -306,9 +314,63 @@ anova(mod23, mod33)
 fmetrics <- dat %>% 
   select(fg_egg:Nut_Sugars)
 
-f_cor <- cor(fmetrics, method = "spearman")
+f_cor <- cor(fmetrics, method = "pearson")
 
 library(caret)
-f_cor_res <- findCorrelation(f_cor, names = T, cutoff = 0.8)
+f_cor_res <- findCorrelation(f_cor, names = T)
+f_cor_res
 ```
+```{r}
+mod99 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                Nut_Carbohydrates+
+                Nut_Fat+
+                Nut_Fibers+
+                Nut_Proteing+
+                Nut_Sodium+
+                Nut_Sugars+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = F, data = dat)
+step(mod99)
+```
+
+```{r}
+mod100 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                sdrt+
+               abx + 
+               source + 
+               age +
+               (1 + abx | mrn), REML = F, data = dat)
+summary(mod100)
+```
+
+
+
+
+
+
+
+
+
+
 
