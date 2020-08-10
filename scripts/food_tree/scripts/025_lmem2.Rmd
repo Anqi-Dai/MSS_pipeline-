@@ -3,9 +3,9 @@ title: "the other way around linear mixed effects"
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
 output:
-  html_document:
+  html_document:  
     toc: true
-    toc_float: true
+    toc_float: true 
     toc_depth: 3
 ---
 
@@ -20,14 +20,24 @@ library(ggpubr)
 ```
 
 ```{r}
-dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical')))
 
-fac_col <- c('mrn','source', 'intensity', 'sex', 'abx')
+fac_col <- c('mrn','source',  'sex', 'abx')
 
 dat[fac_col] <- lapply(dat[fac_col], factor)  
 colnames(dat)
 
 summary(dat)
+
+dat2 <- dat %>% 
+  #mutate(abx = as.character(abx)) %>% 
+  filter(abx == 'non_empirical')
+dat %>% 
+  distinct(mrn, .keep_all = T)  %>% 
+  count(intensity)
 ```
 
 ```{r}
@@ -343,10 +353,33 @@ mod99 <-  lmer(simpson_reciprocal ~
                age +
                (1 + abx | mrn), REML = F, data = dat)
 step(mod99)
+
+head(dat$timebin)
+```
+
+# finalizing the model: what I care about and wanna model?
+
+
+```{r}
+# mod100 <-  lmer(simpson_reciprocal ~ 
+#               fg_fruit+
+#                fg_meat+
+#                fg_milk+
+#                fg_oils+
+#                 fg_egg+
+#                 fg_grain+
+#                 fg_sweets+
+#                 fg_legume+
+#                 fg_veggie+
+#                abx + 
+#                intensity + 
+#                (timebin || mrn) , REML = F, data = dat)
+# summary(mod100)
+# Error: number of observations (=796) <= number of random effects (=920) for term (0 + timebin | mrn); the random-effects parameters and the residual variance (or scale parameter) are probably unidentifiable
 ```
 
 ```{r}
-mod100 <-  lmer(simpson_reciprocal ~ 
+mod101 <-  lmer(simpson_reciprocal ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -354,21 +387,15 @@ mod100 <-  lmer(simpson_reciprocal ~
                 fg_egg+
                 fg_grain+
                 fg_sweets+
-                fg_legume+
+                #fg_legume+
                 fg_veggie+
-                sdrt+
+                sdrt +
                abx + 
-               source + 
-               age +
-               (1 + abx | mrn), REML = F, data = dat)
-summary(mod100)
+               intensity + 
+               (1 | mrn)  , REML = F, data = dat )
+summary(mod101)
+
 ```
-
-
-
-
-
-
 
 
 
