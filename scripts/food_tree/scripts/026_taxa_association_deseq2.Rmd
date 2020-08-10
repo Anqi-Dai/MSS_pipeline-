@@ -1,0 +1,97 @@
+---
+title: "Taxa associatin using deseq2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(DESeq2)
+library(ggpubr)
+```
+
+```{r}
+# load the data
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')  %>% 
+  arrange(sampleid) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical')))
+
+
+fac_col <- c('mrn','source',  'sex')
+meta[fac_col] <- lapply(meta[fac_col], factor)  
+
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  select(sampleid, taxa_genus, cnt) %>% 
+  arrange(sampleid)
+```
+
+```{r}
+# the distribution of the total count of the genera
+total_cnt <- cts %>% 
+  group_by(taxa_genus) %>% 
+  summarise(total = sum(cnt))
+
+quantile(x = total_cnt$total, probs = seq(0,1,0.05))
+
+total_cnt %>% 
+  gghistogram(x = 'total', bins = 100)
+
+# also see how many samples per patient
+meta %>% 
+  dplyr::count(mrn) %>% 
+  arrange(n)
+```
+
+have at least 4 raw count in at least 10% of the samples
+
+```{r}
+# filter the count table
+cts_ma <- cts %>% 
+  spread(key = 'sampleid', value = 'cnt') %>% 
+  column_to_rownames('taxa_genus') %>% 
+  as.matrix()
+
+num_thre <- floor(ncol(cts_ma) * 0.1)
+
+cts_ma_fil <- cts_ma[rowSums(cts_ma >= 4) >= num_thre, ]
+```
+
+```{r}
+# the deseq2 part
+dds <- DESeqDataSetFromMatrix(countData = cts_ma_fil,
+                              colData = meta,
+                              design = ~ fg_fruit + fg_meat + fg_milk + fg_oils +  
+    fg_egg + fg_grain + fg_sweets + fg_veggie + fg_legume+ sdrt + abx + intensity +  mrn)
+```
+
+
+```{r}
+dds.android.f <- DESeqDataSetFromMatrix(countData = count.f, colData = col.f, design = ~ age + batch.cat + ratio_fat.x + ratio_carbohydrate.x + smoke + alcohol + bmi + antibiotic + Android_FM)
+dds.android.m <- DESeqDataSetFromMatrix(countData = count.m, colData = col.m, design = ~ age + batch.cat + ratio_fat.x + ratio_carbohydrate.x + smoke + alcohol + bmi + antibiotic + Android_FM)
+```
+
+Estimate size factor & dispersion
+```{r}
+dds.android.f <- estimateSizeFactors(dds.android.f, type = "poscounts")
+dds.android.m <- estimateSizeFactors(dds.android.m, type = "poscounts")
+
+dds.android.f <- estimateDispersions(dds.android.f, fitType = "local")
+dds.android.m <- estimateDispersions(dds.android.m, fitType = "local")
+```
+
+Wald test for android fat.
+```{r}
+dds.android.f <- nbinomWaldTest(dds.android.f)
+dds.android.m <- nbinomWaldTest(dds.android.m)
+```
+
+Access the results.
+```{r}
+res.android.f <- results(dds.android.f, alpha = 0.01, lfcThreshold = 1)
+res.android.m <- results(dds.android.m, alpha = 0.01, lfcThreshold = 1)
+```
