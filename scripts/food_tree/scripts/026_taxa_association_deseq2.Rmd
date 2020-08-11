@@ -15,14 +15,22 @@ library(ggpubr)
 
 ```{r}
 # load the data
+# to add a column (mrn_N) that distinguishes the mrn nested within an intensity condition
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')  %>% 
   arrange(sampleid) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(abx = factor(abx, levels = c('non_empirical','empirical')))
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical')),
+         mrn = factor(mrn),
+         source = factor(source),
+         sex = factor(sex)) %>% 
+  mutate(abx_ = as.numeric(abx),
+         intensity_ = as.numeric(intensity),
+         mrn_ = as.numeric(mrn)) %>% 
+  arrange(intensity_, mrn_) %>% 
+  split(.$intensity) %>% 
+  map_dfr(~ mutate(.data = ., mrn_N = factor(as.numeric(as.factor(mrn_)))))
+  
 
-
-fac_col <- c('mrn','source',  'sex')
-meta[fac_col] <- lapply(meta[fac_col], factor)  
 
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) %>% 
@@ -38,13 +46,13 @@ total_cnt <- cts %>%
 
 quantile(x = total_cnt$total, probs = seq(0,1,0.05))
 
-total_cnt %>% 
-  gghistogram(x = 'total', bins = 100)
+# total_cnt %>% 
+#   gghistogram(x = 'total', bins = 100)
 
 # also see how many samples per patient
-meta %>% 
-  dplyr::count(mrn) %>% 
-  arrange(n)
+# meta %>% 
+#   dplyr::count(mrn) %>% 
+#   arrange(n)
 ```
 
 have at least 4 raw count in at least 10% of the samples
@@ -61,13 +69,39 @@ num_thre <- floor(ncol(cts_ma) * 0.1)
 cts_ma_fil <- cts_ma[rowSums(cts_ma >= 4) >= num_thre, ]
 ```
 
+The design formular
+
+```{r}
+design_f <- model.matrix(~  fg_fruit + 
+                            fg_meat + 
+                            fg_milk + 
+                            fg_oils +  
+                            fg_egg + 
+                            fg_grain + 
+                            fg_sweets + 
+                            fg_veggie + 
+                            fg_legume+ 
+                            abx + 
+                            intensity + 
+                            intensity : mrn_N +  
+                            intensity: sdrt, meta)
+
+
+all.zero <- apply(design_f, 2, function(x) all(x==0))
+
+
+idx <- which(all.zero)
+design_f <- design_f[,-idx]
+```
+
+
 ```{r}
 # the deseq2 part
 dds <- DESeqDataSetFromMatrix(countData = cts_ma_fil,
                               colData = meta,
-                              design = ~ fg_fruit + fg_meat + fg_milk + fg_oils +  
-    fg_egg + fg_grain + fg_sweets + fg_veggie + fg_legume+ sdrt + abx + intensity +  mrn)
+                              design = design_f)
 ```
+
 
 
 ```{r}
