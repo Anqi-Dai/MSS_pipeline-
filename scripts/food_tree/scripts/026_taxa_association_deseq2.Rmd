@@ -1,5 +1,5 @@
 ---
-title: "Taxa associatin using deseq2"
+title: "Taxa association using deseq2"
 output: html_document
 ---
 
@@ -12,6 +12,8 @@ library(tidyverse)
 library(DESeq2)
 library(ggpubr)
 ```
+
+# the meta table and adjust to the right format
 
 ```{r}
 # load the data
@@ -29,9 +31,11 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')  %>%
   arrange(intensity_, mrn_) %>% 
   split(.$intensity) %>% 
   map_dfr(~ mutate(.data = ., mrn_N = factor(as.numeric(as.factor(mrn_)))))
-  
+```
 
+# the counts table (species count)
 
+```{r}
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) %>% 
   select(sampleid, taxa_genus, cnt) %>% 
@@ -92,40 +96,35 @@ all.zero <- apply(design_f, 2, function(x) all(x==0))
 
 idx <- which(all.zero)
 design_f <- design_f[,-idx]
+
+
+df <- as.data.frame(rowSums(cts_ma_fil))
 ```
 
 
 ```{r}
 # the deseq2 part
-dds <- DESeqDataSetFromMatrix(countData = cts_ma_fil,
+dds <- DESeqDataSetFromMatrix(countData = cts_ma_fil + 1,# to avoid at least one entry has at least one zero
                               colData = meta,
                               design = design_f)
 ```
 
+```{r}
+dds <- DESeq(dds, test = 'Wald',
+             betaPrior = F,
+             full = design_f,
+             fitType =' local',
+             parallel = T) 
+```
+
+```{r}
+colnames(design_f)[1:10]
+```
 
 
 ```{r}
-dds.android.f <- DESeqDataSetFromMatrix(countData = count.f, colData = col.f, design = ~ age + batch.cat + ratio_fat.x + ratio_carbohydrate.x + smoke + alcohol + bmi + antibiotic + Android_FM)
-dds.android.m <- DESeqDataSetFromMatrix(countData = count.m, colData = col.m, design = ~ age + batch.cat + ratio_fat.x + ratio_carbohydrate.x + smoke + alcohol + bmi + antibiotic + Android_FM)
+res <- results(dds, name = 'fg_grain')
+summary(res)
+ttt <- as.data.frame(res)
 ```
 
-Estimate size factor & dispersion
-```{r}
-dds.android.f <- estimateSizeFactors(dds.android.f, type = "poscounts")
-dds.android.m <- estimateSizeFactors(dds.android.m, type = "poscounts")
-
-dds.android.f <- estimateDispersions(dds.android.f, fitType = "local")
-dds.android.m <- estimateDispersions(dds.android.m, fitType = "local")
-```
-
-Wald test for android fat.
-```{r}
-dds.android.f <- nbinomWaldTest(dds.android.f)
-dds.android.m <- nbinomWaldTest(dds.android.m)
-```
-
-Access the results.
-```{r}
-res.android.f <- results(dds.android.f, alpha = 0.01, lfcThreshold = 1)
-res.android.m <- results(dds.android.m, alpha = 0.01, lfcThreshold = 1)
-```
