@@ -36,16 +36,55 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')  %>%
 # the counts table (species count)
 
 ```{r}
-cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+
+get_table_from_database('asv_annotation_blast_ag')
+
+asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
+
+cts <- asv_counts_ag %>% 
   filter(sampleid %in% meta$sampleid) %>% 
-  select(sampleid, taxa_genus, cnt) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
+
+
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa_species = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+ 
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the genera
+cts_spp <- cts %>% 
+  full_join(annot %>%  select(asv_key, taxa_species), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa_species) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) 
+
+cts_spp %>% 
+  write_csv('../data/cleaned_stool/ALL_stool_samples_species_counts.csv')
+```
+
+```{r}
+cts <- cts_spp %>% 
+  select(sampleid, taxa_species, cnt) %>% 
   arrange(sampleid)
 ```
 
 ```{r}
 # the distribution of the total count of the genera
 total_cnt <- cts %>% 
-  group_by(taxa_genus) %>% 
+  group_by(taxa_species) %>% 
   summarise(total = sum(cnt))
 
 quantile(x = total_cnt$total, probs = seq(0,1,0.05))
@@ -59,18 +98,18 @@ quantile(x = total_cnt$total, probs = seq(0,1,0.05))
 #   arrange(n)
 ```
 
-have at least 4 raw count in at least 10% of the samples
+have at least 5 raw count in at least 10% of the samples
 
 ```{r}
 # filter the count table
 cts_ma <- cts %>% 
   spread(key = 'sampleid', value = 'cnt') %>% 
-  column_to_rownames('taxa_genus') %>% 
+  column_to_rownames('taxa_species') %>% 
   as.matrix()
 
 num_thre <- floor(ncol(cts_ma) * 0.1)
 
-cts_ma_fil <- cts_ma[rowSums(cts_ma >= 4) >= num_thre, ]
+cts_ma_fil <- cts_ma[rowSums(cts_ma >= 5) >= num_thre, ]
 ```
 
 The design formular
@@ -98,7 +137,7 @@ idx <- which(all.zero)
 design_f <- design_f[,-idx]
 
 
-df <- as.data.frame(rowSums(cts_ma_fil))
+#df <- as.data.frame(rowSums(cts_ma_fil))
 ```
 
 
