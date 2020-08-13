@@ -45,6 +45,18 @@ all_meta <- meta %>%
   full_join(salpha)
 ```
 
+```{r}
+# compare the faith and simpson reciprocal
+all_meta %>% 
+  ggscatter(x = 'simpson_reciprocal', y = 'sfaith',
+              add = "reg.line",  # Add regressin line
+             add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+             conf.int = TRUE, # Add confidence interval
+             cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+             cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n"))
+```
+
+
 # load food alpha diversity and average the previous 2 days
 
 ```{r}
@@ -125,4 +137,35 @@ cal <- nutrition_ag %>%
   select(mrn, fdrt = days_post_hsct, calories_in = calories__kcal__po)
 ```
 
+```{r}
+mean_p2d_cal <-  function(mrn_, p1d_, p2d_){
+  df = cal %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    summarise(ave_cal = mean(calories_in))
+  return(df)
+}
+
+mean_p2d_cal_df <- pmap(all_meta_pair, function(mrn, p1d, p2d){
+    mean_p2d_cal(mrn, p1d, p2d)
+  }) %>% 
+  set_names(all_meta$sampleid) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  filter(!is.nan(ave_cal))
+
+final_cal   <- all_meta %>% 
+  inner_join(mean_p2d_cal_df) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
+```
+
+```{r}
+mod106 <-  lmer(simpson_reciprocal ~ 
+                ave_cal +
+                abx +
+                intensity +
+                #sdrt +
+               (1 | timebin) +
+               (1 | mrn) , REML = F, data = final_cal )
+summary(mod106)
+```
 
