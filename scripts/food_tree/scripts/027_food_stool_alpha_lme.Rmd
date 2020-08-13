@@ -169,3 +169,20 @@ mod106 <-  lmer(simpson_reciprocal ~
 summary(mod106)
 ```
 
+```{r}
+# what about the nutrients level
+mod107 <-  lmer(sfaith ~ 
+                Nut_Carbohydrates +
+                  Nut_Fat +
+                  Nut_Fibers +
+                  Nut_Proteing +
+                  Nut_Sodium +
+                  Nut_Sodium +
+                abx +
+                intensity +
+                #sdrt +
+               (1 | timebin) +
+               (1 | mrn) , REML = F, data = final_cal )
+summary(mod107)
+```
+

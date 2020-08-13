@@ -133,8 +133,6 @@ rda_vsd_cts_fg <- rda(t(vsd_cts) ~ ., pheno_fg)
 
 ```{r}
 # the matrix that have asv key as the row and samples as the columns and the raw count as the value
-source('~/db_connect_simple.R')
-connect_database(config_file = '~/dbConfig.txt')
 
 asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 
@@ -149,7 +147,7 @@ cts <- asv_counts_ag %>%
 
 # calculate the weighted unifrac distance
 all_tree <- ape::read.tree('../data/cleaned_stool/asv_sequences_all.newick')
-unifrac_res <- unifrac(cts, weighted = TRUE, tree = all_tree)
+unifrac_res <- rbiom::unifrac(cts, weighted = TRUE, tree = all_tree)
 
 unifrac_res <- unifrac(cts, weighted = FALSE, tree = all_tree)
 ```
@@ -169,5 +167,3 @@ res_wunifrac_phenofg <- capscale(formula = unifrac_res ~ .,
 
 plot(res_wunifrac)  
 ```
-
-
