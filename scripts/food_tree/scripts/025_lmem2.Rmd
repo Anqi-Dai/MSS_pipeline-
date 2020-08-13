@@ -37,7 +37,7 @@ dat2 <- dat %>%
   filter(abx == 'non_empirical')
 dat %>% 
   distinct(mrn, .keep_all = T)  %>% 
-  count(intensity)
+  dplyr::count(intensity)
 ```
 
 ```{r}
@@ -384,20 +384,54 @@ mod101 <-  lmer(simpson_reciprocal ~
                fg_meat+
                fg_milk+
                fg_oils+
-                fg_egg+
+                fg_egg+ 
                 fg_grain+
                 fg_sweets+
-                #fg_legume+
+                fg_legume+
                 fg_veggie+
                 sdrt +
                abx + 
                intensity + 
                (1 | mrn)  , REML = F, data = dat )
 summary(mod101)
-
 ```
 
+```{r}
+mod102 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               # sdrt +
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = dat )
+summary(mod102)
+```
+```{r}
+# in the group of ablative and empirical abx
+dat_fil <- dat %>% 
+  filter(intensity == 'ablative' & abx == 'empirical')
 
-
-
+mod103 <-  lmer(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               # sdrt +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = dat_fil )
+summary(mod103)
+```
 
