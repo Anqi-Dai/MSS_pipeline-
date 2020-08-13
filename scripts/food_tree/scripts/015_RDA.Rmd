@@ -50,6 +50,14 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>%
 pheno <- meta %>%  
   select(starts_with('fg'), intensity, sdrt, abx, mrn) 
 
+
+pheno1 <- meta %>%  
+  select(starts_with('fg'), intensity, sdrt, abx) 
+
+pheno_fg <- meta %>%  
+  select(starts_with('fg')) 
+
+
 # using the genus level counts
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')  %>% 
   filter(sampleid %in% meta$sampleid) %>% 
@@ -66,6 +74,13 @@ res <- capscale(formula = cts ~ .,
 
 plot(res)
 anova(res)
+
+res_pheno1 <- capscale(formula = cts ~ .,
+                data = pheno1,
+                distance = 'bray',
+                dfun = vegdist,
+                #add = T,
+                sqrt.dist = T)
 ```
 
 ```{r}
@@ -75,6 +90,8 @@ dist_ <- vegdist(cts, method = 'bray')
 res_ <- capscale(formula = dist_ ~ .,
                 data = pheno,
                 sqrt.dist = T)
+
+# it's the same as above: I don't need to calculate the distance myself  
 ```
 
 
@@ -105,11 +122,22 @@ meanSdPlot(assay(dds))# check the sd scales so the vst really shrinks the
 ```
 
 ```{r}
-res_vst_cts <- capscale(formula = vsd_cts ~ .,
-                data = pheno,
-                distance = 'bray',
-                dfun = vegdist, 
-                #add = T,
-                sqrt.dist = T)
+# res_vst_cts <- capscale(formula = t(vsd_cts) ~ .,
+#                 data = pheno,
+#                 distance = 'bray',
+#                 dfun = vegdist, 
+#                 #add = T,
+#                 sqrt.dist = T)
+# error : results may be meaningless because data have negative entries in method “bray”
+# this is not making a lot of sense --- transform the data then calculate distance like bray
+```
+
+```{r}
+# just use the transformed counts and then do a rda
+rda_vsd_cts <- rda(t(vsd_cts) ~ ., pheno) 
+
+rda_vsd_cts_ <- rda(t(vsd_cts) ~ ., pheno1) 
+
+rda_vsd_cts_fg <- rda(t(vsd_cts) ~ ., pheno_fg)  
 ```
 
