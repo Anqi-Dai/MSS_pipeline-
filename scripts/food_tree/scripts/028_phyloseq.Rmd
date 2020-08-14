@@ -66,3 +66,43 @@ ps
 otu_table(ps)
 ```
 
+# filter 
+
+```{r}
+table(tax_table(ps)[, "Phylum"], exclude = NULL)
+
+# filter out the phylum is NA and only have one feature ones 
+ps1 <- subset_taxa(ps, !is.na(Phylum) & !Phylum %in% c("", "uncharacterized"))
+```
+```{r}
+# Compute prevalence of each feature, store as data.frame
+prevdf = apply(X = otu_table(ps1),
+               MARGIN = ifelse(taxa_are_rows(ps1), yes = 1, no = 2),
+               FUN = function(x){sum(x > 0)})
+
+# Add taxonomy and total read counts to this data.frame
+prevdf = bind_cols(
+  data_frame(
+    Prevalence = prevdf,
+    TotalAbundance = taxa_sums(ps1)),
+  %>% 
+    as.data.frame())
+
+
+ tax_table(ps) 
+ data_frame(tax_table(ps) )
+   
+```
+```{r}
+ps2 = transform_sample_counts(ps1, function(x){x / sum(x)})
+plotAfter = plot_abundance(ps2,"")
+
+otu_table(ps2)
+```
+
+```{r}
+qplot(log10(colSums(otu_table(ps1))),binwidth=0.2) +
+  xlab("Logged counts-per-sample")
+
+qplot(sample_data(ps2)$fg_fruit, geom = "histogram",binwidth=20)
+```
