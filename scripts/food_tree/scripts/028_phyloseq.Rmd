@@ -1,7 +1,7 @@
 ---
 title: "look at the tree informed microbiome beta diversity using phyloseq"
 output: html_document
----
+--- 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -16,8 +16,8 @@ library(tidyverse)
 
 ```{r}
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
-    mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-    mutate(abx = factor(abx, levels = c('non_empirical','empirical')),
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical')),
            mrn = factor(mrn)) %>% 
   arrange(sampleid) %>% 
   column_to_rownames('sampleid')
@@ -26,7 +26,7 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>%
 asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 
 cts <- asv_counts_ag %>% 
-  filter(sampleid %in% meta$sampleid) %>% 
+  filter(sampleid %in% rownames(meta)) %>% 
   select(asv_key, sampleid, count) %>% 
   arrange(sampleid) %>% 
   spread(key = 'sampleid', value = 'count', fill = 0) %>% 
@@ -34,7 +34,7 @@ cts <- asv_counts_ag %>%
   column_to_rownames('asv_key') %>% 
   as.matrix()
 
-all.equal(colnames(cts), meta$sampleid)
+all.equal(colnames(cts), rownames(meta))
 
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
@@ -63,7 +63,6 @@ ps <- phyloseq(otu_table(cts, taxa_are_rows=T),
                phy_tree(all_tree))
 
 ps
-otu_table(ps)
 ```
 
 # filter 
