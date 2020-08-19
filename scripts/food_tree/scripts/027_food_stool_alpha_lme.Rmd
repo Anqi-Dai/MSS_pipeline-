@@ -1,10 +1,16 @@
 ---
 title: "linear mixed effects model for faith alpha diversity for both food and stool"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -167,6 +173,18 @@ mod106 <-  lmer(simpson_reciprocal ~
                (1 | timebin) +
                (1 | mrn) , REML = F, data = final_cal )
 summary(mod106)
+
+
+mod111 <-  lmer(simpson_reciprocal ~ 
+                ave_cal +
+                #abx +
+                #intensity +
+                #sdrt +
+               (1 | timebin) +
+               (1 | mrn) , REML = F, data = final_cal )
+summary(mod111)
+summary(lm(simpson_reciprocal ~ 
+                ave_cal , data = final_cal ))
 ```
 
 ```{r}
