@@ -32,7 +32,7 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>%
 asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 cts <- asv_counts_ag %>% 
   filter(sampleid %in% meta$sampleid) %>% 
-  select(asv_key, sampleid, count) %>% 
+  dplyr::select(asv_key, sampleid, count) %>% 
   spread(key = 'asv_key', value = 'count', fill = 0) %>% 
   arrange(sampleid)  %>% 
   column_to_rownames('sampleid') %>% 
@@ -71,7 +71,7 @@ ffaith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.
   mutate(mrn = as.numeric(str_replace(mrn, '^P','')))
 
 all_meta_pair <- all_meta %>%  
-  select(mrn, sdrt) %>% 
+  dplyr::select(mrn, sdrt) %>% 
   transmute(mrn = mrn,
             p1d = sdrt-1,
             p2d = sdrt-2) 
@@ -140,7 +140,7 @@ get_table_from_database('nutrition_ag')
 
 cal <- nutrition_ag %>% 
   filter(mrn %in% all_meta$mrn) %>% 
-  select(mrn, fdrt = days_post_hsct, calories_in = calories__kcal__po)
+  dplyr::select(mrn, fdrt = days_post_hsct, calories_in = calories__kcal__po)
 ```
 
 ```{r}
@@ -163,6 +163,17 @@ final_cal   <- all_meta %>%
   inner_join(mean_p2d_cal_df) %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
 ```
+
+```{r}
+# join the above two together
+
+final_meta <- final_cal %>% 
+  inner_join(final_alpha)  
+
+final_meta %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_w_cal_ffaith.csv')
+```
+
 
 ```{r}
 mod106 <-  lmer(simpson_reciprocal ~ 
