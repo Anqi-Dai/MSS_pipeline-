@@ -12,6 +12,7 @@ library(vegan)
 library(tidyverse)
 library(ggpubr)
 library(ape)
+library(rbiom)
 ```
 
 Fit the family abunance onto stool alpha diversity colored PCoA
@@ -25,8 +26,7 @@ cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>%
   spread(key = 'taxa_genus', value = 'relab') %>% 
   column_to_rownames('sampleid')
 
-
-meta <- read_csv('../data/cleaned_stool/all_samples_meta.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')
 
 dist_all <- vegdist(cts, method = 'bray')
 
@@ -47,61 +47,22 @@ all_bc %>%
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   scale_color_viridis()
-  
 
 ```
 
 ```{r}
 # all sample family abundance
-cts <- asv_counts_ag %>% 
-  filter(sampleid %in% dat$sampleid) %>% 
-  select(asv_key, sampleid, count) %>% 
-  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
-  arrange(asv_key)  
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('asv_annotation_blast_ag')
 
-
-annot <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% cts$asv_key) %>% 
-  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
-         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
-         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
-         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-   mutate(taxa_family = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}'))
-
-
-# replace the asv_key with the genus taxa level
-# summarize from asv level to genus level
-# get the relative abundance for the genera
-cts_fam <- cts %>% 
-  full_join(annot %>%  select(asv_key, taxa_family), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
-  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_family) %>% 
-  summarise(cnt = sum(count)) %>% 
-  # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total)  
-
-cts_fam %>% write_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv')
-
+asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 
 ```
 
 ```{r}
-# get the top n family relab 
-topn <- cts_fam %>% group_by(taxa_family) %>% 
-  summarise(sum_relab = sum(relab)) %>% 
-  arrange(-sum_relab) %>% 
-  top_n(15) %>% 
-  pull(taxa_family)
-
-
-topn_cts <- cts_fam %>% 
-  filter(taxa_family %in% topn) %>% 
-  mutate(taxa_family = str_extract(taxa_family, 'f__.+$')) %>% 
-  select(sampleid, taxa_family, relab) %>% 
-  spread(key = 'taxa_family', value = 'relab', fill = 0) %>% 
-  column_to_rownames('sampleid')
+# load the family level counts
+cts_fam <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv')
 
 
 ord <- pcoa(dist_all)
@@ -109,18 +70,36 @@ ord <- pcoa(dist_all)
 
 ```
 
+# the asv level all stool sample counts and relab
+
 ```{r}
-myTable = matrix(nrow=20,ncol=10)
-for(i in 1:10) {myTable[i,] = sample(1:10,10)}
-for(i in 11:20) {myTable[i,] = sample(15:25,10)}
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  dplyr::select(asv_key, sampleid, count) 
 
-myMetadata = data.frame(FirstColumn = character(), SecondColumn = character(), stringsAsFactors=FALSE)
-myMetadata[1:10,1] = 'G1'
-myMetadata[11:20,1] = 'G2'
-myMetadata[seq(1,20,2),2] = 'G3'
-myMetadata[seq(2,20,2),2] = 'G4'
-
-library(vegan)
-envfit(myTable ~ myMetadata$FirstColumn, data = myMetadata, perm=1000)
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the genera
+cts_asv <- cts %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = count/count_total)  
 ```
+
+
+# the microbiome weighted unifrac on asv level counts(relab)
+
+```{r}
+cts <- cts_asv %>% 
+  dplyr::select(asv_key, sampleid, relab) %>% 
+  spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+all_tree <- ape::read.tree('../data/cleaned_stool/asv_sequences_all.newick')
+
+wunifrac_res <- rbiom::unifrac(cts, weighted = TRUE, tree = all_tree)
+head(wunifrac_res)
+```
+
 
