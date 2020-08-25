@@ -1,10 +1,16 @@
 ---
 title: "envfit "
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -32,7 +38,7 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_w_cal_ffaith.csv') 
 ```{r}
 # all samples genus counts matrix and pcoa
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
-  select(sampleid, taxa_genus, relab) %>% 
+  dplyr::select(sampleid, taxa_genus, relab) %>% 
   spread(key = 'taxa_genus', value = 'relab') %>% 
   column_to_rownames('sampleid')
 
@@ -74,9 +80,6 @@ asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 # load the family level counts
 cts_fam <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv')
 
-
-ord <- pcoa(dist_all)
-(fit <- envfit(ord, topn_cts, perm = 999))
 
 ```
 
@@ -150,10 +153,11 @@ screeplot(ord, type="line")
 # the percent variance
 eigen <- eigenvals(ord)
 percent_var <- signif(eigen/sum(eigen), 3)*100
-
+percent_var
 
 sum(percent_var[1:18])
 ```
+
 ```{r}
 colnames(meta)
 ```
@@ -172,6 +176,9 @@ bray_fam.fit <- envfit(ord ~ abx + intensity + timebin +
                    fg_veggie, meta, 
                    choices=c(1:18), 
                    strata = meta$mrn) 
+bray_fam.fit <- envfit(ord ~ simpson_reciprocal, meta, 
+                   choices=c(1:18), 
+                   strata = meta$mrn) 
 bray_fam.fit
 bray_fam.fit$vectors$pvals %>% 
   as.data.frame() %>% 
@@ -179,6 +186,44 @@ bray_fam.fit$vectors$pvals %>%
   rename(pval = names(.)[2]) %>% 
   mutate(padj = p.adjust(pval, method = 'BH')) %>% 
   arrange(padj)
+
+    
+bray_fam.fit.df<-as.data.frame(bray_fam.fit$vectors$arrows*sqrt(bray_fam.fit$vectors$r)) %>% 
+  rownames_to_column('grp') %>% 
+  dplyr::select(grp, MDS1, MDS2) 
+
+# bray_fam.fit.df %>% 
+#   ggscatter(x = 'MDS1', y = 'MDS2')
 ```
 
+
 # color the samples to the consumption of grain ?
+
+```{r}
+dist_fam <- vegdist(cts_fam, method = 'bray')
+
+all_fam <- cmdscale(dist_fam, k = 2) %>% 
+  as.data.frame() %>% 
+  rownames_to_column('sampleid') %>% 
+  inner_join(meta)
+```
+
+```{r}
+all_fam  %>% 
+  mutate(fg_grain = log2(fg_grain)) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'fg_grain', alpha = 0.4, size = 3)
+
+```
+
+```{r}
+plot(ord)
+plot(bray_fam.fit, )
+scores(bray_fam.fit, display = 'vectors')
+```
+
+```{r}
+meta %>% 
+  ggboxplot(x = 'abx', y = 'simpson_reciprocal') 
+```
+
+
