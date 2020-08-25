@@ -101,15 +101,40 @@ bray_fam.fit
 # is the adonis returning the same?
 
 ```{r}
-pmv <- adonis(cts_fam ~ mrn, data=pheno, permutations=999, method = 'bray')
+pmv <- adonis(cts_fam ~ abx + intensity + sdrt +
+                   fg_fruit+
+                   fg_meat+
+                   fg_milk+
+                   fg_oils+
+                   fg_egg+
+                   fg_grain+
+                   fg_sweets+
+                   fg_legume+
+                   fg_veggie, data=pheno, permutations=999, method = 'bray', strata = pheno$mrn, parallel = 8)
 
+data_frame(
+  item = colnames(pheno)[2:ncol(pheno)],
+  pval = pmv$aov.tab$`Pr(>F)`[1:12],
+  r2 = pmv$aov.tab$R2[1:12]
+) %>% 
+  mutate(padj = p.adjust(pval, method = 'BH')) %>% 
+  arrange(padj)
+  
+
+```
+
+
+```{r}
+pmv
 colnames(pheno) %>% 
   set_names(colnames(pheno)) %>% 
   map(function(term){
-    pmv = adonis(cts_fam ~ term, data=pheno, permutations=999, method = 'bray')
+    pmv = adonis(cts_fam ~ term, data=pheno, permutations=999, method = 'bray', strata = mrn)
     return(list(r2 = pmv$aov.tab$R2[1],
                 pval = pmv$aov.tab$`Pr(>F)`[1]))
   })
+
+
 ```
 
 
