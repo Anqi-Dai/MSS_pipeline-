@@ -69,18 +69,16 @@ res
 
 # try the envfit again
 
+
+ 
+
 ```{r}
-ord <- capscale(formula = cts_fam ~ 1,
-                distance = 'bray',
-                dfun = vegdist,
-                #add = T,
-                sqrt.dist = T)
+dist <- vegdist(cts_fam,  method = "bray")
 
-# the percent variance
-eigen <- eigenvals(ord)
-percent_var <- signif(eigen/sum(eigen), 3)*100
+ord <- metaMDS(dist, k = 4,
+          maxit = 999, 
+          trymax = 20)
 
-sum(percent_var[1:36])
 
 bray_fam.fit <- envfit(ord ~ abx + intensity + sdrt +
                    fg_fruit+
@@ -92,7 +90,7 @@ bray_fam.fit <- envfit(ord ~ abx + intensity + sdrt +
                    fg_sweets+
                    fg_legume+
                    fg_veggie, pheno, 
-                   choices=c(1:36), 
+                   choices=c(1:4), 
                    strata = pheno$mrn,
                    permutations = 10000 ) 
 bray_fam.fit
@@ -118,7 +116,7 @@ data_frame(
   r2 = pmv$aov.tab$R2[1:12]
 ) %>% 
   mutate(padj = p.adjust(pval, method = 'BH')) %>% 
-  arrange(padj)
+  arrange(padj) 
   
 
 ```
@@ -141,4 +139,6 @@ colnames(pheno) %>%
 ```{r}
 colnames(pheno)
 ```
+
+# what if it's nonlinear
 

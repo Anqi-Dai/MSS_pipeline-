@@ -1,0 +1,62 @@
+---
+title: "My whole new take on vegan"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(vegan)
+library(tidyverse)
+```
+
+```{r}
+data(varespec)
+```
+
+## the genus level count data (raw count) and filter
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical')),
+         mrn = factor(mrn)) %>% 
+  arrange(sampleid)
+```
+
+
+```{r}
+gcts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  select(sampleid, taxa_genus, cnt) %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  arrange(sampleid)
+
+gctsm <- gcts %>% 
+  spread(key = 'taxa_genus', value = 'cnt') %>% 
+  column_to_rownames('sampleid') %>% 
+  as.matrix()
+
+num_thre <- floor(nrow(gctsm) * 0.1)
+
+gctsmf <- gctsm[ ,colSums(gctsm >= 5) >= num_thre ]
+  
+```
+
+## the mds of the count table 
+
+```{r}
+set.seed(1)
+gctsmf.mds <- metaMDS(gctsmf, trace = T,
+                      distance = "bray", k = 4, maxit = 1000,try = 40, trymax = 100, parallel = 10 ) 
+gctsmf.mds
+
+stressplot(gctsmf.mds)
+
+```
+
+The fit between the community distances (data dissimilarity) and ordination distances is indicated by the monotonic step line (red).
+Two stress values are provided:
+Non-metric fit - this is the modified Kruskal's stress value and is sqrt(1-r2)
+Linear fit - this is the R2 value of the correlation between the ordination values and the ordination values predicted from the (monotonic) regression line.
