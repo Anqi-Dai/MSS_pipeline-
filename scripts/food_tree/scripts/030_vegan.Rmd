@@ -7,6 +7,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Reference: http://ubio.bioinfo.cnio.es/Cursos/CEU_MDA07_practicals/Further%20reading/Oksanen%202005/R-%20Vegan%20tutorial%20-%20Multivariate%20analysis%20of%20ecological%20communities%20by%20Oksanen.pdf
+
 ```{r}
 library(vegan)
 library(tidyverse)
@@ -51,7 +53,7 @@ set.seed(1)
 gctsmf.mds <- metaMDS(gctsmf, trace = T,
                       distance = "bray", k = 4, maxit = 1000,try = 40, trymax = 100, parallel = 10 ) 
 gctsmf.mds
-
+ 
 stressplot(gctsmf.mds)
 
 ```
@@ -60,3 +62,150 @@ The fit between the community distances (data dissimilarity) and ordination dist
 Two stress values are provided:
 Non-metric fit - this is the modified Kruskal's stress value and is sqrt(1-r2)
 Linear fit - this is the R2 value of the correlation between the ordination values and the ordination values predicted from the (monotonic) regression line.
+
+## if it's really linear
+
+If the response really is linear and vectors are appropriate, the fitted surface is a plane whose gradient is parallel to the arrow, and the fitted contours are equally spaced parallel lines perpendicular to
+the arrow. 
+
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_grain, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds)
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_grain, add = TRUE))
+```
+
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_egg, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds) 
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_egg, add = TRUE))
+```
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_fruit, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds) 
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_fruit, add = TRUE))
+```
+
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_legume, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds) 
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_legume, add = TRUE))
+```
+
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_meat, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds) 
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_meat, add = TRUE))
+```
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_milk, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds)      
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_milk, add = TRUE))
+```
+
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_oils, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds)      
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_oils, add = TRUE))
+```
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_sweets, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds)      
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_sweets, add = TRUE))
+```
+
+```{r}
+ef <- envfit(gctsmf.mds ~ fg_veggie, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds)      
+plot(ef)
+tmp <- with(meta, ordisurf(gctsmf.mds, fg_veggie, add = TRUE))
+```
+
+
+```{r}
+mgcv::vis.gam(tmp)
+```
+```{r}
+# put all of the linear ones together
+ef <- envfit(gctsmf.mds ~ fg_veggie + fg_grain + fg_egg + fg_legume + fg_milk, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds)      
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, fg_veggie, add = TRUE, col = 'green'))
+with(meta, ordisurf(gctsmf.mds, fg_grain, add = TRUE, col = 'brown'))
+with(meta, ordisurf(gctsmf.mds, fg_egg, add = TRUE, col = 'blue'))
+with(meta, ordisurf(gctsmf.mds, fg_legume, add = TRUE, col = 'orange'))
+with(meta, ordisurf(gctsmf.mds, fg_milk, add = TRUE, col = 'gray'))
+# legume doesn't look strictly perpendicular so remove 
+```
+
+
+
+```{r}
+ef <- envfit(gctsmf.mds ~ sdrt, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+plot(gctsmf.mds)       
+plot(ef)
+with(meta, ordisurf(gctsmf.mds, sdrt, add = TRUE))
+```
+
+## what about the factors
+
+```{r}
+ef <- envfit(gctsmf.mds ~ abx + intensity, meta, 
+                   strata = meta$mrn,
+                   permutations = 999)
+ef
+```
+
+## no need to use constrained ordination
+
+In principle, constrained ordination should be used with designed a priori
+constraints only.(so in our case the diet project, we shouldn't use the constrained version then.)
+
+## the full model with both vectors and factors
+
+```{r}
+full <- envfit(gctsmf.mds ~ fg_veggie + fg_grain + fg_egg + fg_milk +
+                 abx + intensity , meta, 
+                   strata = meta$mrn,
+                   permutations = 10000)
+full
+```
+
+```{r}
+# FDR correction
+full_res <- enframe(full$vectors$r, value = 'r2') %>% 
+  full_join(enframe(full$vectors$pvals, value = 'pval'))
+full_res 
+```
+
+
+## analysis of similarities 
