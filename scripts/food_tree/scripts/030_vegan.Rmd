@@ -198,7 +198,7 @@ constraints only.(so in our case the diet project, we shouldn't use the constrai
 ## the full model with both vectors and factors
 
 ```{r}
-full <- envfit(gctsmf.mds ~ fg_veggie + fg_grain + fg_egg + fg_milk +
+full <- envfit(gctsmf.mds ~ fg_veggie + fg_grain + fg_egg + fg_milk + fg_fruit+ 
                  abx + intensity , meta, 
                    strata = meta$mrn,
                    permutations = 10000)

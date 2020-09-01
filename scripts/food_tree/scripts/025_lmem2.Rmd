@@ -360,41 +360,6 @@ head(dat$timebin)
 # finalizing the model: what I care about and wanna model?
 
 
-```{r}
-# mod100 <-  lmer(simpson_reciprocal ~ 
-#               fg_fruit+
-#                fg_meat+
-#                fg_milk+
-#                fg_oils+
-#                 fg_egg+
-#                 fg_grain+
-#                 fg_sweets+
-#                 fg_legume+
-#                 fg_veggie+
-#                abx + 
-#                intensity + 
-#                (timebin || mrn) , REML = F, data = dat)
-# summary(mod100)
-# Error: number of observations (=796) <= number of random effects (=920) for term (0 + timebin | mrn); the random-effects parameters and the residual variance (or scale parameter) are probably unidentifiable
-```
-
-```{r}
-mod101 <-  lmer(simpson_reciprocal ~ 
-              fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
-                fg_grain+
-                fg_sweets+
-                fg_legume+
-                fg_veggie+
-                sdrt +
-               abx + 
-               intensity + 
-               (1 | mrn)  , REML = F, data = dat )
-summary(mod101)
-```
 
 ```{r}
 mod102 <-  lmer(simpson_reciprocal ~ 
@@ -414,11 +379,8 @@ mod102 <-  lmer(simpson_reciprocal ~
                 (1 | timebin), REML = F, data = dat )
 summary(mod102)
 ```
-```{r}
-# in the group of ablative and empirical abx
-dat_fil <- dat %>% 
-  filter(intensity == 'ablative' & abx == 'empirical')
 
+```{r}
 mod103 <-  lmer(simpson_reciprocal ~ 
               fg_fruit+
                fg_meat+
@@ -429,9 +391,128 @@ mod103 <-  lmer(simpson_reciprocal ~
                 fg_sweets+
                 fg_legume+
                 fg_veggie+
-               # sdrt +
+               abx + 
+               intensity + 
+                abx:fg_fruit +
                (1 | mrn) +
-                (1 | timebin), REML = F, data = dat_fil )
+                (1 | timebin), REML = F, data = dat )
 summary(mod103)
+```
+
+```{r}
+dat_ <- dat %>% 
+  mutate(tot_food = rowSums(.[11:19]))
+
+mod104 <-  lmer(simpson_reciprocal ~ 
+             tot_food +
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = dat_ )
+summary(mod104)
+```
+
+
+# why is fruit decreasing the diversity 
+
+## pariwise correlation between the food group columns
+
+```{r}
+library(arrangements)
+
+fgs <- dat %>% 
+  select(starts_with('fg_'))
+
+pw_cor <- cor(fgs, method = 'spearman')
+
+library(pheatmap)
+
+pheatmap(
+  pw_cor,
+  #color=bwrPalette, 
+  #annotation_col = annot,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  #filename = '../data/spearman.pairwise.cor.noTrans.jpeg',
+  height = 8,
+  width = 8,
+  angle_col = '45',
+  display_numbers = T,
+  cluster_rows =T,
+  cluster_cols=T
+)
+
+
+# 
+fgs_ <- fgs %>% 
+  mutate(rowsum = rowSums(.))
+pw_cor_ <- cor(fgs_, method = 'spearman')
+
+pheatmap(
+  pw_cor_,
+  #color=bwrPalette, 
+  #annotation_col = annot,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  #filename = '../data/spearman.pairwise.cor.noTrans.jpeg',
+  height = 8,
+  width = 8,
+  angle_col = '45',
+  display_numbers = T,
+  cluster_rows =T,
+  cluster_cols=T
+)
+```
+
+
+## when do patients eat fruits?
+
+```{r}
+dat %>% 
+  mutate(fg_fruit = scale(fg_fruit)) %>% 
+  ggplot(aes(x = timebin, y = fg_fruit)) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_point(position = 'jitter', alpha = 0.5, size = 2, col = 'forestgreen') +
+  theme_bw()
+```
+
+```{r}
+# calculate the average fruit consumption by each timebin
+dat %>% 
+  group_by(timebin) %>% 
+  summarise(timebin_ave = mean(fg_fruit))
+```
+
+## Plot individual patients over time with fruit and diversity shown
+
+```{r}
+dat %>% 
+  select(mrn, sdrt, simpson_reciprocal, fg_fruit) %>% 
+  ggscatter(x = 'fg_fruit', y = 'simpson_reciprocal', 
+            add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) +
+  facet_wrap(~mrn)  +
+  theme_bw()+
+  theme(
+  strip.text.x = element_blank()
+) +
+  ggsave('../figs/97_fruit_diversity_no_time.pdf', width = 20, height = 17)
+```
+
+```{r}
+dat %>% 
+  select(mrn, sdrt, simpson_reciprocal, fg_fruit) %>% 
+  mutate(fg_fruit = sqrt(fg_fruit)) %>% 
+  gather('type', 'value', simpson_reciprocal:fg_fruit) %>% 
+  ggscatter(x = 'sdrt', y = 'value', color = 'type', palette = 'nejm') +
+  geom_line(aes(group = type, col = type)) +
+  facet_wrap(~mrn)  +
+  theme_bw()+
+  theme(
+  strip.text.x = element_blank()
+) +
+  ggsave('../figs/97_fruit_diversity.pdf', width = 20, height = 17)
 ```
 
