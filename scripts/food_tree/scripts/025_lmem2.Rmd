@@ -504,7 +504,7 @@ dat %>%
 ```{r}
 dat %>% 
   select(mrn, sdrt, simpson_reciprocal, fg_fruit) %>% 
-  mutate(fg_fruit = sqrt(fg_fruit)) %>% 
+  #mutate(fg_fruit = sqrt(fg_fruit)) %>% 
   gather('type', 'value', simpson_reciprocal:fg_fruit) %>% 
   ggscatter(x = 'sdrt', y = 'value', color = 'type', palette = 'nejm') +
   geom_line(aes(group = type, col = type)) +

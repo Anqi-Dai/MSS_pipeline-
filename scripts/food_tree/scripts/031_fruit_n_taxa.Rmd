@@ -1,0 +1,138 @@
+---
+title: "Fruit and taxa"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(vegan)
+library(tidyverse)
+library(ggpubr)
+```
+
+## the visualization 
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')
+```
+
+
+```{r}
+# the unifrac pcoa colored by fruit consumption
+asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
+
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+# calculate the weighted and unweighted unifrac distance
+all_tree <- ape::read.tree('../data/cleaned_stool/asv_sequences_all.newick')
+wunifrac_res <- rbiom::unifrac(cts, weighted = TRUE, tree = all_tree)
+unifrac_res <- rbiom::unifrac(cts, weighted = FALSE, tree = all_tree)
+
+# the pcoa : Classical multidimensional scaling (MDS) of a data matrix. Also known as principal coordinates analysis (Gower, 1966).
+pcoa_wunifrac <- cmdscale(wunifrac_res, k = 2) 
+
+pcoa_wunifrac_df <- pcoa_wunifrac %>% 
+  as.data.frame() %>% 
+  rownames_to_column('sampleid') %>% 
+  full_join(meta %>% select(fg_fruit, sampleid,simpson_reciprocal )) %>% 
+  gather('type', 'value', fg_fruit:simpson_reciprocal)
+
+pcoa_wunifrac_df %>% 
+  mutate(value = log(value + 1)) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'value',  alpha = 0.3, size = 3, xlab = 'PCO 1', ylab = 'PCO 2') +
+  facet_grid(type~ .) +
+  ggsave('../figs/wunifrac_color_both.pdf', width = 5, height = 8)
+# can't see very clearly maybe I should just pick out the samples have most fruit consumption
+```
+
+```{r}
+# the stool samples corresponding to fruit being the most consumed food groups of the day
+fg_relab <- meta %>% 
+  select(sampleid, starts_with('fg')) %>% 
+  mutate(rowsum = rowSums(.[2:10])) %>% 
+  gather('grp', 'wt', fg_egg:fg_veggie) %>% 
+  mutate(fg_relab = wt/rowsum) %>% 
+  filter(!is.nan(fg_relab)) %>% 
+  group_by(sampleid) %>% 
+  arrange(sampleid, -fg_relab) %>% 
+  slice(1)
+
+fg_fruit <- fg_relab %>% 
+  filter(grp == 'fg_fruit')
+  
+cts_fruit <- cts %>% 
+  as.data.frame() %>% 
+  select(all_of(fg_fruit$sampleid)) %>% 
+  as.matrix()
+
+
+wunifrac_res <- rbiom::unifrac(cts_fruit, weighted = TRUE, tree = all_tree)
+unifrac_res <- rbiom::unifrac(cts_fruit, weighted = FALSE, tree = all_tree)
+
+# the pcoa : Classical multidimensional scaling (MDS) of a data matrix. Also known as principal coordinates analysis (Gower, 1966).
+pcoa_wunifrac <- cmdscale(wunifrac_res, k = 2) 
+
+pcoa_wunifrac_df <- pcoa_wunifrac %>% 
+  as.data.frame() %>% 
+  rownames_to_column('sampleid') %>% 
+  inner_join(meta %>% select(fg_fruit, sampleid,simpson_reciprocal )) %>% 
+  gather('type', 'value', fg_fruit:simpson_reciprocal)
+
+pcoa_wunifrac_df %>% 
+  mutate(value = log(value + 1)) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'value',  alpha = 0.3, size = 3, xlab = 'PCO 1', ylab = 'PCO 2') +
+  facet_grid(type~ .) +
+  ggsave('../figs/wunifrac_color_both_fruit_only.pdf', width = 5, height = 8)
+```
+
+```{r}
+# colored by dominant family in the sample 
+fam <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  group_by(sampleid) %>% 
+  arrange(sampleid, -relab) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  select(-cnt , -count_total)
+
+
+fam %>% 
+  distinct(taxa_family)
+
+pcoa_wunifrac_df <- pcoa_wunifrac %>% 
+  as.data.frame() %>% 
+  rownames_to_column('sampleid') %>% 
+  full_join(meta %>% select(fg_fruit, sampleid,simpson_reciprocal )) %>% 
+  inner_join(fam) %>% 
+  mutate(taxa_family = str_extract(taxa_family, 'f__.+$'),
+         taxa_family = str_replace(taxa_family, 'f__', ''))
+
+# the colors from the rcolorbrewer
+library(RColorBrewer)
+cols <- brewer.pal(8, 'Dark2')
+
+fam_col <- pcoa_wunifrac_df %>% 
+  distinct(taxa_family) %>% 
+  arrange(taxa_family) %>% 
+  mutate(colors = c(rep(cols, 4), cols[1:2]))
+  
+pcoa_wunifrac_df <- pcoa_wunifrac_df %>% 
+  left_join(fam_col)
+
+pcoa_wunifrac_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'taxa_family', alpha = 0.5, size = 3) +
+  scale_color_manual(values=fam_col$colors) +
+  ggsave('../figs/wunifrac_fam.pdf', width = 10, height = 10)
+```
+
+
+## the CCA and bioplot
