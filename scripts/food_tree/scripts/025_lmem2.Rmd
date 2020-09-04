@@ -359,8 +359,6 @@ head(dat$timebin)
 
 # finalizing the model: what I care about and wanna model?
 
-
-
 ```{r}
 mod102 <-  lmer(simpson_reciprocal ~ 
               fg_fruit+
@@ -372,46 +370,12 @@ mod102 <-  lmer(simpson_reciprocal ~
                 fg_sweets+
                 fg_legume+
                 fg_veggie+
-               # sdrt +
                abx + 
                intensity + 
                (1 | mrn) +
                 (1 | timebin), REML = F, data = dat )
 summary(mod102)
 ```
-
-```{r}
-mod103 <-  lmer(simpson_reciprocal ~ 
-              fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
-                fg_grain+
-                fg_sweets+
-                fg_legume+
-                fg_veggie+
-               abx + 
-               intensity + 
-                abx:fg_fruit +
-               (1 | mrn) +
-                (1 | timebin), REML = F, data = dat )
-summary(mod103)
-```
-
-```{r}
-dat_ <- dat %>% 
-  mutate(tot_food = rowSums(.[11:19]))
-
-mod104 <-  lmer(simpson_reciprocal ~ 
-             tot_food +
-               abx + 
-               intensity + 
-               (1 | mrn) +
-                (1 | timebin), REML = F, data = dat_ )
-summary(mod104)
-```
-
 
 # why is fruit decreasing the diversity 
 
@@ -506,10 +470,12 @@ dat %>%
   select(mrn, sdrt, simpson_reciprocal, fg_fruit) %>% 
   ggplot() +
   geom_line(mapping = aes(x = sdrt, y = fg_fruit), color = '#1B9E77') +
+  geom_point(mapping = aes(x = sdrt, y = fg_fruit), color = '#1B9E77') +
   geom_line(mapping = aes(x = sdrt, y = simpson_reciprocal), color = '#A6761D') +
-  scale_color_manual(values = c('#1B9E77','#A6761D')) +
-  facet_wrap(~mrn)  +
-  scale_y_continuous("Fruit consumption (g)", sec.axis = sec_axis(~ . / 4, name = "simpson_reciprocal")) +
+  geom_point(mapping = aes(x = sdrt, y = simpson_reciprocal), color = '#A6761D') +
+  #scale_color_manual(values = c('#1B9E77','#A6761D')) +
+  facet_wrap(~mrn, scales = 'free_y')  +
+  #scale_y_continuous("Fruit consumption (g)", sec.axis = sec_axis(~ . / 4, name = "simpson_reciprocal")) +
   theme_bw()+
   theme(
   strip.text.x = element_blank(),
@@ -519,6 +485,49 @@ dat %>%
 
 range(dat$simpson_reciprocal)
 range(dat$fg_fruit)
-
+ 
 ```
 
+## how this model predicts diversity for most extreme fruit eaters
+
+```{r}
+# the top 10 and bottom 10 fruit eaters
+mean_fruit <- dat %>% 
+  group_by(mrn) %>% 
+  summarise(fruit_mean = mean(fg_fruit)) %>% 
+  arrange(-fruit_mean) %>% 
+  ungroup() %>% 
+  pull(mrn)
+
+dat %>% 
+  ggboxplot(x = 'mrn', y = 'fg_fruit', add = 'jitter', order = mean_fruit) +
+  geom_boxplot(outlier.shape = NA)  +
+  ggsave('../figs/fruit_boxplot_mrn_mean.pdf', width = 10, height = 6)
+
+N <- 10
+top10 <- as.character(head(mean_fruit, N))
+bottom10 <- as.character(tail(mean_fruit, N))
+
+prediction_subset <- dat %>% 
+  filter(mrn %in% c(top10, bottom10))
+
+
+predicted_ <- predict(mod102,newdata=prediction_subset,allow.new.levels=TRUE)
+
+tibble(
+  observed = prediction_subset$simpson_reciprocal,
+  predicted = predicted_,
+  mrn = prediction_subset$mrn
+) %>% 
+  ggscatter(x = 'observed', y = 'predicted', color = 'mrn',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n"),
+           xlab = 'Observed simpson reciprocal',
+           ylab = 'Predicted simpson reciprocal',
+           title = 'Observed VS predicted diversity from LMEM (Pearson correlation)') +
+  theme(legend.position = 'none')
+
+```
