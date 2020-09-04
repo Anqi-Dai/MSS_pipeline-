@@ -51,6 +51,7 @@ pcoa_wunifrac_df %>%
   ggscatter(x = 'V1', y = 'V2', color = 'value',  alpha = 0.3, size = 3, xlab = 'PCO 1', ylab = 'PCO 2') +
   facet_grid(type~ .) +
   ggsave('../figs/wunifrac_color_both.pdf', width = 5, height = 8)
+
 # can't see very clearly maybe I should just pick out the samples have most fruit consumption
 ```
 
@@ -118,12 +119,15 @@ pcoa_wunifrac_df <- pcoa_wunifrac %>%
 
 # the colors from the rcolorbrewer
 library(RColorBrewer)
-cols <- brewer.pal(8, 'Dark2')
+dark <- brewer.pal(8, 'Dark2')
+set2 <- brewer.pal(8, 'Set2')
+Paired <- brewer.pal(12, 'Paired')
+set1 <- brewer.pal(6, 'Set1')
 
 fam_col <- pcoa_wunifrac_df %>% 
   distinct(taxa_family) %>% 
   arrange(taxa_family) %>% 
-  mutate(colors = c(rep(cols, 4), cols[1:2]))
+  mutate(colors = c(dark, set2, Paired, set1))
   
 pcoa_wunifrac_df <- pcoa_wunifrac_df %>% 
   left_join(fam_col)
@@ -132,7 +136,46 @@ pcoa_wunifrac_df %>%
   ggscatter(x = 'V1', y = 'V2', color = 'taxa_family', alpha = 0.5, size = 3) +
   scale_color_manual(values=fam_col$colors) +
   ggsave('../figs/wunifrac_fam.pdf', width = 10, height = 10)
+
+pcoa_wunifrac_df %>%
+  mutate(fg_fruit = log(fg_fruit + 1)) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'fg_fruit', alpha = 0.5, size = 3) +
+  #scale_color_manual(values=fam_col$colors) +
+  ggsave('../figs/wunifrac_fruit.pdf', width = 10, height = 10)
 ```
 
 
 ## the CCA and bioplot
+
+```{r}
+# if just include fg_fruit among the foods in the predictor
+cts_fam <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  select(-cnt , -count_total) %>% 
+  mutate(taxa_family = str_extract(taxa_family, 'f__.+$'),
+         taxa_family = str_replace(taxa_family, 'f__','')) %>% 
+  filter(taxa_family!='NA') %>% 
+  spread(key = 'taxa_family', value  = 'relab') %>% 
+  arrange(sampleid) %>% 
+  column_to_rownames('sampleid') 
+
+num_thre <- floor(nrow(cts_fam) * 0.05)
+
+cts_fam_fil <- cts_fam[, colSums(cts_fam >= 0.0001) >= num_zero_thre]
+
+
+pheno <- meta %>% 
+  arrange(sampleid) %>% 
+  select(sdrt , intensity, abx , fg_fruit)
+
+cca1_ <- cca(cts_fam ~ ., pheno) 
+cca1_
+
+vif.cca(cca1_)
+
+
+plot(cca1_, display=c("species", "bp"), type="n", ylab="CCA2", main="Species", scaling="species")
+text(cca1_, display="species", col="black", scaling="species", cex = 0.5 )
+text(cca1_, display="bp", col="red", cex = 0.4)
+```
+
