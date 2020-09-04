@@ -512,14 +512,15 @@ prediction_subset <- dat %>%
   filter(mrn %in% c(top10, bottom10))
 
 
-predicted_ <- predict(mod102,newdata=prediction_subset,allow.new.levels=TRUE)
+predicted_ <- predict(mod102,newdata=dat,allow.new.levels=TRUE)
 
 tibble(
-  observed = prediction_subset$simpson_reciprocal,
+  observed = dat$simpson_reciprocal,
   predicted = predicted_,
-  mrn = prediction_subset$mrn
+  mrn = dat$mrn
 ) %>% 
-  ggscatter(x = 'observed', y = 'predicted', color = 'mrn',
+  ggscatter(x = 'observed', y = 'predicted', 
+            #color = 'mrn',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
@@ -531,3 +532,112 @@ tibble(
   theme(legend.position = 'none')
 
 ```
+
+For scoring this is enough
+
+
+## this prediction, split 20 80 and do 10 times and then calculate average
+
+```{r}
+n <- nrow(dat)
+
+split_mod_predi <- function(){
+  ind <- sample(c(TRUE, FALSE), n, replace=TRUE, prob=c(0.7, 0.3))
+  modd <- dat[ind, ]
+  valid <- dat[!ind, ]
+  
+  model <- lmer(simpson_reciprocal ~ 
+                fg_fruit+
+                 fg_meat+
+                 fg_milk+
+                 fg_oils+
+                  fg_egg+ 
+                  fg_grain+
+                  fg_sweets+
+                  fg_legume+
+                  fg_veggie+
+                 abx + 
+                 intensity + 
+                 (1 | mrn) +
+                  (1 | timebin), REML = F, data = modd )
+  pred <- predict(model,newdata=valid,allow.new.levels=TRUE)
+  
+  df = tibble(
+    observed = valid$simpson_reciprocal,
+    predicted = pred)
+  return(df)
+}
+
+rep_N <- list()
+for(i in 1:10){
+  rep_N[[i]] = split_mod_predi()
+}
+
+pearson_cor <- rep_N %>% 
+  set_names(paste("P", seq(1,10), sep = '')) %>% 
+  map_dfr(~ cor(.$observed, .$predicted, method = 'pearson')) %>% 
+  gather('id', 'Pearson') 
+
+pearson_cor %>% 
+  mutate(Pearson = round(Pearson, 2)) %>% 
+  ggboxplot(y = 'Pearson', label = T, add = 'point')
+```
+
+## swab fruit consumptions for high and low eaters 
+
+what if low fruit eaters had eaten a lot of fruit or what if high fruit eaters had eaten less fruit, then compare the predictions with the real vs the swabbed diet
+
+```{r}
+tope <- dat %>% 
+  filter(mrn %in% top10)
+
+bote <- dat %>% 
+  filter(mrn %in% bottom10)
+
+# get the highest number fruit 61 from the tope df
+tope_ <- tope %>% 
+  arrange(-fg_fruit) 
+
+tope__ <- tope_[1:nrow(bote),]
+
+high_eater_swab <- tope__ %>% 
+  mutate(fg_fruit = bote$fg_fruit)
+
+low_eater_swab <- bote %>% 
+  mutate(fg_fruit = tope__$fg_fruit)
+
+high_eater_swab_pred <- predict(mod102,newdata=high_eater_swab,allow.new.levels=TRUE)
+high_eater_swab_both <- tibble(
+  real = tope__$simpson_reciprocal,
+  swab = high_eater_swab_pred
+)
+
+high_eater_swab_both %>% 
+  ggscatter(x = 'real', y = 'swab', xlab = 'Real diversity', ylab = 'Predicted diversity after swabbing',
+            title = 'Top eaters',
+            add = "reg.line", 
+             add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n"))
+
+```
+
+```{r}
+low_eater_swab_pred <- predict(mod102,newdata=low_eater_swab,allow.new.levels=TRUE)
+
+low_eater_swab_both <- tibble(
+  real = bote$simpson_reciprocal,
+  swab = low_eater_swab_pred
+)
+
+low_eater_swab_both %>% 
+  ggscatter(x = 'real', y = 'swab', xlab = 'Real diversity', ylab = 'Predicted diversity after swabbing',
+            title = 'Bottom eaters',
+            add = "reg.line", 
+             add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
+   conf.int = TRUE, # Add confidence interval
+   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
+   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n"))
+```
+
