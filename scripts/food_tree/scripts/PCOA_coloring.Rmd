@@ -1,0 +1,79 @@
+---
+title: "PCOA_coloring"
+author: "Angel"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: false
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(RColorBrewer)
+```
+
+```{r}
+set.seed(1)
+axis1 <- 3*seq(from = -0.5, to = 0.8, length.out = 1000) + 2
+axis2 <- rnorm(1000, mean = 0, sd = 0.5)
+diversity <- seq(from = 0, to = 30, length.out = 1000) + 2
+
+df <- tibble(
+  axis1 = axis1,
+  axis2 = axis2,
+  diversity = diversity
+)  %>% 
+  # make few outliers that has far higher diverstiy than others
+  mutate(diversity = if_else(diversity > 31.9, diversity + 25, diversity))
+
+
+# the outliers are gonna change how the colors are assigned to the points 
+# the outliers are gonna be the brightest shade, and others are gonna look darker/dimmer than when there is no outlier. 
+# two way to overcome this: 
+# 1. convert the value to log scale so the difference is smaller 
+# 2. manually set the scale for the colors 
+# (In my diet project, the blue red color with diversity is the 2nd approach. The value is still the original diversity, the green purple one is the 1st approach. the value is the log transformed weighte of the foods)
+
+
+# 1. convert to log scale
+df %>% 
+  mutate(diveristy_log = log(diversity)) %>% 
+  ggscatter(x = 'axis1', y = 'axis2', color = 'diveristy_log', alpha = 0.5)
+
+# this blue palette is the default one, you can also use the viridis one
+library(viridis)
+df %>% 
+  mutate(diveristy_log = log(diversity)) %>% 
+  ggscatter(x = 'axis1', y = 'axis2', color = 'diveristy_log', alpha = 0.5) +
+  scale_color_viridis() 
+
+# 2. play around with how you manually set the scale for the colors
+
+# take a look at how the values distribute according to quantiles 
+brks <- seq(0.1, 1, 0.1)
+
+# customize the quantiles where you want cut the values to 
+brks <- c(seq(0, 0.9, length.out = 9),1.0)
+
+quants <- sapply(brks, function(qt){round(quantile(df$diversity, qt), digits = 0)}) %>% 
+  enframe
+
+
+df %>% 
+  mutate(brks = cut(diversity, 
+                    breaks = quants %>% pull(value),
+                    include.lowest = T)) %>% 
+  ggscatter(x = 'axis1', y = 'axis2', color = 'brks', alpha = 0.5) +
+  scale_colour_manual(values = rev(brewer.pal(10,"RdYlBu"))) # this palette is from the package RColorBrewer
+
+# now you can see the diversity is not a continuous variable but a discrete one, since I've binned portions of value together and assign a color to it. 
+# the legend for the colors is time consuming to recognize so for that presentation I made a version of continuous scale for people to see more easily
+```
+

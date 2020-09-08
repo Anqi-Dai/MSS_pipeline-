@@ -3,12 +3,12 @@ title: "Calculate unifrac beta diversity"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
+```{r setup, include=T}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r setup, include=FALSE}
+```{r}
 library(tidyverse)
 library(vegan)
 library(ape) 
