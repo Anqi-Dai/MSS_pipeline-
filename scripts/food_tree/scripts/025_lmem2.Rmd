@@ -10,7 +10,7 @@ output:
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = F)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -449,21 +449,7 @@ dat %>%
 
 ## Plot individual patients over time with fruit and diversity shown
 
-```{r}
-dat %>% 
-  select(mrn, sdrt, simpson_reciprocal, fg_fruit) %>% 
-  ggscatter(x = 'fg_fruit', y = 'simpson_reciprocal', 
-            add.params = list(color = "blue", fill = "lightgray"), # Customize reg. line
-   conf.int = TRUE, # Add confidence interval
-   cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
-   cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) +
-  facet_wrap(~mrn)  +
-  theme_bw()+
-  theme(
-  strip.text.x = element_blank()
-) +
-  ggsave('../figs/97_fruit_diversity_no_time.pdf', width = 20, height = 17)
-```
+
 
 ```{r}
 dat %>% 
@@ -585,7 +571,7 @@ pearson_cor %>%
 
 ## swab fruit consumptions for high and low eaters 
 
-what if low fruit eaters had eaten a lot of fruit or what if high fruit eaters had eaten less fruit, then compare the predictions with the real vs the swabbed diet
+what if low fruit eaters had eaten a lot of fruit or what if high fruit eaters had eaten less fruit, then compare the predictions with the real vs the swabbed diet. so the point is to see how the coeffs of fruit is in effects when you consider a patients amounts of fruit consumption
 
 ```{r}
 tope <- dat %>% 
@@ -664,3 +650,26 @@ low_eater_swab_both %>%
   geom_line(aes(group = true), color = "grey", alpha = 0.8)
 ```
 
+```{r}
+swab_df <- bind_rows(
+  low_eater_swab_both %>% 
+    mutate(grp = 'low'),
+  high_eater_swab_both %>% 
+    mutate(grp = 'high')
+) %>% 
+  spread('type', 'value') %>% 
+  mutate(diff = swab_predict - real_predict)
+
+swab_df %>% 
+  group_by(grp) %>% 
+  summarise(ave_diff = mean(diff))
+
+swab_df %>% 
+  ggboxplot(x = 'grp', y  = 'diff',
+            add = 'jitter') +
+  theme_cleveland()
+
+swab_df %>% 
+  gghistogram(x = 'diff') +
+  facet_grid(~ grp)
+```

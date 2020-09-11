@@ -1,0 +1,29 @@
+---
+title: "common dominating genera"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical')))
+
+# look at the genus level
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% dat$sampleid) %>% 
+  select(sampleid, taxa_genus, relab) %>% 
+  spread(key = 'taxa_genus', value  = 'relab')
+
+ 
+```
+
