@@ -627,6 +627,12 @@ high_eater_swab_both %>%
            title = 'Top eaters') +
   facet_grid(~type)
 
+high_eater_swab_both %>% 
+  ggscatter(x = 'true', y = 'value', color = 'type', palette = 'lancet',
+            xlab = 'Observed diversity', ylab = 'Predicted diversity',
+            title = 'Top eaters')  +
+  geom_line(aes(group = true), color = "grey", alpha = 0.8)
+  
 ```
 
 ```{r}
@@ -649,5 +655,12 @@ low_eater_swab_both %>%
            cor.coef = TRUE, # Add correlation coefficient. see ?stat_cor
            cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) +
   facet_grid(~type)
+
+
+low_eater_swab_both %>% 
+  ggscatter(x = 'true', y = 'value', color = 'type', palette = 'lancet',
+            xlab = 'Observed diversity', ylab = 'Predicted diversity',
+            title = 'Bottom eaters')  +
+  geom_line(aes(group = true), color = "grey", alpha = 0.8)
 ```
 
