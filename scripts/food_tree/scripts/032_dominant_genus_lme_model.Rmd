@@ -21,9 +21,13 @@ dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>%
 # look at the genus level
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% dat$sampleid) %>% 
-  select(sampleid, taxa_genus, relab) %>% 
-  spread(key = 'taxa_genus', value  = 'relab')
+  select(sampleid, taxa_genus, relab)
 
+cts %>% 
+  group_by(taxa_genus) %>% 
+  summarise(genus_sum = sum(relab)) %>% 
+  arrange(-genus_sum)
+  
  
 ```
 

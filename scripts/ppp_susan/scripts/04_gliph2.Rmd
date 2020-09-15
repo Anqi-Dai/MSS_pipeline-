@@ -1,0 +1,37 @@
+---
+title: "gliph2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full.names = T)
+
+# there are NA in the v gene and J gene
+
+all <- fns %>% 
+  map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
+  filter(frame_type == 'In') %>% 
+  select(CDR3b = cdr3_amino_acid,
+         TRBV = v_gene,
+         TRBJ = j_gene,
+         sample_name = sample_name) %>% 
+  mutate(CDR3a = "NA") %>% 
+  mutate(sample_name = str_replace(sample_name, '_TCRB$', '')) %>% 
+  mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
+  mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
+  mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
+  select(-sample_name, -subject, -condition) %>% 
+  count(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
+  rename(count = n) ) %>% 
+  bind_rows(.id = 'fn')
+  
+```
+
