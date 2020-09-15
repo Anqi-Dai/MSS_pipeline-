@@ -18,20 +18,62 @@ fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full
 
 all <- fns %>% 
   map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
-  filter(frame_type == 'In') %>% 
-  select(CDR3b = cdr3_amino_acid,
-         TRBV = v_gene,
-         TRBJ = j_gene,
-         sample_name = sample_name) %>% 
-  mutate(CDR3a = "NA") %>% 
-  mutate(sample_name = str_replace(sample_name, '_TCRB$', '')) %>% 
-  mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
-  mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
-  mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
-  select(-sample_name, -subject, -condition) %>% 
-  count(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
-  rename(count = n) ) %>% 
-  bind_rows(.id = 'fn')
+        filter(frame_type == 'In') %>% 
+        select(CDR3b = cdr3_amino_acid,
+               TRBV = v_gene,
+               TRBJ = j_gene,
+               sample_name = sample_name) %>% 
+        mutate(CDR3a = "NA") %>% 
+        mutate(sample_name = str_replace(sample_name, '_TCRB$', '')) %>% 
+        mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
+        mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
+        mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
+        select(-sample_name, -subject, -condition) %>% 
+        count(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
+        rename(count = n,
+               `#CDR3b` = CDR3b) ) %>% 
+  bind_rows()
+
+all %>% 
+  write_tsv('../data/all_tcr_data.tsv', col_names = F)
+  
+```
+
+Usage:   irtools -c parameter_file
+A typical parameter_file looks like the following
+....this line will be ignored
+out_prefix=Prefix #entry after this pound sign will be ignored
+cdr3_file=cdr3_file.txt
+hla_file =hla_file.txt
+refer_file=ref_file.txt
+v_usage_freq_file=ref_V.txt
+cdr3_length_freq_file=ref_L.txt
+local_min_pvalue=0.001
+p_depth = 1000
+global_convergence_cutoff = 1
+simulation_depth=1000
+kmer_min_depth=3
+local_min_OVE=10
+algorithm=GLIPH2
+all_aa_interchangeable=1
+
+```{r} 
+# format the hla file as requested
+hla <- read_csv('../data/HLA.csv', col_names = F) %>% 
+  filter(!is.na(X1)) %>% 
+  mutate(X1 = str_replace(X1, '_','')) %>% 
+  transmute(subject = X1,
+            allele = str_glue('{X2}*{X3}'))  %>% 
+  split(.$subject) %>% 
+  map(~ select(.data = ., -subject) %>% 
+        t() %>% 
+        as.data.frame(stringsAsFactors = F) )  %>% 
+  bind_rows(.id = 'subject') %>% 
+  as.tibble()
+  
+  
+hla %>% 
+  write_tsv('../data/all_hla.tsv', col_names = F)
   
 ```
 
