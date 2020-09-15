@@ -15,7 +15,45 @@ library(tidyverse)
 fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full.names = T)
 
 # there are NA in the v gene and J gene
+read_tsv(fns[1], col_types = cols(.default = "c")) %>% 
+        filter(frame_type == 'In') %>% 
+        select(CDR3b = cdr3_amino_acid,
+               TRBV = v_gene,
+               TRBJ = j_gene,
+               sample_name = sample_name) %>% 
+        mutate(CDR3a = "NA") %>% 
+        mutate(sample_name = str_replace(sample_name, '_TCRB$', '')) %>% 
+        mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
+        mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
+        mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
+        select(-sample_name, -subject, -condition) %>% 
+        count(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
+        rename(count = n,
+               `#CDR3b` = CDR3b) %>% 
+  mutate(TRBV = str_replace(TRBV, 'TCRB.',''),
+         TRBJ = str_replace(TRBJ, 'TCRB.','')) %>% 
+  mutate(TRBV = str_replace(TRBV, '/.+$',''),
+         TRBJ = str_replace(TRBJ, '/.+$','')) %>% 
+  separate(TRBV, into = c('v1','v2'), sep = '-') %>% 
+  separate(TRBJ, into = c('j1','j2'), sep = '-')  %>% 
+  mutate(v1 = str_remove(v1, "^0+"),
+         v2 = str_remove(v2, "^0+"),
+         j1 = str_remove(j1, "^0+"),
+         j2 = str_remove(j2, "^0+")) %>% 
+  mutate(TRBV = if_else(is.na(v1), "NA", as.character(str_glue('TRBV{v1}-{v2}'))),
+         TRBJ = if_else(is.na(j1), "NA", as.character(str_glue('TRBJ{j1}-{j2}')))) 
+  
+  
+  
 
+  mutate(value = if_else(is.na(first), "NA", as.character(str_glue('{type}{first}-{second}')))) %>% 
+  select(-first, -second) %>% 
+  spread('type', 'value')
+  
+```
+
+
+```{r}
 all <- fns %>% 
   map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
         filter(frame_type == 'In') %>% 
@@ -28,6 +66,7 @@ all <- fns %>%
         mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
         mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
         mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
+
         select(-sample_name, -subject, -condition) %>% 
         count(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
         rename(count = n,
@@ -75,5 +114,11 @@ hla <- read_csv('../data/HLA.csv', col_names = F) %>%
 hla %>% 
   write_tsv('../data/all_hla.tsv', col_names = F)
   
+```
+
+
+```{r}
+# run in command line
+irtools -c paramter_file
 ```
 
