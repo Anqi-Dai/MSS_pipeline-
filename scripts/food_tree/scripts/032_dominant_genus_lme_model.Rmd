@@ -1,10 +1,16 @@
 ---
 title: "common dominating genera"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -21,13 +27,186 @@ dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>%
 # look at the genus level
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% dat$sampleid) %>% 
-  select(sampleid, taxa_genus, relab)
+  select(sampleid, taxa_genus, relab) %>% 
+  mutate(taxa_genus = str_extract(taxa_genus, 'g__.+$'))
 
-cts %>% 
-  group_by(taxa_genus) %>% 
-  summarise(genus_sum = sum(relab)) %>% 
-  arrange(-genus_sum)
-  
- 
+```
+
+## The dominating genera:
+
+g__Enterococcus, 
+
+g__Streptococcus,
+
+g__lactobacillus, 
+
+g__Staphylococcus, 
+
+g__Escherecia, 
+
+g__Klebsiella
+
+```{r}
+# get the relab of those genera
+
+domgen <- c('g__Enterococcus', 'g__Streptococcus', 'g__Lactobacillus', 'g__Staphylococcus', 'g__Escherichia', 'g__Klebsiella')
+
+domcts <- cts %>% 
+  filter(taxa_genus %in% domgen) %>% 
+  spread(key = 'taxa_genus', value = 'relab')
+
+all <- domcts %>% 
+  full_join(dat, by = "sampleid")
+
+all %>% 
+  glimpse()
+
+```
+
+## linear mixed model using the dominating genera relab as read-out
+
+### g__Staphylococcus
+
+```{r}
+library(lmerTest)
+
+mod_staphy <-  lmer(g__Staphylococcus ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = all )
+summary(mod_staphy)
+```
+
+
+```{r}
+mod_staphy2 <-  lmer(g__Staphylococcus ~ 
+              fg_fruit+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = all )
+summary(mod_staphy2)
+```
+
+### g__Enterococcus
+
+```{r}
+mod_g__Enterococcus <-  lmer(g__Enterococcus ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = all )
+summary(mod_g__Enterococcus)
+```
+
+### g__Escherichia
+
+```{r}
+mod_g__Escherichia <-  lmer(g__Escherichia ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = all )
+summary(mod_g__Escherichia)
+```
+
+### g__Klebsiella
+
+```{r}
+mod_g__Klebsiella <-  lmer(g__Klebsiella ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = all )
+summary(mod_g__Klebsiella)
+```
+
+### g__Lactobacillus
+
+```{r}
+mod_g__Lactobacillus <-  lmer(g__Lactobacillus ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = all )
+summary(mod_g__Lactobacillus)
+```
+
+### g__Streptococcus
+
+```{r}
+mod_g__Streptococcus <-  lmer(g__Streptococcus ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = all )
+summary(mod_g__Streptococcus)
+```
+
+The empirical abx causes the relab of the genera to increase:
+g__Staphylococcus, g__Enterococcus, g__Streptococcus
+
+```{r}
+# look at why the sweets would increase the enteroccus relab 
+# what are the subgroups of sweets?
+sweets <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
+  filter(str_detect(Level.code, '^9')) %>% 
+  filter(str_length(Level.code) == 2)
+   
 ```
 

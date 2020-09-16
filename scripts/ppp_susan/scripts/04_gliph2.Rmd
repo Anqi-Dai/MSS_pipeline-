@@ -1,15 +1,25 @@
 ---
 title: "gliph2"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
 library(tidyverse)
 ```
+
+Their webpage: http://50.255.35.37:8080/. The software's web portal.
+
+## Format the TCR data
 
 ```{r}
 fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full.names = T)
@@ -50,25 +60,11 @@ all <- fns %>%
 all %>% 
   write_tsv('../data/all_tcr_data.tsv', col_names = F)
   
+
+head(all)
 ```
 
-Usage:   irtools -c parameter_file
-A typical parameter_file looks like the following
-....this line will be ignored
-out_prefix=Prefix #entry after this pound sign will be ignored
-cdr3_file=cdr3_file.txt
-hla_file =hla_file.txt
-refer_file=ref_file.txt
-v_usage_freq_file=ref_V.txt
-cdr3_length_freq_file=ref_L.txt
-local_min_pvalue=0.001
-p_depth = 1000
-global_convergence_cutoff = 1
-simulation_depth=1000
-kmer_min_depth=3
-local_min_OVE=10
-algorithm=GLIPH2
-all_aa_interchangeable=1
+## Format the HLA table
 
 ```{r} 
 # format the hla file as requested
@@ -88,11 +84,21 @@ hla <- read_csv('../data/HLA.csv', col_names = F) %>%
 hla %>% 
   write_tsv('../data/all_hla.tsv', col_names = F)
   
+
+
+head(hla)
 ```
 
+## Assemble the parameter file
+
+```{bash}
+cat ../software/gliph2/gliph2/paramter_file
+```
+
+## To run it on the MSKCC cluster 
 
 ```{r}
-# run in command line
-irtools -c paramter_file
+# run on MSKCC's lilac cluster (need to submit since it's using too much memory)
+# ./irtools.centos -c paramter_file
 ```
 
