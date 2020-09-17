@@ -24,6 +24,26 @@ Their webpage: http://50.255.35.37:8080/. The software's web portal.
 ```{r}
 fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full.names = T)
 
+test <- read_tsv(fns[1], col_types = cols(.default = "c")) %>% 
+        filter(frame_type == 'In') %>% 
+        select(CDR3b = cdr3_amino_acid,
+               TRBV = v_gene,
+               TRBJ = j_gene,
+               sample_name = sample_name,
+               templates) %>% 
+        mutate(CDR3a = "NA") %>% 
+        mutate(sample_name = str_replace(sample_name, '_TCRB$', '')) %>% 
+        mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
+        mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
+        mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
+        select(-sample_name, -subject, -condition) %>% 
+  mutate(templates = as.numeric(templates))   %>% 
+        group_by(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
+  summarise(count = sum(templates))
+```
+
+
+```{r}
 # there are NA in the v gene and J gene
 
 all <- fns %>% 
@@ -100,5 +120,16 @@ cat ../software/gliph2/gliph2/paramter_file
 ```{r}
 # run on MSKCC's lilac cluster (need to submit since it's using too much memory)
 # ./irtools.centos -c paramter_file
+```
+
+Ended up running on the web portal
+
+## A look at the results
+
+```{r}
+read_csv('../data/gliph2_output/P1277_7AQ2XEPW79.csv') %>% 
+  head(n = 100) %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling(position = 'left', full_width = F)
 ```
 
