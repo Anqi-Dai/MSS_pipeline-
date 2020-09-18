@@ -1,13 +1,82 @@
 ---
 title: "Use brms to check the food groups really not correlating"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
+https://www.rensvandeschoot.com/tutorials/brms-started/
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = T)
 ```
 
 ```{r}
 library(brms)  
+library(ggmcmc)
+library(ggridges)
+library(ggthemes)
+library(tidyverse)
 ```
+
+## The full model
+
+```{r}
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical'))) %>% 
+  mutate(mrn = factor(mrn))
+
+model1 <- brm(simpson_reciprocal ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = dat, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+summary(model1)
+```
+
+## Caterpillar plots
+
+
+```{r}
+model1tranformed <- ggs(model1)
+
+vars <- model1tranformed %>% 
+  distinct(Parameter) %>% 
+  filter(str_detect(Parameter, '_fg_|abx|intensity')) %>% 
+  mutate(Parameter = as.character(Parameter)) %>% 
+  pull(Parameter) 
+
+ggplot(filter(model1tranformed, Parameter %in% vars),
+       aes(x   = Iteration,
+           y   = value, 
+           col = as.factor(Chain)))+
+  geom_line() +
+  geom_vline(xintercept = 1000)+
+  facet_grid(Parameter ~ . ,
+             scale  = 'free_y',
+             switch = 'y')+
+  labs(title = "Caterpillar Plots", 
+       col   = "Chains")
+```
+
 

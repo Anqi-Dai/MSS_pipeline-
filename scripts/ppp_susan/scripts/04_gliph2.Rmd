@@ -24,7 +24,11 @@ Their webpage: http://50.255.35.37:8080/. The software's web portal.
 ```{r}
 fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full.names = T)
 
-test <- read_tsv(fns[1], col_types = cols(.default = "c")) %>% 
+
+# there are NA in the v gene and J gene
+
+all <- fns %>% 
+  map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
         filter(frame_type == 'In') %>% 
         select(CDR3b = cdr3_amino_acid,
                TRBV = v_gene,
@@ -37,30 +41,9 @@ test <- read_tsv(fns[1], col_types = cols(.default = "c")) %>%
         mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
         mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
         select(-sample_name, -subject, -condition) %>% 
-  mutate(templates = as.numeric(templates))   %>% 
+        mutate(templates = as.numeric(templates))   %>% 
         group_by(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
-  summarise(count = sum(templates))
-```
-
-
-```{r}
-# there are NA in the v gene and J gene
-
-all <- fns %>% 
-  map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
-        filter(frame_type == 'In') %>% 
-        select(CDR3b = cdr3_amino_acid,
-               TRBV = v_gene,
-               TRBJ = j_gene,
-               sample_name = sample_name) %>% 
-        mutate(CDR3a = "NA") %>% 
-        mutate(sample_name = str_replace(sample_name, '_TCRB$', '')) %>% 
-        mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
-        mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
-        mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
-        select(-sample_name, -subject, -condition) %>% 
-        count(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
-        rename(count = n) %>% 
+  summarise(count = sum(templates)) %>% 
   mutate(TRBV = str_replace(TRBV, 'TCRB.',''),
          TRBJ = str_replace(TRBJ, 'TCRB.','')) %>% 
   mutate(TRBV = str_replace(TRBV, '/.+$',''),
@@ -82,6 +65,11 @@ all %>%
   
 
 head(all)
+
+all %>% 
+  ungroup() %>% 
+  filter(`subject:condition` == 'Pt3:colon') %>% 
+  write_csv('../data/Pt3_colon_TCR_data.csv')
 ```
 
 ## Format the HLA table
