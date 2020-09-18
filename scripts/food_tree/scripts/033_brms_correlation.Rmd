@@ -9,7 +9,7 @@ output:
     toc_depth: 3
 ---
 
-https://www.rensvandeschoot.com/tutorials/brms-started/
+<a href="https://www.rensvandeschoot.com/tutorials/brms-started/" target="_blank">A tutorial</a>
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = F, warning = T)
@@ -21,6 +21,7 @@ library(ggmcmc)
 library(ggridges)
 library(ggthemes)
 library(tidyverse)
+library(ggpubr)
 ```
 
 ## The full model
@@ -30,9 +31,17 @@ dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>%
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(abx = factor(abx, levels = c('non_empirical','empirical'))) %>% 
-  mutate(mrn = factor(mrn))
+  mutate(mrn = factor(mrn)) 
+    
 
-model1 <- brm(simpson_reciprocal ~ 
+dat %>% 
+  mutate(simpson_reciprocal = log(simpson_reciprocal)) %>% 
+  gghistogram(x = 'simpson_reciprocal', bins = 50, add_density = T)
+```
+
+
+```{r}
+model1 <- brm( log(simpson_reciprocal)~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -50,33 +59,55 @@ model1 <- brm(simpson_reciprocal ~
               warmup = 1000, iter = 3000, 
               cores = 8, chains = 2, 
               seed = 123) 
+```
 
+## Model summary
+
+```{r}
 summary(model1)
+
+plot(model1)
+
+model1tranformed <- ggs(model1)
+
+vars <- model1tranformed %>% 
+  filter(str_detect(Parameter, '_fg_|abx|intensity')) %>% 
+  distinct(Parameter) %>% 
+  mutate(Parameter = as.character(Parameter)) %>% 
+  pull(Parameter)
+  
+
+pairs(model1, pars = vars[1:5] ,fixed = FALSE, exact_match = FALSE)
+
+pairs(model1, pars = vars[6:8] ,fixed = FALSE, exact_match = FALSE)
+
+#pairs(model1, pars = vars[9:12] ,fixed = FALSE, exact_match = FALSE)
 ```
 
 ## Caterpillar plots
 
 
 ```{r}
-model1tranformed <- ggs(model1)
-
-vars <- model1tranformed %>% 
-  distinct(Parameter) %>% 
-  filter(str_detect(Parameter, '_fg_|abx|intensity')) %>% 
-  mutate(Parameter = as.character(Parameter)) %>% 
-  pull(Parameter) 
-
-ggplot(filter(model1tranformed, Parameter %in% vars),
-       aes(x   = Iteration,
-           y   = value, 
-           col = as.factor(Chain)))+
-  geom_line() +
-  geom_vline(xintercept = 1000)+
-  facet_grid(Parameter ~ . ,
-             scale  = 'free_y',
-             switch = 'y')+
-  labs(title = "Caterpillar Plots", 
-       col   = "Chains")
+# model1tranformed <- ggs(model1)
+# 
+# vars <- model1tranformed %>% 
+#   distinct(Parameter) %>% 
+#   filter(str_detect(Parameter, '_fg_|abx|intensity')) %>% 
+#   mutate(Parameter = as.character(Parameter)) %>% 
+#   pull(Parameter) 
+# 
+# ggplot(filter(model1tranformed, Parameter %in% vars),
+#        aes(x   = Iteration,
+#            y   = value, 
+#            col = as.factor(Chain)))+
+#   geom_line() +
+#   geom_vline(xintercept = 1000)+
+#   facet_grid(Parameter ~ . ,
+#              scale  = 'free_y',
+#              switch = 'y')+
+#   labs(title = "Caterpillar Plots", 
+#        col   = "Chains") +
+#   ggsave('../figs/Caterpillar_brms.pdf', width = 5, height = 10)
 ```
 
 
