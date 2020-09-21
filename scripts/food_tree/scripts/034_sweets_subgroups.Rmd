@@ -1,15 +1,23 @@
 ---
 title: "What's in the sweets subgroups"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 ```
 
 ```{r}
 library(tidyverse)
 ```
+
+# to get the sweets subgroups for every patient every day 
 
 ```{r}
 # what's the subgroup of sweets?
@@ -39,6 +47,11 @@ dtb_sweets <- dtb %>%
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
   mutate(empirical = if_else(abx == 'empirical', T, F)) %>% 
   select(-abx)
+
+# pulling the alpha diversity 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
   
 
 stb_pair <- stb %>%  
@@ -65,9 +78,56 @@ mean_p2d_l2_sweets_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   select(-L2_grp ) %>% 
   spread('Main.food.description', 'ave_L2', fill = 0) %>% 
   inner_join(stb, by = "sampleid") %>% 
-  select(-count_total, -age, -sex, -source) 
+  select(-count_total, -age, -sex, -source) %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))
   
 mean_p2d_l2_sweets_df %>% 
   write_csv('../data/cleaned_stool/all_samples_meta_p2d_L2_sweets_only.csv')
+```
+
+# linear mixed model with only subgroups of sweets
+
+```{r}
+library(lmerTest)
+# to make sure the columns are in right type
+sweetdat <- mean_p2d_l2_sweets_df %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn))
+
+mod_sweets <-  lmer(log(simpson_reciprocal) ~ 
+              Formulated_nutrition_bev+
+               Nonalcoholic_beverages+
+               Sugars_and_sweets+
+               Water_noncarbonated+
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = sweetdat )
+summary(mod_sweets)
+
+```
+ 
+# is it the same from the brms model?
+
+```{r}
+library(brms)   
+library(ggmcmc)
+
+model_sweets <- brm( log(simpson_reciprocal)~ 
+               Formulated_nutrition_bev+
+               Nonalcoholic_beverages+
+               Sugars_and_sweets+
+               Water_noncarbonated+
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = sweetdat, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+plot(model_sweets)
 ```
 
