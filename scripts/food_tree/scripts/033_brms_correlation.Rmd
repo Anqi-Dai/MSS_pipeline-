@@ -36,7 +36,7 @@ dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>%
 
 dat %>% 
   mutate(simpson_reciprocal = log(simpson_reciprocal)) %>% 
-  gghistogram(x = 'simpson_reciprocal', bins = 50, add_density = T)
+  gghistogram(x = 'simpson_reciprocal', bins = 60, add_density = T)
 ```
 
 
@@ -84,30 +84,6 @@ pairs(model1, pars = vars[6:8] ,fixed = FALSE, exact_match = FALSE)
 #pairs(model1, pars = vars[9:12] ,fixed = FALSE, exact_match = FALSE)
 ```
 
-## Caterpillar plots
 
-
-```{r}
-# model1tranformed <- ggs(model1)
-# 
-# vars <- model1tranformed %>% 
-#   distinct(Parameter) %>% 
-#   filter(str_detect(Parameter, '_fg_|abx|intensity')) %>% 
-#   mutate(Parameter = as.character(Parameter)) %>% 
-#   pull(Parameter) 
-# 
-# ggplot(filter(model1tranformed, Parameter %in% vars),
-#        aes(x   = Iteration,
-#            y   = value, 
-#            col = as.factor(Chain)))+
-#   geom_line() +
-#   geom_vline(xintercept = 1000)+
-#   facet_grid(Parameter ~ . ,
-#              scale  = 'free_y',
-#              switch = 'y')+
-#   labs(title = "Caterpillar Plots", 
-#        col   = "Chains") +
-#   ggsave('../figs/Caterpillar_brms.pdf', width = 5, height = 10)
-```
 
 

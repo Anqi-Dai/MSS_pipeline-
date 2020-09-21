@@ -23,7 +23,8 @@ library(ggpubr)
 dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(abx = factor(abx, levels = c('non_empirical','empirical')))
+  mutate(abx = factor(abx, levels = c('non_empirical','empirical')),
+         mrn = factor(mrn))
 
 fac_col <- c('mrn','source',  'sex', 'abx')
 
@@ -673,3 +674,18 @@ swab_df %>%
   gghistogram(x = 'diff') +
   facet_grid(~ grp)
 ```
+ 
+# use sugar as the predictor directly 
+
+```{r}
+mod_sugar <-  lmer(simpson_reciprocal ~ 
+              Nut_Sugars +
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = dat )
+summary(mod_sugar)
+```
+
+Interesting, the same direction but not sidnificant
+
