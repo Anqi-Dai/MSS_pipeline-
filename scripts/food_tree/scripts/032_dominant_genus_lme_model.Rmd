@@ -53,6 +53,7 @@ domgen <- c('g__Enterococcus', 'g__Streptococcus', 'g__Lactobacillus', 'g__Staph
 
 domcts <- cts %>% 
   filter(taxa_genus %in% domgen) %>% 
+  #mutate(relablog = log10(relab + 10^-4)) %>% 
   spread(key = 'taxa_genus', value = 'relab')
 
 all <- domcts %>% 
