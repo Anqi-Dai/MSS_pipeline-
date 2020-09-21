@@ -361,7 +361,7 @@ head(dat$timebin)
 # finalizing the model: what I care about and wanna model?
 
 ```{r}
-mod102 <-  lmer(simpson_reciprocal ~ 
+mod102 <-  lmer(log(simpson_reciprocal) ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -687,5 +687,21 @@ mod_sugar <-  lmer(simpson_reciprocal ~
 summary(mod_sugar)
 ```
 
-Interesting, the same direction but not sidnificant
+Interesting, the same direction but not significant
+
+```{r}
+mod_nut_all <-  lmer(simpson_reciprocal ~ 
+              Nut_Sugars + 
+                Nut_Carbohydrates +
+                Nut_Fat +
+                Nut_Fibers +
+                Nut_Proteing +
+                Nut_Sodium +
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = dat )
+summary(mod_nut_all)
+```
+
 

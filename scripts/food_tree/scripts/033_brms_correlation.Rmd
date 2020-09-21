@@ -84,6 +84,48 @@ pairs(model1, pars = vars[6:8] ,fixed = FALSE, exact_match = FALSE)
 #pairs(model1, pars = vars[9:12] ,fixed = FALSE, exact_match = FALSE)
 ```
 
+## use sugar in this brm model
+
+```{r}
+dat %>% 
+  gghistogram(x = 'Nut_Sugars')
+
+dat %>% 
+  gghistogram(x = 'fg_fruit')
+
+model_sugar_brm <- brm( log(simpson_reciprocal) ~ 
+             Nut_Sugars +
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = dat, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+summary(model_sugar_brm)
+
+plot(model_sugar_brm)
+```
+```{r}
+model_nut_brm <- brm( log(simpson_reciprocal) ~ 
+                Nut_Sugars + 
+                Nut_Carbohydrates +
+                Nut_Fat +
+                Nut_Fibers +
+                Nut_Proteing +
+                Nut_Sodium +
+               abx + 
+               intensity +  
+               (1 | mrn) +
+                (1 | timebin),  
+              data = dat, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+plot(model_nut_brm)
+```
 
 
 
