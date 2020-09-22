@@ -23,6 +23,7 @@ ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
 ntb <- read_csv('../data/cleaned_diet_data/wide_food_grp-and_nutrients_total.csv') %>% 
   gather('type', 'gram', names(.)[3]:names(.)[ncol(.)]) 
+
 ```
 
 # pairing one stool with mean of previous two days (1-2 days of diet) data (2020-7-29 modification specifically for the abstract)
@@ -39,7 +40,7 @@ mean_p2d_diet <-  function(mrn_, p1d_, p2d_){
     filter(mrn == mrn_) %>% 
     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
     group_by(type) %>% 
-    summarise(ave_gram = mean(gram))
+    summarise(ave_gram = sum(gram)/2)
   return(df)
 }
  

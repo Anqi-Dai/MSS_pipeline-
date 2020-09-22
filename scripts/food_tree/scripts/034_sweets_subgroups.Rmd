@@ -178,15 +178,8 @@ both %>%
            cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) + 
   geom_abline(intercept = 0, slope = 1, col = 'red', linetype = 'dashed')   
 
-ddd <- both %>% 
-  select(Formulated_nutrition_bev,fg_sweets , mrn, sampleid, sdrt)  %>% 
-  filter(Formulated_nutrition_bev > fg_sweets)
+
 ```
 
-```{r}
-# check why there is a dot that has so many nutritional drink consumption but not so many sweets
-weird <- dtb %>% 
-  filter(mrn == 35357493 & fdrt %in% c(3,4))
-mean(c(28, 378, 100))
-```
+
 
