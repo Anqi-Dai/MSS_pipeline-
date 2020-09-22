@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(RColorBrewer)
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
 
@@ -156,6 +157,9 @@ closest_s_porphylactic_only_plot_df %>%
 
 Only show the diet samples paired with a stool sample
 
+
+
+
 ```{r}
 fcts_fg <- read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv') 
 link <- read_csv('../data/cleaned_diet_data/deidentify_dsample_map.csv')
@@ -179,6 +183,33 @@ closest_s_porphylactic_only_fg %>%
   scale_color_brewer(palette = "Set1")
 ```
 
+```{r}
+# to only look at the dots that are dominated by sweets and at level 2 of the levels 
+sweets_dom <- closest_s_porphylactic_only_fg %>% 
+  filter(fg1_dom == 'fg_sweets')
+
+dtb_sweets <- read_csv('../data/cleaned_diet_data/all_level2_sweets_group.csv')  
+
+dtb_sweets_total <- dtb_sweets %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(sweettotal = sum(L2_total))
+
+dtb_sweets_all <- dtb_sweets %>% 
+  left_join(dtb_sweets_total) %>% 
+  mutate(L2_frac = L2_total/sweettotal) 
+
+dtb_sweets_dom <- dtb_sweets_all %>% 
+  group_by(mrn, fdrt) %>% 
+  arrange(-L2_frac, .by_group = T) %>% 
+  slice(1) 
+
+# color the umap with this information only
+closest_s_porphylactic_only %>% 
+  inner_join(dtb_sweets_dom) %>% 
+  inner_join(sweets_dom) %>% 
+  mutate(L2_grp = factor(L2_grp)) %>% 
+  ggpubr::ggscatter(x = 'taxumap-LLLL-1', y = 'taxumap-LLLL-2', color = 'L2_grp')
+```
 
 ## overlay the dominant taxa (phyla)
 

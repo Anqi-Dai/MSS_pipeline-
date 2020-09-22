@@ -35,14 +35,34 @@ sweets3 <-  read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>%
 
 ```{r}
 # to get the sweets subgroups for every patient every day 
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv') 
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+```
 
+
+## what the sweets sub groups look like
+
+```{r}
+what_sweets <- dtb %>% 
+  mutate(Food_code = as.character(Food_code)) %>% 
+  filter(str_detect(Food_code, '^9')) %>% 
+  distinct(Food_NSC, Food_code) %>% 
+  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2))  %>% 
+  left_join(sweets2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
+  arrange(L2_grp)
+
+what_sweets
+```
+
+
+```{r}
 dtb_sweets <- dtb %>% 
   mutate(Food_code = as.character(Food_code)) %>% 
   filter(str_detect(Food_code, '^9')) %>% 
   mutate(L2_grp = str_sub(Food_code, start = 1, end = 2)) %>% 
   group_by(mrn, fdrt, L2_grp) %>% 
   summarise(L2_total = sum(dehydrated_weight))
+
+dtb_sweets %>% write_csv('../data/cleaned_diet_data/all_level2_sweets_group.csv')
 
 # get the mean of previous two days for every stool sample I'm currently using
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
@@ -169,17 +189,83 @@ pairs(model_both, pars = c('fg_sweets','Formulated_nutrition_bev') ,fixed = FALS
 
 
 ```{r}  
+both %>% 
+  mutate(simpson_reciprocal = log(simpson_reciprocal)) %>% 
+  gghistogram(x = 'simpson_reciprocal')
+
 both %>%  
-  ggscatter(x = 'fg_sweets', y = 'Formulated_nutrition_bev',
+  mutate(simpson_reciprocal = log(simpson_reciprocal)) %>% 
+  ggscatter(x = 'fg_sweets', y = 'Formulated_nutrition_bev', color = 'simpson_reciprocal',
+            alpha = 0.6, size = 3.5, 
            # add = "reg.line",  # Add regressin line 
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval  
-           cor.coef = TRUE, # Add correlation coefficient.
+           #cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) + 
+  viridis::scale_color_viridis() +
+  scale_x_sqrt() +
+  scale_y_sqrt() +
   geom_abline(intercept = 0, slope = 1, col = 'red', linetype = 'dashed')   
-
-
+ 
 ```
 
+```{r} 
+mod_check <-  lmer(log(simpson_reciprocal) ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                #fg_sweets+
+                fg_legume+
+                fg_veggie+
+                Formulated_nutrition_bev +
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = both )
+summary(mod_check)
+```
 
+# how the nutritional drink consumption is like according to time
+
+```{r}
+# to put the patients into two groups high nutritional drink consumption and low , by the mean
+sweetdat_group <- sweetdat %>% 
+  group_by(mrn) %>% 
+  summarise(mean_ndrink = mean(Formulated_nutrition_bev))
+
+sweetdat_group %>% 
+  ggboxplot(y = 'mean_ndrink', add = 'jitter') +
+  scale_y_sqrt()
+
+thre <- median(sweetdat_group$mean_ndrink)
+
+singlet_pt <- sweetdat %>% 
+  mutate(mrn = as.numeric(as.character(mrn))) %>% 
+  count(mrn) %>% 
+  filter(n == 1) %>% 
+  pull(mrn)
+ 
+sweetdat_df <- sweetdat %>% 
+  filter(!mrn %in% singlet_pt) %>% 
+  select(mrn, sdrt, simpson_reciprocal, Formulated_nutrition_bev) %>% 
+  mutate(twogrp = if_else(Formulated_nutrition_bev > thre, 'high', 'low'))
+
+sweetdat_df %>% 
+  ggplot() +
+  geom_line(mapping = aes(x = sdrt, y = Formulated_nutrition_bev), color = 'purple') +
+  geom_point(mapping = aes(x = sdrt, y = Formulated_nutrition_bev), color = 'purple') +
+  geom_line(mapping = aes(x = sdrt, y = simpson_reciprocal), color = '#A6761D') +
+  geom_point(mapping = aes(x = sdrt, y = simpson_reciprocal), color = '#A6761D') +
+  facet_wrap(~mrn, scales = 'free_y')  +
+  #scale_y_continuous("Fruit consumption (g)", sec.axis = sec_axis(~ . / 4, name = "simpson_reciprocal")) +
+  theme_bw()+
+  theme(
+  strip.text.x = element_blank(),
+  legend.position = 'bottom'
+) +
+  ggsave('../figs/97_nutritional_drink_diversity.pdf', width = 20, height = 17)
+```
 
