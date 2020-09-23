@@ -396,4 +396,18 @@ mod_nut_all <-  lmer(simpson_reciprocal ~
 summary(mod_nut_all)
 ```
 
+# Does total calorie intake still hold up as a predictor of alpha diversity?
+
+```{r}
+# get the caloric intake 
+nutable <- ''
+
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+
+dbListTables(con) %>% data.frame() %>% filter(grepl("nutrition",.))
+
+get_table_from_database('nutrition_ag')
+get_table_from_database('nutrition_demographics_ag')
+```
 

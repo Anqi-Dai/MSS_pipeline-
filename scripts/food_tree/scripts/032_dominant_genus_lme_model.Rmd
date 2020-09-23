@@ -53,14 +53,12 @@ domgen <- c('g__Enterococcus', 'g__Streptococcus', 'g__Lactobacillus', 'g__Staph
 
 domcts <- cts %>% 
   filter(taxa_genus %in% domgen) %>% 
-  #mutate(relablog = log10(relab + 10^-4)) %>% 
-  spread(key = 'taxa_genus', value = 'relab')
+  mutate(relablog = log10(relab + 10^-10)) %>% 
+  select(-relab) %>% 
+  spread(key = 'taxa_genus', value = 'relablog')
 
 all <- domcts %>% 
   full_join(dat, by = "sampleid")
-
-all %>% 
-  glimpse()
 
 ```
 
@@ -89,15 +87,6 @@ summary(mod_staphy)
 ```
 
 
-```{r}
-mod_staphy2 <-  lmer(g__Staphylococcus ~ 
-              fg_fruit+
-               abx + 
-               intensity + 
-               (1 | mrn) +
-                (1 | timebin), REML = F, data = all )
-summary(mod_staphy2)
-```
 
 ### g__Enterococcus
 
@@ -199,8 +188,9 @@ mod_g__Streptococcus <-  lmer(g__Streptococcus ~
 summary(mod_g__Streptococcus)
 ```
 
-The empirical abx causes the relab of the genera to increase:
-g__Staphylococcus, g__Enterococcus, g__Streptococcus
+veggie increases Lactobacillus
+milk increases Streptococcus
+sweets and veggie increases g__Enterococcus with a p value 0.07 and 0.09
 
 ```{r}
 # look at why the sweets would increase the enteroccus relab 
