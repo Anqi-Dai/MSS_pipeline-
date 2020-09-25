@@ -50,7 +50,9 @@ what_sweets <- dtb %>%
   left_join(sweets2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
   arrange(L2_grp)
 
-what_sweets
+what_sweets %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling()
 ```
 
 

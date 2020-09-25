@@ -53,8 +53,9 @@ domgen <- c('g__Enterococcus', 'g__Streptococcus', 'g__Lactobacillus', 'g__Staph
 
 domcts <- cts %>% 
   filter(taxa_genus %in% domgen) %>% 
-  mutate(relablog = log10(relab + 10^-10)) %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
   select(-relab) %>% 
+  mutate(taxa_genus = str_replace(taxa_genus, 'g__','')) %>% 
   spread(key = 'taxa_genus', value = 'relablog')
 
 all <- domcts %>% 
@@ -69,7 +70,7 @@ all <- domcts %>%
 ```{r}
 library(lmerTest)
 
-mod_staphy <-  lmer(g__Staphylococcus ~ 
+mod_staphy <-  lmer(Staphylococcus ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -91,7 +92,7 @@ summary(mod_staphy)
 ### g__Enterococcus
 
 ```{r}
-mod_g__Enterococcus <-  lmer(g__Enterococcus ~ 
+mod_g__Enterococcus <-  lmer(Enterococcus ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -111,7 +112,7 @@ summary(mod_g__Enterococcus)
 ### g__Escherichia
 
 ```{r}
-mod_g__Escherichia <-  lmer(g__Escherichia ~ 
+mod_g__Escherichia <-  lmer(Escherichia ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -131,7 +132,7 @@ summary(mod_g__Escherichia)
 ### g__Klebsiella
 
 ```{r}
-mod_g__Klebsiella <-  lmer(g__Klebsiella ~ 
+mod_g__Klebsiella <-  lmer(Klebsiella ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -151,7 +152,7 @@ summary(mod_g__Klebsiella)
 ### g__Lactobacillus
 
 ```{r}
-mod_g__Lactobacillus <-  lmer(g__Lactobacillus ~ 
+mod_g__Lactobacillus <-  lmer(Lactobacillus ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -171,7 +172,7 @@ summary(mod_g__Lactobacillus)
 ### g__Streptococcus
 
 ```{r}
-mod_g__Streptococcus <-  lmer(g__Streptococcus ~ 
+mod_g__Streptococcus <-  lmer(Streptococcus ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -191,6 +192,33 @@ summary(mod_g__Streptococcus)
 veggie increases Lactobacillus
 milk increases Streptococcus
 sweets and veggie increases g__Enterococcus with a p value 0.07 and 0.09
+
+```{r}
+# use the brms to check the g__Enterococcus model 
+library(brms)   
+library(ggmcmc)
+
+model_Enterococcus <- brm( Enterococcus ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+               abx + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = all, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+plot(model_Enterococcus)
+```
+
 
 ```{r}
 # look at why the sweets would increase the enteroccus relab 
