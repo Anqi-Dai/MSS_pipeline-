@@ -24,7 +24,10 @@ Their webpage: http://50.255.35.37:8080/. The software's web portal.
 ```{r}
 fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/TCRseq files/', full.names = T)
 
-test <- read_tsv(fns[1], col_types = cols(.default = "c")) %>% 
+# there are NA in the v gene and J gene
+
+all <- fns %>% 
+  map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
         filter(frame_type == 'In') %>% 
         select(CDR3b = cdr3_amino_acid,
                v_family,
@@ -39,7 +42,7 @@ test <- read_tsv(fns[1], col_types = cols(.default = "c")) %>%
         mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
         select(-sample_name, -subject, -condition) %>% 
         mutate(templates = as.numeric(templates))   %>% 
-  mutate(TRBV = if_else(is.na(TRBV), v_family, TRBV)) %>% 
+        mutate(TRBV = if_else(is.na(TRBV), v_family, TRBV)) %>% 
         group_by(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
         summarise(count = sum(templates)) %>% 
         mutate(TRBV = str_replace(TRBV, 'TCRB.',''),
@@ -54,47 +57,7 @@ test <- read_tsv(fns[1], col_types = cols(.default = "c")) %>%
                j2 = str_remove(j2, "^0+")) %>% 
         mutate(TRBV = if_else(is.na(v1), "NA", as.character(str_glue('TRBV{v1}-{v2}'))),
                TRBJ = if_else(is.na(j1), "NA", as.character(str_glue('TRBJ{j1}-{j2}'))))  %>%
-  mutate(TRBV = str_replace(TRBV, '-NA','')) %>% 
-        select(-v1, -v2,-j1, -j2) %>% 
-        select(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`, count)
-
-test %>% 
-  filter(str_detect(TRBV, 'NA'))
-```
-
-
-```{r}
-# there are NA in the v gene and J gene
-
-all <- fns %>% 
-  map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
-        filter(frame_type == 'In') %>% 
-        select(CDR3b = cdr3_amino_acid,
-               TRBV = v_gene,
-               TRBJ = j_gene,
-               sample_name = sample_name,
-               templates) %>% 
-        mutate(CDR3a = "NA") %>% 
-        mutate(sample_name = str_replace(sample_name, '_TCRB$', '')) %>% 
-        mutate(subject = str_extract(sample_name, '^Pt\\d')) %>% 
-        mutate(condition = str_replace(sample_name, '^Pt\\d_','')) %>% 
-        mutate(`subject:condition` = str_glue('{subject}:{condition}')) %>% 
-        select(-sample_name, -subject, -condition) %>% 
-        mutate(templates = as.numeric(templates))   %>% 
-        group_by(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
-        summarise(count = sum(templates)) %>% 
-        mutate(TRBV = str_replace(TRBV, 'TCRB.',''),
-               TRBJ = str_replace(TRBJ, 'TCRB.','')) %>% 
-        mutate(TRBV = str_replace(TRBV, '/.+$',''),
-               TRBJ = str_replace(TRBJ, '/.+$','')) %>% 
-        separate(TRBV, into = c('v1','v2'), sep = '-') %>% 
-        separate(TRBJ, into = c('j1','j2'), sep = '-')  %>% 
-        mutate(v1 = str_remove(v1, "^0+"),
-               v2 = str_remove(v2, "^0+"),
-               j1 = str_remove(j1, "^0+"),
-               j2 = str_remove(j2, "^0+")) %>% 
-        mutate(TRBV = if_else(is.na(v1), "NA", as.character(str_glue('TRBV{v1}-{v2}'))),
-               TRBJ = if_else(is.na(j1), "NA", as.character(str_glue('TRBJ{j1}-{j2}'))))  %>% 
+        mutate(TRBV = str_replace(TRBV, '-NA','')) %>% 
         select(-v1, -v2,-j1, -j2) %>% 
         select(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`, count)) %>% 
         bind_rows()
@@ -152,12 +115,12 @@ cat ../software/gliph2/gliph2/paramter_file
 Ended up running on the web portal
 
 ## A look at the results
-
+ 
 ```{r}
-read_csv('../data/gliph2_output/P1277_7AQ2XEPW79.csv') %>% 
-  head(n = 100) %>% 
-  kableExtra::kable() %>% 
-  kableExtra::kable_styling(position = 'left', full_width = F)
+res <- read_csv('../software/gliph2/gliph2/ALL_cluster.csv') %>% 
+  distinct(pattern, V) %>% 
+  arrange(pattern, V) %>% 
+  count(pattern)
 ```
 
 

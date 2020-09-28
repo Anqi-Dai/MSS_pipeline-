@@ -1,0 +1,101 @@
+---
+title: "tease apart nutritional drink"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# updating the food code to create a new food group
+
+```{r}
+# updating the food code of the nutritional drinks so that I can tease them apart
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+
+ndrink <- read_csv('../data/cleaned_diet_data/foods_sweets_group_95_tsoni_annotated.csv') %>% 
+  filter(subcategory.tsoni == 'nutritional_supplement_often_urged_by_doctors_when_not_eating')
+
+dtbn <- dtb %>% 
+  mutate(Food_code = as.character(Food_code)) %>% 
+  mutate(Food_code = if_else(Food_NSC %in% ndrink$Food_NSC, 
+                             str_replace(Food_code, '^9','N'),
+                             Food_code))
+```
+
+## summarise on the dtbn to per day level
+
+```{r}
+nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description)
+
+fgrps_df <- dtbn %>% 
+  select(mrn, fdrt, dehydrated_weight, Food_code) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1))
+
+
+# the total dehydated weight for a patient for one day for a single food group
+total_per_group <- fgrps_df %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(grp_tol = sum(dehydrated_weight)) %>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets',
+    fgrp1 == 'N' ~ 'fg_ndrink'
+  ))
+```
+
+## average on the previous two days diet food groups
+
+```{r}
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
+  mutate(empirical = if_else(abx == 'empirical', T, F)) %>% 
+  select(-abx)
+
+# pulling the alpha diversity 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+
+stb_pair <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+mean_p2d_diet <-  function(mrn_, p1d_, p2d_){
+  df = total_per_group %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(fg1_name) %>% 
+    summarise(ave_fg = sum(grp_tol)/2)
+  return(df)
+}
+
+mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_diet(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'fg1_name', value = 'ave_fg', fill = 0) %>% 
+  inner_join(stb, by = "sampleid") %>% 
+  select(-count_total, -age, -sex, -source) %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))
+
+mean_p2d_df %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg10.csv')
+```
+
