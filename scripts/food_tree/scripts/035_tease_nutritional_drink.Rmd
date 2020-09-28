@@ -1,6 +1,6 @@
 ---
 title: "tease apart nutritional drink"
-output: html_document
+output: html_document 
 ---
 
 ```{r setup, include=FALSE}
@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(tidyverse)
+library(tidyverse) 
 ```
 
 # updating the food code to create a new food group
@@ -93,9 +93,57 @@ mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   spread(key = 'fg1_name', value = 'ave_fg', fill = 0) %>% 
   inner_join(stb, by = "sampleid") %>% 
   select(-count_total, -age, -sex, -source) %>% 
-  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal)) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
 
 mean_p2d_df %>% 
   write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg10.csv')
+```
+
+## linear mixed model again
+
+```{r}
+library(lmerTest)
+mod_fg10 <-  lmer(log(simpson_reciprocal) ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+ 
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = mean_p2d_df )
+summary(mod_fg10)
+```
+ 
+```{r} 
+library(brms)  
+library(ggmcmc)
+model_brm <- brm( log(simpson_reciprocal)~ 
+                fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = mean_p2d_df, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+plot(model_brm)
 ```
 
