@@ -53,6 +53,10 @@ what_sweets <- dtb %>%
 what_sweets %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling()
+
+what_sweets %>% 
+  filter(L2_grp == '95') %>%  
+  write_csv('../data/foods_sweets_group_95.csv')
 ```
 
 
