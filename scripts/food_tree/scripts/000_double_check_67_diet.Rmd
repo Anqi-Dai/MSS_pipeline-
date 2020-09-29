@@ -14,7 +14,7 @@ library(lubridate)
 ```
 
 ```{r}
-all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code.csv')
+all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv')
 
 # some cleaning , remove unnecessary columns, filter out some unnecessary rows, change column types
 all <- read_excel('../data/source/new_list.xls') %>% 
@@ -118,7 +118,7 @@ all_peter_cal <- all_cor1 %>%
   select(MRN:Por_eaten) %>% 
   left_join(peter_cal) %>% 
   arrange(Food_NSC)
-
+ 
 # use the ratio to correct other portions
 cal_cor_res <- all_peter_cal %>% 
   arrange(Food_NSC, Calories_kcal) %>% 

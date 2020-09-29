@@ -116,9 +116,11 @@ closest_all_stool <- closest_all %>%
 ```{r}
 library(viridis)
 closest_all_stool %>% 
-  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = simpson_reciprocal)) +
-  geom_point(alpha = 0.7, size = 3) +
-  scale_color_viridis() 
+  arrange(-simpson_reciprocal) %>% 
+  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`, color = log(simpson_reciprocal))) +
+  geom_point(alpha = 0.5, size = 4) +
+  scale_color_viridis()  +
+  theme_void()
 
 ```
 
