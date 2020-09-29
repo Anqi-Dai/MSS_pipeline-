@@ -25,6 +25,13 @@ dtbn <- dtb %>%
   mutate(Food_code = if_else(Food_NSC %in% ndrink$Food_NSC, 
                              str_replace(Food_code, '^9','N'),
                              Food_code))
+
+dtbn %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN_UPDATED10.csv')
+
+ndrink %>% 
+  arrange(Food_NSC) %>% 
+  write_csv('../data/ndrink.csv')
 ```
 
 ## summarise on the dtbn to per day level

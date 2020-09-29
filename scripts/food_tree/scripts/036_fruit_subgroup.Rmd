@@ -1,0 +1,104 @@
+---
+title: "look at the fruit subgroups"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fruit2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
+  filter(str_detect(Level.code, '^6')) %>% 
+  filter(str_length(Level.code) == 2)
+
+dtbn <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN_UPDATED10.csv')
+```
+```{r}
+# what food items are in the fruit group
+what_fruit <- dtbn %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  distinct(Food_NSC, Food_code) %>% 
+  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2))  %>% 
+  left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
+  arrange(L2_grp)
+
+what_fruit %>% 
+  kableExtra::kable() %>% 
+  kableExtra::kable_styling()
+```
+
+```{r}
+dtbn_fruit <- dtbn %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2)) %>% 
+  group_by(mrn, fdrt, L2_grp) %>% 
+  summarise(L2_total = sum(dehydrated_weight))
+
+# get the mean of previous two days for every stool sample I'm currently using
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
+  mutate(empirical = if_else(abx == 'empirical', T, F)) %>% 
+  select(-abx)
+
+# pulling the alpha diversity 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+  
+stb_pair <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+ 
+mean_p2d_l2_fruit_diet <-  function(mrn_, p1d_, p2d_){
+  df = dtbn_fruit %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(L2_grp) %>% 
+    summarise(ave_L2 = sum(L2_total)/2)
+  return(df)
+}
+
+mean_p2d_l2_fruit_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_l2_fruit_diet(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid')  %>% 
+  left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
+  select(-L2_grp ) %>% 
+  spread('Main.food.description', 'ave_L2', fill = 0) %>% 
+  inner_join(stb, by = "sampleid") %>% 
+  select(-count_total, -age, -sex, -source) %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))
+
+mean_p2d_l2_fruit_df  %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_L2_fruit_only.csv')
+
+```
+
+```{r}
+library(lmerTest)
+
+# to make sure the columns are in right type
+fruitdat <- mean_p2d_l2_fruit_df %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn))
+
+mod_fruit <-  lmer(log(simpson_reciprocal) ~ 
+              Citrus_fruits_juices+
+               Dried_fruits+
+               Fruit_juices_and_nectars_excluding_citrus+
+               Other_fruits+
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = fruitdat )
+summary(mod_fruit)
+```
+
