@@ -276,25 +276,56 @@ all_cor4 <- bind_rows(
 ```{r}
 all_cor4 %>% 
   summary()
-```
 
-
-```{r}
-# see the overlap of the food codes and the food_nsc 
-library(ggvenn)
-two_list <- list(code = final_all_code$Food_NSC,
-                      all_df = all_cor4$Food_NSC)
-   
-ggvenn(two_list)
-
-# that's good. cuz the current food code includes the new 30 pts' 
-```
-
-```{r}
+# there are some NAs in all_cor4, output and manually correct them
 all_cor4 %>% 
-  write_csv('../data/cleaned_diet_data/diet_records_corrected_67.csv')
+  write_csv('../data/!question/all_cor4.csv')
+
 ```
 
+
+```{r}
+protein_and_fat_NA <- all_cor4 %>% 
+  filter(is.na(Proteing_g)) %>% 
+  distinct(Food_NSC) %>% 
+  pull(Food_NSC)
+
+all_cor4 %>% 
+  filter(Food_NSC %in% protein_and_fat_NA) %>% 
+  arrange(Food_NSC, Unit) %>% 
+  write_csv('../data/!question/protein_and_fat_NA_ones.csv')
+```
+```{r}
+sugar_NA  <- all_cor4 %>% 
+  filter(is.na(Sugars_g)) %>% 
+  distinct(Food_NSC) %>% 
+  pull(Food_NSC)
+
+sugar_NA_df <- all_cor4 %>% 
+  filter(Food_NSC %in% sugar_NA) %>% 
+  arrange(Food_NSC, Unit) %>% 
+  select(Food_NSC:Sodium_mg) %>% 
+  distinct()
+
+###
+fiber_NA  <- all_cor4 %>% 
+  filter(is.na(Fibers_g)) %>% 
+  distinct(Food_NSC) %>% 
+  pull(Food_NSC)
+
+fiber_NA_df <- all_cor4 %>% 
+  filter(Food_NSC %in% fiber_NA) %>% 
+  arrange(Food_NSC, Unit) %>% 
+  select(Food_NSC:Sodium_mg) %>% 
+  distinct()
+
+length(intersect(fiber_NA, sugar_NA))
+
+sugar_NA_df %>% 
+  write_csv('../data/!question/sugar_and_fiber_NA_ones.csv')
+```
+
+**next is the integrate peter filled ones to the original all_cor4**
 
 ## the calories == 0 ones that I need peter to give me the gram weight, all of the patients together
 
