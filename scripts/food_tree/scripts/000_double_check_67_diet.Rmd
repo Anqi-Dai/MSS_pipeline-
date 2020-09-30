@@ -187,8 +187,10 @@ all_cor2__ <- bind_rows(
 
 ```{r}
 # to keep all of the unique rows (all values in the row should be unique)
-all_cor3 <- all_cor2 %>% 
+all_cor3 <- all_cor2__ %>% 
   distinct() 
+
+
 ```
 
 ## the food with multiple items
@@ -217,16 +219,19 @@ multiple_clean_code <- multiple_clean %>%
 final_all_code <- bind_rows(
   all_code,
   multiple_clean_code
-)
+) 
 
 final_all_code %>% 
   write_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv')
 ```
 
+
+
+
 ```{r}
-# are there other portions for those foods?
 # now expand the multiples to other portions 
 multiple_all <- all_cor3 %>% 
+  separate(food_full, into = c('Food_NSC','Unit'), sep = '__') %>% 
   filter(Food_NSC %in% multiple$item1_value_raw_raw) %>% 
   distinct(Food_NSC, Por_eaten, Calories_kcal) %>% 
   arrange(Food_NSC) %>% 
@@ -242,20 +247,23 @@ multiple_all %>%
 multiple_all_cor <- read_csv('../data/multiple_all_manually_Angel.csv')
 
 multiple_df_all <-  all_cor3 %>% 
+  separate(food_full, into = c('Food_NSC','Unit'), sep = '__') %>% 
   filter(Food_NSC %in% multiple$item1_value_raw_raw) %>% 
   select(MRN:Por_eaten) %>% 
   left_join(multiple_all_cor, by = c('Food_NSC','Por_eaten')) %>% 
   select(-Calories_kcal, -Food.Code, -FNDDS.Main.Food.Description) %>% 
   select(-Food_NSC) %>% 
-  rename(Food_NSC = Food_NSC.y) %>% 
-  select(MRN:Meal, Food_NSC, Por_eaten:Sodium_mg) %>% 
-  rename(Calories_kcal = Calories_kcal.y)
+  rename(Food_NSC = Food_NSC.y.y) %>% 
+  select(MRN:Meal, Food_NSC, Unit:Sodium_mg) %>% 
+  rename(Calories_kcal = Calories_kcal.y)  
+  
 ```
 
 
 ```{r}
 # finally I can split the all_cor3 df and change this part about the multiples
 all_cor3_split <- all_cor3 %>% 
+  separate(food_full, into = c('Food_NSC','Unit'), sep = '__') %>% 
   split(.$Food_NSC %in% multiple$item1_value_raw_raw)
 
 all_cor4 <- bind_rows(
@@ -264,6 +272,12 @@ all_cor4 <- bind_rows(
   multiple_df_all
 )    
 ```
+
+```{r}
+all_cor4 %>% 
+  summary()
+```
+
 
 ```{r}
 # see the overlap of the food codes and the food_nsc 
