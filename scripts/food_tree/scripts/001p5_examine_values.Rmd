@@ -1,0 +1,35 @@
+---
+title: "Examine the values thoroughly"
+output: html_document 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+all <- read_csv('../data/!question/all_97_cor.csv')  %>% 
+  rename(Protein_g = Proteing_g)
+
+# all the distinct values
+unique_combi <- all %>% 
+  select(Food_NSC: Sodium_mg) %>% 
+  distinct() %>% 
+  arrange(Food_NSC, Unit)
+  
+     
+```
+
+```{r}
+# check the biggest portion for each food_nsc and unit combination
+big_portion <- unique_combi %>% 
+  arrange(Food_NSC, Unit, -Por_eaten) %>% 
+  group_by(Food_NSC, Unit) %>% 
+  slice(1)
+```
+

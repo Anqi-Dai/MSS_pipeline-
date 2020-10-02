@@ -183,7 +183,6 @@ new %>%
   write_csv('../data/!question/suspicious_ones_from_new_30_patients.csv')
 ```
 
-
 ```{r}
 new %>% 
   filter(str_detect(Food_NSC, '2017 Quesadilla, Chicken')) %>% 
@@ -198,18 +197,53 @@ new %>%
   filter(str_detect(Food_NSC, 'Toast')) %>% 
   arrange(Food_NSC) %>% 
   write_csv('../data/!question/toast_I_have_question.csv')
-
-
 ```
 
+**Reply from Peter:**
+Quesadilla is okay as is. It was a lot of food and a lot of kcal...
 
-# combine the above like essential diet columns from old and the new to create a ALL table
+Also, I have attached the toast sheet back here. You can remove all of those as they are instructions to "toast the bread... but they still come up." So, they can be entirely removed. 
 
 ```{r}
-old <- read_csv('../data/cleaned_diet_data/diet_records_corrected_67.csv')
- 
-combined <- bind_rows(old, new)
+# replace the two extreme ones: Brocollini and Philly Cheese Steak with the corrected values
+suspicious2 <- read_csv('../data/!question/suspicious_ones_from_new_30_patients_peter.csv') %>% 
+  filter(!str_detect(Food_NSC, 'Quesadilla'))
+
+new_cor1_split <- new %>% 
+  split(.$Calories_kcal %in% c(702,949))
+
+corrected_new_cor1_split <- new_cor1_split %>% 
+  pluck('TRUE') %>% 
+  select(MRN: Por_eaten) %>% 
+  left_join(suspicious2 %>% select(Food_NSC:Sodium_mg),  by = c("Food_NSC", "Unit", "Por_eaten")) 
+
+new_cor1 <- bind_rows(
+  corrected_new_cor1_split,
+  new_cor1_split %>% pluck('FALSE')
+)
+
+new_cor1 %>% 
+  summary 
 ```
+```{r}
+# the nas in the current new_cor1 they can all be removed.
+
+new_cor2 <- new_cor1 %>%     
+  filter(!is.na(Sugars_g))
+```
+
+
+# combine the above like essential diet columns from old 67 and the new 30 to create a ALL table
+
+```{r}
+old <- read_csv('../data/!question/all_cor6_old_67.csv')
+ 
+combined <- bind_rows(old, new_cor2)
+combined %>% 
+  write_csv('../data/!question/all_97_cor.csv')
+```
+
+**Now jump to another script to examine the values more thoroughly**
 
 # now find the unique item names with calories == 0
 

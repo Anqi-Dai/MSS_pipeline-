@@ -342,17 +342,40 @@ corrected_sugar_and_fiber <- all_cor4_split_sugar_and_fiber %>%
   pluck('TRUE') %>% 
   select(MRN: Por_eaten) %>% 
   left_join(sugar_and_fiber_filled %>% select(Food_NSC:Sodium_mg) %>% distinct(), by = c("Food_NSC", "Unit", "Por_eaten")) 
- 
+  
 all_cor5 <- bind_rows(
   corrected_sugar_and_fiber,
   all_cor4_split_sugar_and_fiber %>% pluck('FALSE')
 )
-summary(all_cor5)
-
-
+summary(all_cor5)      
 ```
 
+```{r}
+# merge the protein and fat corrected ones into my table
+protein_and_fat_filled <- read_csv('../data/!question/protein_and_fat_NA_ones_peter.csv') %>% 
+  distinct(Food_NSC, Unit, Por_eaten, .keep_all = T)
 
+all_cor5_split_protein_and_fat <- all_cor5 %>% 
+  split(.$Food_NSC %in% protein_and_fat_NA)
+
+corrected_protein_and_fat <- all_cor5_split_protein_and_fat %>% 
+  pluck('TRUE') %>% 
+  select(MRN: Por_eaten) %>% 
+  left_join(protein_and_fat_filled %>% select(Food_NSC:Sodium_mg) %>% distinct(), by = c("Food_NSC", "Unit", "Por_eaten")) 
+
+all_cor6 <- bind_rows(
+  corrected_protein_and_fat,
+  all_cor5_split_protein_and_fat %>% pluck('FALSE')
+)
+  
+all_cor6 %>% 
+  summary()      
+
+all_cor6 %>% 
+  write_csv('../data/!question/all_cor6_old_67.csv')
+```
+
+**I need to check all the values validity once I have all of them** 
  
 ## the calories == 0 ones that I need peter to give me the gram weight, all of the patients together
 
