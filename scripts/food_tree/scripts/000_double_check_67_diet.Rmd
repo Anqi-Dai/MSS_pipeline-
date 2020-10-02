@@ -324,9 +324,25 @@ length(intersect(fiber_NA, sugar_NA))
 sugar_NA_df %>% 
   write_csv('../data/!question/sugar_and_fiber_NA_ones.csv')
 ```
+ 
+**next is to integrate peter filled ones to the original all_cor4**
 
-**next is the integrate peter filled ones to the original all_cor4**
+```{r}
+sugar_and_fiber_filled <- read_csv('../data/!question/sugar_and_fiber_NA_ones_peter.csv')
 
+# integrate the above info into all_cor4
+all_cor4 <- read_csv('../data/!question/all_cor4.csv')
+
+all_cor4_split_sugar_and_fiber <- all_cor4 %>% 
+  split(.$Food_NSC %in% fiber_NA)
+
+corrected_sugar_and_fiber <- all_cor4_split_sugar_and_fiber %>% 
+  pluck('TRUE') %>% 
+  select(MRN: Por_eaten) %>% 
+  left_join(sugar_and_fiber_filled %>% select(Food_NSC:Sodium_mg) %>% distinct(), by = c('Food_NSC','Unit','Por_eaten'))
+```
+
+ 
 ## the calories == 0 ones that I need peter to give me the gram weight, all of the patients together
 
 ```{r}

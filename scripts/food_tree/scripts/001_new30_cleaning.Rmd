@@ -96,7 +96,7 @@ new_all <- read_excel('../data/source/new30_all.xlsx')  %>%
   mutate(Por_eaten = if_else(str_detect(Por_eaten, '^.'), str_glue('0{Por_eaten}'), Por_eaten)) %>% 
   mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
   filter(Por_eaten > 0) %>% 
-  select(-Unit, -Por_ordered)  %>% 
+  select(-Por_ordered)  %>% 
   # remove the + symbol
    mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$',''),
            Proteing_g = str_replace_all(Proteing_g, '\\+$',''),
@@ -170,6 +170,36 @@ colnames(NA_cor_all_df)
 new <- NA_cor_all_df %>% 
   select(-Name) %>% 
   mutate(Date = mdy(Date))
+
+new %>% 
+  summary()
+```
+
+
+```{r}
+# something that doesn't sound right ....
+new %>% 
+  filter(Calories_kcal %in% c(702,949,1822)) %>% 
+  write_csv('../data/!question/suspicious_ones_from_new_30_patients.csv')
+```
+
+
+```{r}
+new %>% 
+  filter(str_detect(Food_NSC, '2017 Quesadilla, Chicken')) %>% 
+  distinct() %>% 
+  write_csv('../data/!question/Quesadilla_chicken.csv')
+```
+
+```{r}
+# in the *new* table the NA ones , the only thing worth lookng at is the toast BR ones
+new %>% 
+  #filter(is.na(Fibers_g)) %>% 
+  filter(str_detect(Food_NSC, 'Toast')) %>% 
+  arrange(Food_NSC) %>% 
+  write_csv('../data/!question/toast_I_have_question.csv')
+
+
 ```
 
 
@@ -177,7 +207,7 @@ new <- NA_cor_all_df %>%
 
 ```{r}
 old <- read_csv('../data/cleaned_diet_data/diet_records_corrected_67.csv')
-
+ 
 combined <- bind_rows(old, new)
 ```
 
