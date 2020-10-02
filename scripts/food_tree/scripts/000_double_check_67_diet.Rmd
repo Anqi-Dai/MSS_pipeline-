@@ -299,6 +299,7 @@ all_cor4 %>%
 sugar_NA  <- all_cor4 %>% 
   filter(is.na(Sugars_g)) %>% 
   distinct(Food_NSC) %>% 
+  arrange(Food_NSC) %>% 
   pull(Food_NSC)
 
 sugar_NA_df <- all_cor4 %>% 
@@ -328,19 +329,29 @@ sugar_NA_df %>%
 **next is to integrate peter filled ones to the original all_cor4**
 
 ```{r}
-sugar_and_fiber_filled <- read_csv('../data/!question/sugar_and_fiber_NA_ones_peter.csv')
+sugar_and_fiber_filled <- read_csv('../data/!question/sugar_and_fiber_NA_ones_peter.csv') %>% 
+  distinct(Food_NSC, Unit, Por_eaten, .keep_all = T)
 
 # integrate the above info into all_cor4
 all_cor4 <- read_csv('../data/!question/all_cor4.csv')
 
 all_cor4_split_sugar_and_fiber <- all_cor4 %>% 
-  split(.$Food_NSC %in% fiber_NA)
+  split(.$Food_NSC %in% sugar_NA)
 
 corrected_sugar_and_fiber <- all_cor4_split_sugar_and_fiber %>% 
   pluck('TRUE') %>% 
   select(MRN: Por_eaten) %>% 
-  left_join(sugar_and_fiber_filled %>% select(Food_NSC:Sodium_mg) %>% distinct(), by = c('Food_NSC','Unit','Por_eaten'))
+  left_join(sugar_and_fiber_filled %>% select(Food_NSC:Sodium_mg) %>% distinct(), by = c("Food_NSC", "Unit", "Por_eaten")) 
+ 
+all_cor5 <- bind_rows(
+  corrected_sugar_and_fiber,
+  all_cor4_split_sugar_and_fiber %>% pluck('FALSE')
+)
+summary(all_cor5)
+
+
 ```
+
 
  
 ## the calories == 0 ones that I need peter to give me the gram weight, all of the patients together
