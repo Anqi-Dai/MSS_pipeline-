@@ -14,22 +14,17 @@ library(ggpubr)
 
 ```{r}
 all <- read_csv('../data/!question/all_97_cor.csv')  %>% 
-  rename(Protein_g = Proteing_g)
-
-# all the distinct values
-unique_combi <- all %>% 
-  select(Food_NSC: Sodium_mg) %>% 
-  distinct() %>% 
-  arrange(Food_NSC, Unit)
-  
-     
-```
-
-```{r}
-# check the biggest portion for each food_nsc and unit combination
-big_portion <- unique_combi %>% 
-  arrange(Food_NSC, Unit, -Por_eaten) %>% 
+  rename(Protein_g = Proteing_g) %>% 
+  mutate(Sodium_g = round(Sodium_mg/1000, 3)) %>% 
+  select(-Sodium_mg)
+ 
+#     
+double_check <- all %>% 
+  select(Food_NSC:Calories_kcal) %>%  
+  distinct()  %>% 
+  arrange(Food_NSC, Unit, Por_eaten) %>% 
   group_by(Food_NSC, Unit) %>% 
   slice(1)
+  
 ```
 
