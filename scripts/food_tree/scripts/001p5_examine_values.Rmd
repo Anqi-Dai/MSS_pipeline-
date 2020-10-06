@@ -20,11 +20,14 @@ all <- read_csv('../data/!question/all_97_cor.csv')  %>%
  
 #     
 double_check <- all %>% 
-  select(Food_NSC:Calories_kcal) %>%  
+  select(Food_NSC:Sodium_g) %>%  
   distinct()  %>% 
   arrange(Food_NSC, Unit, Por_eaten) %>% 
   group_by(Food_NSC, Unit) %>% 
   slice(1)
   
+
+double_check %>% 
+  write_csv('../data/!question/double_check_for_calories_also_nutrients.csv')
 ```
 
