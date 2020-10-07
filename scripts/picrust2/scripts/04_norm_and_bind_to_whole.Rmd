@@ -5,6 +5,10 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
 library(tidyverse)
 library(ggpubr)
 ```
@@ -14,7 +18,7 @@ library(ggpubr)
 kos <- list.files('../data/done_results/', recursive = T, full.names = T, pattern = 'pred_metagenome_unstrat.tsv')
 
 res <- kos %>% 
-  map(function(fn){
+  purrr::map(function(fn){
     tb <- read_tsv(fn) %>% 
         gather('sampleid','count', names(.)[2]:names(.)[ncol(.)]) %>% 
         filter(count != 0)
@@ -36,6 +40,20 @@ res <- kos %>%
 #   write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/normalized_picrust2_pred_metagenome_KO_all_counts.csv')
 
 ```
+
+```{r}
+# 10-7 Oriana requested items for 2100 samples
+samp <- read_rds('~/Downloads/samples_picrust.rds')
+O_samp <- res %>% 
+  filter(sampleid %in% samp$sampleid)
+
+O_samp %>% 
+  count(sampleid)
+
+O_samp %>% 
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/Oriana_2100_samples_KO.csv')
+```
+
 
 ```{r}
 # find the KOs we are interested in
