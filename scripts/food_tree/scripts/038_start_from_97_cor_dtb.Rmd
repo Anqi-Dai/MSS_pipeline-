@@ -1,7 +1,7 @@
 ---
 title: "Start from 97 corrected dtb"
 output: html_document
----
+--- 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -12,13 +12,68 @@ library(tidyverse)
 library(readxl)
 ```
 
-Start from the **all_97_cor.csv**
+Comments from Peter: The only concern is how much is "each" that is being served in some foods. Have to ask the kitchen how big is the portion.
+
+(About a quarter in the small_cor has the calories corrected. )
+
+## Integrate the Peter curated smallest portion into the dataset
 
 ```{r}
-combined <- read_csv('../data/!question/all_97_cor.csv') %>% 
+small_cor <- read_csv('../data/!question/double_check_for_calories_also_nutrients_peter.csv') %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T) 
+
+cur <- read_csv('../data/!question/all_97_cor.csv') %>% 
   rename(Protein_g = Proteing_g) %>% 
   mutate(Sodium_g = round(Sodium_mg/1000, 3)) %>% 
-  select(-Sodium_mg)
+  select(-Sodium_mg) %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T) 
+
+
+all_small_cor <- cur %>% 
+  filter(food_full %in% small_cor$food_full) %>% 
+  distinct(food_full, Por_eaten, .keep_all = T) %>% 
+  select(MRN:Por_eaten) %>% 
+  left_join(small_cor) %>% 
+  arrange(food_full, Calories_kcal)
+
+# use the ratio to correct other portions
+all_small_cor_res <- all_small_cor %>% 
+  group_by(food_full) %>% 
+  mutate(Calories_kcal = Calories_kcal[1],
+         Protein_g = Protein_g[1],
+         Fat_g = Fat_g[1],
+         Carbohydrates_g = Carbohydrates_g[1],
+         Fibers_g = Fibers_g[1],
+         Sugars_g = Sugars_g[1],
+         Sodium_g = Sodium_g[1]) %>% 
+  split(.$food_full) %>% 
+  map_dfr(~ mutate(.data = ., ratio = Por_eaten/Por_eaten[1]) %>% 
+        split(.$Por_eaten) %>% 
+        map_dfr(~ mutate(.data = .,   
+                   Calories_kcal = Calories_kcal*ratio,
+                   Protein_g = Protein_g*ratio,
+                   Fat_g = Fat_g*ratio,
+                   Carbohydrates_g = Carbohydrates_g*ratio,
+                   Fibers_g = Fibers_g*ratio,
+                   Sugars_g = Sugars_g*ratio,
+                   Sodium_g = Sodium_g*ratio)) %>% 
+        select(-ratio))
+
+all_small_cor_res %>% 
+  summary 
+####### 3 of 2017 Dressing, Creamy Italian (.5)__pkt 274g fat?? (I probably should focus on the calories for now...)
+
+# then scale the different food_full and portion to repeated occurences 
+cur2 <- cur %>%  
+  select(MRN: Por_eaten) %>% 
+  left_join(all_small_cor_res %>% select(food_full:Sodium_g) %>% distinct(), by = c('food_full','Por_eaten'))
+  
+```
+
+
+## Load other dataset
+
+```{r}
 
 all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv') %>% 
   select(-FNDDS.Main.Food.Description)
