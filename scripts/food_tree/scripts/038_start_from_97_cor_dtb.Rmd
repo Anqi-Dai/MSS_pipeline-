@@ -16,11 +16,14 @@ knitr::opts_chunk$set(echo = TRUE, message = F)
 ```{r}
 library(tidyverse)
 library(readxl)
+library(lubridate)
 ```
 
 Comments from Peter: The only concern is how much is "each" that is being served in some foods. Have to ask the kitchen how big is the portion.
 
 (About a quarter in the small_cor has the calories corrected. )
+
+# Diet data
 
 ## Integrate the Peter curated smallest portion into the dataset
 
@@ -179,15 +182,185 @@ cur6 <- cur5 %>%
   left_join(all_code, by = 'Food_NSC') %>% 
   rename(Food_code = Food.Code,
          description = FNDDS.Main.Food.Description)
-```
+summary(cur6)
 
+# high fat items still makes me feel .....but i guess fat is not that important ?? 
+```
 
 ## Get the dehydrated weight for the non zero calorie foods
 
+```{r}
+# load the fndds table and do the joining
+engy <- read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  select(Food_code, Energy_kcal, Water_g) %>% 
+  mutate_all(as.numeric)
+
+# there are three records that are 0 cal but should not be, manually correct it.
+cur6 %>% 
+  filter(is.na(total_weight))  %>% 
+  arrange(Calories_kcal) %>% 
+  write_csv('../data/!question/cur6.csv')
+ 
+# load back the manually corrected table
+cur6_NA_cor <- read_csv('../data/!question/cur6_corrected.csv')
+
+# get the dehydated weight for cur6_NA_cor
+cur6_non0_cal <- cur6_NA_cor %>% 
+  select(-total_weight) %>% 
+  left_join(engy, by  = 'Food_code')  %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0.0001, total_weight*(1 - Water_g/100))) %>% 
+  select(-Energy_kcal, -total_weight, -Water_g) %>% 
+  mutate(Date = mdy(Date))
+
+# calculate the dehydrated weight for the 0 calories items that I have the total weight 
+cal0_weight_conversion <- cur6 %>% 
+  filter(!is.na(total_weight)) %>% 
+  left_join(engy %>% select(Food_code, Water_g), by  = 'Food_code')  %>% 
+  mutate(dehydrated_weight = total_weight*(1 - Water_g/100)) %>% 
+  select(-total_weight, -Water_g)
+
+cur7 <- bind_rows(cal0_weight_conversion, cur6_non0_cal)
+```
+
+
 ## Convert the date to fdrt
+
+```{r}
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+cur8 <- cur7 %>% 
+  rename(mrn = MRN) %>% 
+  left_join(ptb %>% select(mrn, hct), by = "mrn") %>% 
+  mutate(fdrt = Date - hct) %>% 
+  select(-hct, -Date)  
+```
+
 
 ## Add the EN and TPN data
 
-## Check the date range and finalize the data
+Note the range of the TPN and EN's fdrt days 
+
+```{r}
+## combine the EN data (that has a dedicated food code for them)
+en <- read_csv('../data/cleaned_diet_data/NutritionSupport_DietPatients.csv') %>% 
+  filter(!is.na(Food.Code)) %>% 
+  mutate(meal = 'EN',
+         Por_eaten = 1) %>% 
+  select(mrn = MRN, 
+         Date = `Date Nutrition Support`,
+         Meal = meal,
+         Food_NSC = `EN formula`,
+         Por_eaten,
+         Calories_kcal = `EN calories`,
+         Protein_g = `EN PRO`,
+         Fat_g = `EN fat`,
+         Carbohydrates_g = `EN CHO`,
+         Fibers_g = `EN Fiber`,
+         Sugars_g = `EN Sugar`,
+         Sodium_g = `EN Sodium`,
+         Food_code = Food.Code,
+         description = FNDDS.Main.Food.Description
+         ) %>% 
+  mutate(Sodium_g = Sodium_g/1000) %>% 
+  mutate(dehydrated_weight = Protein_g + Fat_g + Carbohydrates_g + Fibers_g + Sugars_g + Sodium_g) %>% 
+  mutate(Date = mdy(Date),
+         Unit = "EN unit") %>% 
+  left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
+  mutate(fdrt = Date - hct) %>% 
+  select(colnames(cur8)) %>% 
+  filter(fdrt <= max(cur8$fdrt)) # keep only the records of the days that not exceed the max of the normal diet days
+
+```
+
+```{r}
+# create *0* counts for the foods on TPN days since TPN doesn't go thru colon but they are actual foods  
+TPN <- read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>% 
+  filter(mrn %in% cur8$mrn) %>% 
+  rename(fdrt = Days.Post.HSCT) %>% 
+  mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
+  select(mrn, fdrt, nut_type) %>% 
+  filter(nut_type == 'TPN') 
+
+# to see if there is overlap between the normal diet and the above one
+overlap <- TPN %>% 
+  inner_join(cur8 %>% mutate(fdrt = as.numeric(fdrt))) %>% 
+  distinct(mrn, fdrt, nut_type)
+ 
+overlap %>% 
+  distinct(nut_type)
+
+# the days the patients only have TPN
+TPN_clean <- TPN %>% 
+  left_join(overlap, by = c("mrn", "fdrt")) %>% 
+  filter(is.na(nut_type.y))  %>% 
+  rename(nut_type = nut_type.x) %>% 
+  select(-nut_type.y) %>% 
+  select(- nut_type)
+
+ftb_colnames <- colnames(cur8)
+
+# use all of the foods this patients has ever eaten as the food_nsc
+create_fake_food_cts_for_TPN_patient <- function(mrn_, fdrt_){
+  this_pt = cur8 %>% 
+    filter(mrn == mrn_) %>% 
+    distinct(mrn, Food_NSC, Food_code, description) %>% 
+    mutate(fdrt = fdrt_, 
+           Meal = "fake meal",
+           Por_eaten = 0,
+           Unit = "fake unit",
+           Calories_kcal = 0, 
+           Protein_g = 0, 
+           Fat_g = 0,
+           Carbohydrates_g = 0,
+           Fibers_g = 0,
+           Sugars_g =0,
+           Sodium_g =0,
+           dehydrated_weight = 0) %>% 
+    select(all_of(ftb_colnames))
+}
+         
+fake_TPN <- pmap_dfr(TPN_clean, function(mrn, fdrt){
+  create_fake_food_cts_for_TPN_patient(mrn, fdrt)
+} )
+```
+
+```{r}
+# some metric
+en %>% 
+  distinct(mrn) %>% 
+  nrow
+
+TPN %>% 
+  distinct(mrn) %>% 
+  nrow
+```
+
+## Finalize the data
+
+```{r}
+# actual food records (excluding fake TPN)
+actual <- bind_rows(cur8, en)
+
+actual %>% nrow
 
 
+# including the fake TPN
+ALL <- bind_rows(actual %>%  mutate(fdrt = as.numeric(fdrt)), fake_TPN)
+
+ALL %>% nrow
+
+ALL %>% 
+  write_csv('../data/cleaned_diet_data/')
+```
+
+
+```{r}
+ALL %>% 
+  select(-mrn) %>% 
+  summary
+```
+
+# Stool data
