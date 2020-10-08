@@ -1,10 +1,16 @@
 ---
 title: "Start from 97 corrected dtb"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 --- 
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
@@ -67,7 +73,6 @@ all_small_cor_res %>%
 cur2 <- cur %>%  
   select(MRN: Por_eaten) %>% 
   left_join(all_small_cor_res %>% select(food_full:Sodium_g) %>% distinct(), by = c('food_full','Por_eaten'))
-  
 ```
 
 
@@ -81,7 +86,7 @@ all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv
 ```
 
 ## Foods with zero calorie and their gram weight
-
+ 
 ```{r}
 cal0_peter <- read_excel('../data/cal_0_food_nsc_all_with_unit_Peter.xls')
 
@@ -91,15 +96,18 @@ na_rm <- cal0_peter %>%
   distinct(Food_NSC) %>% 
   pull(Food_NSC)
 
-combined2 <- combined %>% 
+# remove the items that are not valid food like salt and pepper and ice
+cur3 <- cur2 %>% 
+  separate(food_full, into = c('Food_NSC','Unit'), sep = '__') %>% 
   filter(! Food_NSC %in% na_rm)
 
-cal0_peter_items <- cal0_peter %>% 
+# the items that are watery and now I have a total weight
+cal0_peter_items <- cal0_peter %>%   
   filter(`gram weight` != 'NA')  %>% 
   rename(total_weight = `gram weight`) %>% 
   mutate(total_weight = as.numeric(total_weight)) %>% 
   distinct(Food_NSC) %>% 
-  pull(Food_NSC)
+  pull(Food_NSC) 
 
 cal0_peter_clean <- cal0_peter %>% 
   filter(`gram weight` != 'NA')  %>% 
@@ -107,16 +115,45 @@ cal0_peter_clean <- cal0_peter %>%
   mutate(total_weight = as.numeric(total_weight)) %>% 
   distinct()
 
-cal0_split <- combined2 %>% 
+cal0_split <- cur3 %>% 
   split(.$Food_NSC %in% cal0_peter_items)
 
 cal0_join_with_other <- cal0_split %>% 
   pluck('TRUE') %>%  
-  left_join(cal0_peter_clean) %>% 
-  filter(is.na(total_weight))  %>% 
-  select(-total_weight)
+  left_join(cal0_peter_clean) 
+
+# there are several NA because they are of other portions
+# correct this 
+other_portion_NA_items <- cal0_join_with_other %>% 
+  filter(is.na(total_weight)) %>% 
+  distinct(Food_NSC) %>% 
+  pull(Food_NSC)
+
+other_portion_NA_foods <- cal0_join_with_other %>% 
+  filter(Food_NSC %in% other_portion_NA_items) %>% 
+  arrange(Food_NSC, Unit, total_weight) %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T) %>% 
+  group_by(food_full) %>% 
+  mutate(total_weight = total_weight[1]) %>% 
+  split(.$food_full) %>% 
+  map_dfr(~ mutate(.data = ., ratio = Por_eaten/Por_eaten[1]) %>% 
+        split(.$Por_eaten) %>% 
+        map_dfr(~ mutate(.data = .,   
+                   total_weight = total_weight*ratio)) %>% 
+        select(-ratio)) %>% 
+  separate(food_full, into = c('Food_NSC','Unit'), sep = '__') 
+
+cur4 <- bind_rows(
+  cal0_split %>% pluck('FALSE'),
+  cal0_join_with_other %>% filter(!Food_NSC %in% other_portion_NA_items),
+  other_portion_NA_foods
+)
 
 
+```
+
+
+```{r}
 # for the stuff in the above result that is NA in the gram weight goddamn messed up calories for the food! do a calculation instead
 cal0_weight <- cal0_split %>% 
   pluck('TRUE') %>%  
