@@ -81,7 +81,7 @@ cur2 <- cur %>%
 ```{r}
 
 all_code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv') %>% 
-  select(-FNDDS.Main.Food.Description)
+  distinct(Food_NSC, .keep_all = T)
 
 ```
 
@@ -149,30 +149,38 @@ cur4 <- bind_rows(
   other_portion_NA_foods
 )
 
-
-```
-
-
-```{r}
-# for the stuff in the above result that is NA in the gram weight goddamn messed up calories for the food! do a calculation instead
-cal0_weight <- cal0_split %>% 
-  pluck('TRUE') %>%  
-  left_join(cal0_peter_clean) %>% 
-  filter(!is.na(total_weight))  %>% 
-  # join by the food code
-  left_join(all_code, by = 'Food_NSC')
-
-# most of the cal!=0 stuff that needs the fndds conversion
-other_need <- bind_rows(
-  cal0_split %>% pluck('FALSE'),
-  cal0_join_with_other
-) %>% 
-  # join by the food code
-  left_join(all_code, by = 'Food_NSC')
 ```
 
 
 ## Get the food code for the items
+
+```{r}
+current <- cur4 %>% 
+  distinct(Food_NSC) %>% pull(Food_NSC)
+
+all_c <- all_code %>% 
+  distinct(Food_NSC) %>% pull(Food_NSC)
+
+length(intersect(cur4 %>% 
+  distinct(Food_NSC) %>% pull(Food_NSC), all_code %>% 
+  distinct(Food_NSC) %>% pull(Food_NSC)))
+
+ignore <- setdiff(current, all_c)
+
+# this one the patient only had one ounce, could be ignored
+
+cur5 <- cur4 %>% 
+  filter(Food_NSC != ignore)
+
+
+# join the food code to the table 
+
+cur6 <- cur5 %>% 
+  left_join(all_code, by = 'Food_NSC') %>% 
+  rename(Food_code = Food.Code,
+         description = FNDDS.Main.Food.Description)
+```
+
 
 ## Get the dehydrated weight for the non zero calorie foods
 
