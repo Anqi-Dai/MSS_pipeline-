@@ -166,3 +166,13 @@ model_brm <- brm( log(simpson_reciprocal)~
 plot(model_brm)
 ```
 
+## is the nutritional drink signal simply because they are not eating so the stool diversity is low
+
+```{r}
+# do the patients have EN and regular eating at the same time?
+
+overlap <- en %>% 
+  select(mrn, fdrt) %>% 
+  inner_join(cur8)
+```
+

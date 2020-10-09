@@ -92,7 +92,7 @@ stb3 %>%
   distinct(sampleid)
 ```
 
-# which stool samples affected by the empirical abx
+# which stool samples exposed to the empirical abx
 
 ```{r}
 censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_meropenem',	'active_atb_ertapenem',		'active_atb_cefepime',		'active_atb_linezolid',	'active_atb_metro',	'active_atb_piptazo')
@@ -224,3 +224,34 @@ With the updated stb with abx information
 #         axis.ticks.y = element_blank()) +
 #   ggsave('../figs/97_all_pair_all_stool.pdf', width = 30, height = 12)
 ```
+ 
+
+#################
+
+```{r}
+# some that I need to know why I don't have that information and request it to be completed with other people's assistance
+
+# the stool sample we have collected that should enter this cohort but haven't been sequenced, what to do about them?
+stb2_not_sequenced <- stb2 %>% 
+  filter(!sampleid %in% asv_alpha_diversity_ag$sampleid) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection))
+
+stb2_not_sequenced %>% 
+  write_csv('../data/!question/stool_samples_we_collected_but_no_diversity_info_for_diet.csv')
+
+# the few samples that we don't have abx info 
+# from the same patient that has transplant on Jan 17, 2020. 
+yes_abx <- abx_all %>% 
+  filter(sampleid %in% stb3$sampleid) %>% 
+  pull(sampleid)
+
+no_abx <- setdiff(stb3$sampleid, yes_abx )
+
+no_ABX <- tibble(sampleid = no_abx)
+
+no_ABX %>% 
+  write_csv('../data/!question/patinet_has_transplant_in_2020_No_abx_info.csv')
+```
+
+
+

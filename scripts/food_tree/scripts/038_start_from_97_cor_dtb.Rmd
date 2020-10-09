@@ -365,6 +365,21 @@ ALL %>%
   summary
 ```
 
+
+In actual, there some fats that I better have Peter correct them
+
+```{r}
+fat_problematic <- cur8 %>% 
+  filter(Food_NSC %in% c('2017 Milkshake, Oreo (3) 11 oz','2017 Dressing, Creamy Italian (.5)','2017 Dressing, Creamy Italian')) %>% 
+  arrange(Food_NSC, Unit, Por_eaten) %>% 
+  group_by(Food_NSC, Unit) %>% 
+  slice(1) %>% 
+  select(Food_NSC:description)
+
+fat_problematic %>% 
+  write_csv('../data/!question/fat_problematic.csv')
+```
+
 # Stool data
 
 go to script 011 for selecting qualified stool samples (Note, the dtb used is **actual**)
