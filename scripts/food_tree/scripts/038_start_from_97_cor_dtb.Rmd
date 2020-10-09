@@ -346,6 +346,8 @@ actual <- bind_rows(cur8, en)
 
 actual %>% nrow
 
+actual %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
 
 # including the fake TPN
 ALL <- bind_rows(actual %>%  mutate(fdrt = as.numeric(fdrt)), fake_TPN)
@@ -353,7 +355,7 @@ ALL <- bind_rows(actual %>%  mutate(fdrt = as.numeric(fdrt)), fake_TPN)
 ALL %>% nrow
 
 ALL %>% 
-  write_csv('../data/cleaned_diet_data/')
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv')
 ```
 
 
@@ -364,3 +366,6 @@ ALL %>%
 ```
 
 # Stool data
+
+go to script 011
+

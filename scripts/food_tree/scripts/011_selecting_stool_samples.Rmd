@@ -12,7 +12,7 @@ library(tidyverse)
 ```
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
 source('~/db_connect_simple.R')
@@ -93,6 +93,12 @@ censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_merope
 
 abx_all <- read_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info.csv')
   
+# how many samples in stb3 have records in abx_all
+have_abx_info <- abx_all %>% 
+  filter(sampleid %in% stb3$sampleid) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+
 abx_this_censor_samples <- abx_all %>% 
   filter(sampleid %in% stb3$sampleid) %>% 
   select(sampleid, active_atb_cipro:active_atb_other) %>% 
@@ -101,13 +107,15 @@ abx_this_censor_samples <- abx_all %>%
   filter(value == T) %>% 
   distinct(sampleid) %>% 
   pull(sampleid)
- 
+
+
+# keep the samples that I have abx usage info 
 stb4 <- stb3 %>% 
-  #filter(!sampleid %in% abx_this_censor_samples) %>% 
+  filter(sampleid %in% have_abx_info) %>% 
   arrange(mrn, sdrt)
 
 stb4 %>% 
-  distinct(mrn, sdrt)# 9 are duplicated on the same day
+  distinct(mrn, sdrt)# XXX are duplicated on the same day
 ```
 
 # what about the same day there are two stool samples
@@ -120,29 +128,28 @@ stb5 <- stb4 %>%
   distinct(mrn, sdrt, .keep_all = T)
 ```
 
-# has to have at least one real diet data in the previous three days (for the later pairing)
+# has to have at least one real diet data in the previous 2 days (for the later pairing)
 
 ```{r}
 # list the previous three days drt for every stool sample 
 qual_stool_df <- stb5 %>% 
   mutate(p1d = sdrt-1,
-         p2d = sdrt-2, 
-         p3d = sdrt-3) %>% 
-  select(mrn, p1d, p2d, p3d)
+         p2d = sdrt-2) %>% 
+  select(mrn, p1d, p2d)
 
 # use the no fake diet counts table and get the stool samples that should be removed -- not even one day
-dtb_real <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_W_EN.csv')
+dtb_real <- dtb
 
-no_real_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_, p3d_){
+no_real_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_){
   df = dtb_real %>% 
     filter(mrn == mrn_) %>% 
-    filter(fdrt == p1d_ | fdrt == p2d_ |fdrt == p3d_ ) %>% 
+    filter(fdrt == p1d_ | fdrt == p2d_  ) %>% 
     nrow()
   return(df)
 }
 
-qual_stool2 <- pmap(qual_stool_df, function(mrn, p1d, p2d, p3d){
-    no_real_diet_d_to_be_rm_stool_s(mrn, p1d, p2d, p3d)
+qual_stool2 <- pmap(qual_stool_df, function(mrn, p1d, p2d){
+    no_real_diet_d_to_be_rm_stool_s(mrn, p1d, p2d)
   }) %>% 
   set_names(paste0("row", 1:nrow(qual_stool_df))) %>% 
   bind_rows() %>% 
@@ -153,24 +160,23 @@ qual_stool2 <- pmap(qual_stool_df, function(mrn, p1d, p2d, p3d){
   
 stb6 <- qual_stool2 %>% 
   filter(num_d_records > 0)  %>%   
-  select(-id, -num_d_records)
+  select(-id, -num_d_records, -count_total)
 ```
  
-**Output this table since we wanna keep all the samples for now regardless of the abx usage(don't wanna just throw these samples away)** 
 
 ```{r}
-# first of all 
-# only keep ing the stool samples that we have abx info on records
-length(intersect(abx_all$sampleid, stb6$sampleid))
+# to classify the stool samples as having been affected by empirical abx or not. 
+stb7 <- stb6 %>%  
+  mutate(empirical = if_else(sampleid %in% abx_this_censor_samples, T, F))
 
-stb7 <- stb6 %>% 
-  filter(sampleid %in% abx_all$sampleid)
+stb7 %>% 
+  count(empirical) 
 ```
 
  
 ```{r}
 stb7 %>% 
-  write_csv('../data/cleaned_stool/selected_stool_samples_ALL_abx.csv')
+  write_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```
  
 #########################################################################################################
