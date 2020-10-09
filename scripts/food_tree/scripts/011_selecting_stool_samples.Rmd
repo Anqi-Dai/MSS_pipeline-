@@ -173,9 +173,16 @@ stb7 %>%
   count(empirical) 
 ```
 
+```{r}
+# add the simpson_reciprocal diversity
+stb8 <- stb7 %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))  %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
+```
+
  
 ```{r}
-stb7 %>% 
+stb8 %>% 
   write_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```
  
