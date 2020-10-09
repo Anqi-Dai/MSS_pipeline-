@@ -367,5 +367,9 @@ ALL %>%
 
 # Stool data
 
-go to script 011
+go to script 011 for selecting qualified stool samples (Note, the dtb used is **actual**)
+
+# The Microbiome and p2d diet association using lmer and brm
+
+go to script 035 (Also split out the nutritional drinks)
 
