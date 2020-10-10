@@ -338,35 +338,7 @@ TPN %>%
   nrow
 ```
 
-## Finalize the data
-
-```{r}
-# actual food records (excluding fake TPN)
-actual <- bind_rows(cur8, en)
-
-actual %>% nrow
-
-actual %>% 
-  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
-
-# including the fake TPN
-ALL <- bind_rows(actual %>%  mutate(fdrt = as.numeric(fdrt)), fake_TPN)
-
-ALL %>% nrow
-
-ALL %>% 
-  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv')
-```
-
-
-```{r}
-ALL %>% 
-  select(-mrn) %>% 
-  summary
-```
-
-
-In actual, there some fats that I better have Peter correct them
+## Correct some records that have abnormally high fat_g that got missed      
 
 ```{r}
 fat_problematic <- cur8 %>% 
@@ -436,8 +408,30 @@ cur9 <- bind_rows(
   fat_cor_split %>% pluck('FALSE') %>% separate(food_full, into = c('Food_NSC','Unit'), sep = '__') 
 )
   
+summary(cur9)
 ```
 
+## Finalize the data
+
+```{r}
+# actual food records (excluding fake TPN)
+actual <- bind_rows(cur9, en)
+
+actual %>% nrow
+
+actual %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
+
+# including the fake TPN
+ALL <- bind_rows(actual %>%  mutate(fdrt = as.numeric(fdrt)), fake_TPN)
+
+ALL %>% nrow
+
+ALL %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv')
+```
+
+ 
 # Stool data
 
 go to script 011 for selecting qualified stool samples (Note, the dtb used is **actual**)
