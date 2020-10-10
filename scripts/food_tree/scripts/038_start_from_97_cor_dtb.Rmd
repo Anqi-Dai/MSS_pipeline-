@@ -380,6 +380,64 @@ fat_problematic %>%
   write_csv('../data/!question/fat_problematic.csv')
 ```
 
+
+```{r}
+# correct the above mentioned few -- the fat_g column 
+fat_cor <- read_csv('../data/!question/fat_problematic_peter.csv') %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T) 
+
+all_fat <- cur8 %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T)  %>% 
+  filter(food_full %in% fat_cor$food_full) %>% 
+  select(mrn:Por_eaten, fdrt) %>% 
+  left_join(fat_cor) %>% 
+  arrange(food_full, Calories_kcal)
+
+all_fat_res <- all_fat %>% 
+  group_by(food_full) %>% 
+  mutate(Calories_kcal = Calories_kcal[1],
+         Protein_g = Protein_g[1],
+         Fat_g = Fat_g[1],
+         Carbohydrates_g = Carbohydrates_g[1],
+         Fibers_g = Fibers_g[1],
+         Sugars_g = Sugars_g[1],
+         Sodium_g = Sodium_g[1],
+         Food_code = Food_code[1],
+         description = description[1]) %>% 
+  split(.$food_full) %>% 
+  map_dfr(~ mutate(.data = ., ratio = Por_eaten/Por_eaten[1]) %>% 
+        split(.$Por_eaten) %>% 
+        map_dfr(~ mutate(.data = .,   
+                   Calories_kcal = Calories_kcal*ratio,
+                   Protein_g = Protein_g*ratio,
+                   Fat_g = Fat_g*ratio,
+                   Carbohydrates_g = Carbohydrates_g*ratio,
+                   Fibers_g = Fibers_g*ratio,
+                   Sugars_g = Sugars_g*ratio,
+                   Sodium_g = Sodium_g*ratio)) %>% 
+        select(-ratio)) %>% 
+   separate(food_full, into = c('Food_NSC','Unit'), sep = '__') 
+
+# add the dehydrated weight and fdrt to the above table
+all_fat_res_full <- all_fat_res %>% 
+  left_join(engy, by  = 'Food_code')  %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0.0001, total_weight*(1 - Water_g/100))) %>% 
+  select(-Energy_kcal, -total_weight, -Water_g) %>% 
+  select(colnames(cur8))
+
+# now merge this corrected portion back to the whole dataset 
+fat_cor_split <- cur8 %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T)  %>% 
+  split(.$food_full %in% fat_cor$food_full)
+
+cur9 <- bind_rows(
+  all_fat_res_full,
+  fat_cor_split %>% pluck('FALSE') %>% separate(food_full, into = c('Food_NSC','Unit'), sep = '__') 
+)
+  
+```
+
 # Stool data
 
 go to script 011 for selecting qualified stool samples (Note, the dtb used is **actual**)
