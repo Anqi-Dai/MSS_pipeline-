@@ -245,7 +245,7 @@ Note the range of the TPN and EN's fdrt days
 
 ```{r}
 ## combine the EN data (that has a dedicated food code for them)
-en <- read_csv('../data/cleaned_diet_data/NutritionSupport_DietPatients.csv') %>% 
+en <- read_csv('../data/!question/NutritionSupport_DietPatients_peter.csv') %>% 
   filter(!is.na(Food.Code)) %>% 
   mutate(meal = 'EN',
          Por_eaten = 1) %>% 
@@ -262,10 +262,10 @@ en <- read_csv('../data/cleaned_diet_data/NutritionSupport_DietPatients.csv') %>
          Sugars_g = `EN Sugar`,
          Sodium_g = `EN Sodium`,
          Food_code = Food.Code,
+         dehydrated_weight = `EN volume_weight_g`,
          description = FNDDS.Main.Food.Description
          ) %>% 
   mutate(Sodium_g = Sodium_g/1000) %>% 
-  mutate(dehydrated_weight = Protein_g + Fat_g + Carbohydrates_g + Fibers_g + Sugars_g + Sodium_g) %>% 
   mutate(Date = mdy(Date),
          Unit = "EN unit") %>% 
   left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
@@ -387,4 +387,6 @@ go to script 011 for selecting qualified stool samples (Note, the dtb used is **
 # The Microbiome and p2d diet association using lmer and brm
 
 go to script 035 (Also split out the nutritional drinks)
+
+# Also rerun the dominant species script and show the results of that  
 

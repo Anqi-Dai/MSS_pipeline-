@@ -254,4 +254,10 @@ no_ABX %>%
 ```
 
 
+```{r}
+whole <- read_excel('/Volumes/castoricenter/Human.Sequencing.Data/Sequenced.BMT.xlsx') 
+
+question<- whole %>% 
+  filter(Sample.ID %in% stb2_not_sequenced$sampleid)
+```
 
