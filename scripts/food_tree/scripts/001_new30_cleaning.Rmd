@@ -181,6 +181,10 @@ new %>%
 new %>% 
   filter(Calories_kcal %in% c(702,949,1822)) %>% 
   write_csv('../data/!question/suspicious_ones_from_new_30_patients.csv')
+
+high_ques <- new %>% 
+  filter(Calories_kcal %in% c(702,949,1822)) 
+
 ```
 
 ```{r}
