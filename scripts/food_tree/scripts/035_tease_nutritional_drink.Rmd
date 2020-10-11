@@ -24,7 +24,10 @@ library(tidyverse)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv') 
 
 ndrink <- read_csv('../data/cleaned_diet_data/foods_sweets_group_95_tsoni_annotated.csv') %>% 
-  filter(subcategory.tsoni == 'nutritional_supplement_often_urged_by_doctors_when_not_eating')
+  filter(subcategory.tsoni == 'nutritional_supplement_often_urged_by_doctors_when_not_eating') %>% 
+  mutate(Food_code = as.character(Food_code)) %>% 
+  mutate(grp = if_else(str_detect(Food_code, '^951070'), 'ENfood', 'ndrink')) %>% 
+  split(.$grp)
 
 dtbn <- dtb %>% 
   mutate(Food_code = as.character(Food_code)) %>% 
@@ -39,6 +42,22 @@ ndrink %>%
   arrange(Food_NSC) %>%  
   write_csv('../data/ndrink.csv')
 ```
+ 
+### split between EN fluid food and the nutritional drink
+
+```{r}
+en_food_nsc <- ndrink %>% pluck('ENfood') %>% pull(Food_NSC)
+  
+ndrink_food_nsc <- ndrink %>% pluck('ndrink') %>% pull(Food_NSC)
+
+dtbnv <- dtb %>% 
+  mutate(Food_code = as.character(Food_code)) %>% 
+  mutate(Food_code = if_else(Food_NSC %in% ndrink_food_nsc, 
+                             str_replace(Food_code, '^9','N'),
+                             if_else(Food_NSC %in% en_food_nsc, 
+                                     str_replace(Food_code, '^9','E'), Food_code)))
+```
+ 
 
 ## summarise on the dtbn to per day level
 
@@ -48,7 +67,7 @@ nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>%
   rename(fgrp1 = Level.code, 
          fdesc = Main.food.description)
 
-fgrps_df <- dtbn %>% 
+fgrps_df <- dtbnv %>% 
   select(mrn, fdrt, dehydrated_weight, Food_code) %>% 
   mutate(fgrp1 = str_sub(Food_code, 1, 1))
 
@@ -67,7 +86,8 @@ total_per_group <- fgrps_df %>%
     fgrp1 == '7' ~ 'fg_veggie',
     fgrp1 == '8' ~ 'fg_oils', 
     fgrp1 == '9' ~ 'fg_sweets',
-    fgrp1 == 'N' ~ 'fg_ndrink'
+    fgrp1 == 'N' ~ 'fg_ndrink',
+    fgrp1 == 'E' ~ 'fg_EN'
   ))
 ```
 
@@ -102,7 +122,7 @@ mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   select(-age, -sex, -source) 
 
 mean_p2d_df %>% 
-  write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg10.csv')
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv')
 ```
 
 ## linear mixed model again
@@ -121,7 +141,7 @@ dat %>%
 
 
 ```{r}
-mod_fg10 <-  lmer(log(simpson_reciprocal) ~ 
+mod_fg11 <-  lmer(log(simpson_reciprocal) ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -132,11 +152,12 @@ mod_fg10 <-  lmer(log(simpson_reciprocal) ~
                 fg_legume+
                 fg_veggie+
                 fg_ndrink+
+                fg_EN+
                empirical +  
                intensity + 
                (1 | mrn) +
                 (1 | timebin), REML = F, data = dat )
-summary(mod_fg10) 
+summary(mod_fg11) 
 ```
  
 ## brms model
@@ -170,9 +191,45 @@ plot(model_brm)
 
 ```{r}
 # do the patients have EN and regular eating at the same time?
-
+ # no , when they had EN, they don't eat regular food
 overlap <- en %>% 
   select(mrn, fdrt) %>% 
   inner_join(cur8)
+
+# what's the correlation between daily total calories and daily consumption of the nutritional drink(not the EN ones)
+# the patients and the days that they had nutritional drink
+ndrink_pt <- dtbnv %>% 
+  filter(str_detect(Food_code, '^N')) %>% 
+  distinct(mrn, fdrt)
+
+# the total daily calories of the patients on those days
+
+all_daily_ndrink_pt <- dtbnv %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(total_daily = sum(Calories_kcal)) %>% 
+  inner_join(ndrink_pt)
+
+
+# per day sum up the amount of nutritional drink
+ndrink_pt_sum <- dtbnv %>% 
+  filter(str_detect(Food_code, '^N')) %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(ndrink_sum = sum(dehydrated_weight))
+
+combined <- all_daily_ndrink_pt %>% 
+  full_join(ndrink_pt_sum)
+
+combined %>% 
+  ggpubr::ggscatter(x = 'total_daily', y = 'ndrink_sum', 
+                    xlab = 'Total daily calories',ylab = 'Total daily nutritional drink (dehydrated wt)',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) 
+
+# in terms of the nutritional drink (excluding the EN) it's not highly correlated with total calories, cor = 0.49
+# so the patients are still eating
+# so the nutritional drink could be lowering the diversity
 ```
 

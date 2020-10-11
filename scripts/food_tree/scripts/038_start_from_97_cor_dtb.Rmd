@@ -409,6 +409,15 @@ cur9 <- bind_rows(
 )
   
 summary(cur9)
+
+summary(actual)
+actual %>% 
+  distinct(Food_NSC)
+
+range(actual$fdrt)
+
+actual %>% 
+  distinct(Food_code)
 ```
 
 ## Finalize the data
@@ -432,7 +441,19 @@ ALL %>%
 ```
 
 ```{r}
-raw <- read_excel('../data/source/new_list.xls')
+# a histgram to see the distribution of the cal and nutrients?
+cur9 %>% 
+  select(ends_with('_g')) %>% 
+  gather('item', 'value') %>% 
+  ggpubr::gghistogram(x = 'value', bins = 60, fill = 'forestgreen') +
+  facet_wrap(~item, scales = 'free') +
+  ggsave('../figs/cur9_nutrients.pdf', width = 12, height = 7)
+
+cur9 %>% 
+  select(Calories_kcal, ends_with('_g')) %>% 
+  gather('item', 'value') %>% 
+  ggpubr::ggboxplot(y = 'value') +
+  facet_wrap(~item, scales = 'free')
 ```
 
  

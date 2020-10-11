@@ -137,7 +137,7 @@ stb5 <- stb4 %>%
 # has to have at least one real diet data in the previous 2 days (for the later pairing)
 
 ```{r}
-# list the previous three days drt for every stool sample 
+# list the previous 2 days drt for every stool sample 
 qual_stool_df <- stb5 %>% 
   mutate(p1d = sdrt-1,
          p2d = sdrt-2) %>% 
