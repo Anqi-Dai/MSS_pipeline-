@@ -176,6 +176,7 @@ model_brm <- brm( log(simpson_reciprocal)~
                 fg_legume+
                 fg_veggie+
                 fg_ndrink+
+                fg_EN+
                empirical + 
                intensity + 
                (1 | mrn) +
@@ -186,6 +187,48 @@ model_brm <- brm( log(simpson_reciprocal)~
               seed = 123) 
 plot(model_brm)
 ```
+
+```{r}
+# trying to make the centered at 0 posterior distribution plot 
+posterior_model <- posterior_samples(model_brm) %>% 
+  select(starts_with('b')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'value') %>% 
+  group_by(item) %>% 
+  mutate(meanperitem = mean(value))%>%
+  ungroup()
+
+library(ggthemes)
+library(ggridges)
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 0.8, size = 0.25,
+                                #fill = 'forestgreen',
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red") +
+  theme_ridges() +
+  scale_x_continuous(limits = c(-1.38,0.25)) +
+  ggsave('../figs/posteiror_brms.pdf', width = 10, height = 10)
+
+# make a version that only has food groups
+posterior_model_only_food_group <- posterior_model %>% 
+  filter(str_detect(item, '_fg_'))
+
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model_only_food_group, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 1.5, size = 0.25,
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red", linetype = 'dashed') +
+  theme_tufte() +
+  ggsave('../figs/posteiror_brms_fg_only.pdf', width = 10, height = 10)
+```
+
 
 ## is the nutritional drink signal simply because they are not eating so the stool diversity is low
 
