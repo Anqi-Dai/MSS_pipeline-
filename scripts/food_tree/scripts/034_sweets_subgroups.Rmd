@@ -35,7 +35,7 @@ sweets3 <-  read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>%
 
 ```{r}
 # to get the sweets subgroups for every patient every day 
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
 ```
 
 
@@ -57,6 +57,17 @@ what_sweets %>%
 what_sweets %>% 
   filter(L2_grp == '95') %>%  
   write_csv('../data/foods_sweets_group_95.csv')
+
+# to get two sample out of each level 2 sweet group
+three <- what_sweets %>% 
+  filter(L2_grp != '95')  %>% 
+  split(.$L2_grp) %>% 
+  map_dfr(~sample_n(tbl = ., size = 2, replace = F))
+
+g95 <- what_sweets %>%
+  filter(Food_NSC %in% c('Gatorade,  Fruit Punch','Vital 1.5','Ensure Plus, Strawberry'))
+
+g9 <- bind_rows(three, g95)
 ```
 
 

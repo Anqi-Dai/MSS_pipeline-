@@ -136,6 +136,7 @@ dat <- mean_p2d_df %>%
   mutate(mrn = as.factor(mrn))
 
 dat %>% 
+  select(-mrn) %>%  
   summary
 ```
 
@@ -224,9 +225,13 @@ ggplot()+
                                     height = ..density..),
                                 scale = 1.5, size = 0.25,
                                 alpha = 0.6) +
-  geom_vline(xintercept = 0, col = "red", linetype = 'dashed') +
+  geom_vline(xintercept = 0, col = "red") +
+  #scale_x_continuous(limits = c(-0.02,0.03)) +
+  labs(y = 'Food groups',
+       title = 'Posterior distribution of food group level error of regression coefficient per food group') +
+  theme(axis.text.y = element_text(size=20)) +
   theme_tufte() +
-  ggsave('../figs/posteiror_brms_fg_only.pdf', width = 10, height = 10)
+  ggsave('../figs/posteiror_brms_fg_only.pdf', width = 6, height = 6)
 ```
 
 
