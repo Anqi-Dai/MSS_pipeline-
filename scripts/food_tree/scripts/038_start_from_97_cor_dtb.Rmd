@@ -445,7 +445,8 @@ ALL %>%
 cur9 %>% 
   select(ends_with('_g')) %>% 
   gather('item', 'value') %>% 
-  ggpubr::gghistogram(x = 'value', bins = 60, fill = 'forestgreen') +
+  mutate(logvalue = log(value +0.001)) %>% 
+  ggpubr::gghistogram(x = 'logvalue', bins = 60, fill = 'forestgreen') +
   facet_wrap(~item, scales = 'free') +
   ggsave('../figs/cur9_nutrients.pdf', width = 12, height = 7)
 
