@@ -187,6 +187,7 @@ model_brm <- brm( log(simpson_reciprocal)~
               cores = 8, chains = 2, 
               seed = 123) 
 plot(model_brm)
+summary(model_brm)
 ```
 
 ```{r}
@@ -279,5 +280,9 @@ combined %>%
 # in terms of the nutritional drink (excluding the EN) it's not highly correlated with total calories, cor = 0.49
 # so the patients are still eating
 # so the nutritional drink could be lowering the diversity
+```
+
+```{r}
+fn <- read_tsv('../../ppp_Nilu/data/lefse_res/lefse_input_table.tsv', col_names = F)
 ```
 
