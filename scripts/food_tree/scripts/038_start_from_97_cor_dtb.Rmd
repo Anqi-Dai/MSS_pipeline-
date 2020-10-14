@@ -273,6 +273,8 @@ en <- read_csv('../data/!question/NutritionSupport_DietPatients_peter.csv') %>%
   select(colnames(cur8)) %>% 
   filter(fdrt <= max(cur8$fdrt)) # keep only the records of the days that not exceed the max of the normal diet days
 
+# the 5 EN patients are in the diet cohort, confirmed 
+length(intersect(cur$MRN, en$mrn))
 ```
 
 ```{r}
@@ -467,4 +469,7 @@ go to script 011 for selecting qualified stool samples (Note, the dtb used is **
 go to script 035 (Also split out the nutritional drinks)
 
 # Also rerun the dominant species script and show the results of that  
+
+
+
 

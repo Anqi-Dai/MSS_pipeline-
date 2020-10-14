@@ -17,11 +17,58 @@ knitr::opts_chunk$set(echo = TRUE, message = F)
 library(tidyverse) 
 ```
 
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv') %>% 
+  mutate(Food_code = as.character(Food_code))
+```
+
+## regrouping fruit juice (citrus and non-citrus ) into sweet beverage group
+
+```{r}
+all_level_label <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')
+
+fruit2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
+  filter(str_detect(Level.code, '^6')) %>% 
+  filter(str_length(Level.code) == 2)
+
+sweets2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
+  filter(str_detect(Level.code, '^9')) %>% 
+  filter(str_length(Level.code) == 2)
+
+all_fruit <- dtb %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  distinct(Food_NSC, Food_code) %>% 
+  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2))  %>% 
+  left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
+  arrange(L2_grp) %>% 
+  # to revise the food code for the fruit juice citrus and non-citrus
+  mutate(is_juice = if_else(str_detect(Food_NSC, fixed('juice', ignore_case=TRUE)), T, F)) %>% 
+  # change the food code for the citrus juice 
+  mutate(Food_code = if_else(L2_grp == '61' & is_juice == 'TRUE', '92530610', Food_code)) %>% 
+  # change the food code for the non-citrus juice
+  mutate(Food_code = if_else(L2_grp == '64', '92510610', Food_code))  %>% 
+  # also updating the description 
+  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2)) %>% 
+  mutate(Main.food.description = if_else(Food_code == '92510610', 'Fruit juice drink',
+                                                    if_else(Food_code == '92530610', 'Fruit juice drink, with high vitamin C', Main.food.description)))
+
+juice_changed <- all_fruit %>% 
+  filter(str_detect(Food_code, '^9')) %>% 
+  select(-is_juice, -L2_grp) %>% 
+  rename(description = Main.food.description)
+
+# no need to change the food code for the raw orange, it is in its right form, the citrus fruit is separated from "other fruit". 
+
+# so what really happened is I split the fruit juice (citrus and non-citrus ) into sweet beverage group
+
+```
+
+
 ## updating the food code to create a new food group
 
 ```{r}
 # updating the food code of the nutritional drinks so that I can tease them apart
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv') 
+
 
 ndrink <- read_csv('../data/cleaned_diet_data/foods_sweets_group_95_tsoni_annotated.csv') %>% 
   filter(subcategory.tsoni == 'nutritional_supplement_often_urged_by_doctors_when_not_eating') %>% 

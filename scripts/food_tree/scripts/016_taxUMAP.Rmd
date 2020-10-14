@@ -54,6 +54,7 @@ link_all %>%
 
 ```
 
+**To do the umap I need the diet counts table and the food code taxa file.**
 
 ```{r}
 cts_all %>% 
