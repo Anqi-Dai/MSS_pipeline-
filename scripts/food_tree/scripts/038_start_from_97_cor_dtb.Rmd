@@ -275,70 +275,26 @@ en <- read_csv('../data/!question/NutritionSupport_DietPatients_peter.csv') %>%
 
 # the 5 EN patients are in the diet cohort, confirmed 
 length(intersect(cur$MRN, en$mrn))
-```
 
-```{r}
-# create *0* counts for the foods on TPN days since TPN doesn't go thru colon but they are actual foods  
-TPN <- read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>% 
-  filter(mrn %in% cur8$mrn) %>% 
-  rename(fdrt = Days.Post.HSCT) %>% 
-  mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
-  select(mrn, fdrt, nut_type) %>% 
-  filter(nut_type == 'TPN') 
 
-# to see if there is overlap between the normal diet and the above one
-overlap <- TPN %>% 
-  inner_join(cur8 %>% mutate(fdrt = as.numeric(fdrt))) %>% 
-  distinct(mrn, fdrt, nut_type)
- 
-overlap %>% 
-  distinct(nut_type)
-
-# the days the patients only have TPN
-TPN_clean <- TPN %>% 
-  left_join(overlap, by = c("mrn", "fdrt")) %>% 
-  filter(is.na(nut_type.y))  %>% 
-  rename(nut_type = nut_type.x) %>% 
-  select(-nut_type.y) %>% 
-  select(- nut_type)
-
-ftb_colnames <- colnames(cur8)
-
-# use all of the foods this patients has ever eaten as the food_nsc
-create_fake_food_cts_for_TPN_patient <- function(mrn_, fdrt_){
-  this_pt = cur8 %>% 
-    filter(mrn == mrn_) %>% 
-    distinct(mrn, Food_NSC, Food_code, description) %>% 
-    mutate(fdrt = fdrt_, 
-           Meal = "fake meal",
-           Por_eaten = 0,
-           Unit = "fake unit",
-           Calories_kcal = 0, 
-           Protein_g = 0, 
-           Fat_g = 0,
-           Carbohydrates_g = 0,
-           Fibers_g = 0,
-           Sugars_g =0,
-           Sodium_g =0,
-           dehydrated_weight = 0) %>% 
-    select(all_of(ftb_colnames))
-}
-         
-fake_TPN <- pmap_dfr(TPN_clean, function(mrn, fdrt){
-  create_fake_food_cts_for_TPN_patient(mrn, fdrt)
-} )
-```
-
-```{r}
-# some metric
+# how many patients had EN
 en %>% 
   distinct(mrn) %>% 
   nrow
-
-TPN %>% 
-  distinct(mrn) %>% 
-  nrow
 ```
+
+```{r}
+# how many patients had TPN
+# the most updated TPN EN table is below:
+tpn <- read_csv('../data/!question/NutritionSupport_DietPatients_peter.csv') %>% 
+  filter(`Nutrition Support` == 'TPN')
+
+
+tpn %>% 
+  distinct(MRN)
+```
+
+
 
 ## Correct some records that have abnormally high fat_g that got missed      
 
@@ -412,15 +368,79 @@ cur9 <- bind_rows(
   
 summary(cur9)
 
-summary(actual)
-actual %>% 
-  distinct(Food_NSC)
-
-range(actual$fdrt)
-
-actual %>% 
-  distinct(Food_code)
 ```
+
+## regrouping fruit juice (citrus and non-citrus ) into sweet beverage group
+
+```{r}
+all_level_label <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')
+
+fruit2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
+  filter(str_detect(Level.code, '^6')) %>% 
+  filter(str_length(Level.code) == 2)
+
+sweets2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
+  filter(str_detect(Level.code, '^9')) %>% 
+  filter(str_length(Level.code) == 2)
+
+all_fruit <- cur9 %>% 
+  mutate(Food_code = as.character(Food_code)) %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  distinct(Food_NSC, Food_code) %>% 
+  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2))  %>% 
+  left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
+  arrange(L2_grp) %>% 
+  # to revise the food code for the fruit juice citrus and non-citrus
+  mutate(is_juice = if_else(str_detect(Food_NSC, fixed('juice', ignore_case=TRUE)), T, F)) %>% 
+  # change the food code for the citrus juice 
+  mutate(Food_code = if_else(L2_grp == '61' & is_juice == 'TRUE', '92530610', Food_code)) %>% 
+  # change the food code for the non-citrus juice
+  mutate(Food_code = if_else(L2_grp == '64', '92510610', Food_code))  %>% 
+  # also updating the description 
+  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2)) %>% 
+  mutate(Main.food.description = if_else(Food_code == '92510610', 'Fruit juice drink',
+                                                    if_else(Food_code == '92530610', 'Fruit juice drink, with high vitamin C', Main.food.description)))
+
+juice_changed <- all_fruit %>% 
+  filter(str_detect(Food_code, '^9')) %>% 
+  select(-is_juice, -L2_grp) %>% 
+  rename(description = Main.food.description)
+
+# no need to change the food code for the raw orange, it is in its right form, the citrus fruit is separated from "other fruit". 
+
+# so what really happened is I split the fruit juice (citrus and non-citrus ) into sweet beverage group
+```
+
+
+```{r}
+# updating the above info in the dtb 
+cur10_split  <- cur9 %>% 
+  mutate(Food_code = as.character(Food_code)) %>% 
+  split(.$Food_NSC %in% juice_changed$Food_NSC)
+  
+# replace the food code and description for the things that changed 
+cur10_split_change <-  cur10_split %>% 
+  pluck('TRUE') %>% 
+  select(-Food_code, -description) %>% 
+  left_join(juice_changed, by  = 'Food_NSC') %>% 
+  select(colnames(dtb))
+
+cur10 <- bind_rows( 
+  cur10_split_change,
+  cur10_split %>% pluck('FALSE')
+)
+```
+
+```{r}
+# double check the calo ==0 stuff
+cal0 <- dtbj %>% 
+  filter(Calories_kcal == 0) %>% 
+  distinct(Food_NSC, Food_code, .keep_all = T) %>% 
+  arrange(Food_code) %>% 
+  filter(Unit != 'fake unit')
+```
+
+
 
 ## Finalize the data
 
@@ -433,13 +453,6 @@ actual %>% nrow
 actual %>% 
   write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
 
-# including the fake TPN
-ALL <- bind_rows(actual %>%  mutate(fdrt = as.numeric(fdrt)), fake_TPN)
-
-ALL %>% nrow
-
-ALL %>% 
-  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv')
 ```
 
 ```{r}
