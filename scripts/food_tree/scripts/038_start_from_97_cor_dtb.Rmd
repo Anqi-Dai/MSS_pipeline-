@@ -428,16 +428,29 @@ cur10_split_change <-  cur10_split %>%
 cur10 <- bind_rows( 
   cur10_split_change,
   cur10_split %>% pluck('FALSE')
-)
+) %>% 
+  mutate(Food_code = as.numeric(Food_code))
 ```
 
 ```{r}
 # double check the calo ==0 stuff
-cal0 <- dtbj %>% 
+cal0 <- cur10 %>% 
   filter(Calories_kcal == 0) %>% 
   distinct(Food_NSC, Food_code, .keep_all = T) %>% 
-  arrange(Food_code) %>% 
-  filter(Unit != 'fake unit')
+  arrange(Food_code) 
+
+# the "2017 Juice,  Orange (1)" and "2017 Condiments, Lemon, Wedge" has some problems
+# it couldn't have a cal of 0, and the current dehydrated wt calculated from total weight is even smaller than a component like sugar.
+
+question_citrus <- cur10 %>% 
+  filter(Food_NSC %in% c('2017 Juice,  Orange (1)','2017 Condiments, Lemon, Wedge')) %>% 
+  arrange(Food_NSC, Unit, Por_eaten) %>% 
+  group_by(Food_NSC, Unit) %>% 
+  slice(1) %>% 
+  select(Food_NSC:Sodium_g)
+
+question_citrus %>% 
+  write_csv('../data/!question/citrus_cal_0_problem.csv')
 ```
 
 
@@ -446,12 +459,12 @@ cal0 <- dtbj %>%
 
 ```{r}
 # actual food records (excluding fake TPN)
-actual <- bind_rows(cur9, en)
+actual <- bind_rows(cur10, en)
 
-actual %>% nrow
+actual %>% nrow 
 
 actual %>% 
-  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 
 ```
 

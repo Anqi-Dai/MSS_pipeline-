@@ -18,108 +18,33 @@ library(tidyverse)
 ```
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8.csv') %>% 
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
   mutate(Food_code = as.character(Food_code))
 ```
 
-## regrouping fruit juice (citrus and non-citrus ) into sweet beverage group
+## updating the food code to split and create the new group : ndrink and EN
 
-```{r}
-all_level_label <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')
-
-fruit2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
-  filter(str_detect(Level.code, '^6')) %>% 
-  filter(str_length(Level.code) == 2)
-
-sweets2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
-  filter(str_detect(Level.code, '^9')) %>% 
-  filter(str_length(Level.code) == 2)
-
-all_fruit <- dtb %>% 
-  filter(str_detect(Food_code, '^6')) %>% 
-  distinct(Food_NSC, Food_code) %>% 
-  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2))  %>% 
-  left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
-  arrange(L2_grp) %>% 
-  # to revise the food code for the fruit juice citrus and non-citrus
-  mutate(is_juice = if_else(str_detect(Food_NSC, fixed('juice', ignore_case=TRUE)), T, F)) %>% 
-  # change the food code for the citrus juice 
-  mutate(Food_code = if_else(L2_grp == '61' & is_juice == 'TRUE', '92530610', Food_code)) %>% 
-  # change the food code for the non-citrus juice
-  mutate(Food_code = if_else(L2_grp == '64', '92510610', Food_code))  %>% 
-  # also updating the description 
-  mutate(L2_grp = str_sub(Food_code, start = 1, end = 2)) %>% 
-  mutate(Main.food.description = if_else(Food_code == '92510610', 'Fruit juice drink',
-                                                    if_else(Food_code == '92530610', 'Fruit juice drink, with high vitamin C', Main.food.description)))
-
-juice_changed <- all_fruit %>% 
-  filter(str_detect(Food_code, '^9')) %>% 
-  select(-is_juice, -L2_grp) %>% 
-  rename(description = Main.food.description)
-
-# no need to change the food code for the raw orange, it is in its right form, the citrus fruit is separated from "other fruit". 
-
-# so what really happened is I split the fruit juice (citrus and non-citrus ) into sweet beverage group
-```
-
-
-```{r}
-# updating the above info in the dtb 
-dtbj_split  <- dtb %>% 
-  split(.$Food_NSC %in% juice_changed$Food_NSC)
-  
-# replace the food code and description for the things that changed 
-dtbj_split_change <-  dtbj_split %>% 
-  pluck('TRUE') %>% 
-  select(-Food_code, -description) %>% 
-  left_join(juice_changed, by  = 'Food_NSC') %>% 
-  select(colnames(dtb))
-
-dtbj <- bind_rows( 
-  dtbj_split_change,
-  dtbj_split %>% pluck('FALSE')
-)
-```
-
-Find some 
-
-## updating the food code to create a new food group
+**The original 95 is split from the sweets group, and it divides into sub group EN and non-EN**
 
 ```{r}
 # updating the food code of the nutritional drinks so that I can tease them apart
 ndrink <- read_csv('../data/cleaned_diet_data/foods_sweets_group_95_tsoni_annotated.csv') %>% 
-  filter(subcategory.tsoni == 'nutritional_supplement_often_urged_by_doctors_when_not_eating') %>% 
   mutate(Food_code = as.character(Food_code)) %>% 
   mutate(grp = if_else(str_detect(Food_code, '^951070'), 'ENfood', 'ndrink')) %>% 
   split(.$grp)
 
+new_ndrink_food_nsc <- ndrink %>% pluck('ndrink') %>% pull(Food_NSC)
+
+en_food_nsc <- ndrink %>% pluck('ENfood') %>% pull(Food_NSC)
+ 
 dtbn <- dtb %>% 
-  mutate(Food_code = as.character(Food_code)) %>% 
-  mutate(Food_code = if_else(Food_NSC %in% ndrink$Food_NSC, 
+  mutate(Food_code = if_else(Food_NSC %in% new_ndrink_food_nsc, 
                              str_replace(Food_code, '^9','N'),
-                             Food_code))
+                             if_else(Food_NSC %in% en_food_nsc, str_replace(Food_code, '^9','E'), Food_code)))
 
 dtbn %>% 
-  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_and_TPN_Oct8_UPDATED10.csv')
-
-ndrink %>% 
-  arrange(Food_NSC) %>%  
-  write_csv('../data/ndrink.csv')
-```
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized_UPDATED11.csv')
  
-### split between EN fluid food and the nutritional drink
-
-```{r}
-en_food_nsc <- ndrink %>% pluck('ENfood') %>% pull(Food_NSC)
-  
-ndrink_food_nsc <- ndrink %>% pluck('ndrink') %>% pull(Food_NSC)
-
-dtbnv <- dtb %>% 
-  mutate(Food_code = as.character(Food_code)) %>% 
-  mutate(Food_code = if_else(Food_NSC %in% ndrink_food_nsc, 
-                             str_replace(Food_code, '^9','N'),
-                             if_else(Food_NSC %in% en_food_nsc, 
-                                     str_replace(Food_code, '^9','E'), Food_code)))
 ```
  
 
