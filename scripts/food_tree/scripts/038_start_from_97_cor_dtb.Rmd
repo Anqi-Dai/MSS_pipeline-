@@ -294,8 +294,6 @@ tpn %>%
   distinct(MRN)
 ```
 
-
-
 ## Correct some records that have abnormally high fat_g that got missed      
 
 ```{r}
@@ -411,7 +409,6 @@ juice_changed <- all_fruit %>%
 # so what really happened is I split the fruit juice (citrus and non-citrus ) into sweet beverage group
 ```
 
-
 ```{r}
 # updating the above info in the dtb 
 cur10_split  <- cur9 %>% 
@@ -431,6 +428,8 @@ cur10 <- bind_rows(
 ) %>% 
   mutate(Food_code = as.numeric(Food_code))
 ```
+
+## correcting few citrus entries that are mistakenly 0 calories
 
 ```{r}
 # double check the calo ==0 stuff
@@ -454,6 +453,63 @@ question_citrus %>%
 ```
 
 
+```{r}
+# corrcting the few citrus  --- orange juice and lemon
+citrus_cor <- read_csv('../data/!question/citrus_cal_0_problem_peter.csv') %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T)
+
+all_citrus <- cur10 %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T)  %>% 
+  filter(food_full %in% citrus_cor$food_full) %>% 
+  select(mrn:Por_eaten, fdrt, Food_code, description) %>% 
+  left_join(citrus_cor) %>% 
+  arrange(food_full, Calories_kcal)
+
+all_citrus_res <- all_citrus %>% 
+  group_by(food_full) %>% 
+  mutate(Calories_kcal = Calories_kcal[1],
+         Protein_g = Protein_g[1],
+         Fat_g = Fat_g[1],
+         Carbohydrates_g = Carbohydrates_g[1],
+         Fibers_g = Fibers_g[1],
+         Sugars_g = Sugars_g[1],
+         Sodium_g = Sodium_g[1],
+         Food_code = Food_code[1],
+         description = description[1]) %>% 
+  split(.$food_full) %>% 
+  map_dfr(~ mutate(.data = ., ratio = Por_eaten/Por_eaten[1]) %>% 
+        split(.$Por_eaten) %>% 
+        map_dfr(~ mutate(.data = .,   
+                   Calories_kcal = Calories_kcal*ratio,
+                   Protein_g = Protein_g*ratio,
+                   Fat_g = Fat_g*ratio,
+                   Carbohydrates_g = Carbohydrates_g*ratio,
+                   Fibers_g = Fibers_g*ratio,
+                   Sugars_g = Sugars_g*ratio,
+                   Sodium_g = Sodium_g*ratio)) %>% 
+        select(-ratio)) %>% 
+   separate(food_full, into = c('Food_NSC','Unit'), sep = '__') 
+
+
+# add the dehydrated weight 
+all_citrus_res_full <- all_citrus_res %>% 
+  left_join(engy, by  = 'Food_code')  %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0.0001, total_weight*(1 - Water_g/100))) %>% 
+  select(-Energy_kcal, -total_weight, -Water_g) %>% 
+  select(colnames(cur10))
+
+
+# now merge this corrected portion back to the whole dataset 
+citrus_cor_split <- cur10 %>% 
+  unite(col = 'food_full', Food_NSC:Unit, sep = '__', remove = T)  %>% 
+  split(.$food_full %in% citrus_cor$food_full)
+
+cur11 <- bind_rows(
+  all_citrus_res_full,
+  citrus_cor_split %>% pluck('FALSE') %>% separate(food_full, into = c('Food_NSC','Unit'), sep = '__') 
+)
+```
 
 ## Finalize the data
 
@@ -470,19 +526,19 @@ actual %>%
 
 ```{r}
 # a histgram to see the distribution of the cal and nutrients?
-cur9 %>% 
-  select(ends_with('_g')) %>% 
-  gather('item', 'value') %>% 
-  mutate(logvalue = log(value +0.001)) %>% 
-  ggpubr::gghistogram(x = 'logvalue', bins = 60, fill = 'forestgreen') +
-  facet_wrap(~item, scales = 'free') +
-  ggsave('../figs/cur9_nutrients.pdf', width = 12, height = 7)
-
-cur9 %>% 
-  select(Calories_kcal, ends_with('_g')) %>% 
-  gather('item', 'value') %>% 
-  ggpubr::ggboxplot(y = 'value') +
-  facet_wrap(~item, scales = 'free')
+# cur9 %>% 
+#   select(ends_with('_g')) %>% 
+#   gather('item', 'value') %>% 
+#   mutate(logvalue = log(value +0.001)) %>% 
+#   ggpubr::gghistogram(x = 'logvalue', bins = 60, fill = 'forestgreen') +
+#   facet_wrap(~item, scales = 'free') +
+#   ggsave('../figs/cur9_nutrients.pdf', width = 12, height = 7)
+# 
+# cur9 %>% 
+#   select(Calories_kcal, ends_with('_g')) %>% 
+#   gather('item', 'value') %>% 
+#   ggpubr::ggboxplot(y = 'value') +
+#   facet_wrap(~item, scales = 'free')
 ```
 
  
@@ -495,7 +551,5 @@ go to script 011 for selecting qualified stool samples (Note, the dtb used is **
 go to script 035 (Also split out the nutritional drinks)
 
 # Also rerun the dominant species script and show the results of that  
-
-
 
 
