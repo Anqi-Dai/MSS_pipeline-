@@ -314,7 +314,5 @@ combined %>%
 # so the nutritional drink could be lowering the diversity
 ```
 
-```{r}
-fn <- read_tsv('../../ppp_Nilu/data/lefse_res/lefse_input_table.tsv', col_names = F)
-```
+
 
