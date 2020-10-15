@@ -14,7 +14,8 @@ knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
-library(tidyverse) 
+library(tidyverse)  
+library(lubridate)
 ```
 
 ```{r}
@@ -218,7 +219,7 @@ model_brm <- brm( log(simpson_reciprocal)~
               warmup = 1000, iter = 3000, 
               cores = 8, chains = 2, 
               seed = 123) 
-plot(model_brm)
+
 summary(model_brm)
 ```
 
@@ -264,7 +265,7 @@ ggplot()+
        title = 'Posterior distribution of regression coefficient for food groups') +
   theme(axis.text.y = element_text(size=20)) +
   theme_tufte() +
-  ggsave('../figs/posteiror_brms_fg_only.pdf', width = 6, height = 6)
+  ggsave('../figs/posteiror_brms_fg_only.pdf', width = 6, height = 6) 
 ```
 
 
@@ -273,41 +274,41 @@ ggplot()+
 ```{r}
 # do the patients have EN and regular eating at the same time?
  # no , when they had EN, they don't eat regular food
-overlap <- en %>% 
-  select(mrn, fdrt) %>% 
-  inner_join(cur8)
-
-# what's the correlation between daily total calories and daily consumption of the nutritional drink(not the EN ones)
-# the patients and the days that they had nutritional drink
-ndrink_pt <- dtbnv %>% 
-  filter(str_detect(Food_code, '^N')) %>% 
-  distinct(mrn, fdrt)
-
-# the total daily calories of the patients on those days
-
-all_daily_ndrink_pt <- dtbnv %>% 
-  group_by(mrn, fdrt) %>% 
-  summarise(total_daily = sum(Calories_kcal)) %>% 
-  inner_join(ndrink_pt)
-
-
-# per day sum up the amount of nutritional drink
-ndrink_pt_sum <- dtbnv %>% 
-  filter(str_detect(Food_code, '^N')) %>% 
-  group_by(mrn, fdrt) %>% 
-  summarise(ndrink_sum = sum(dehydrated_weight))
-
-combined <- all_daily_ndrink_pt %>% 
-  full_join(ndrink_pt_sum)
-
-combined %>% 
-  ggpubr::ggscatter(x = 'total_daily', y = 'ndrink_sum', 
-                    xlab = 'Total daily calories',ylab = 'Total daily nutritional drink (dehydrated wt)',
-            add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) 
+# overlap <- en %>% 
+#   select(mrn, fdrt) %>% 
+#   inner_join(cur8)
+# 
+# # what's the correlation between daily total calories and daily consumption of the nutritional drink(not the EN ones)
+# # the patients and the days that they had nutritional drink
+# ndrink_pt <- dtbnv %>% 
+#   filter(str_detect(Food_code, '^N')) %>% 
+#   distinct(mrn, fdrt)
+# 
+# # the total daily calories of the patients on those days
+# 
+# all_daily_ndrink_pt <- dtbnv %>% 
+#   group_by(mrn, fdrt) %>% 
+#   summarise(total_daily = sum(Calories_kcal)) %>% 
+#   inner_join(ndrink_pt)
+# 
+# 
+# # per day sum up the amount of nutritional drink
+# ndrink_pt_sum <- dtbnv %>% 
+#   filter(str_detect(Food_code, '^N')) %>% 
+#   group_by(mrn, fdrt) %>% 
+#   summarise(ndrink_sum = sum(dehydrated_weight))
+# 
+# combined <- all_daily_ndrink_pt %>% 
+#   full_join(ndrink_pt_sum)
+# 
+# combined %>% 
+#   ggpubr::ggscatter(x = 'total_daily', y = 'ndrink_sum', 
+#                     xlab = 'Total daily calories',ylab = 'Total daily nutritional drink (dehydrated wt)',
+#             add = "reg.line",  # Add regressin line
+#            add.params = list(color = "blue", fill = "lightgray"), # Customize line
+#            conf.int = TRUE, # Add confidence interval
+#            cor.coef = TRUE, # Add correlation coefficient.
+#            cor.coeff.args = list(method = "pearson", label.x = 3, label.sep = "\n")) 
 
 # in terms of the nutritional drink (excluding the EN) it's not highly correlated with total calories, cor = 0.49
 # so the patients are still eating

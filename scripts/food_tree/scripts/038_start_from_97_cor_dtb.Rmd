@@ -508,14 +508,14 @@ citrus_cor_split <- cur10 %>%
 cur11 <- bind_rows(
   all_citrus_res_full,
   citrus_cor_split %>% pluck('FALSE') %>% separate(food_full, into = c('Food_NSC','Unit'), sep = '__') 
-)
+) 
 ```
 
 ## Finalize the data
 
 ```{r}
 # actual food records (excluding fake TPN)
-actual <- bind_rows(cur10, en)
+actual <- bind_rows(cur11, en) 
 
 actual %>% nrow 
 
@@ -526,19 +526,19 @@ actual %>%
 
 ```{r}
 # a histgram to see the distribution of the cal and nutrients?
-# cur9 %>% 
-#   select(ends_with('_g')) %>% 
-#   gather('item', 'value') %>% 
-#   mutate(logvalue = log(value +0.001)) %>% 
-#   ggpubr::gghistogram(x = 'logvalue', bins = 60, fill = 'forestgreen') +
-#   facet_wrap(~item, scales = 'free') +
-#   ggsave('../figs/cur9_nutrients.pdf', width = 12, height = 7)
-# 
-# cur9 %>% 
-#   select(Calories_kcal, ends_with('_g')) %>% 
-#   gather('item', 'value') %>% 
-#   ggpubr::ggboxplot(y = 'value') +
-#   facet_wrap(~item, scales = 'free')
+cur11 %>%
+  select(ends_with('_g')) %>%
+  gather('item', 'value') %>%
+  mutate(logvalue = log(value +0.001)) %>%
+  ggpubr::gghistogram(x = 'logvalue', bins = 60, fill = 'forestgreen') +
+  facet_wrap(~item, scales = 'free') +
+  ggsave('../figs/cur9_nutrients.pdf', width = 12, height = 7)
+
+cur11 %>%
+  select(Calories_kcal, ends_with('_g')) %>%
+  gather('item', 'value') %>%
+  ggpubr::ggboxplot(y = 'value') +
+  facet_wrap(~item, scales = 'free')
 ```
 
  
