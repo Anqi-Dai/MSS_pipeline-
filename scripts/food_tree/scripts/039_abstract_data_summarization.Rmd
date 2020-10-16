@@ -1,0 +1,101 @@
+---
+title: "For abstract"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+## import data
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = as.factor(mrn))
+```
+
+## visualize the p2d meta with drt
+
+```{r}
+library(randomcoloR)
+set.seed(112)
+n <- 10
+palette <- distinctColorPalette(n)
+#pie(rep(1, n), col=palette)
+set2_palette <- 
+
+# without EN
+fg <- meta %>% 
+  select(sdrt, starts_with('fg')) %>% 
+  select(-fg_EN) %>% 
+  gather('term', 'value', names(.)[2]:names(.)[ncol(.)]) %>% 
+  ggscatter(x = 'sdrt',y = 'value', color = 'term', palette = palette, alpha = 0.3,
+            add = "loess", add.params = list(size = 3),
+            xlab = '', ylab = 'Gram weight') + 
+  scale_y_sqrt() +
+  theme(legend.position = 'right') +
+  ggsave('../figs/p2d_meta_fg_sdrt.pdf', width = 9, height = 9)
+
+
+# with EN
+# palette11 <- distinctColorPalette(11)
+# meta %>% 
+#   select(sdrt, starts_with('fg')) %>% 
+#   #select(-fg_EN) %>% 
+#   gather('term', 'value', names(.)[2]:names(.)[ncol(.)]) %>% 
+#   ggscatter(x = 'sdrt',y = 'value', color = 'term', palette = palette11, alpha = 0.3,
+#             add = "loess", add.params = list(size = 3),
+#             #xlab = 'Day relative to transplant', 
+#             ylab = 'Gram weight') + 
+#   scale_y_sqrt() +
+#   ggsave('../figs/p2d_meta_fg_sdrt_with_EN.pdf', width = 9, height = 9)
+
+```
+
+```{r}
+# the stool diversity change over time
+stool <- meta %>% 
+  mutate(log_div = log(simpson_reciprocal)) %>% 
+  ggscatter(x = 'sdrt', y = 'log_div', alpha = 0.3, color = 'intensity',xlab = '',
+            ylab = 'log(diversity)',
+            add = 'loess', add.params = list(size = 3)) + ggsci::scale_color_uchicago()+
+  theme(legend.position = 'right')
+stool
+```
+
+
+```{r}
+stool_empirical <-   meta %>% 
+  mutate(log_div = log(simpson_reciprocal)) %>% 
+  ggscatter(x = 'sdrt', y = 'log_div', alpha = 0.3, color = 'empirical', xlab = 'Day relative to transplant',
+            ylab = 'log(diversity)',
+            add = 'loess', add.params = list(size = 3)) + ggsci::scale_color_startrek() +
+  theme(legend.position = 'right')
+
+stool_empirical 
+```
+
+
+### combine plots
+
+```{r}
+library(grid)
+library(cowplot)
+g <- plot_grid(fg, stool,  stool_empirical, 
+          nrow = 3, 
+          align = 'hv',
+          rel_heights = c(5, 2, 2),
+          axis = 'b') +
+  ggsave('../figs/p2d_meta_fg_sdrt_combined.pdf', width = 8, height = 8)
+
+gridExtra::grid.arrange(fg, stool,  stool_empirical) +
+  ggsave('../figs/p2d_meta_fg_sdrt_combined_.pdf', width = 8, height = 8)
+```
+
