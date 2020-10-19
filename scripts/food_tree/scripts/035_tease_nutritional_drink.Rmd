@@ -247,7 +247,10 @@ ggplot()+
   theme_ridges() +
   scale_x_continuous(limits = c(-1.38,0.25)) +
   ggsave('../figs/posteiror_brms.pdf', width = 10, height = 10)
+```
 
+
+```{r}
 # make a version that only has food groups
 posterior_model_only_food_group <- posterior_model %>% 
   filter(str_detect(item, '_fg_'))
@@ -266,6 +269,65 @@ ggplot()+
   theme(axis.text.y = element_text(size=20)) +
   theme_tufte() +
   ggsave('../figs/posteiror_brms_fg_only.pdf', width = 6, height = 6) 
+```
+
+```{r}
+# make modifications for the abstract
+# calculate the sugar percentage in each food group using dtb
+sugar_perc_all <- dtbn %>% 
+  select(Food_code, ends_with('_g')) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  select(-Food_code) %>% 
+  gather('type', 'gram', Protein_g:Sodium_g) 
+
+sugar_perc_total <- sugar_perc_all  %>% 
+  group_by(fgrp1) %>% 
+  summarise(total = sum(gram))
+
+sugar_perc_sugar <- sugar_perc_all  %>% 
+  filter(type == 'Sugars_g') %>% 
+  group_by(fgrp1) %>% 
+  summarise(total_sugar = sum(gram))
+
+sugar_df <- sugar_perc_total %>% 
+  full_join(sugar_perc_sugar) %>% 
+  mutate(sugar_frac = total_sugar/total) %>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets',
+    fgrp1 == 'N' ~ 'fg_ndrink',
+    fgrp1 == 'E' ~ 'fg_EN'
+  )) %>% 
+  mutate(sugar_perc = round(sugar_frac*100, 1))
+```
+
+
+```{r}
+# list the 2.5% and 97.5% quantile and mean for each food group
+posterior_fg_df <- posterior_model_only_food_group %>% 
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(value, probs = 0.025),
+            q97.5 = quantile(value, probs = 0.975),
+            q50 = quantile(value, probs = 0.5)) %>% 
+  mutate(item = str_replace(item, 'b_fg_',''))
+
+posterior_fg_df %>% 
+  arrange(q50) %>% 
+  ggscatter(x = 'item', y = 'q50', color = 'red') +
+  geom_errorbar(aes( ymin  = q2.5,
+                   ymax  = q97.5,
+                   width = 0.25)) +
+  geom_hline(yintercept = 0, col = "firebrick", linetype = 'dashed') +
+  coord_flip() +
+  ylim(-0.01, 0.018)
+
 ```
 
 
