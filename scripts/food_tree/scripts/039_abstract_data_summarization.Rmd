@@ -168,6 +168,10 @@ cts_genus_fil_pcoa %>%
 # ok forget about it the pattern isn't as clear as when I do coloring the diet beta with diet alpha
 ```
 
+
+
+
+
 ## Just stack the diet alpha and stool alpha together 
 
 Tho the diet table values changed, the foods did not change, so the diet faith alpha should not change.
@@ -213,4 +217,37 @@ alpha <- plot_grid(diet_alpha, stool_alpha,
           axis = 'b') 
 alpha 
 ```
+
+## fruit and ndrink boxplot and sdrt
+
+```{r}
+box2 <- meta %>% 
+  select(fg_ndrink, fg_fruit, timebin)
+
+grp2 <- box2 %>% 
+  gather('grp', 'gram', fg_ndrink:fg_fruit) %>% 
+  ggboxplot(x = 'timebin', y = 'gram', color = 'grp', add = 'jitter', palette = 'nejm', alpha = 0.6) +
+  scale_y_sqrt() 
+
+
+# I can try putting the diversity into box in the timebins too
+food_box <- faith %>% 
+  mutate(timebin = cut_width(fdrt, 7, boundary=0, closed = 'left')) %>% 
+  ggboxplot(x = 'timebin', y = 'faith_pd', add = 'jitter', color = 'darkgreen', alpha = 0.6) +
+  scale_y_sqrt()+
+  scale_x_discrete(limits = c("[-14,-7)", "[-7,0)" ,  "[0,7)"  ,  "[7,14)" ,  "[14,21)"  ,"[21,28)" , "[28,35)" , "[35,42)" , "[42,49]" ,'(49,56]' ))
+
+stool_box <- meta %>% 
+  ggboxplot(x = 'timebin', y = 'simpson_reciprocal', add = 'jitter', color = 'darkgoldenrod4', alpha = 0.6) +
+  scale_y_sqrt()
+
+box_combined <- plot_grid(grp2, food_box, stool_box, 
+          nrow = 3, 
+          align = 'hv',
+          #rel_heights = c(1,1),
+          axis = 'b')  +
+  ggsave('../figs/three_box.pdf', width = 8, height = 10)
+
+
+``` 
 
