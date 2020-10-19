@@ -168,3 +168,49 @@ cts_genus_fil_pcoa %>%
 # ok forget about it the pattern isn't as clear as when I do coloring the diet beta with diet alpha
 ```
 
+## Just stack the diet alpha and stool alpha together 
+
+Tho the diet table values changed, the foods did not change, so the diet faith alpha should not change.
+
+```{r}
+faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
+  separate(X1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) %>% 
+  left_join(ptb %>% select(mrn, source, intensity), by = 'mrn')
+
+diet_alpha <- faith %>% 
+  ggscatter('fdrt', 'faith_pd', 
+             alpha = 0.8,
+            color = 'chartreuse4',
+            #size = 1,
+            ylab = 'Food alpha diversity', 
+            xlab = '',
+            title = '',
+            add = "loess", 
+            add.params = list(color = "darkgreen", fill = "darkgray", size = 2), 
+            conf.int = TRUE) +
+  xlim(-10, 50)+
+  scale_x_continuous(breaks = seq(-10, 50, 10))
+
+# combine with stool alpha diversity
+stool_alpha <- meta %>% 
+  mutate(log_div = log(simpson_reciprocal)) %>% 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = 0.8, 
+            xlab = 'Day relative to transplant',
+            ylab = 'Microbiome alpha diversity',
+            add = "loess", color = 'darkgoldenrod',
+            add.params = list(color = "darkgoldenrod4", fill = "darkgray", size = 2), 
+            conf.int = TRUE) +
+  xlim(-10, 50) +
+  scale_x_continuous(breaks = seq(-10, 50, 10))
+  
+
+# combine them
+alpha <- plot_grid(diet_alpha, stool_alpha, 
+          nrow = 2, 
+          align = 'hv',
+          rel_heights = c(1,1),
+          axis = 'b') 
+alpha 
+```
+
