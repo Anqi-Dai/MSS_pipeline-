@@ -305,7 +305,9 @@ sugar_df <- sugar_perc_total %>%
     fgrp1 == 'N' ~ 'fg_ndrink',
     fgrp1 == 'E' ~ 'fg_EN'
   )) %>% 
-  mutate(sugar_perc = round(sugar_frac*100, 1))
+  mutate(sugar_perc = round(sugar_frac*100, 1)) %>% 
+  mutate(sugar_perc = str_glue('{sugar_perc}%')) %>% 
+  mutate(fg1_name = str_replace(fg1_name, 'fg_','')) 
 ```
 
 
@@ -316,7 +318,8 @@ posterior_fg_df <- posterior_model_only_food_group %>%
   summarise(q2.5 = quantile(value, probs = 0.025),
             q97.5 = quantile(value, probs = 0.975),
             q50 = quantile(value, probs = 0.5)) %>% 
-  mutate(item = str_replace(item, 'b_fg_',''))
+  mutate(item = str_replace(item, 'b_fg_',''))  %>% 
+  full_join(sugar_df %>% select(item = fg1_name, sugar_perc))
 
 posterior_fg_df %>% 
   arrange(q50) %>% 
@@ -325,6 +328,7 @@ posterior_fg_df %>%
                    ymax  = q97.5,
                    width = 0.25)) +
   geom_hline(yintercept = 0, col = "firebrick", linetype = 'dashed') +
+  geom_text(aes(x = item, y = -0.01, label = sugar_perc)) +
   coord_flip() +
   ylim(-0.01, 0.018)
 
