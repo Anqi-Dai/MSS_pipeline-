@@ -224,10 +224,15 @@ alpha
 box2 <- meta %>% 
   select(fg_ndrink, fg_fruit, timebin)
 
-grp2 <- box2 %>% 
+box2 %>% 
+  group_by(timebin) %>% 
+  summarise(median_frui = median(fg_fruit),
+            median_fg_ndrink = median(fg_ndrink))
+
+grp2 <- box2 %>%  
   gather('grp', 'gram', fg_ndrink:fg_fruit) %>% 
-  ggboxplot(x = 'timebin', y = 'gram', color = 'grp', add = 'jitter', palette = 'nejm', alpha = 0.6) +
-  scale_y_sqrt() 
+  ggviolin(x = 'timebin', y = 'gram', color = 'grp', palette = 'nejm', alpha = 0.6) +
+  scale_y_sqrt()  
 
 
 # I can try putting the diversity into box in the timebins too
@@ -250,4 +255,37 @@ box_combined <- plot_grid(grp2, food_box, stool_box,
 
 
 ``` 
+
+## some simple summary stats
+
+```{r}
+summary(ptb$age)
+
+ptb %>% 
+  count(intensity) %>% 
+  mutate(perc = round(n/97*100, 0))
+```
+
+```{r}
+dtbn %>% 
+  distinct(mrn, Meal, fdrt) %>% 
+  arrange(mrn, fdrt, Meal)
+```
+
+```{r}
+# daily consumption of the nutrients average of the patients?
+ave_day <- dtbn %>% 
+  select(mrn, fdrt, ends_with('_g')) %>% 
+  gather('type', 'value', Protein_g:Sodium_g) %>% 
+  group_by(mrn, fdrt, type) %>% 
+  summarise(total_day = sum(value)) %>% 
+  group_by(type) %>% 
+  summarise(ave_pt = mean(total_day))
+
+
+p2d_ave <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(mean) %>% 
+  gather('key', 'value')
+```
 
