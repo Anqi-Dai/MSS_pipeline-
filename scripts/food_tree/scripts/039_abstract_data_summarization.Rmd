@@ -222,19 +222,28 @@ alpha
 
 ```{r}
 box2 <- meta %>% 
-  select(fg_ndrink, fg_fruit, timebin)
+  select(fg_fruit, fg_ndrink, fg_sweets, timebin)
 
 box2 %>% 
   group_by(timebin) %>% 
   summarise(median_frui = median(fg_fruit),
             median_fg_ndrink = median(fg_ndrink))
+```
 
+
+```{r}
 grp2 <- box2 %>%  
-  gather('grp', 'gram', fg_ndrink:fg_fruit) %>% 
-  ggviolin(x = 'timebin', y = 'gram', color = 'grp', palette = 'nejm', alpha = 0.6) +
-  scale_y_sqrt()  
+  gather('grp', 'gram', fg_fruit:fg_sweets) %>% 
+  ggboxplot(x = 'timebin', y = 'gram', color = 'grp', add = 'jitter', palette = 'nejm', 
+            add.params = list(alpha = 0.4)) +
+  scale_y_sqrt() +
+  facet_grid(grp~., scales = 'free_y') +
+  stat_summary(fun.y = median, geom = 'line', aes(group = grp, colour =grp))
+grp2
+```
 
 
+```{r}
 # I can try putting the diversity into box in the timebins too
 food_box <- faith %>% 
   mutate(timebin = cut_width(fdrt, 7, boundary=0, closed = 'left')) %>% 
@@ -244,17 +253,18 @@ food_box <- faith %>%
 
 stool_box <- meta %>% 
   ggboxplot(x = 'timebin', y = 'simpson_reciprocal', add = 'jitter', color = 'darkgoldenrod4', alpha = 0.6) +
-  scale_y_sqrt()
+  scale_y_sqrt()+
+  stat_summary(fun = median, geom = 'line', group = 1, color = 'darkgoldenrod4')
 
-box_combined <- plot_grid(grp2, food_box, stool_box, 
-          nrow = 3, 
+box_combined <- plot_grid(grp2, stool_box, 
+          nrow = 2, 
           align = 'hv',
-          #rel_heights = c(1,1),
+          rel_heights = c(3,1),
           axis = 'b')  +
   ggsave('../figs/three_box.pdf', width = 8, height = 10)
 
 
-``` 
+```
 
 ## some simple summary stats
 
