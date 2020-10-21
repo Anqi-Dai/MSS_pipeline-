@@ -48,7 +48,7 @@ percent_var <- signif(eigen/sum(eigen), 3)*100
 meta <-  read_csv('../data/cleaned_diet_data/wide_food_grp-and_nutrients_total.csv')
 
 #pcoa
-pcoa_f <- as.data.frame(pcoa(food_dist)$vectors) %>% 
+pcoa_f <- as.data.frame(ape::pcoa(food_dist)$vectors) %>% 
   select(Axis.1, Axis.2, Axis.3) %>% 
   rownames_to_column('fid') %>% 
   separate(fid, into = c('mrn','fdrt'), sep = 'd', convert = T) %>% 

@@ -19,7 +19,7 @@ connect_database(config_file = '~/dbConfig.txt')
 ```
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ```
 
 
@@ -47,14 +47,62 @@ demo %>%
 
 ## the transplant info, only the source and intensity for now
 
+```{r}
+# getting the conmorbitity index from the table
+list_table_from_database(pattern = 'comorbidity')
+get_table_from_database('comorbidity_index_ag')
+
+ci_pt <- patients_msk_comorbidity_index_ag %>% 
+  filter(mrn %in% dtb$mrn)
+```
+
+
 also getting the age and sex from this table
 
 ```{r}
 get_table_from_database('patient_allo_ag')
 
+# Collapse MSKCC messy diseases into broad, simplified categories
+patient_allo_ag$disease.simple[patient_allo_ag$disease == "Leukemia" &
+                                         patient_allo_ag$sub_hist == "Acute" &
+                                         patient_allo_ag$sub_sub_hist == "Myelogenous"] <- "AML"
+patient_allo_ag$disease.simple[patient_allo_ag$disease == "Leukemia" &
+                                         patient_allo_ag$sub_hist == "Acute" &
+                                         patient_allo_ag$sub_sub_hist == "Lymphoblastic"] <- "ALL"
+patient_allo_ag$disease.simple[patient_allo_ag$disease == "Leukemia" &
+                                         patient_allo_ag$sub_hist == "Chronic" &
+                                         patient_allo_ag$sub_sub_hist == "Myelogenous"] <- "CML"
+patient_allo_ag$disease.simple[patient_allo_ag$disease == "Leukemia" &
+                                         patient_allo_ag$sub_hist == "Chronic" &
+                                         patient_allo_ag$sub_sub_hist == "Myelomonocytic"] <- "MDS/MPN"
+patient_allo_ag$disease.simple[patient_allo_ag$disease == "Leukemia (Second Primary)" &
+                                         patient_allo_ag$sub_hist == "Acute" &
+                                         patient_allo_ag$sub_sub_hist == "Myelogenous"] <- "AML"
+patient_allo_ag$disease.simple[patient_allo_ag$disease == "Leukemia" &
+                                         patient_allo_ag$sub_hist == "Acute" &
+                                         (patient_allo_ag$sub_sub_hist == "Monoblastic" | 
+                                            patient_allo_ag$sub_sub_hist == "Monocytic" |
+                                            patient_allo_ag$sub_sub_hist == "Myelomonocytic" |
+                                            patient_allo_ag$sub_sub_hist =="Promyelocytic")   ] <- "AML"
+patient_allo_ag$disease.simple[grepl("Aplastic", patient_allo_ag$disease)] <- "AA"
+patient_allo_ag$disease.simple[grepl("Aplastic", patient_allo_ag$sub_hist)] <- "AA"
+patient_allo_ag$disease.simple[grepl("Myelodysplastic|Myeloproliferative", patient_allo_ag$disease)] <- "MDS/MPN"
+patient_allo_ag$disease.simple[grepl("Non-Hodgkin", patient_allo_ag$disease)] <- "NHL"
+patient_allo_ag$disease.simple[grepl("Myeloma", patient_allo_ag$disease)] <- "Myeloma"
+patient_allo_ag$disease.simple[grepl("Hodgkin's Disease", patient_allo_ag$disease)] <- "Hodgkins"
+patient_allo_ag$disease.simple[grepl("CLL", patient_allo_ag$sub_sub_hist)] <- "CLL"
+patient_allo_ag$disease.simple %>% table(useNA ="ifany") %>% data.frame() %>% arrange(-Freq)
+patient_allo_ag$disease.simple[grepl("Prolymphocytic", patient_allo_ag$sub_sub_hist)] <- "NHL"
+patient_allo_ag$disease.simple[grepl("Biphenotypic|Plasmacytoid Dendritic|Ambiguous|NK-LGL", patient_allo_ag$sub_sub_hist)] <- "other"
+patient_allo_ag$disease.simple[grepl("Non-Malignant Hemat Disorders", patient_allo_ag$disease)] <- "other"
+patient_allo_ag$disease.simple %>% table(useNA  = "ifany")
+```
+
+
+```{r}
 other <- patient_allo_ag %>% 
   filter(str_detect(indication, fixed('initial', ignore_case = T))) %>% 
-  select(mrn, source , intensity, hct, age, sex) %>%  
+  select(mrn, source , intensity, hct, age, sex, disease.simple) %>%  
   filter(mrn %in% dtb$mrn) %>% 
   mutate(source = if_else(str_detect(source, 'Cord' ), 
                              'cord',
@@ -62,9 +110,13 @@ other <- patient_allo_ag %>%
                                      'TCD',
                                      'unmodified'))) %>% 
   mutate(intensity = if_else(intensity %in% c('Ablative','ABLATIVE'), 'ablative',
-                                         if_else(intensity %in% c('NONABL','Nonablative'), 'nonablative','reduced'))) 
+                                         if_else(intensity %in% c('NONABL','Nonablative'), 'nonablative','reduced')))
+```
 
 
+
+
+```{r}
 new1 <- tibble(
   mrn = 38084143,
   source = 'TCD',
@@ -75,7 +127,18 @@ new1 <- tibble(
 )
 
 ptb <- bind_rows(other, new1)
- 
+```
+
+```{r}
+# the break down of the disease type
+ptb %>% 
+  count(disease.simple) %>% 
+  mutate(disea_perc = round(n/97*100,1)) %>% 
+  arrange(-disea_perc)
+```
+
+
+```{r}
 # output this table this is the patient meta table
 ptb %>% 
   write_csv('../data/cleaned_patients/diet_patients_97.csv')
