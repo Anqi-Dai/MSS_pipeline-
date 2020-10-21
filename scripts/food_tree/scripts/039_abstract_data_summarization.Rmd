@@ -238,7 +238,11 @@ grp2 <- box2 %>%
             add.params = list(alpha = 0.4)) +
   scale_y_sqrt() +
   facet_grid(grp~., scales = 'free_y') +
-  stat_summary(fun.y = median, geom = 'line', aes(group = grp, colour =grp))
+  stat_summary(fun.y = median, geom = 'line', aes(group = grp, colour =grp)) +
+  geom_text(aes(x = timebin[1], y = 140, label = grp)) +
+  theme(strip.background = element_blank(),
+   strip.text.y = element_blank(),
+   legend.position = "none")
 grp2
 ```
 
@@ -260,11 +264,22 @@ box_combined <- plot_grid(grp2, stool_box,
           nrow = 2, 
           align = 'hv',
           rel_heights = c(3,1),
-          axis = 'b')  +
+          axis = 'lb')  +
   ggsave('../figs/three_box.pdf', width = 8, height = 10)
 
 
 ```
+
+```{r}
+allfig <- plot_grid(box_combined, pos_interval, 
+          nrow = 1, 
+          align = 'hv',
+          rel_heights = c(1,1),
+          labels = "AUTO",
+          axis = 'b')  +
+  ggsave('../figs/all_fig.pdf', width = 15, height = 7)
+```
+
 
 ## some simple summary stats
 

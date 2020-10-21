@@ -345,20 +345,27 @@ posterior_fg_df <- posterior_model_only_food_group %>%
             q50 = quantile(value, probs = 0.5)) %>% 
   mutate(item = str_replace(item, 'b_fg_',''))  %>% 
   full_join(sugar_df %>% select(item = fg1_name, sugar_perc)) %>% 
-  full_join(pt_perc %>% select(item = fg1_name, pt_perc)) 
+  full_join(pt_perc %>% select(item = fg1_name, pt_perc))
+```
 
-posterior_fg_df %>%  
+
+```{r}
+pos_interval <- posterior_fg_df %>%  
   arrange(q50) %>% 
-  ggscatter(x = 'item', y = 'q50', color = 'red') +
+  ggscatter(x = 'item', y = 'q50', color = 'red',
+            ylab = 'Posterior distribution regression coefficient',
+            xlab = '') +
   geom_errorbar(aes( ymin  = q2.5,
                    ymax  = q97.5,
                    width = 0.25)) +
   geom_hline(yintercept = 0, col = "firebrick", linetype = 'dashed') +
   geom_text(aes(x = item, y = -0.015, label = sugar_perc)) +
+  geom_text(aes(x = item[11], y = -0.015, label = 'Sugar%'), nudge_x = +0.45) +
   geom_text(aes(x = item, y = -0.011, label = pt_perc)) +
+  geom_text(aes(x = item[11], y = -0.011, label = 'Pt%'), nudge_x = +0.45) +
   coord_flip() + 
   ylim(-0.015, 0.018) 
-
+pos_interval
 ```
 
 
