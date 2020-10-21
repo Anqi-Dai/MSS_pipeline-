@@ -235,7 +235,8 @@ box2 %>%
 grp2 <- box2 %>%  
   gather('grp', 'gram', fg_fruit:fg_sweets) %>% 
   ggboxplot(x = 'timebin', y = 'gram', color = 'grp', add = 'jitter', palette = 'nejm', 
-            add.params = list(alpha = 0.4)) +
+            add.params = list(alpha = 0.4),
+            title = "Food group intake and fecal microbiome alpha diversity's change\nover weeks") +
   scale_y_sqrt() +
   facet_grid(grp~., scales = 'free_y') +
   stat_summary(fun.y = median, geom = 'line', aes(group = grp, colour =grp)) +
@@ -256,7 +257,8 @@ food_box <- faith %>%
   scale_x_discrete(limits = c("[-14,-7)", "[-7,0)" ,  "[0,7)"  ,  "[7,14)" ,  "[14,21)"  ,"[21,28)" , "[28,35)" , "[35,42)" , "[42,49]" ,'(49,56]' ))
 
 stool_box <- meta %>% 
-  ggboxplot(x = 'timebin', y = 'simpson_reciprocal', add = 'jitter', color = 'darkgoldenrod4', alpha = 0.6) +
+  ggboxplot(x = 'timebin', y = 'simpson_reciprocal', add = 'jitter', color = 'darkgoldenrod4', alpha = 0.6,
+            add.params = list(alpha = 0.4)) +
   scale_y_sqrt()+
   stat_summary(fun = median, geom = 'line', group = 1, color = 'darkgoldenrod4')
 
@@ -264,6 +266,7 @@ box_combined <- plot_grid(grp2, stool_box,
           nrow = 2, 
           align = 'hv',
           rel_heights = c(3,1),
+          
           axis = 'lb')  +
   ggsave('../figs/three_box.pdf', width = 8, height = 10)
 
