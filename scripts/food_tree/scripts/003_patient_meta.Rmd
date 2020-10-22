@@ -45,8 +45,7 @@ demo %>%
 # ignore this table for now
 
 wt <- nutrition_demographics_ag %>% 
-  filter(mrn %in% dtb$mrn) %>% 
-  distinct(mrn)
+  filter(mrn %in% dtb$mrn) 
 ```
 
 ## the transplant info, only the source and intensity for now
@@ -114,7 +113,8 @@ other <- patient_allo_ag %>%
                                      'TCD',
                                      'unmodified'))) %>% 
   mutate(intensity = if_else(intensity %in% c('Ablative','ABLATIVE'), 'ablative',
-                                         if_else(intensity %in% c('NONABL','Nonablative'), 'nonablative','reduced')))
+                                         if_else(intensity %in% c('NONABL','Nonablative'), 'nonablative','reduced'))) %>% 
+  mutate(disease.simple = if_else(is.na(disease.simple), 'AML', disease.simple))
 ```
 
 
@@ -127,10 +127,12 @@ new1 <- tibble(
   intensity = 'ablative',
   hct = ymd('2020, January 17'),
   age = 61.1,
-  sex = 'M'
+  sex = 'M',
+  disease.simple = 'AML'
 )
 
-ptb <- bind_rows(other, new1)
+ptb <- bind_rows(other, new1) %>% 
+  full_join(wt %>% select(mrn, admit_wt))
 ```
 
 ```{r}
@@ -139,6 +141,12 @@ ptb %>%
   count(disease.simple) %>% 
   mutate(disea_perc = round(n/97*100,1)) %>% 
   arrange(-disea_perc)
+
+
+ptb %>% 
+  count(source) %>% 
+  mutate(source_perc = round(n/97*100,1)) %>% 
+  arrange(-source_perc)
 ```
 
 
