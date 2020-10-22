@@ -29,7 +29,7 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 # the current nutritional info that we have
 
 #nutri <- get_table_from_database('nutrition_ag')
-demogr <- get_table_from_database('nutrition_demographics_ag')
+get_table_from_database('nutrition_demographics_ag')
 
 # the info from this table that I wanna integrate into my meta
 demo <- demogr %>% 
@@ -43,6 +43,10 @@ demo %>%
   filter(is.na(sex))
 
 # ignore this table for now
+
+wt <- nutrition_demographics_ag %>% 
+  filter(mrn %in% dtb$mrn) %>% 
+  distinct(mrn)
 ```
 
 ## the transplant info, only the source and intensity for now

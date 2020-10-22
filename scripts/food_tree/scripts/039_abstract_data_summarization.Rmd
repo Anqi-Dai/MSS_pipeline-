@@ -176,26 +176,34 @@ cts_genus_fil_pcoa %>%
 
 Tho the diet table values changed, the foods did not change, so the diet faith alpha should not change.
 
-```{r}
+```{r d_alpha}
 faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
   separate(X1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
   mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) %>% 
   left_join(ptb %>% select(mrn, source, intensity), by = 'mrn')
 
+mid <- mean(beta_viz$faith_pd)
 diet_alpha <- faith %>% 
   ggscatter('fdrt', 'faith_pd', 
              alpha = 0.8,
-            color = 'chartreuse4',
+            color = 'faith_pd',
             #size = 1,
-            ylab = 'Food alpha diversity', 
-            xlab = '',
-            title = '',
+            ylab = 'Diet alpha diversity', 
+            xlab = 'Day relative to transplant',
+            title = 'Diet data alpha diversity',
             add = "loess", 
-            add.params = list(color = "darkgreen", fill = "darkgray", size = 2), 
+            add.params = list(color = "lightsteelblue4", fill = "darkgray", size = 2), 
             conf.int = TRUE) +
   xlim(-10, 50)+
-  scale_x_continuous(breaks = seq(-10, 50, 10))
+  scale_x_continuous(breaks = seq(-10, 50, 10)) +
+  scale_color_gradient2(midpoint = mid, low = "black", mid = "cornflowerblue",
+                            high = "red", space = "Lab", name = 'Diet\nalpha\ndiversity' )+
+  theme(legend.position = c(20,2000))
+diet_alpha
+```
 
+
+```{r}
 # combine with stool alpha diversity
 stool_alpha <- meta %>% 
   mutate(log_div = log(simpson_reciprocal)) %>% 
@@ -218,23 +226,62 @@ alpha <- plot_grid(diet_alpha, stool_alpha,
 alpha 
 ```
 
+```{r}
+# the beta diversity colored with alpha diversity for the diet 
+#Check the beta distance matrix
+beta_un_uni <- read.delim('../data/cleaned_diet_data/FINAL_97_unweighted_unifrac_distance_matrix/distance-matrix.tsv', sep = '\t', row.names = 1)  
+food_dist <- as.dist(beta_un_uni)
+# the percent variance
+eigen <- pcoa(food_dist)$values$Eigenvalues
+percent_var <- signif(eigen/sum(eigen), 3)*100
+
+#pcoa
+pcoa_f <- as.data.frame(ape::pcoa(food_dist)$vectors) %>% 
+  select(Axis.1, Axis.2, Axis.3) %>% 
+  rownames_to_column('fid') %>% 
+  separate(fid, into = c('mrn','fdrt'), sep = 'd', convert = T) %>% 
+  mutate(mrn = str_replace(mrn, '^P',''))
+
+beta_viz <- pcoa_f %>% 
+  mutate(mrn = as.numeric(mrn)) %>% 
+  full_join(faith)
+
+
+
+beta_diet <- beta_viz %>% 
+  arrange(faith_pd) %>% 
+  mutate(logfaith = log(faith_pd)) %>% 
+  ggplot(aes(x = Axis.1, y = Axis.2, col = faith_pd)) +
+  geom_point(alpha=0.7, size = 1.8) +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme_classic() +
+  labs(title = 'Diet data beta diversity (unweighted UniFrac)') + 
+  #theme(legend.position = 'none') +
+  scale_color_gradient2(midpoint = mid, low = "black", mid = "cornflowerblue",
+                            high = "red", space = "Lab", name = 'Diet\nalpha\ndiversity' ) +
+  theme(legend.position = c(.95,.3))
+
+
+```
+
+
 ## fruit and ndrink boxplot and sdrt
 
 ```{r}
 box2 <- meta %>% 
-  select(fg_fruit, fg_ndrink, fg_sweets, timebin)
+  select(fg_fruit, fg_sweets, timebin)
 
 box2 %>% 
   group_by(timebin) %>% 
-  summarise(median_frui = median(fg_fruit),
-            median_fg_ndrink = median(fg_ndrink))
+  summarise(median_frui = median(fg_fruit))
 ```
 
 
 ```{r}
 grp2 <- box2 %>%  
   gather('grp', 'gram', fg_fruit:fg_sweets) %>% 
-  ggboxplot(x = 'timebin', y = 'gram', color = 'grp', add = 'jitter', palette = 'nejm', 
+  ggboxplot(x = 'timebin', y = 'gram', color = 'grp', add = 'jitter', palette = c("#911eb4", "#2E86C1"),
             add.params = list(alpha = 0.4),
             title = "Food group intake and fecal microbiome alpha diversity's change\nover weeks") +
   scale_y_sqrt() +
@@ -243,7 +290,7 @@ grp2 <- box2 %>%
   geom_text(aes(x = timebin[1], y = 140, label = grp)) +
   theme(strip.background = element_blank(),
    strip.text.y = element_blank(),
-   legend.position = "none")
+   legend.position = "none") 
 grp2
 ```
 
@@ -261,26 +308,43 @@ stool_box <- meta %>%
             add.params = list(alpha = 0.4)) +
   scale_y_sqrt()+
   stat_summary(fun = median, geom = 'line', group = 1, color = 'darkgoldenrod4')
-
-box_combined <- plot_grid(grp2, stool_box, 
-          nrow = 2, 
-          align = 'hv',
-          rel_heights = c(3,1),
-          
-          axis = 'lb')  +
-  ggsave('../figs/three_box.pdf', width = 8, height = 10)
-
-
 ```
 
 ```{r}
-allfig <- plot_grid(box_combined, pos_interval, 
+# a correlation between the stool alpha and the fg_fruits
+fruit_cor <- meta %>% 
+  select(simpson_reciprocal, fg_fruit) %>% 
+  filter(fg_fruit > 0)
+
+fruit_cor %>% 
+  ggscatter(x = 'simpson_reciprocal', y = 'fg_fruit',
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n"))
+```
+
+```{r assemble}
+top <- plot_grid(diet_alpha, beta_diet,
           nrow = 1, 
           align = 'hv',
-          rel_heights = c(1,1),
+          #rel_heights = c(1,1),
           labels = "AUTO",
-          axis = 'b')  +
-  ggsave('../figs/all_fig.pdf', width = 15, height = 7)
+          axis = 'br') 
+
+bottom <-  plot_grid(pos_interval,
+          nrow = 1, 
+          labels = "C",
+          axis = 'br')
+
+whole <-  plot_grid(top, bottom,
+          nrow = 2, 
+          align = 'hv',
+          #rel_heights = c(1,1),
+          labels = NULL,
+          axis = 'br')  +
+  ggsave('../figs/all_fig.pdf', width = 13, height = 10)
 ```
 
 
