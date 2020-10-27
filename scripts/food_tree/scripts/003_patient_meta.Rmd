@@ -44,8 +44,12 @@ demo %>%
 
 # ignore this table for now
 
+
+# patients that missing the weight
 wt <- nutrition_demographics_ag %>% 
-  filter(mrn %in% dtb$mrn) 
+  filter(mrn %in% dtb$mrn)  %>% 
+  filter(is.na(admit_wt)) %>% 
+  pull(mrn)
 ```
 
 ## the transplant info, only the source and intensity for now
@@ -54,9 +58,27 @@ wt <- nutrition_demographics_ag %>%
 # getting the conmorbitity index from the table
 list_table_from_database(pattern = 'comorbidity')
 get_table_from_database('comorbidity_index_ag')
+get_table_from_database('patients_msk_comorbidity_index_ag')
 
 ci_pt <- patients_msk_comorbidity_index_ag %>% 
   filter(mrn %in% dtb$mrn)
+
+have_ci_pts <- ci_pt %>% 
+  filter(!is.na(ci))
+
+need_ci_pts <- setdiff(dtb$mrn, have_ci_pts %>% pull(mrn))
+# the above is the list that I need to have the CI
+
+length(intersect(wt, need_ci_pts))
+
+need_info <- tibble(
+  mrn = need_ci_pts
+) %>% 
+  left_join(nutrition_demographics_ag %>% filter(mrn %in% dtb$mrn) %>% select(mrn, admit_wt))
+
+need_info %>% 
+  write_csv('../data/!question/patients_missing_CI_and_wt_diet.csv')
+
 ```
 
 
