@@ -1,0 +1,63 @@
+---
+title: "chapter 4"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rethinking)
+library(tidyverse)
+```
+
+```{r}
+pos <- replicate( 1000 , sum( runif(16,-1,1) ) ) 
+hist(pos)
+```
+
+```{r}
+prod( 1 + runif(12,0,0.1) ) # product of 12
+
+dnorm(0,0,0.1)
+```
+```{r}
+growth <- replicate( 10000 , prod( 1 + runif(12,0,0.1) ) )
+dens( growth , norm.comp=TRUE )
+```
+
+
+```{r}
+big <- replicate( 10000 , prod( 1 + runif(12,0,0.5) ) )
+small <- replicate( 10000 , prod( 1 + runif(12,0,0.01) ) )
+hist(big)
+hist(small)
+
+log.big <- replicate( 10000 , log(prod(1 + runif(12,0,0.5))) )
+hist(log.big)
+```
+```{r}
+w <- 6; n <- 9;
+p_grid <- seq(from=0,to=1,length.out=100)
+posterior <- dbinom(w,n,p_grid)*dunif(p_grid,0,1)
+posterior <- posterior/sum(posterior)
+ 
+plot(x = p_grid, y = posterior, type = 'o')
+```
+
+```{r}
+library(rethinking)
+data(Howell1)
+d <- Howell1
+precis( d )
+
+d2 <- d[ d$age >= 18 , ]
+precis( d2 )
+
+
+curve( dnorm( x , 178 , 20 ) , from=100 , to=250 )
+
+curve( dunif( x , 0 , 50 ) , from=-10 , to=60 )
+```
+
