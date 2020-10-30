@@ -76,6 +76,10 @@ conf_plot_description <- "All patients, censoring for all antibiotics"
 ########################################
 conf_atb_days_from_stop <- 20
 
+conf_atb_days_from_stop <- 2
+
+conf_atb_days_from_stop <- 1
+
 
 # Specify day intervals to separate samples into bins (t1, t2)
 # You can change the labels for the groups, but then you will have to also change the script below anywhere "t1" and "t2" appear
@@ -155,6 +159,6 @@ conf_plot_prefix <- "alpha"
 abx_all <- add_atb_info_and_cleanup(samples, patients, antibiotics)
 
 abx_all %>% 
-  write_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info.csv')
+  write_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info_1day_effect.csv')
 ```
 
