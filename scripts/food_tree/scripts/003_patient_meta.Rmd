@@ -32,7 +32,7 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 get_table_from_database('nutrition_demographics_ag')
 
 # the info from this table that I wanna integrate into my meta
-demo <- demogr %>% 
+demo <- nutrition_demographics_ag %>% 
   select(mrn, sex, age_at_hsct, admit_bmi) %>% 
   filter(mrn %in% dtb$mrn)
 
@@ -79,6 +79,22 @@ need_info <- tibble(
 need_info %>% 
   write_csv('../data/!question/patients_missing_CI_and_wt_diet.csv')
 
+
+
+```
+
+```{r}
+# all the weights of the patients
+filled <- read_csv('../data/!question/patients_missing_HCTCI_diet_peter.csv') %>% 
+  select(mrn, admit_wt)
+
+have_had <- nutrition_demographics_ag %>% 
+  filter(mrn %in% dtb$mrn) %>% 
+  select(mrn, admit_wt) %>% 
+  filter(!is.na(admit_wt))
+
+full_wt <- filled %>% 
+  full_join(have_had)
 ```
 
 
@@ -154,7 +170,7 @@ new1 <- tibble(
 )
 
 ptb <- bind_rows(other, new1) %>% 
-  full_join(wt %>% select(mrn, admit_wt))
+  full_join(full_wt)
 ```
 
 ```{r}
