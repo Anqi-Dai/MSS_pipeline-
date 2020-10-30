@@ -1,10 +1,16 @@
 ---
 title: "Changing abx effect period"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 ```
 
 ```{r}
@@ -92,6 +98,99 @@ model_brm <- brm( log(simpson_reciprocal)~
               seed = 123)
 
 
+posterior_model_only_food_group <- posterior_samples(model_brm) %>% 
+  select(starts_with('b')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'value') %>% 
+  group_by(item) %>% 
+  mutate(meanperitem = mean(value))%>%
+  ungroup() %>% 
+  filter(str_detect(item, '_fg_'))
+```
+
+```{r}
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model_only_food_group, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 1.5, size = 0.25,
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red") +
+  #scale_x_continuous(limits = c(-0.02,0.03)) +
+  labs(y = 'Food groups',
+       title = 'Posterior distribution of regression coefficient for food groups') +
+  theme(axis.text.y = element_text(size=20)) +
+  theme_tufte()
+```
+
+## it will not be considered "exposed" after 1 days
+
+```{r}
+abx_all <- read_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info_1day_effect.csv')  
+censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_meropenem',	'active_atb_ertapenem',		'active_atb_cefepime',		'active_atb_linezolid',	'active_atb_metro',	'active_atb_piptazo')
+abx_this_censor_samples_1day <- abx_all %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  select(sampleid, active_atb_cipro:active_atb_other) %>% 
+  gather(key = 'abx_type', value = 'value', names(.)[2]:names(.)[ncol(.)]) %>% 
+  filter(abx_type %in% censor_abx) %>% 
+  filter(value == T) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+meta_1d_abx <- meta %>% 
+  mutate(empirical = if_else(sampleid %in% abx_this_censor_samples_1day, T, F)) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = as.factor(mrn))
+table(meta_1d_abx$empirical)
+```
+
+```{r}
+library(lmerTest)  
+mod_fg11_1d <-  lmer(log(simpson_reciprocal) ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = meta_1d_abx )
+summary(mod_fg11_1d) 
+```
+
+```{r}
+library(brms)  
+library(ggmcmc)
+model_brm <- brm( log(simpson_reciprocal)~ 
+                fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+                TPN +
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta_1d_abx, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123)
 posterior_model_only_food_group <- posterior_samples(model_brm) %>% 
   select(starts_with('b')) %>% 
   select(-b_Intercept) %>% 
