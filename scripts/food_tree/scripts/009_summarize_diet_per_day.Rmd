@@ -15,14 +15,14 @@ library(tidyverse)
 
 ```{r}
 # load my current comprehensive diet table 
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')  
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')  
 ```
 
 ## summarize on the nutrients 
  
 ```{r}
 nutrients_df <- dtb %>%  
-  select(mrn, fdrt, Proteing_g:Sodium_g) %>% 
+  select(mrn, fdrt, Protein_g:Sodium_g) %>% 
   gather('nutrient', 'gram', names(.)[3]:names(.)[ncol(.)]) 
 
 nutrients_day_nut_total  <- nutrients_df %>% 

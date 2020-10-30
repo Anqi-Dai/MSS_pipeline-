@@ -1,0 +1,244 @@
+---
+title: "For Marcel's question"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+- Does calorie intake (either total intake or % of needs met, as Peter calculates it) correlate with Blautia genus abundance, either in a simple correlation or in your fancier adjusted model?
+- Does calorie intake correlate with stool alpha diversity, either in a simple correlation or in your fancier adjusted model?
+- Does fiber intake correlate with Blautia abundance, either in a simple correlation or in your fancier adjusted model
+
+## load the data
+
+```{r}
+# source('~/db_connect_simple.R')
+# connect_database(config_file = '~/dbConfig.txt')
+# 
+# list_table_from_database('nutrition')
+# get_table_from_database('nutrition_ag')
+
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized_UPDATED11.csv', col_types = cols(.default = col_guess(), Food_code = col_character())) 
+
+# genus level counts 
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) 
+```
+
+
+## total caloric intake VS Blautia
+
+```{r}
+# the daily caloric intake :
+all_daily_pt <- dtb %>%
+  group_by(mrn, fdrt) %>%
+  summarise(total_daily = sum(Calories_kcal))
+
+# the previous two days average for each stool sample
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') 
+stb_pair <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+mean_p2d_cal <-  function(mrn_, p1d_, p2d_){
+  df = all_daily_pt %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(mrn) %>% 
+    summarise(ave_cal = sum(total_daily)/2)
+  return(df)
+}
+
+mean_p2d_df_cal <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_cal(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') 
+
+# find the relab of the blautia genus
+blautia <- cts %>% 
+  filter(str_detect(taxa_genus, 'g__Blautia')) %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  select(sampleid,
+         blautia_relab_log = relablog)
+
+meta_blautia <- meta %>% 
+  full_join(mean_p2d_df_cal) %>% 
+  full_join(blautia)
+```
+
+```{r}
+# the modeling about total caloric intake VS Blautia
+library(lmerTest) 
+mod_cal <-  lmer(blautia_relab_log ~ 
+               ave_cal +
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = meta_blautia )
+summary(mod_cal) 
+```
+```{r}
+library(brms)  
+library(ggmcmc)
+model_brm <- brm(blautia_relab_log ~ 
+               ave_cal +
+                TPN +
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta_blautia, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+plot(model_brm)
+
+# looks very very weak
+```
+
+```{r}
+# the version that has zero
+meta_blautia %>% 
+    ggscatter(x = 'ave_cal', y = 'blautia_relab_log', alpha = 0.5,
+               add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+# 
+# # the version that removes zero
+# meta_blautia %>% 
+#   filter(blautia_relab_log > -5) %>% 
+#     ggscatter(x = 'ave_cal', y = 'blautia_relab_log',
+#                add = "reg.line",  # Add regressin line
+#            add.params = list(color = "blue", fill = "lightgray"), # Customize line
+#            conf.int = TRUE, # Add confidence interval
+#            cor.coef = TRUE, # Add correlation coefficient.
+#            cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+```
+
+## caloric intake VS stool alpha diversity
+
+```{r}
+mod_cal_alpha <-  lmer(log(simpson_reciprocal) ~ 
+               ave_cal +
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = meta_blautia )
+summary(mod_cal_alpha) 
+```
+```{r}
+model_brm <- brm(log(simpson_reciprocal) ~  
+               ave_cal +
+                TPN +
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta_blautia, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+plot(model_brm)
+```
+
+No it doesn't look like there is an association
+
+```{r}
+meta_blautia %>% 
+  ggscatter(x = 'ave_cal', y = 'simpson_reciprocal',ylab = 'simpson_reciprocal on log10 scale',
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n") ) +
+  scale_y_log10() 
+```
+oh wait, the scatter plot is doing a simple correlation and it looks like the correlation holds up but the model doesn't say so after adjusting other factors.
+
+## fiber VS blautia
+
+```{r}
+# I need to calculate the fiber value per day per patient 
+daily_fiber <- dtb %>% 
+  group_by(mrn, fdrt) %>%
+  summarise(total_daily_fiber = sum(Fibers_g))
+
+# the previous two days average for each stool sample
+
+mean_p2d_fiber <-  function(mrn_, p1d_, p2d_){
+  df = daily_fiber %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(mrn) %>% 
+    summarise(ave_fiber = sum(total_daily_fiber)/2)
+  return(df)
+}
+
+mean_p2d_df_fiber <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_fiber(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') 
+
+meta_blautia_fiber <- meta_blautia %>% 
+  full_join(mean_p2d_df_fiber)
+```
+
+```{r}
+mod_blautia_fiber <-  lmer(blautia_relab_log ~ 
+               ave_fiber +
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = meta_blautia_fiber )
+summary(mod_blautia_fiber) 
+```
+```{r}
+model_brm <- brm(blautia_relab_log ~  
+               ave_fiber +
+                TPN +
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta_blautia_fiber, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+plot(model_brm)
+```
+```{r}
+meta_blautia_fiber %>% 
+    ggscatter(x = 'ave_fiber', y = 'blautia_relab_log', alpha = 0.5,
+               add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.y = 2, label.sep = "\n"))
+```
+
