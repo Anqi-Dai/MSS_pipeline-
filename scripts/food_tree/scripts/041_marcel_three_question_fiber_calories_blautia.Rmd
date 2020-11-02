@@ -52,6 +52,7 @@ all_daily_pt <- dtb %>%
 
 # the previous two days average for each stool sample
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') 
+
 stb_pair <- stb %>%  
   select(mrn, sdrt) %>% 
   transmute(mrn = mrn,
@@ -120,22 +121,17 @@ plot(model_brm)
 ```{r}
 # the version that has zero
 meta_blautia %>% 
-    ggscatter(x = 'ave_cal', y = 'blautia_relab_log', alpha = 0.5,
+    ggscatter(x = 'ave_cal', y = 'blautia_relab_log', alpha = 0.7,
+             xlab = 'Average of total daily caloric intake during previous two days',
+             ylab = 'Blautia genus relative abundance log10 transformed',
                add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
-# 
-# # the version that removes zero
-# meta_blautia %>% 
-#   filter(blautia_relab_log > -5) %>% 
-#     ggscatter(x = 'ave_cal', y = 'blautia_relab_log',
-#                add = "reg.line",  # Add regressin line
-#            add.params = list(color = "blue", fill = "lightgray"), # Customize line
-#            conf.int = TRUE, # Add confidence interval
-#            cor.coef = TRUE, # Add correlation coefficient.
-#            cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n", label.y = -5)) 
+  
+meta_blautia %>% 
+  distinct(mrn)
 ```
 
 ## caloric intake VS stool alpha diversity
@@ -169,13 +165,25 @@ No it doesn't look like there is an association
 
 ```{r}
 meta_blautia %>% 
-  ggscatter(x = 'ave_cal', y = 'simpson_reciprocal',ylab = 'simpson_reciprocal on log10 scale',
+  filter(empirical == 'FALSE') %>% 
+  ggscatter(x = 'ave_cal', y = 'simpson_reciprocal',
+            alpha = 0.7,
+            xlab = 'Average of total daily caloric intake during previous two days',
+            ylab = 'Simpson reciprocal on log10 scale',
+            #facet.by = 'empirical',
              add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n") ) +
-  scale_y_log10() 
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n",  label.x = 2500) ) +
+  scale_y_log10()  
+
+# how many stool samples and how many patients 
+no_empirical <- meta_blautia %>% 
+  filter(empirical == 'FALSE')
+
+no_empirical %>% 
+  distinct(mrn)
 ```
 oh wait, the scatter plot is doing a simple correlation and it looks like the correlation holds up but the model doesn't say so after adjusting other factors.
 
@@ -234,11 +242,13 @@ plot(model_brm)
 ```
 ```{r}
 meta_blautia_fiber %>% 
-    ggscatter(x = 'ave_fiber', y = 'blautia_relab_log', alpha = 0.5,
+  mutate(ave_fiber_log = log10(ave_fiber + 0.01)) +
+    ggscatter(x = 'ave_fiber_log', y = 'blautia_relab_log', alpha = 0.7,
                add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.y = 2, label.sep = "\n"))
+           cor.coeff.args = list(method = "pearson",  label.y = -5, label.sep = "\n")) 
 ```
+
 
