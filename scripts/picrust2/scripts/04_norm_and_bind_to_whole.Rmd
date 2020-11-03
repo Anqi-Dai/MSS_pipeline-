@@ -44,6 +44,36 @@ res <- kos %>%
 ```{r}
 # 10-7 Oriana requested items for 2100 samples
 samp <- read_rds('~/Downloads/samples_picrust.rds')
+```
+
+
+```{r}
+# the pathway table
+pw <- list.files('../data/done_results/', recursive = T, full.names = T, pattern = 'path_abun_unstrat.tsv')
+
+pw_res <- pw %>% 
+  purrr::map(function(fn){
+    tb <- read_tsv(fn) %>% 
+        gather('sampleid','count', names(.)[2]:names(.)[ncol(.)])  %>% rename(pathway = names(.)[1])
+      return(tb)
+  }) %>% 
+  bind_rows()
+
+# the results in the O cohort
+O_pathway <- pw_res %>% 
+  filter(sampleid %in% samp$sampleid)
+
+
+O_pathway %>% 
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/Oriana_2100_samples_pathway_count.csv')
+
+O_pathway %>% 
+  distinct(sampleid)
+```
+
+
+```{r}
+
 O_samp <- res %>% 
   filter(sampleid %in% samp$sampleid)
 

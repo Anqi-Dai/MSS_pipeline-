@@ -242,13 +242,18 @@ plot(model_brm)
 ```
 ```{r}
 meta_blautia_fiber %>% 
-  mutate(ave_fiber_log = log10(ave_fiber + 0.01)) +
+  mutate(ave_fiber_log = log10(ave_fiber + 0.01)) %>% 
     ggscatter(x = 'ave_fiber_log', y = 'blautia_relab_log', alpha = 0.7,
+              xlab = 'Average of fiber intake during previous two days log10 transformed',
+              ylab = 'Blautia genus relative abundance log10 transformed',
                add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.y = -5, label.sep = "\n")) 
+
+meta_blautia_fiber %>% 
+  distinct(mrn)
 ```
 
 
