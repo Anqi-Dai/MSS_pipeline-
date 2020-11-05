@@ -85,6 +85,14 @@ blautia <- cts %>%
 meta_blautia <- meta %>% 
   full_join(mean_p2d_df_cal) %>% 
   full_join(blautia)
+
+# find the relab of the Enterococcus genus
+Enterococcus <- cts %>% 
+  filter(str_detect(taxa_genus, 'g__Enterococcus')) %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  dplyr::select(sampleid,
+         Enterococcus_relab_log = relablog)
 ```
 
 ```{r}
@@ -227,19 +235,20 @@ mod_blautia_fiber <-  lmer(blautia_relab_log ~
 summary(mod_blautia_fiber) 
 ```
 ```{r}
-model_brm <- brm(blautia_relab_log ~  
-               ave_fiber +
-                TPN +
-               empirical + 
-               intensity + 
-               (1 | mrn) +
-                (1 | timebin),  
-              data = meta_blautia_fiber, 
-              warmup = 1000, iter = 3000, 
-              cores = 8, chains = 2, 
-              seed = 123) 
-plot(model_brm)
+# model_brm <- brm(blautia_relab_log ~  
+#                ave_fiber +
+#                 TPN +
+#                empirical + 
+#                intensity + 
+#                (1 | mrn) +
+#                 (1 | timebin),  
+#               data = meta_blautia_fiber, 
+#               warmup = 1000, iter = 3000, 
+#               cores = 8, chains = 2, 
+#               seed = 123) 
+# plot(model_brm)
 ```
+
 ```{r}
 meta_blautia_fiber %>% 
   mutate(ave_fiber_log = log10(ave_fiber + 0.01)) %>% 
@@ -256,4 +265,38 @@ meta_blautia_fiber %>%
   distinct(mrn)
 ```
 
+## integrating the log of the relab of the Enterococcus
+
+```{r}
+combined <- meta_blautia_fiber %>% 
+  full_join(Enterococcus)
+```
+
+## plotting 
+
+```{r}
+combined %>% 
+  mutate(ave_fiber_log = log10(ave_fiber + 0.01),
+         simpson_reciprocal_log = log10(simpson_reciprocal)) %>% 
+  dplyr::select(simpson_reciprocal_log, blautia_relab_log, Enterococcus_relab_log, ave_fiber_log, ave_cal) %>% 
+  gather('yaxis', 'value', simpson_reciprocal_log:Enterococcus_relab_log) %>% 
+  mutate(yaxis = factor(yaxis, levels = c('simpson_reciprocal_log','blautia_relab_log','Enterococcus_relab_log'))) %>% 
+  gather('xaxis', 'number', ave_cal:ave_fiber_log) %>% 
+  ggscatter(x = 'number', y = 'value', alpha = 0.3,xlab = '', ylab = '',
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", 
+                                 label.sep = "\n", 
+                                 label.x.npc = "left", 
+                                 label.y.npc = "top",
+                                 color = 'red')) +
+  facet_grid(yaxis ~ xaxis, scales = 'free') + 
+  theme_bw(base_size = 16) +
+  theme(aspect.ratio = 1,
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()) +
+  ggsave('../figs/marcel_figures.pdf', width = 6, height = 8)
+```
 

@@ -16,17 +16,20 @@ library(ggpubr)
 ## the visualization 
 
 ```{r}
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv')
 ```
 
 
 ```{r}
 # the unifrac pcoa colored by fruit consumption
-asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+
+get_table_from_database_predefined_filter('asv_counts_ag')
 
 cts <- asv_counts_ag %>% 
   filter(sampleid %in% meta$sampleid) %>% 
-  select(asv_key, sampleid, count) %>% 
+  dplyr::select(asv_key, sampleid, count) %>% 
   spread(key = 'sampleid', value = 'count', fill = 0) %>% 
   arrange(asv_key)  %>% 
   column_to_rownames('asv_key') %>% 
@@ -43,17 +46,123 @@ pcoa_wunifrac <- cmdscale(wunifrac_res, k = 2)
 pcoa_wunifrac_df <- pcoa_wunifrac %>% 
   as.data.frame() %>% 
   rownames_to_column('sampleid') %>% 
-  full_join(meta %>% select(fg_fruit, sampleid,simpson_reciprocal )) %>% 
-  gather('type', 'value', fg_fruit:simpson_reciprocal)
+  full_join(meta %>% dplyr::select(fg_fruit, sampleid,simpson_reciprocal )) 
 
 pcoa_wunifrac_df %>% 
-  mutate(value = log(value + 1)) %>% 
-  ggscatter(x = 'V1', y = 'V2', color = 'value',  alpha = 0.3, size = 3, xlab = 'PCO 1', ylab = 'PCO 2') +
-  facet_grid(type~ .) +
-  ggsave('../figs/wunifrac_color_both.pdf', width = 5, height = 8)
+  summary
+
+mid_fruit <- median(pcoa_wunifrac_df$fg_fruit)
+
+mid_alpha <- median(pcoa_wunifrac_df$simpson_reciprocal)
+```
+
+
+```{r}
+pcoa_wunifrac_df %>% 
+  arrange(fg_fruit) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'fg_fruit',  alpha = 0.7, size = 3, xlab = 'PCO 1', ylab = 'PCO 2')  +
+  scale_color_gradient2(midpoint = mid_fruit, low = "black", mid = "cornflowerblue",
+                            high = "red", space = "Lab" ) +
+  ggsave('../figs/wunifrac_color_fruit.pdf', width = 8, height = 8)
 
 # can't see very clearly maybe I should just pick out the samples have most fruit consumption
 ```
+
+```{r}
+pcoa_wunifrac_df %>% 
+  arrange(simpson_reciprocal) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'simpson_reciprocal',  alpha = 0.7, size = 3, xlab = 'PCO 1', ylab = 'PCO 2')  +
+  scale_color_gradient2(midpoint = mid_alpha, low = "black", mid = "cornflowerblue",
+                            high = "red", space = "Lab" ) +
+  ggsave('../figs/wunifrac_color_alpha.pdf', width = 8, height = 8)
+```
+
+
+```{r}
+# the unweighted version
+pcoa_unifrac <- cmdscale(unifrac_res, k = 2, eig = T) 
+
+pcoa_unifrac_df <- pcoa_unifrac$points %>% 
+  as.data.frame() %>% 
+  rownames_to_column('sampleid') %>% 
+  full_join(meta %>% dplyr::select(fg_fruit, sampleid,simpson_reciprocal, sdrt )) 
+
+# the percent variance
+eigen <- pcoa_unifrac$eig
+percent_var <- signif(eigen/sum(eigen), 3)*100
+
+pcoa_unifrac_df %>% 
+  arrange(fg_fruit) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'fg_fruit',  alpha = 0.7, size = 3, xlab = 'PCO 1', ylab = 'PCO 2')  +
+  scale_color_gradient2(midpoint = mid_fruit, low = "black", mid = "cornflowerblue",
+                            high = "red", space = "Lab" ) +
+  ggsave('../figs/unifrac_color_fruit.pdf', width = 8, height = 8)
+
+pcoa_unifrac_df %>% 
+  arrange(simpson_reciprocal) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'simpson_reciprocal',  alpha = 0.7, size = 3, xlab = 'PCO 1', ylab = 'PCO 2')  +
+  scale_color_gradient2(midpoint = mid_alpha, low = "black", mid = "cornflowerblue",
+                            high = "red", space = "Lab" ) +
+  xlab(paste0("PCO 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PCO 2 [",percent_var[2],"%]")) +
+  ggsave('../figs/unifrac_color_alpha.pdf', width = 8, height = 8)
+```
+
+```{r}
+# the unweighted unifrac colored by dominant family in the sample 
+fam <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  group_by(sampleid) %>% 
+  arrange(sampleid, -relab) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  dplyr::select(-cnt , -count_total)
+
+
+fam %>% 
+  distinct(taxa_family)
+
+pcoa_unifrac_df_all <- pcoa_unifrac %>% 
+  as.data.frame() %>% 
+  rownames_to_column('sampleid') %>% 
+  full_join(meta %>% dplyr::select(fg_fruit, sampleid,simpson_reciprocal )) %>% 
+  inner_join(fam) %>% 
+  mutate(taxa_family = str_extract(taxa_family, 'f__.+$'),
+         taxa_family = str_replace(taxa_family, 'f__', ''))
+
+# the colors from the rcolorbrewer
+library(RColorBrewer)
+dark <- brewer.pal(8, 'Dark2')
+set2 <- brewer.pal(8, 'Set2')
+Paired <- brewer.pal(12, 'Paired')
+set1 <- brewer.pal(6, 'Set1')
+
+fam_col <- pcoa_unifrac_df_all %>% 
+  distinct(taxa_family) %>% 
+  arrange(taxa_family) %>% 
+  mutate(colors = c(dark, set2, Paired, set1))
+  
+pcoa_unifrac_df_all_col <- pcoa_unifrac_df_all %>% 
+  left_join(fam_col)
+
+pcoa_unifrac_df_all_col %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'taxa_family', alpha = 0.5, size = 3) +
+  scale_color_manual(values=fam_col$colors) +
+  ggsave('../figs/unifrac_fam.pdf', width = 10, height = 10)
+
+```
+
+```{r}
+# what if color by drt
+pcoa_unifrac_df %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  arrange(timebin) %>% 
+  arrange(fg_fruit) %>% 
+  ggscatter(x = 'V1', y = 'V2', color = 'timebin',palette = 'RdYlBu', alpha = 0.7, size = 3, xlab = 'PCO 1', ylab = 'PCO 2')  +
+  ggsave('../figs/unifrac_color_timebin.pdf', width = 8, height = 8)
+
+```
+
 
 ```{r}
 # the stool samples corresponding to fruit being the most consumed food groups of the day
@@ -95,54 +204,7 @@ pcoa_wunifrac_df %>%
   ggsave('../figs/wunifrac_color_both_fruit_only.pdf', width = 5, height = 8)
 ```
 
-```{r}
-# colored by dominant family in the sample 
-fam <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
-  filter(sampleid %in% meta$sampleid) %>% 
-  group_by(sampleid) %>% 
-  arrange(sampleid, -relab) %>% 
-  slice(1) %>% 
-  ungroup() %>% 
-  select(-cnt , -count_total)
 
-
-fam %>% 
-  distinct(taxa_family)
-
-pcoa_wunifrac_df <- pcoa_wunifrac %>% 
-  as.data.frame() %>% 
-  rownames_to_column('sampleid') %>% 
-  full_join(meta %>% select(fg_fruit, sampleid,simpson_reciprocal )) %>% 
-  inner_join(fam) %>% 
-  mutate(taxa_family = str_extract(taxa_family, 'f__.+$'),
-         taxa_family = str_replace(taxa_family, 'f__', ''))
-
-# the colors from the rcolorbrewer
-library(RColorBrewer)
-dark <- brewer.pal(8, 'Dark2')
-set2 <- brewer.pal(8, 'Set2')
-Paired <- brewer.pal(12, 'Paired')
-set1 <- brewer.pal(6, 'Set1')
-
-fam_col <- pcoa_wunifrac_df %>% 
-  distinct(taxa_family) %>% 
-  arrange(taxa_family) %>% 
-  mutate(colors = c(dark, set2, Paired, set1))
-  
-pcoa_wunifrac_df <- pcoa_wunifrac_df %>% 
-  left_join(fam_col)
-
-pcoa_wunifrac_df %>% 
-  ggscatter(x = 'V1', y = 'V2', color = 'taxa_family', alpha = 0.5, size = 3) +
-  scale_color_manual(values=fam_col$colors) +
-  ggsave('../figs/wunifrac_fam.pdf', width = 10, height = 10)
-
-pcoa_wunifrac_df %>%
-  mutate(fg_fruit = log(fg_fruit + 1)) %>% 
-  ggscatter(x = 'V1', y = 'V2', color = 'fg_fruit', alpha = 0.5, size = 3) +
-  #scale_color_manual(values=fam_col$colors) +
-  ggsave('../figs/wunifrac_fruit.pdf', width = 10, height = 10)
-```
 
 
 ## the CCA and bioplot
