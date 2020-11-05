@@ -12,9 +12,127 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-## visualizing the bc or unifrac colored by fruit consumption
+## visualizing the bc or unifrac colored by fruit consumption (done in 031)
+
+## using the 1st PCO of unweigted unifrac as the response
 
 ```{r}
+unweigted <- read_csv('../data/cleaned_stool/microbiome_first_5_principle_components_unweigted_unifrac.csv')
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv')	%>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = as.factor(mrn))
+
+META <- meta %>% 
+  full_join(unweigted)
+```
+```{r}
+library(lmerTest)     
+mod_fg11_pc <-  lmer(V1 ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = META )
+summary(mod_fg11_pc)
+```
+
+
+```{r}
+library(brms)  
+library(ggmcmc)
+model_brm <- brm( V1~ 
+                fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+                TPN +
+               empirical + 
+               intensity + 
+               (1 | mrn) +
+                (1 | timebin),  
+              data = META, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+summary(model_brm)
+
+
+posterior_model_only_food_group <- posterior_samples(model_brm) %>% 
+  dplyr::select(starts_with('b')) %>% 
+  dplyr::select(-b_Intercept) %>% 
+  gather('item', 'value') %>% 
+  group_by(item) %>% 
+  mutate(meanperitem = mean(value))%>%
+  ungroup() %>% 
+  filter(str_detect(item, '_fg_'))
+
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model_only_food_group, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 1.5, size = 0.25,
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red") +
+  #scale_x_continuous(limits = c(-0.02,0.03)) +
+  labs(y = 'Food groups',
+       title = 'Posterior distribution of regression coefficient for food groups') +
+  theme(axis.text.y = element_text(size=20)) +
+  theme_tufte()
+```
+
+## using the food 5 PC to predict microbiome alpha diversity
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(total = sum(dehydrated_weight))
+  
+# need to have p2d average for each food code food
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') 
+stb_pair <- stb %>%  
+  dplyr::select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+mean_p2d_diet_food_code <-  function(mrn_, p1d_, p2d_){
+  df = dtb %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(Food_code) %>% 
+    summarise(ave = sum(total)/2)
+  return(df)
+}
+
+mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_diet_food_code(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'ave', fill = 0) 
+
 
 ```
+
 

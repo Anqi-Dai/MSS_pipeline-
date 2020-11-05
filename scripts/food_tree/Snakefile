@@ -778,3 +778,6 @@ rule stool:
 rule food:
     input:
         expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = food_loop_vars)
+
+rule funifrac_output:
+    input: sample_dir+'/FINAL_97_unweighted_unifrac_distance_matrix'
