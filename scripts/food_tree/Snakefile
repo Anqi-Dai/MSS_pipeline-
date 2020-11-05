@@ -17,7 +17,7 @@ sample_dir = '/Users/daia1/pipeline/scripts/food_tree/data/cleaned_diet_data'
 
 rule convert_dehywt_table_to_biom:
     input:
-        '{sample_dir}/FINAL_97_food_code_counts_matrix.tsv'
+        '{sample_dir}/FINAL_97_food_code_counts_matrix_fake.tsv'
     output:
         '{sample_dir}/FINAL_97_food_code_counts_matrix.biom'
     shell:

@@ -132,6 +132,62 @@ mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'sampleid', value = 'ave', fill = 0) 
 
+mean_p2d_df %>% 
+  write_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix_fake.tsv')
+# used the same rules so marked the file name as fake
+
+# import the output 
+mean_p2d_food_unifrac <- read.delim('../data/cleaned_diet_data/FINAL_97_unweighted_unifrac_distance_matrix/distance-matrix.tsv', sep = '\t', row.names = 1)  
+food_dist <- as.dist(mean_p2d_food_unifrac)
+
+p2d_food_unifrac_pcoa <-  cmdscale(food_dist, k = 5) %>% 
+  as.data.frame() %>% 
+  rownames_to_column('sampleid')
+
+meta_food_pcoa <- meta %>% 
+  full_join(p2d_food_unifrac_pcoa)
+```
+
+```{r}
+mod_f_pcoa <-  lmer( log(simpson_reciprocal) ~ 
+                V1 + V2 + V3 + V4 + V5 +
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = meta_food_pcoa )
+summary(mod_f_pcoa)
+```
+
+```{r}
+# maybe plotting using V1 as the x axis and different food group comsumption as the y
+dat <- meta_food_pcoa %>% 
+  dplyr::select(V1, starts_with('fg')) %>% 
+  gather('type', 'gram', names(.)[2]:names(.)[ncol(.)]) %>% 
+  filter(type != 'fg_EN') %>% 
+  mutate(log_gram = log(gram + 0.0016))
+
+dat %>% 
+  ggscatter(x = 'V1', y = 'gram', alpha = 0.5, color = 'gram') +
+  facet_wrap(type~ . , scales = 'free') +
+  ggsave('../figs/v1_food_groups.pdf', width = 15, height = 15)
+
+
+# use free color scale on each small facet
+dat %>% 
+  group_split(type) %>% 
+  purrr::map(
+    ~ggplot(., aes(V1, gram, color = gram)) + 
+      geom_point(size = 2) +
+      scale_colour_gradient2(
+        low = "black", 
+        mid = "cornflowerblue", 
+        high = "red", 
+        midpoint = median(.$gram)
+      ) +
+      facet_grid(~ type, labeller = function(x) label_value(x, multi_line = FALSE))
+  ) %>% 
+  plot_grid(plotlist = ., align = 'hv', ncol = 2)
 
 ```
 
