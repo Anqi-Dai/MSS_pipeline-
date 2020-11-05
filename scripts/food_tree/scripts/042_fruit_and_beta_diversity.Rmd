@@ -1,10 +1,17 @@
 ---
 title: "Fruit and microbiome beta diverstiy"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+    code_folding: hide
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
@@ -98,7 +105,7 @@ ggplot()+
   labs(y = 'Food groups',
        title = 'Posterior distribution of regression coefficient for food groups') +
   theme(axis.text.y = element_text(size=20)) +
-  theme_tufte()
+  ggthemes::theme_tufte()
 ```
 
 ## using the food 5 PC to predict microbiome alpha diversity
@@ -167,28 +174,37 @@ dat <- meta_food_pcoa %>%
   filter(type != 'fg_EN') %>% 
   mutate(log_gram = log(gram + 0.0016))
 
-dat %>% 
-  ggscatter(x = 'V1', y = 'gram', alpha = 0.5, color = 'gram') +
-  facet_wrap(type~ . , scales = 'free') +
-  ggsave('../figs/v1_food_groups.pdf', width = 15, height = 15)
-
 
 # use free color scale on each small facet
 dat %>% 
   group_split(type) %>% 
   purrr::map(
-    ~ggplot(., aes(V1, gram, color = gram)) + 
+    ~ggplot(., aes(V1, gram,  color = gram)) + 
       geom_point(size = 2) +
       scale_colour_gradient2(
         low = "black", 
         mid = "cornflowerblue", 
         high = "red", 
-        midpoint = median(.$gram)
+        midpoint = mean(.$gram)
       ) +
       facet_grid(~ type, labeller = function(x) label_value(x, multi_line = FALSE))
   ) %>% 
-  plot_grid(plotlist = ., align = 'hv', ncol = 2)
+  cowplot::plot_grid(plotlist = ., align = 'hv', ncol = 3) +
+  ggsave('../figs/v1_food_groups_free_scale.pdf', width = 20, height = 14)
 
+meta_food_pcoa %>% 
+  summary
+
+# also plotting diversity VS V1
+meta_food_pcoa %>% 
+  ggplot(aes(x = V1, y = simpson_reciprocal, color = simpson_reciprocal)) +
+  geom_point(size = 2) +
+      scale_colour_gradient2(
+        low = "black", 
+        mid = "cornflowerblue", 
+        high = "red", 
+        midpoint = mean(meta_food_pcoa$simpson_reciprocal)
+      ) 
 ```
 
 
