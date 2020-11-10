@@ -1,0 +1,88 @@
+---
+title: "Match the species name"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+normcts <- read_csv('../data/frombiome/Merged Client Report_only_abundance.csv', 
+                    col_types = cols(.default = col_number(), `Sample ID` = col_character())) %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  gather('species', 'normcts', names(.)[2]: names(.)[ncol(.)])
+```
+
+
+```{r}
+# count the number of NA in each sample
+normcts %>% 
+  filter(is.na(normcts)) %>% 
+  count(Sample_ID) %>% arrange(n)
+
+all_NA_rm <- normcts %>% 
+  filter(is.na(normcts)) %>% 
+  count(Sample_ID) %>% 
+  filter(n == 106) %>% 
+  pull(Sample_ID)
+
+# 20 samples to be reomved completely
+normcts__ <- normcts %>% 
+  filter(! Sample_ID %in% all_NA_rm) %>% 
+  rename(sampleid = Sample_ID)
+  
+```
+
+```{r}
+# the overlap of the species name
+biome_spp <- normcts__ %>% 
+  distinct(species) %>% 
+  pull(species)
+```
+
+
+```{r}
+# our spp
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+
+get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database_predefined_filter('asv_counts_ag')
+
+
+ourcts <- asv_counts_ag %>% 
+  filter(sampleid %in% normcts__$sampleid) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
+  arrange(asv_key)  
+
+
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% ourcts$asv_key) %>% 
+  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
+         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
+         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
+  mutate(taxa_species = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
+
+
+# replace the asv_key with the genus taxa level
+# summarize from asv level to genus level
+# get the relative abundance for the genera
+ourcts_all <- ourcts %>% 
+  full_join(annot %>%  select(asv_key, taxa_species), by  = 'asv_key') %>% 
+  select(-asv_key) %>% 
+  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
+  group_by(sampleid, taxa_species) %>% 
+  summarise(cnt = sum(count)) %>% 
+  # get the total count from the db to calculate the relab
+  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
+  mutate(relab = cnt/count_total) %>% 
+  select(sampleid, taxa_species, relab) 
+```
+
