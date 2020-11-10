@@ -261,3 +261,7 @@ text(cca1_, display="species", col="black", scaling="species", cex = 0.5 )
 text(cca1_, display="bp", col="red", cex = 0.4)
 ```
 
+```{r}
+
+```
+

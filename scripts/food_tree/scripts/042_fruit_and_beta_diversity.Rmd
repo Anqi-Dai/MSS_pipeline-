@@ -204,7 +204,8 @@ meta_food_pcoa %>%
         mid = "cornflowerblue", 
         high = "red", 
         midpoint = mean(meta_food_pcoa$simpson_reciprocal)
-      ) 
+      ) +
+  ggsave('../figs/alpha.pdf')
 ```
 
 

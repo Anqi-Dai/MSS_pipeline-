@@ -80,7 +80,12 @@ need_info %>%
   write_csv('../data/!question/patients_missing_CI_and_wt_diet.csv')
 
 
+ci_needed <- ptb %>% 
+  filter(mrn %in% need_ci_pts) %>% 
+  dplyr::select(mrn, hct)
 
+ci_needed %>% 
+  write_csv('../data/!question/CI_needed.csv')
 ```
 
 ```{r}

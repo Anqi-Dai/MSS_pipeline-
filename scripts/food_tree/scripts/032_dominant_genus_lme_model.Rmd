@@ -19,15 +19,15 @@ library(ggpubr)
 ```
 
 ```{r}
-dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(abx = factor(abx, levels = c('non_empirical','empirical')))
+  mutate(empirical = factor(empirical, levels = c('FALSE','TRUE')))
 
 # look at the genus level
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% dat$sampleid) %>% 
-  select(sampleid, taxa_genus, relab) %>% 
+  dplyr::select(sampleid, taxa_genus, relab) %>% 
   mutate(taxa_genus = str_extract(taxa_genus, 'g__.+$'))
 
 ```
@@ -54,7 +54,7 @@ domgen <- c('g__Enterococcus', 'g__Streptococcus', 'g__Lactobacillus', 'g__Staph
 domcts <- cts %>% 
   filter(taxa_genus %in% domgen) %>% 
   mutate(relablog = log10(relab + 2*10^-6)) %>% 
-  select(-relab) %>% 
+  dplyr::select(-relab) %>% 
   mutate(taxa_genus = str_replace(taxa_genus, 'g__','')) %>% 
   spread(key = 'taxa_genus', value = 'relablog')
 
@@ -80,8 +80,9 @@ mod_staphy <-  lmer(Staphylococcus ~
                 fg_sweets+
                 fg_legume+
                 fg_veggie+
-               abx + 
+               empirical + 
                intensity + 
+                 TPN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_staphy)
@@ -219,13 +220,4 @@ model_Enterococcus <- brm( Enterococcus ~
 plot(model_Enterococcus)
 ```
 
-
-```{r}
-# look at why the sweets would increase the enteroccus relab 
-# what are the subgroups of sweets?
-sweets <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
-  filter(str_detect(Level.code, '^9')) %>% 
-  filter(str_length(Level.code) == 2)
-   
-```
 
