@@ -1,15 +1,25 @@
 ---
 title: "Match the species name"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 ```
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
+library(kableExtra)
 ```
+
+## Load the normalized absolute quantification from BioMe
 
 ```{r}
 normcts <- read_csv('../data/frombiome/Merged Client Report_only_abundance.csv', 
@@ -35,16 +45,15 @@ all_NA_rm <- normcts %>%
 normcts__ <- normcts %>% 
   filter(! Sample_ID %in% all_NA_rm) %>% 
   rename(sampleid = Sample_ID)
+
+# how many effective samples went into comparison 
+normcts__ %>% 
+  distinct(sampleid) %>% 
+  nrow
   
 ```
 
-```{r}
-# the overlap of the species name
-biome_spp <- normcts__ %>% 
-  distinct(species) %>% 
-  pull(species)
-```
-
+## Load our relab of the species of the same samples
 
 ```{r}
 # our spp
@@ -83,6 +92,100 @@ ourcts_all <- ourcts %>%
   # get the total count from the db to calculate the relab
   left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
   mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_species, relab) 
+  select(sampleid, taxa_species, relab) %>% 
+  mutate(species = str_extract(taxa_species, 's__.+$'),
+         species = str_replace(species, '^s__','')) %>% 
+  select(sampleid, species, relab) %>% 
+  ungroup() %>% 
+  # get rid of the [] in the genus name
+  mutate(species = str_replace_all(species, '\\[|\\]',''))
 ```
+
+## How many are overlapping and how many are missing
+
+```{r}
+# the overlap of the species name
+biome_spp <- normcts__ %>% 
+  distinct(species) %>% 
+  pull(species)
+
+our_spp <- ourcts_all %>% 
+  ungroup() %>% 
+  distinct(species)%>%  
+  pull(species)
+
+# a venn diagram
+library(ggvenn)
+two_list <- list(
+  our_spp = our_spp,
+  biome_spp = biome_spp)
+
+ggvenn(two_list)
+```
+
+
+```{r}
+# overlap
+
+only_biome <- tibble(species = setdiff(biome_spp, our_spp)) %>% 
+  mutate(genus = str_extract( species,"[^_]+"))
+  
+
+our_Bacteroides <- asv_annotation_blast_ag %>% 
+  filter(genus == 'Bacteroides') %>% 
+  distinct(species)
+
+
+# check the mean norm counts in the biome table for the missing spp in our counts
+mean_missing <- normcts__ %>% 
+  filter(species %in% only_biome$species) %>% 
+  group_by(species) %>% 
+  summarise(mean_normcts = mean(normcts, na.rm = T),
+            median_normcts = median(normcts, na.rm = T)) %>% 
+  mutate(in_blast_db = species %in% asv_annotation_blast_ag$species)
+
+
+mean_missing %>% 
+  gghistogram(x = 'mean_normcts', title = 'Mean norm cts in the biome table of the spp that is missing in our cts table') 
+
+mean_missing %>% 
+  gghistogram(x = 'median_normcts', title = 'Median norm cts in the biome table of the spp that is missing in our cts table') 
+
+color_false <- which(mean_missing$in_blast_db == FALSE)
+
+mean_missing %>% 
+  kable(caption = 'species missing in our quantification of the same samples') %>% 
+  kable_styling(full_width = F) %>%
+  row_spec(color_false,  color = "red")
+
+```
+
+## Look at some missing species
+
+```{r}
+# take a look at the ones that have mean_normcts > 2000
+big <- mean_missing %>% 
+  filter(mean_normcts > 2000)
+```
+
+
+```{r}
+# the biggest difference 
+our_Streptococcus <- asv_annotation_blast_ag %>% 
+  filter(genus == 'Streptococcus') %>% 
+  distinct(species)
+
+# Streptococcus_thermophilus seems like a very common bacteria
+# but in our blast db
+asv_annotation_blast_ag %>% 
+  filter(str_detect(species, '_thermophilus'))
+```
+
+
+- others
+- Bifidobacterium_longum also seems quite common
+- also Lactobacillus_paracasei
+- what about Enterococcus_hirae 
+- what to do with Bifidobacterium_longum_subsp._longum	 this kind of format
+
 
