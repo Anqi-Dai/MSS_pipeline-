@@ -68,3 +68,292 @@ m5.2 <- quap(
     ) , data = d )
 ```
 
+```{r}
+## R code 5.7
+library(dagitty)
+dag5.1 <- dagitty( "dag{ A -> D; A -> M; M -> D }" )
+coordinates(dag5.1) <- list( x=c(A=0,D=1,M=2) , y=c(A=0,D=1,M=0) )
+drawdag( dag5.1 )
+
+## R code 5.8
+DMA_dag2 <- dagitty('dag{ D <- A -> M }')
+impliedConditionalIndependencies( DMA_dag2 )
+
+## R code 5.9
+DMA_dag1 <- dagitty('dag{ D <- A -> M -> D }')
+impliedConditionalIndependencies( DMA_dag1 )
+```
+
+```{r}
+## R code 5.10
+m5.3 <- quap(
+    alist(
+        D ~ dnorm( mu , sigma ) ,
+        mu <- a + bM*M + bA*A ,
+        a ~ dnorm( 0 , 0.2 ) ,
+        bM ~ dnorm( 0 , 0.5 ) ,
+        bA ~ dnorm( 0 , 0.5 ) ,
+        sigma ~ dexp( 1 )
+    ) , data = d )
+precis( m5.3 )
+
+## R code 5.11
+plot( coeftab(m5.1,m5.2,m5.3), par=c("bA","bM") )
+
+## R code 5.12
+N <- 50 # number of simulated States
+age <- rnorm( N )        # sim A
+mar <- rnorm( N , -age )  # sim A -> M
+div <- rnorm( N , age )  # sim A -> D
+
+## R code 5.13
+m5.4 <- quap(
+    alist(
+        M ~ dnorm( mu , sigma ) ,
+        mu <- a + bAM * A ,
+        a ~ dnorm( 0 , 0.2 ) ,
+        bAM ~ dnorm( 0 , 0.5 ) ,
+        sigma ~ dexp( 1 )
+    ) , data = d )
+
+## R code 5.14
+mu <- link(m5.4)
+mu_mean <- apply( mu , 2 , mean )
+mu_resid <- d$M - mu_mean
+```
+
+
+```{r}
+## R code 5.15
+# call link without specifying new data
+# so it uses original data
+mu <- link( m5.3 )
+
+# summarize samples across cases
+mu_mean <- apply( mu , 2 , mean )
+mu_PI <- apply( mu , 2 , PI )
+
+# simulate observations
+# again no new data, so uses original data
+D_sim <- sim( m5.3 , n=1e4 )
+D_PI <- apply( D_sim , 2 , PI )
+
+## R code 5.16
+plot( mu_mean ~ d$D , col=rangi2 , ylim=range(mu_PI) ,
+    xlab="Observed divorce" , ylab="Predicted divorce" )
+abline( a=0 , b=1 , lty=2 )
+for ( i in 1:nrow(d) ) lines( rep(d$D[i],2) , mu_PI[,i] , col=rangi2 )
+identify( x=d$D , y=mu_mean , labels=d$Loc )
+
+```
+```{r}
+## R code 5.18
+N <- 100                         # number of cases
+x_real <- rnorm( N )             # x_real as Gaussian with mean 0 and stddev 1
+x_spur <- rnorm( N , x_real )    # x_spur as Gaussian with mean=x_real
+y <- rnorm( N , x_real )         # y as Gaussian with mean=x_real
+d <- data.frame(y,x_real,x_spur) # bind all together in data frame
+```
+
+```{r}
+## R code 5.19
+data(WaffleDivorce)
+d <- list()
+d$A <- standardize( WaffleDivorce$MedianAgeMarriage )
+d$D <- standardize( WaffleDivorce$Divorce )
+d$M <- standardize( WaffleDivorce$Marriage )
+
+m5.3_A <- quap(
+    alist(
+      ## A -> D <- M
+        D ~ dnorm( mu , sigma ) ,
+        mu <- a + bM*M + bA*A ,
+        a ~ dnorm( 0 , 0.2 ) ,
+        bM ~ dnorm( 0 , 0.5 ) ,
+        bA ~ dnorm( 0 , 0.5 ) ,
+        sigma ~ dexp( 1 ),
+      ## A -> M
+        M ~ dnorm( mu_M , sigma_M ),
+        mu_M <- aM + bAM*A,
+        aM ~ dnorm( 0 , 0.2 ),
+        bAM ~ dnorm( 0 , 0.5 ),
+        sigma_M ~ dexp( 1 )
+    ) , data = d )
+precis(m5.3_A)
+```
+```{r}
+## R code 5.20
+A_seq <- seq( from=-2 , to=2 , length.out=30 )
+
+## R code 5.21
+# prep data
+sim_dat <- data.frame( A=A_seq )
+
+# simulate M and then D, using A_seq
+s <- sim( m5.3_A , data=sim_dat , vars=c("M","D") )
+
+## R code 5.22
+plot( sim_dat$A , colMeans(s$D) , ylim=c(-2,2) , type="l" ,
+    xlab="manipulated A" , ylab="counterfactual D"  )
+shade( apply(s$D,2,PI) , sim_dat$A )
+mtext( "Total counterfactual effect of A on D" )
+
+
+plot( sim_dat$A , colMeans(s$M) , ylim=c(-2,2) , type="l" ,
+    xlab="manipulated A" , ylab="counterfactual M"  )
+shade( apply(s$M,2,PI) , sim_dat$A )
+mtext( "Total counterfactual effect of A on M" )
+```
+```{r}
+## R code 5.23
+# new data frame, standardized to mean 26.1 and std dev 1.24
+sim2_dat <- data.frame( A=(c(20,30)-26.1)/1.24 )
+s2 <- sim( m5.3_A , data=sim2_dat , vars=c("M","D") )
+mean( s2$D[,2] - s2$D[,1] )
+
+```
+
+```{r}
+library(rethinking)
+data(milk)
+d <- milk
+str(d)
+```
+```{r}
+## R code 5.29
+d$K <- standardize( d$kcal.per.g )
+d$N <- standardize( d$neocortex.perc )
+d$M <- standardize( log(d$mass) )
+
+## R code 5.30
+m5.5_draft <- quap(
+    alist(
+        K ~ dnorm( mu , sigma ) ,
+        mu <- a + bN*N ,
+        a ~ dnorm( 0 , 1 ) ,
+        bN ~ dnorm( 0 , 1 ) ,
+        sigma ~ dexp( 1 )
+    ) , data=d )
+
+## R code 5.31
+d$neocortex.perc
+
+## R code 5.32
+dcc <- d[ complete.cases(d$K,d$N,d$M) , ]
+
+## R code 5.33
+m5.5_draft <- quap(
+    alist(
+        K ~ dnorm( mu , sigma ) ,
+        mu <- a + bN*N ,
+        a ~ dnorm( 0 , 1 ) ,
+        bN ~ dnorm( 0 , 1 ) ,
+        sigma ~ dexp( 1 )
+    ) , data=dcc )
+
+## R code 5.34
+prior <- extract.prior( m5.5_draft )
+xseq <- c(-2,2)
+mu <- link( m5.5_draft , post=prior , data=list(N=xseq) )
+plot( NULL , xlim=xseq , ylim=xseq )
+for ( i in 1:50 ) lines( xseq , mu[i,] , col=col.alpha("black",0.3) )
+```
+
+```{r}
+m5.5 <- quap(
+    alist(
+        K ~ dnorm( mu , sigma ) ,
+        mu <- a + bN*N ,
+        a ~ dnorm( 0 , 0.2 ) ,
+        bN ~ dnorm( 0 , 0.5 ) ,
+        sigma ~ dexp( 1 )
+    ) , data=dcc )
+
+
+prior <- extract.prior( m5.5 )
+xseq <- c(-2,2)
+mu <- link( m5.5 , post=prior , data=list(N=xseq) )
+plot( NULL , xlim=xseq , ylim=xseq )
+for ( i in 1:50 ) lines( xseq , mu[i,] , col=col.alpha("black",0.3) )
+
+## R code 5.36
+precis( m5.5 )
+
+## R code 5.37
+xseq <- seq( from=min(dcc$N)-0.15 , to=max(dcc$N)+0.15 , length.out=30 )
+mu <- link( m5.5 , data=list(N=xseq) )
+mu_mean <- apply(mu,2,mean)
+mu_PI <- apply(mu,2,PI)
+plot( K ~ N , data=dcc )
+lines( xseq , mu_mean , lwd=2 )
+shade( mu_PI , xseq )
+```
+```{r}
+m5.6 <- quap(
+    alist(
+        K ~ dnorm( mu , sigma ) ,
+        mu <- a + bM*M ,
+        a ~ dnorm( 0 , 0.2 ) ,
+        bM ~ dnorm( 0 , 0.5 ) ,
+        sigma ~ dexp( 1 )
+    ) , data=dcc )
+precis(m5.6)
+
+xseq <- seq( from=min(dcc$N)-0.15 , to=max(dcc$N)+0.15 , length.out=30 )
+mu <- link( m5.6 , data=list(M=xseq) )
+mu_mean <- apply(mu,2,mean)
+mu_PI <- apply(mu,2,PI)
+plot( K ~ N , data=dcc )
+lines( xseq , mu_mean , lwd=2 )
+shade( mu_PI , xseq )
+```
+
+```{r}
+## R code 5.39
+m5.7 <- quap(
+    alist(
+        K ~ dnorm( mu , sigma ) ,
+        mu <- a + bN*N + bM*M ,
+        a ~ dnorm( 0 , 0.2 ) ,
+        bN ~ dnorm( 0 , 0.5 ) ,
+        bM ~ dnorm( 0 , 0.5 ) ,
+        sigma ~ dexp( 1 )
+    ) , data=dcc )
+precis(m5.7)
+
+## R code 5.40
+plot( coeftab( m5.5 , m5.6 , m5.7 ) , pars=c("bM","bN") )
+
+pairs( ~ K + M + N, dcc)
+```
+
+```{r}
+## R code 5.41
+xseq <- seq( from=min(dcc$M)-0.15 , to=max(dcc$M)+0.15 , length.out=30 )
+mu <- link( m5.7 , data=data.frame( M=xseq , N=0 ) )
+mu_mean <- apply(mu,2,mean)
+mu_PI <- apply(mu,2,PI)
+plot( NULL , xlim=range(dcc$M) , ylim=range(dcc$K) )
+lines( xseq , mu_mean , lwd=2 )
+shade( mu_PI , xseq )
+```
+
+```{r}
+xseq <- seq( from=min(dcc$N)-0.15 , to=max(dcc$N)+0.15 , length.out=30 )
+mu <- link( m5.7 , data=data.frame( N=xseq , M=0 ) )
+mu_mean <- apply(mu,2,mean)
+mu_PI <- apply(mu,2,PI)
+plot( NULL , xlim=range(dcc$N) , ylim=range(dcc$K) )
+lines( xseq , mu_mean , lwd=2 )
+shade( mu_PI , xseq )
+```
+
+```{r}
+dag5.7 <- dagitty( "dag{
+    M -> K <- N
+    M -> N }" )
+coordinates(dag5.7) <- list( x=c(M=0,K=1,N=2) , y=c(M=0.5,K=1,N=0.5) )
+MElist <- equivalentDAGs(dag5.7)
+drawdag(MElist)
+```
+
