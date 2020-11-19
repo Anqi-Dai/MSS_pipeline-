@@ -12,8 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(rethinking)
 data(WaffleDivorce)
 d <- WaffleDivorce
-```
-```{r}
+
 # standardize variables
 d$D <- standardize( d$Divorce )
 d$M <- standardize( d$Marriage )
@@ -355,5 +354,26 @@ dag5.7 <- dagitty( "dag{
 coordinates(dag5.7) <- list( x=c(M=0,K=1,N=2) , y=c(M=0.5,K=1,N=0.5) )
 MElist <- equivalentDAGs(dag5.7)
 drawdag(MElist)
+```
+
+```{r}
+# hard 1 
+
+## R code 5.13
+m5.4 <- quap(
+    alist(
+        D ~ dnorm( mu , sigma ) ,
+        mu <- a + bAM * M ,
+        a ~ dnorm( 0 , 0.2 ) ,
+        bAM ~ dnorm( 0 , 0.5 ) ,
+        sigma ~ dexp( 1 )
+    ) , data = d )
+
+## R code 5.14
+mu <- link(m5.4)
+mu_mean <- apply( mu , 2 , mean )
+mu_resid <- d$D - mu_mean
+
+plot(mu_resid, d$A)
 ```
 
