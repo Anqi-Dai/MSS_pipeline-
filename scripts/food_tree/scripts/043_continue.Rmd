@@ -1,0 +1,35 @@
+---
+title: "continue"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+## check the pairwise correlation between the predicting variables
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv')	%>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = as.factor(mrn))
+```
+
+```{r}
+dat <- meta %>% 
+  select(-mrn, -sampleid, -sdrt) %>% 
+  mutate_if(is.double, ~ (scale(.) %>% as.vector)) # standardize all the numeric values (the fg group and the diversity)
+
+
+library(ggcorrplot)
+model.matrix(~0+., data=dat) %>% 
+  cor(use="pairwise.complete.obs") %>% 
+  ggcorrplot(show.diag = F, type="lower", lab=TRUE, lab_size=2)
+```
+
