@@ -71,15 +71,17 @@ all <- domcts %>%
 library(lmerTest)
 
 mod_staphy <-  lmer(Staphylococcus ~ 
-              fg_fruit+
+               fg_fruit+
                fg_meat+
                fg_milk+
                fg_oils+
                 fg_egg+ 
                 fg_grain+
-                fg_sweets+
+                fg_sweets+  
                 fg_legume+
                 fg_veggie+
+                fg_ndrink+
+                fg_EN+
                empirical + 
                intensity + 
                  TPN +
@@ -100,11 +102,14 @@ mod_g__Enterococcus <-  lmer(Enterococcus ~
                fg_oils+
                 fg_egg+ 
                 fg_grain+
-                fg_sweets+
+                fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               abx + 
+                fg_ndrink+
+                fg_EN+
+               empirical + 
                intensity + 
+                 TPN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Enterococcus)
@@ -120,11 +125,14 @@ mod_g__Escherichia <-  lmer(Escherichia ~
                fg_oils+
                 fg_egg+ 
                 fg_grain+
-                fg_sweets+
+                fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               abx + 
+                fg_ndrink+
+                fg_EN+
+               empirical + 
                intensity + 
+                 TPN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Escherichia)
@@ -140,11 +148,14 @@ mod_g__Klebsiella <-  lmer(Klebsiella ~
                fg_oils+
                 fg_egg+ 
                 fg_grain+
-                fg_sweets+
+                fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               abx + 
+                fg_ndrink+
+                fg_EN+
+               empirical + 
                intensity + 
+                 TPN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Klebsiella)
@@ -154,17 +165,20 @@ summary(mod_g__Klebsiella)
 
 ```{r}
 mod_g__Lactobacillus <-  lmer(Lactobacillus ~ 
-              fg_fruit+
+             fg_fruit+
                fg_meat+
                fg_milk+
                fg_oils+
                 fg_egg+ 
                 fg_grain+
-                fg_sweets+
+                fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               abx + 
+                fg_ndrink+
+                fg_EN+
+               empirical + 
                intensity + 
+                 TPN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Lactobacillus)
@@ -180,20 +194,52 @@ mod_g__Streptococcus <-  lmer(Streptococcus ~
                fg_oils+
                 fg_egg+ 
                 fg_grain+
-                fg_sweets+
+                fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               abx + 
+                fg_ndrink+
+                fg_EN+
+               empirical + 
                intensity + 
+                 TPN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Streptococcus)
 ```
 
-veggie increases Lactobacillus
-milk increases Streptococcus
-sweets and veggie increases g__Enterococcus with a p value 0.07 and 0.09
+## brms way
 
+```{r}
+# a function to draw the ridge density plot for the bayes results
+draw_ridge_density_fg <- function(brm_mod){
+  posterior_model <- posterior_samples(brm_mod) %>% 
+    select(starts_with('b')) %>% 
+    select(-b_Intercept) %>% 
+    gather('item', 'value') %>% 
+    group_by(item) %>% 
+    mutate(meanperitem = mean(value))%>%
+    ungroup()
+
+  posterior_model_only_food_group <- posterior_model %>% 
+    filter(str_detect(item, '_fg_'))
+  
+  ggplot()+
+    ggridges::geom_density_ridges(data  = posterior_model_only_food_group, 
+                                  aes(x      = value,
+                                      y      = reorder(as.factor(item), meanperitem),
+                                      height = ..density..),
+                                  scale = 1.5, size = 0.25,
+                                  alpha = 0.6) +
+    geom_vline(xintercept = 0, col = "red") +
+    #scale_x_continuous(limits = c(-0.02,0.03)) +
+    labs(y = 'Food groups',
+         title = 'Posterior distribution of regression coefficient for food groups') +
+    theme(axis.text.y = element_text(size=20)) +
+    ggthemes::theme_tufte()
+}
+```
+
+ 
 ```{r}
 # use the brms to check the g__Enterococcus model 
 library(brms)   
@@ -206,18 +252,48 @@ model_Enterococcus <- brm( Enterococcus ~
                fg_oils+
                 fg_egg+ 
                 fg_grain+
-                fg_sweets+
+                fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               abx + 
+                fg_ndrink+
+                fg_EN+
+               empirical + 
                intensity + 
+                 TPN +
                (1 | mrn) +
                 (1 | timebin),  
               data = all, 
               warmup = 1000, iter = 3000, 
               cores = 8, chains = 2, 
               seed = 123) 
-plot(model_Enterococcus)
+
+draw_ridge_density_fg(model_Enterococcus)
+```
+
+```{r}
+model_Enterococcus <- brm( Enterococcus ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = all, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+draw_ridge_density_fg(model_Enterococcus)
 ```
 
 
