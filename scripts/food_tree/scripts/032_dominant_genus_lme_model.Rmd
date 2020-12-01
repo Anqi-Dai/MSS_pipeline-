@@ -209,7 +209,7 @@ summary(mod_g__Streptococcus)
 
 ## brms way
 
-```{r}
+```{r function}
 # a function to draw the ridge density plot for the bayes results
 draw_ridge_density_fg <- function(brm_mod){
   posterior_model <- posterior_samples(brm_mod) %>% 
@@ -221,7 +221,8 @@ draw_ridge_density_fg <- function(brm_mod){
     ungroup()
 
   posterior_model_only_food_group <- posterior_model %>% 
-    filter(str_detect(item, '_fg_'))
+    filter(str_detect(item, '_fg_')) %>% 
+    mutate(item = str_replace(item, 'b_fg_',''))
   
   ggplot()+
     ggridges::geom_density_ridges(data  = posterior_model_only_food_group, 
@@ -232,10 +233,12 @@ draw_ridge_density_fg <- function(brm_mod){
                                   alpha = 0.6) +
     geom_vline(xintercept = 0, col = "red") +
     #scale_x_continuous(limits = c(-0.02,0.03)) +
-    labs(y = 'Food groups',
-         title = 'Posterior distribution of regression coefficient for food groups') +
-    theme(axis.text.y = element_text(size=20)) +
-    ggthemes::theme_tufte()
+    labs(y = '',
+         title = '') +
+    #theme(axis.text.y = element_text(size=40)) +
+    ggthemes::theme_tufte() +
+    theme(axis.text.y = element_text(size=30),
+          axis.text.x = element_text(size=15))
 }
 ```
 
@@ -245,7 +248,7 @@ draw_ridge_density_fg <- function(brm_mod){
 library(brms)   
 library(ggmcmc)
 
-model_Enterococcus <- brm( Enterococcus ~ 
+model_Staphylococcus <- brm( Staphylococcus ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -267,7 +270,7 @@ model_Enterococcus <- brm( Enterococcus ~
               cores = 8, chains = 2, 
               seed = 123) 
 
-draw_ridge_density_fg(model_Enterococcus)
+draw_ridge_density_fg(model_Staphylococcus)
 ```
 
 ```{r}
@@ -296,4 +299,125 @@ model_Enterococcus <- brm( Enterococcus ~
 draw_ridge_density_fg(model_Enterococcus)
 ```
 
+
+```{r}
+model_Escherichia <- brm( Escherichia ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = all, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+draw_ridge_density_fg(model_Escherichia)
+```
+
+```{r}
+model_Klebsiella <- brm( Klebsiella ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = all, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+draw_ridge_density_fg(model_Klebsiella)
+```
+
+```{r}
+model_Lactobacillus  <- brm( Lactobacillus  ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = all, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+draw_ridge_density_fg(model_Lactobacillus)
+```
+```{r}
+model_Streptococcus  <- brm( Streptococcus  ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = all, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+draw_ridge_density_fg(model_Streptococcus)
+```
+```{r}
+# put them in a facet grid plot
+dom <- list(
+  model_Streptococcus = model_Streptococcus,
+  model_Enterococcus = model_Enterococcus,
+  model_Escherichia = model_Escherichia,
+  model_Klebsiella = model_Klebsiella,
+  model_Staphylococcus = model_Staphylococcus,
+  model_Lactobacillus = model_Lactobacillus
+) 
+
+dom %>% 
+  purrr::map(
+    ~ draw_ridge_density_fg(.)
+  ) %>% 
+  cowplot::plot_grid(plotlist = ., align = 'hv', ncol = 3, labels = names(.))  +
+  ggsave('../figs/dom_genera_brms.pdf', width = 14, height = 10)
+```
 

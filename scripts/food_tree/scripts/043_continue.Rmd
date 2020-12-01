@@ -34,3 +34,101 @@ model.matrix(~0+., data=dat) %>%
   ggcorrplot(show.diag = F, type="lower", lab=TRUE, lab_size=2)
 ```
 
+## add the faith diet diversity into the model
+
+```{r}
+# load the mean p2d diet faith df
+mean_p2d_ffaith_df <- read_csv('../data/cleaned_stool/mean_p2d_diet_faith.csv')
+
+Meta <- meta %>% 
+  full_join(mean_p2d_ffaith_df) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = as.factor(mrn))
+```
+
+
+```{r}
+library(lmerTest)     
+mod_faith <-  lmer(log(simpson_reciprocal) ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+                ave_ffaith+
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = Meta )
+summary(mod_faith) 
+```
+
+```{r}
+brm_faith  <- brm(log(simpson_reciprocal)  ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+                ave_ffaith+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = Meta, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+posterior_model <- posterior_samples(brm_faith) %>% 
+  select(starts_with('b')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'value') %>% 
+  group_by(item) %>% 
+  mutate(meanperitem = mean(value))%>%
+  ungroup()
+
+posterior_model_vars <- posterior_model %>% 
+  filter(str_detect(item, '_fg_') | item == 'b_ave_ffaith')
+
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model_vars, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 1.5, size = 0.25,
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red") +
+  #scale_x_continuous(limits = c(-0.02,0.03)) +
+  labs(y = 'Food groups',
+       title = 'Posterior distribution of regression coefficient for food groups') +
+  theme(axis.text.y = element_text(size=20)) +
+  ggthemes::theme_tufte()
+```
+
+```{r}
+mod_faith_ <-  lmer(log(simpson_reciprocal) ~ 
+             ave_ffaith+
+               empirical +  
+               intensity + 
+                TPN + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = Meta )
+summary(mod_faith_) 
+```
+

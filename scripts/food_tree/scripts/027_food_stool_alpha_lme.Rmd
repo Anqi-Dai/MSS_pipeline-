@@ -24,10 +24,8 @@ library(PhyloMeasures)
 
 ```{r}
 # microbiome counts 
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
-    mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-    mutate(abx = factor(abx, levels = c('non_empirical','empirical')),
-           mrn = factor(mrn))
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
+    mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) 
 
 asv_counts_ag <- read_csv('../data/asv_counts_ag_Feb17.csv')
 cts <- asv_counts_ag %>% 
@@ -80,7 +78,7 @@ mean_p2d_ffaith <-  function(mrn_, p1d_, p2d_){
   df = ffaith %>% 
     filter(mrn == mrn_) %>% 
     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
-    summarise(ave_ffaith = mean(faith_pd))
+    summarise(ave_ffaith = sum(faith_pd)/2)
   return(df)
 }
 
@@ -88,13 +86,14 @@ mean_p2d_ffaith_df <- pmap(all_meta_pair, function(mrn, p1d, p2d){
     mean_p2d_ffaith(mrn, p1d, p2d)
   }) %>% 
   set_names(all_meta$sampleid) %>% 
-  bind_rows(.id = 'sampleid') %>% 
-  filter(!is.nan(ave_ffaith))# some just don't have previous two days data so remove
-
+  bind_rows(.id = 'sampleid') 
 
 final_alpha   <- all_meta %>% 
   inner_join(mean_p2d_ffaith_df) %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
+
+mean_p2d_ffaith_df %>% 
+  write_csv('../data/cleaned_stool/mean_p2d_diet_faith.csv')
 ```
 
 # linear mixed effects model, controlling time
