@@ -86,11 +86,12 @@ samp_butyrate <- cts  %>%
   summarise(butyesti = sum(relab))
 
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
-  inner_join(samp_butyrate) 
+  inner_join(samp_butyrate)  %>% 
+  mutate(log10butyesti = log10(butyesti + 2*10^-6))
 
 library(brms)   
 library(ggmcmc)
-model_buty <- brm( log(butyesti) ~ 
+model_buty <- brm( log10butyesti ~ 
               fg_fruit+
                fg_meat+
                fg_milk+
@@ -111,5 +112,38 @@ model_buty <- brm( log(butyesti) ~
               warmup = 1000, iter = 3000, 
               cores = 16, chains = 4, 
               seed = 123) 
+
+stanplot(model_buty, type = "trace")
+draw_ridge_density_fg(model_buty)
+
+cor(meta$simpson_reciprocal, meta$log10butyesti, 
+    method = 'pearson')
+
+meta %>% 
+  mutate(log10div = log10(simpson_reciprocal)) %>% 
+  ggpubr::ggscatter(x = 'log10div', y = 'log10butyesti',
+                     add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) 
+```
+
+
+```{r}
+model_buty_ <- brm( log(simpson_reciprocal) ~ 
+              log10butyesti+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+stanplot(model_buty_, type = 'trace')
+draw_ridge_density_fg(model_buty_)
+summary(model_buty_)
 ```
 
