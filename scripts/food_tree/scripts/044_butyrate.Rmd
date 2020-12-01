@@ -122,6 +122,8 @@ cor(meta$simpson_reciprocal, meta$log10butyesti,
 meta %>% 
   mutate(log10div = log10(simpson_reciprocal)) %>% 
   ggpubr::ggscatter(x = 'log10div', y = 'log10butyesti',
+                    xlab = 'simpson reciprocal log10 transformed',
+                    ylab = 'butyrate producer abundance log10 transformed',
                      add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
@@ -143,7 +145,33 @@ model_buty_ <- brm( log(simpson_reciprocal) ~
               cores = 8, chains = 2, 
               seed = 123) 
 stanplot(model_buty_, type = 'trace')
-draw_ridge_density_fg(model_buty_)
+
 summary(model_buty_)
+
+posterior_model <- posterior_samples(model_buty_) %>% 
+    select(starts_with('b')) %>% 
+    select(-b_Intercept) %>% 
+    gather('item', 'value') %>% 
+    group_by(item) %>% 
+    mutate(meanperitem = mean(value))%>%
+    ungroup()
+
+
+  
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 1.5, size = 0.25,
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red") +
+  #scale_x_continuous(limits = c(-0.02,0.03)) +
+  labs(y = '',
+       title = '') +
+  #theme(axis.text.y = element_text(size=40)) +
+  ggthemes::theme_tufte() +
+  theme(axis.text.y = element_text(size=30),
+        axis.text.x = element_text(size=15))
 ```
 
