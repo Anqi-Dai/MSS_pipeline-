@@ -459,6 +459,7 @@ model_enterodom  <- brm( enterodom  ~
               seed = 123) 
 plot(model_enterodom)
 draw_ridge_density_fg(model_enterodom)
+stanplot(model_enterodom, type = "trace")
 ```
 
 ```{r}
@@ -554,10 +555,23 @@ model_gvhd  <- brm( gvhd  ~
                 (1 | timebin),  
               data = all_gvhd, 
               family = bernoulli(), 
-              warmup = 1000, iter = 3000, 
-              cores = 8, chains = 2, 
+              warmup = 10000, iter = 20000, 
+              cores = 32, chains = 2, 
               seed = 123) 
 
+stanplot(model_gvhd, type = "trace")
 draw_ridge_density_fg(model_gvhd)
+
+modelposterior <- as.mcmc(model_gvhd) # with the as.mcmc() command we can use all the CODA package convergence statistics and plotting options
+coda::gelman.diag(modelposterior[, 1:4])
+#The Gelman-Rubin Diagnostic shows the PSRF values (using the within and between chain variability). You should look at the Upper CI/Upper limit, which are all should be close to 1. If they aren’t close to 1, you should use more iterations. Note: The Gelman and Rubin diagnostic is also automatically given in the summary of brms under the column Rhat
+
+
+coda::geweke.diag(modelposterior[, 1:4])
+#The Geweke Diagnostic shows the z-scores for a test of equality of means between the first and last parts of each chain, which should be <1.96. A separate statistic is calculated for each variable in each chain. In this way it check whether a chain has stabalized. If this is not the case, you should increase the number of iterations. In the plots you should check how often values exceed the boundary lines of the z-scores. Scores above 1.96 or below -1.96 mean that the two portions of the chain significantly differ and full chain convergence was not obtained.
+geweke.plot(modelposterior[, 1:4])
+
+
+# still need more samples to converge possibly 
 ```
 

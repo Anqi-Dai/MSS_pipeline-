@@ -1,0 +1,115 @@
+---
+title: "Look at butyrate producers"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+butyrate.genus <- c("Faecalibacterium","Anaerofustis","Anaerotruncus","Butyrivibrio","Coprococcus")
+butyrate.species <- c("[Eubacterium] hallii","Eubacterium limosum",
+                      "[Eubacterium] rectale","[Eubacterium] dolichum",
+                      "Eubacterium biforme","Eubacterium ventriosum",
+                      "[Eubacterium] saphenum","[Eubacterium] cellulosolvens",
+                      "Odoribacter splanchicus","[Eubacterium] yurii",
+                      "[Clostridium] saccharolyticum","[Clostridium] symbiosum",
+                      "[Clostridium] glycyrrhizinilyticum","Clostridium butyricum",
+                      "Clostridium botulinum","Clostridium difficile",
+                      "Clostridium sporogenes","Clostridium sticklandii",
+                      "Eubacterium desmolans","Alistipes putredinis",
+                      "Lactobacillus fermentum","Roseburia intestinalis",
+                      "Roseburia hominis","Roseburia inulinivorans",
+                      "Porphyromonas asaccharolytica","Porphyromonas gingivalis",
+                      "Porphyromonas endodontalis","Pseudoramibacter alactolyticus",
+                      "Pseudoramibacter uenosis","Propionibacterium acidifaciens",
+                      "Acidaminococcus fermentans","Acetonema longum","Anaerostipes caccae",
+                      "Fusobacterium gonidiaformans","Fusobacterium mortiferum",
+                      "Fusobacterium nucleatum","Fusobacterium ulcerans",
+                      "Fusobacterium varium","Brachyspira murdochii",
+                      "Brachyspira pilosicoli","Treponema phagedenis",
+                      "Brachyspira vincentii","Anaerococcus hydrogenalis",
+                      "Anaerococcus lactolyticus","Anaerococcus prevotii",
+                      "Anaerococcus tetradius","Anaerococcus vaginalis",
+                      "Peptoniphilus duerdenii","Peptoniphilus harei",
+                      "Peptoniphilus lacrimalis","Shuttleworthia satelles",
+                      "Propionibacterium acidifaciens","Anaerofustis stercorihominis",
+                      "Subdoligranulum variabile","Megasphaera micronuciformis")
+butyrate.species_ag_Ying <- c("[Eubacterium] hallii","Eubacterium limosum","[Eubacterium] dolichum","Eubacterium biforme","Eubacterium ventriosum",
+                                 "[Clostridium] glycyrrhizinilyticum","Clostridium botulinum","Clostridium difficile","Clostridium sporogenes","Clostridium sticklandii",
+                                 "Eubacterium desmolans","Alistipes putredinis","Lactobacillus fermentum","Roseburia intestinalis","Roseburia inulinivorans",
+                                 "Porphyromonas asaccharolytica","Porphyromonas gingivalis","Porphyromonas endodontalis","Pseudoramibacter alactolyticus","Anaerostipes caccae",
+                                 "Fusobacterium nucleatum","Fusobacterium varium","Brachyspira pilosicoli","Treponema phagedenis","Anaerococcus hydrogenalis",
+                                 "Anaerococcus prevotii","Shuttleworthia satelles","Propionibacterium acidifaciens","Anaerofustis stercorihominis","Subdoligranulum variabile",
+                                 "Megasphaera micronuciformis");
+#This group list species whose name is not exact same match as Ying's list, but can be matched in my list:
+butyrate.species_ag_Ying_modified <- c("Clostridium symbiosum", "Eubacterium rectale",
+                                       "Eubacterium_yurii_subsp._schtitka", "Eubacterium_yurii_subsp._yurii",
+                                       "Clostridium_tyrobutyricum","Propionibacterium_acidifaciens");
+#(Aug/08/2019) Name updates: 
+#Eubacterium_dolichum should be switched to Absiella dolichum (https://www.ncbi.nlm.nih.gov/pubmed/28754474, this also seems to be the BLAST annotation of DADA2 ).
+#Clostridium difficile is now called Clostridiodes difficile: https://www.ncbi.nlm.nih.gov/pubmed/27370902
+#Eubacterium_desmolans to Agathobaculum desmolans: https://www.ncbi.nlm.nih.gov/pubmed/27334534
+butyrate.species_ag_updates = c("Absiella dolichum",
+                                "Clostridioides difficile",
+                                "Butyricicoccus pullicaecorum",
+                                "Agathobaculum desmolans")
+butyrate.species_ag <- c(butyrate.species_ag_Ying,
+                         butyrate.species_ag_Ying_modified,
+                         butyrate.species,
+                         butyrate.species_ag_updates);
+butyrate.species_ag_renamed = c("Eubacterium_dolichum", "Clostridium_difficile", "Eubacterium_desmolans"); #Those species were `renamed``
+butyrate.species_ag <- gsub(" ", 
+                            "_",
+                            butyrate.species_ag);
+```
+```{r}
+# the species cts in my samples
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_species_counts.csv') %>% 
+  mutate(taxa_species = str_extract(taxa_species, 's__.+$'),
+         taxa_species = str_replace(taxa_species, 's__','')) %>% 
+  mutate(is_butyrate = if_else(taxa_species %in% butyrate.species_ag, T, F))
+
+uni <- cts %>% 
+  distinct(taxa_species)
+
+length(intersect(uni$taxa_species, butyrate.species_ag))
+
+samp_butyrate <- cts  %>% 
+  filter(is_butyrate == 'TRUE') %>% 
+  group_by(sampleid) %>% 
+  summarise(butyesti = sum(relab))
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
+  inner_join(samp_butyrate) 
+
+library(brms)   
+library(ggmcmc)
+model_buty <- brm( log(butyesti) ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              cores = 16, chains = 4, 
+              seed = 123) 
+```
+
