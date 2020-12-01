@@ -421,3 +421,143 @@ dom %>%
   ggsave('../figs/dom_genera_brms.pdf', width = 14, height = 10)
 ```
 
+## use the enterococcus domination as the response
+
+```{r}
+entercts <- cts %>% 
+  filter(taxa_genus == 'g__Enterococcus') %>% 
+  mutate(enterodom = if_else(relab > 0.3, T, F)) %>% 
+  rename(enterorelab = relab) %>% 
+  select(-taxa_genus)
+
+All <- all %>% 
+  full_join(entercts)
+```
+
+```{r}
+model_enterodom  <- brm( enterodom  ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = All, 
+              family = bernoulli(), 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+plot(model_enterodom)
+draw_ridge_density_fg(model_enterodom)
+```
+
+```{r}
+mod_entero <-  glmer(enterodom ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical +  
+               intensity + 
+                TPN +
+               (1 | mrn) +
+                (1 | timebin),family = binomial, data = All )
+print(mod_entero, corr = FALSE)
+se <- sqrt(diag(vcov(mod_entero)))
+(tab <- cbind(Est = fixef(mod_entero), LL = fixef(mod_entero) - 1.96 * se, UL = fixef(mod_entero) + 1.96 *
+    se))
+exp(tab)# odd ratio
+# OR > 1 indicates increased occurrences of an event
+```
+
+
+```{r}
+oddr <- exp(tab) %>% 
+  as.data.frame() %>% 
+  rownames_to_column() %>% 
+  filter(rowname != '(Intercept)') %>% 
+  filter(str_detect(rowname, 'fg'))
+
+oddr %>% 
+  arrange(Est) %>% 
+  ggscatter(x = 'rowname', y = 'Est', color = 'red',
+              ylab = 'Odds ratio',
+              title = 'Enterococcus domination as outcome',
+              xlab = '') +
+    geom_errorbar(aes( ymin  = LL,
+                     ymax  = UL,
+                     width = 0.25))+
+  coord_flip() +
+  geom_hline(yintercept = 1, col = "firebrick", linetype = 'dashed') +
+  scale_y_log10()
+```
+
+## use the GVHD Yes and No as the outcome 
+
+```{r}
+# get from the patients allo table whether the patients have gvhd
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+
+get_table_from_database('patient_allo_ag')
+
+pt_gvhd <- patient_allo_ag %>% 
+  filter(mrn %in% All$mrn) %>% 
+  arrange(hct) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  distinct(mrn, gvhd) %>% 
+  filter(gvhd != 'N/E')
+
+all_gvhd <- All %>% 
+  inner_join(pt_gvhd) %>% 
+  mutate(gvhd = if_else(gvhd == 'Y', T, F))
+
+all_gvhd %>% 
+  count(gvhd)
+
+```
+
+```{r}
+model_gvhd  <- brm( gvhd  ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_ndrink+
+                fg_EN+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = all_gvhd, 
+              family = bernoulli(), 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+
+draw_ridge_density_fg(model_gvhd)
+```
+
