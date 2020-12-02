@@ -295,3 +295,52 @@ geweke.plot(modelposterior[, 1:4])
 
 # still need more samples to converge possibly 
 ```
+
+## use the faith diversity and calories as predictors
+
+```{r}
+final <- All %>% 
+  full_join(mean_p2d_df_cal) %>% 
+  full_join(mean_p2d_ffaith_df)
+
+model_two  <- brm( log(simpson_reciprocal)  ~ 
+            ave_ffaith +
+              ave_cal+
+               empirical + 
+               intensity + 
+                 TPN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = final, 
+              warmup = 1000, iter = 3000, 
+              cores = 16, chains = 2, 
+              seed = 123) 
+
+
+posterior_model <- posterior_samples(model_two) %>% 
+    select(starts_with('b')) %>% 
+    select(-b_Intercept) %>% 
+    gather('item', 'value') %>% 
+    group_by(item) %>% 
+    mutate(meanperitem = mean(value))%>%
+    ungroup()
+  
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 1.5, size = 0.25,
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red") +
+  #scale_x_continuous(limits = c(-0.02,0.03)) +
+  labs(y = '',
+       title = '') +
+  #theme(axis.text.y = element_text(size=40)) +
+  ggthemes::theme_tufte() +
+  theme(axis.text.y = element_text(size=30),
+        axis.text.x = element_text(size=15))
+
+```
+ 
+ 
