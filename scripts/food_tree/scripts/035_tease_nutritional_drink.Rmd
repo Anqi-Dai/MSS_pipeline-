@@ -220,7 +220,7 @@ model_brm <- brm( log(simpson_reciprocal)~
               cores = 8, chains = 2, 
               seed = 123) 
 
-summary(model_brm)
+draw_ridge_density_fg(model_brm)
 ```
 
 ```{r}
@@ -232,6 +232,9 @@ posterior_model <- posterior_samples(model_brm) %>%
   group_by(item) %>% 
   mutate(meanperitem = mean(value))%>%
   ungroup()
+
+posterior_model %>% 
+  distinct(item)
 
 library(ggthemes)
 library(ggridges)
@@ -245,7 +248,7 @@ ggplot()+
                                 alpha = 0.6) +
   geom_vline(xintercept = 0, col = "red") +
   theme_ridges() +
-  scale_x_continuous(limits = c(-1.38,0.25)) +
+  #scale_x_continuous(limits = c(-1.38,0.25)) +
   ggsave('../figs/posteiror_brms.pdf', width = 10, height = 10)
 ```
 

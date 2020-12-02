@@ -342,6 +342,18 @@ ggplot()+
   theme(axis.text.y = element_text(size=30),
         axis.text.x = element_text(size=15))
 
+
+```
+ 
+```{r}
+final %>% 
+  ggpubr::ggboxplot(x = 'enterodom', y = 'ave_cal', add = 'jitter',
+                    ylab = 'Average caloric intake in the prior 2 days',
+                    xlab = 'Enterococcus domination status')+
+    stat_compare_means(comparisons= list(c('FALSE', 'TRUE')),
+    label = "p.signif",
+    method = 'wilcox.test',
+    correct=FALSE)
 ```
  
  
