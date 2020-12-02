@@ -15,6 +15,10 @@ library(tidyverse)
 dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) 
+
+dat %>% 
+  select(-mrn) %>% 
+  summary
 ```
 ```{r}
 library(lmerTest)     
@@ -150,13 +154,74 @@ low_eater_swab_both %>%
   geom_line(aes(group = true), color = "grey", alpha = 0.8)
 ```
 
-## not only swapping the fruit but also swapping the other food group comsumptions 
+## not only swapping the fruit but also swapping the other food group comsumptions  
 
 ```{r}
-high_eater_swab <- tope %>% 
-  mutate(fg_fruit = bote__$fg_fruit)
+high_eater_swab_all <- tope %>% 
+  mutate(fg_egg = bote__$fg_egg,
+         fg_EN = bote__$fg_EN,
+         fg_fruit = bote__$fg_fruit,
+         fg_grain = bote__$fg_grain,
+         fg_legume = bote__$fg_legume,
+         fg_meat = bote__$fg_meat,
+         fg_milk = bote__$fg_milk,
+         fg_ndrink = bote__$fg_ndrink,
+         fg_oils = bote__$fg_oils,
+         fg_sweets = bote__$fg_sweets,
+         fg_veggie = bote__$fg_veggie)
 
-low_eater_swab <- bote__ %>% 
-  mutate(fg_fruit = tope$fg_fruit)
+low_eater_swab_all <- bote__ %>% 
+  mutate(fg_egg = tope$fg_egg,
+         fg_EN = tope$fg_EN,
+         fg_fruit = tope$fg_fruit,
+         fg_grain = tope$fg_grain,
+         fg_legume = tope$fg_legume,
+         fg_meat = tope$fg_meat,
+         fg_milk = tope$fg_milk,
+         fg_ndrink = tope$fg_ndrink,
+         fg_oils = tope$fg_oils,
+         fg_sweets = tope$fg_sweets,
+         fg_veggie = tope$fg_veggie) 
+```
+
+```{r}
+high_eater_swab_pred <- predict(mod102,newdata=high_eater_swab_all,allow.new.levels=TRUE)
+high_eater_real_pred <- predict(mod102,newdata=tope,allow.new.levels=TRUE)
+
+high_eater_swab_both <- tibble(
+  true = tope$simpson_reciprocal,
+  swab_predict = high_eater_swab_pred,
+  real_predict = high_eater_real_pred
+) %>% 
+  gather('type', 'value', swab_predict:real_predict) %>% 
+  mutate(value =  exp(value))
+
+high_eater_swab_both %>% 
+  ggscatter(x = 'true', y = 'value', color = 'type', palette = 'lancet',
+            xlab = 'Observed diversity', ylab = 'Predicted diversity',
+            title = 'Top eaters')  +
+  geom_line(aes(group = true), color = "grey", alpha = 0.8) +
+  theme_cleveland()
+```
+
+```{r}
+low_eater_swab_pred <- predict(mod102,newdata=low_eater_swab_all,allow.new.levels=TRUE)
+low_eater_real_pred <- predict(mod102,newdata=bote__,allow.new.levels=TRUE)
+
+low_eater_swab_both <- tibble(
+  true = bote__$simpson_reciprocal,
+  swab_predict = low_eater_swab_pred,
+  real_predict = low_eater_real_pred
+) %>% 
+  gather('type', 'value', swab_predict:real_predict) %>% 
+  mutate(value =  exp(value))
+ 
+
+low_eater_swab_both %>% 
+  ggscatter(x = 'true', y = 'value', color = 'type', palette = 'lancet',
+            xlab = 'Observed diversity', ylab = 'Predicted diversity',
+            title = 'Bottom eaters')  +
+  geom_line(aes(group = true), color = "grey", alpha = 0.8)+
+  theme_cleveland()
 ```
 
