@@ -225,3 +225,24 @@ low_eater_swab_both %>%
   theme_cleveland()
 ```
 
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized_UPDATED11.csv', col_types = cols(Food_code = col_character()))
+
+code <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv')
+  
+
+look <- code %>% 
+  filter(str_detect(FNDDS.Main.Food.Description , 'Yogurt|Cheese|yogurt|cheese')) %>% 
+  distinct(Food.Code, FNDDS.Main.Food.Description) %>% 
+  mutate(Food.Code = as.character(Food.Code)) %>% 
+  pull(Food.Code)
+
+target <- dtb %>% 
+  filter(Food_code %in% look) %>% 
+  select(mrn, Food_NSC:Por_eaten, fdrt )
+
+target %>% 
+  write_csv('../data/Chen_yogurt_cheese_records.csv')
+```
+
