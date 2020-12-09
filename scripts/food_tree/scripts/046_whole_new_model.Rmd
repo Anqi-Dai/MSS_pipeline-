@@ -10,6 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+devtools::install_github("mvuorre/brmstools")
+library(brmstools)
 ```
 
 ```{r}
@@ -143,6 +145,11 @@ meta %>%
 
 meta %>% 
   summary
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn))
 ```
 
 ## modeling
@@ -159,7 +166,7 @@ mod_fg9 <-  lmer(log(simpson_reciprocal) ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                ave_cal +
+               # ave_cal +
                empirical +  
                intensity + 
                 TPN +
@@ -182,7 +189,7 @@ model_brm <- brm( log(simpson_reciprocal)~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                ave_cal +
+                #ave_cal +
                empirical +  
                intensity + 
                 TPN +
@@ -193,6 +200,37 @@ model_brm <- brm( log(simpson_reciprocal)~
               warmup = 1000, iter = 3000, 
               cores = 8, chains = 2, 
               seed = 123) 
-draw_ridge_density_fg(model_brm)
+#draw_ridge_density_fg(model_brm)
+```
+
+```{r}
+posterior_model <- posterior_samples(model_brm) %>% 
+  select(starts_with('b')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'value') %>% 
+  group_by(item) %>% 
+  mutate(meanperitem = mean(value))%>%
+  ungroup() 
+
+posterior_model_only_food_group <- posterior_model %>% 
+  filter(str_detect(item, '_fg_|ave'))
+
+ggplot()+
+  ggridges::geom_density_ridges(data  = posterior_model_only_food_group, 
+                                aes(x      = value,
+                                    y      = reorder(as.factor(item), meanperitem),
+                                    height = ..density..),
+                                scale = 1.5, size = 0.25,
+                                alpha = 0.6) +
+  geom_vline(xintercept = 0, col = "red") +
+  #scale_x_continuous(limits = c(-0.02,0.03)) +
+  labs(y = 'Food groups',
+       title = 'Posterior distribution of regression coefficient for food groups') +
+  theme(axis.text.y = element_text(size=20)) +
+  ggthemes::theme_tufte() 
+
+
+forest(model_brm)
+
 ```
 
