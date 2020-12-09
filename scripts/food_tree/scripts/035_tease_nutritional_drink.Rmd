@@ -124,7 +124,7 @@ tpn_df <- tpn %>%
   select(mrn = MRN,
          date_support = `Date Nutrition Support`) %>% 
   left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
-  mutate(date_support = mdy(date_support)) %>% 
+  mutate(date_support = lubridate::mdy(date_support)) %>% 
   mutate(tdrt = date_support - hct) %>% 
   filter(tdrt <= (max(stb$sdrt - 2))) %>% 
   mutate(tdrt = as.numeric(tdrt))

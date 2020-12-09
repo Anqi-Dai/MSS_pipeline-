@@ -12,7 +12,7 @@ library (readxl)
 library(tidyverse)
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')
-
+connect_database(config_file = "~/dbConfig.txt")
 source ("misc_atb_plot_functions.R")
 
 

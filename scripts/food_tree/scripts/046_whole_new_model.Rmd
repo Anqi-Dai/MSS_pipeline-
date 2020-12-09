@@ -1,0 +1,198 @@
+---
+title: "the new model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description)
+
+fgrps_df <- dtb %>% 
+  select(mrn, fdrt, dehydrated_weight, Food_code) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1))
+
+# the total dehydated weight for a patient for one day for a single food group
+total_per_group <- fgrps_df %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(grp_tol = sum(dehydrated_weight)) %>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets'
+  ))
+```
+## average on the previous two days diet food groups
+
+```{r}
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') 
+
+
+stb_pair <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+mean_p2d_diet <-  function(mrn_, p1d_, p2d_){
+  df = total_per_group %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(fg1_name) %>% 
+    summarise(ave_fg = sum(grp_tol)/2)
+  return(df)
+}
+
+mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_diet(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'fg1_name', value = 'ave_fg', fill = 0) %>% 
+  inner_join(stb, by = "sampleid") %>% 
+  select(-age, -sex, -source)
+```
+
+## create a binary for enteral nutrition
+
+```{r}
+# does the 5 patients only have EN?
+pts <- dtb %>% 
+  filter(Meal == 'EN') %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+foods <- dtb  %>% 
+  filter(mrn %in% pts)  %>% 
+  mutate(grp = if_else(Meal == 'EN', 'EN', "normal")) %>% 
+  group_by(mrn, fdrt, grp) %>% 
+  summarise(daily_grp_sum = sum(Calories_kcal))
+
+foods %>% 
+  ggline(x  = 'fdrt', y = 'daily_grp_sum', color = 'grp', facet.by = 'mrn') 
+# so it is true that when the pt had EN they don't have regular food
+```
+
+```{r}
+# if a patient had EN in the previous two days before a stool sample collected,
+# it will be marked TRUE or otherwise FALSE
+en <- read_csv('../data/!question/NutritionSupport_DietPatients_peter.csv') %>% 
+  filter(`Nutrition Support` == 'EN') 
+
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+en_df <- en %>% 
+  select(mrn = MRN,
+         date_support = `Date Nutrition Support`) %>% 
+  left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
+  mutate(date_support = lubridate::mdy(date_support)) %>% 
+  mutate(endrt = date_support - hct) %>% 
+  mutate(endrt = as.numeric(endrt))
+
+p2d_EN_T_or_F <- function(mrn_, p1d_, p2d_){
+  num = en_df %>% 
+    filter(mrn == mrn_) %>% 
+    filter(endrt %in% c(p1d_, p2d_  )) %>% 
+    nrow 
+  
+  if(num > 0) { return(T)}
+  else {return(F)}
+}
+
+p2d_EN_T_or_F_df <-  pmap(stb_pair, function(mrn, p1d, p2d){
+    p2d_EN_T_or_F(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  gather(key = 'sampleid', value = 'EN')
+```
+
+## combine all the information I have 
+
+```{r}
+other <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11_comprehensive.csv') %>% 
+  select(sampleid, TPN, ave_cal)
+
+meta <- mean_p2d_df %>% 
+  full_join(p2d_EN_T_or_F_df) %>% 
+  full_join(other) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn))
+
+meta %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+
+meta %>% 
+  summary
+```
+
+## modeling
+
+```{r}
+library(lmerTest)     
+mod_fg9 <-  lmer(log(simpson_reciprocal) ~ 
+              fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                ave_cal +
+               empirical +  
+               intensity + 
+                TPN +
+                EN +
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = meta )
+summary(mod_fg9) 
+```
+
+```{r}
+library(brms)  
+library(ggmcmc)
+model_brm <- brm( log(simpson_reciprocal)~ 
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                ave_cal +
+               empirical +  
+               intensity + 
+                TPN +
+                EN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+draw_ridge_density_fg(model_brm)
+```
+
