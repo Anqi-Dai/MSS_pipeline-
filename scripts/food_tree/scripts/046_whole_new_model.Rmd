@@ -10,7 +10,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
-devtools::install_github("mvuorre/brmstools")
 library(brmstools)
 ```
 
@@ -41,6 +40,7 @@ total_per_group <- fgrps_df %>%
     fgrp1 == '8' ~ 'fg_oils', 
     fgrp1 == '9' ~ 'fg_sweets'
   ))
+
 ```
 ## average on the previous two days diet food groups
 
@@ -150,6 +150,9 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn))
+
+meta %>% 
+  filter(EN == TRUE)
 ```
 
 ## modeling
@@ -201,6 +204,9 @@ model_brm <- brm( log(simpson_reciprocal)~
               cores = 8, chains = 2, 
               seed = 123) 
 #draw_ridge_density_fg(model_brm)
+
+forest(model_brm)
+
 ```
 
 ```{r}
@@ -228,9 +234,6 @@ ggplot()+
        title = 'Posterior distribution of regression coefficient for food groups') +
   theme(axis.text.y = element_text(size=20)) +
   ggthemes::theme_tufte() 
-
-
-forest(model_brm)
 
 ```
 

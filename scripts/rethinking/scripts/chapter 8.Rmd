@@ -1,0 +1,20 @@
+---
+title: "chapter 8"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rethinking)
+```
+
+```{r}
+# 8H1
+data(tulips)
+d <- tulips
+str(d)
+```
+

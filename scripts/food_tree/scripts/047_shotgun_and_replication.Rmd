@@ -1,0 +1,34 @@
+---
+title: "shotgun sample and the replication"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+To use published tool to check the growth rate of the samples using shotgun data
+
+```{r}
+# how many have been shotgun sequenced and rank by fruit consumption
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(yes_shotgun = if_else(sampleid %in% shotgun_lookup_ad$sampleid, T, F))
+
+yes_shotgun <- meta %>% 
+  filter(yes_shotgun == TRUE)
+
+# how doesn the yes_shotgun samples have their fruit intake ranked among all samples
+meta %>% 
+  ggboxplot(x = 'yes_shotgun', y = 'fg_fruit', add = 'jitter')
+
+```
+
