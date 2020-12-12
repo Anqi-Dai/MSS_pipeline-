@@ -16,5 +16,30 @@ library(rethinking)
 data(tulips)
 d <- tulips
 str(d)
+
+d$blooms_std <- d$blooms / max(d$blooms)
+d$water_cent <- d$water - mean(d$water)
+d$shade_cent <- d$shade - mean(d$shade)
+d$bed_id <- as.integer(d$bed)
+```
+
+```{r}
+m8.5 <- quap(
+    alist(
+        blooms_std ~ dnorm( mu , sigma ) ,
+        mu <- a[bed_id] + bw*water_cent + bs*shade_cent + bws*water_cent*shade_cent,
+        a[bed_id] ~ dnorm( 0.5 , 0.25 ) ,
+        bw ~ dnorm( 0 , 0.25 ) ,
+        bs ~ dnorm( 0 , 0.25 ) ,
+        bws ~ dnorm( 0 , 0.25 ) ,
+        sigma ~ dexp( 1 )
+    ) , data=d )
+
+
+labels <- paste( "a[" , 1:4 , "]:" , levels(d$bed) , sep="" )
+plot( precis( m8.5 , depth=2 , pars="a" ) , labels=labels ,
+    xlab="" )
+
+precis( m8.5 , depth=2 )
 ```
 

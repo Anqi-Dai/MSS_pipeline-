@@ -205,7 +205,7 @@ model_brm <- brm( log(simpson_reciprocal)~
               seed = 123) 
 #draw_ridge_density_fg(model_brm)
 
-forest(model_brm)
+
 
 ```
 
@@ -235,5 +235,13 @@ ggplot()+
   theme(axis.text.y = element_text(size=20)) +
   ggthemes::theme_tufte() 
 
+```
+```{r}
+library(here)
+data("dat.bangertdrowns2004", package = "metafor")
+dat <- dat.bangertdrowns2004 %>%
+  mutate(study = paste0(author, " (", year, ")"), sei = sqrt(vi)) %>%
+  select(study, yi, sei) %>%
+  slice(1:15)
 ```
 
