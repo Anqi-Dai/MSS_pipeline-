@@ -1,0 +1,53 @@
+---
+title: "Domination in patient time course"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+1.	Peruse the 92 patients and look at which dominations they have
+2.	Identify patients have any domination in the diet-analysis sample set (even >=10% abundance) from any family Enterococcaceae or family Enterobacteriaceae)
+3.	Tsoni Print the Ying shiny timecourses for those patients
+4.	Identify which ones have qPCRs available (can request more))
+
+```{r}
+# the current 92 mrns being used
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') 
+```
+
+
+```{r}
+ctsfam_dom2 <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  mutate(family = str_extract(taxa_family, 'f__.+$')) %>% 
+  mutate(family = str_replace(family, 'f__','')) %>% 
+  filter(family %in% c('Enterococcaceae','Enterobacteriaceae')) %>% 
+  filter(relab > 0.1) %>% 
+  left_join(meta %>% select(mrn, sampleid, sdrt))
+
+ctsfam_dom2 %>% 
+  count(mrn) %>% 
+  arrange(-n)
+ 
+ctsfam_dom2 %>% 
+  ggscatter(x = 'sdrt', y = 'relab', color = 'family', facet.by = 'mrn', palette = 'nejm') 
+
+ctsfam_dom2 %>% 
+  split(.$family) %>% 
+  imap(~ ggdotchart(data = .x, ,x = 'sdrt', y = 'relab',  facet.by = 'mrn',  add = "segments",
+                   sorting = 'none', font.label = list(size = 5, face = "plain")) +
+        theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+        ggsave(str_glue('../figs/family_2_dom_{.y}.pdf'), width = 15, height = 7))
+```
+
+```{r}
+
+```
+
