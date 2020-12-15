@@ -47,7 +47,4 @@ ctsfam_dom2 %>%
         ggsave(str_glue('../figs/family_2_dom_{.y}.pdf'), width = 15, height = 7))
 ```
 
-```{r}
-
-```
 

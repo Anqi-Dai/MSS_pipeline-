@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
 ```
 
 ```{r}
@@ -19,14 +20,11 @@ get_table_from_database('shotgun_lookup_ad')
 
 get_table_from_database_predefined_filter('asv_counts_ag')
 
-target <- asv_counts_ag %>% 
-  filter(sampleid %in% shotgun_lookup_ad$sampleid)
-
-target %>% distinct(sampleid) %>% nrow
 ```
 
 ```{r}
-cts <- target %>% 
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% shotgun_lookup_ad$sampleid) %>% 
   select(asv_key, sampleid, count) %>% 
   spread(key = 'sampleid', value = 'count', fill = 0) %>% 
   arrange(asv_key)  
@@ -53,5 +51,45 @@ cts_all <- cts %>%
   mutate(relab = cnt/count_total) %>% 
   select(sampleid, taxa_family, relab) 
 
+get_table_from_database('samples_castori_ag')
+get_table_from_database('patient_allo_ag')
+
+cts_dom2 <- cts_all %>% 
+  filter(str_detect(taxa_family, 'f__Enterococcaceae|f__Enterobacteriaceae')) %>% 
+  mutate(family = str_extract(taxa_family, 'f__.+$')) %>% 
+  select(-taxa_family) %>% 
+  filter(relab > 0.1) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, mrn, datecollection)) %>% 
+  ungroup() %>% 
+  inner_join(patient_allo_ag %>% select(mrn, hct) %>% arrange(mrn, hct) %>% distinct(mrn, .keep_all = T)) %>% 
+  mutate(sdrt = datecollection - hct) %>% 
+  filter(sdrt < 50)
+  
+cts_dom2_tally <- cts_dom2 %>% 
+  count(mrn) %>% 
+  arrange(-n)
+
+target <- cts_dom2_tally %>% 
+  filter( n > 10) %>% pull(mrn)
+
+```
+
+```{r}
+cts_dom2 %>% 
+  filter(mrn %in% target) %>% 
+  split(.$family) %>% 
+  imap(~ ggdotchart(data = .x, ,x = 'sdrt', y = 'relab',  facet.by = 'mrn',  add = "segments",
+                   sorting = 'none', font.label = list(size = 5, face = "plain")) +
+        theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+        ggsave(str_glue('../figs/shotgun_family_2_dom_{.y}.pdf'), width = 15, height = 7))
+```
+
+```{r}
+# by eyeballing I choose 787607
+# rsync --progress --partial -avz /Volumes/pamere/FASTQ/Project_09492/PITT_0323/Sample_2065D_IGO_09492_4 daia1@lilac.mskcc.org:~/my_workdir/samples/Jonas
+files <- shotgun_lookup_ad %>% 
+  filter(str_detect(sampleid, '^FMT.0097')) %>% 
+  transmute(cmd = str_glue('rsync --progress --partial -avz {directory} daia1@lilac.mskcc.org:~/my_workdir/samples')) %>% 
+  write_csv('../data/upload_fmt0097.sh', col_names = F)
 ```
 
