@@ -1,0 +1,24 @@
+---
+title: "chapter 9"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rethinking)
+```
+
+```{r}
+mp <- ulam(
+    alist(
+        a ~ dnorm(0,1),
+        b ~ dcauchy(0,1)
+    ), data=list(y=1) , chains=1 )
+precis(mp)
+traceplot(mp)
+
+```
+

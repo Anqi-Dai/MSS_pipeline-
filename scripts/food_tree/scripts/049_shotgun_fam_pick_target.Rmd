@@ -54,32 +54,46 @@ cts_all <- cts %>%
 get_table_from_database('samples_castori_ag')
 get_table_from_database('patient_allo_ag')
 
-cts_dom2 <- cts_all %>% 
+# the below represents the samples that already have a dominance 
+cts_all_full <- cts_all %>% 
   filter(str_detect(taxa_family, 'f__Enterococcaceae|f__Enterobacteriaceae')) %>% 
   mutate(family = str_extract(taxa_family, 'f__.+$')) %>% 
   select(-taxa_family) %>% 
-  filter(relab > 0.1) %>% 
   inner_join(samples_castori_ag %>% select(sampleid, mrn, datecollection)) %>% 
   ungroup() %>% 
   inner_join(patient_allo_ag %>% select(mrn, hct) %>% arrange(mrn, hct) %>% distinct(mrn, .keep_all = T)) %>% 
   mutate(sdrt = datecollection - hct) %>% 
-  filter(sdrt < 50)
+  filter(sdrt %in% -10:50)
+
+cts_all_full %>% 
+  write_csv('../data/growth/fam2_relab_full.csv')
+```
+
+
+```{r}
+# above the 10% threshold 
+cts_dom2 <- cts_all_full %>% 
+  filter(relab > 0.1) 
   
 cts_dom2_tally <- cts_dom2 %>% 
   count(mrn) %>% 
   arrange(-n)
 
+# patients that have more than 10 dom samples in that desired window
 target <- cts_dom2_tally %>% 
   filter( n > 10) %>% pull(mrn)
 
 ```
 
 ```{r}
-cts_dom2 %>% 
+# the patients that have more than 10 dom samples in that desired window  
+cts_all_full %>% 
   filter(mrn %in% target) %>% 
   split(.$family) %>% 
   imap(~ ggdotchart(data = .x, ,x = 'sdrt', y = 'relab',  facet.by = 'mrn',  add = "segments",
-                   sorting = 'none', font.label = list(size = 5, face = "plain")) +
+                   sorting = 'none', font.label = list(size = 5, face = "plain"),
+                   title = str_glue('{.y}')) +
+         geom_hline(yintercept = 0.1,  linetype="dashed", color = "red") +
         theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
         ggsave(str_glue('../figs/shotgun_family_2_dom_{.y}.pdf'), width = 15, height = 7))
 ```
@@ -90,6 +104,106 @@ cts_dom2 %>%
 files <- shotgun_lookup_ad %>% 
   filter(str_detect(sampleid, '^FMT.0097')) %>% 
   transmute(cmd = str_glue('rsync --progress --partial -avz {directory} daia1@lilac.mskcc.org:~/my_workdir/samples')) %>% 
-  write_csv('../data/upload_fmt0097.sh', col_names = F)
+  write_csv('../data/upload_fmt0097.sh', col_names = F)  
+```
+
+```{r}
+# find the control samples that have stayed low abundance all the time 
+# the patients that have more than 10 low 2 fam abundance samples in the desired window
+low <- cts_all_full %>% 
+  filter(relab < 0.1) %>% 
+  add_count(mrn) %>% 
+  filter(n > 10)  %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+
+cts_all_full %>% 
+  filter(mrn %in% low) %>% 
+  split(.$family) %>% 
+  imap(~ ggdotchart(data = .x, ,x = 'sdrt', y = 'relab',  facet.by = 'mrn',  add = "segments",
+                   sorting = 'none', font.label = list(size = 5, face = "plain"),
+                   title = str_glue('{.y}')) +
+         geom_hline(yintercept = 0.1,  linetype="dashed", color = "red") +
+        theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+         ylim(0, 1) +
+        ggsave(str_glue('../figs/low_shotgun_family_2_dom_{.y}.pdf'), width = 15, height = 7))
+```
+
+```{r}
+# as can be seen from the above there are some patients that have many low relab samples but also many dom samples
+# the goal is to select the patients that have low relab in all of the samples
+low_all_rm <- cts_all_full %>% 
+  filter(mrn %in% low) %>% 
+  mutate(rm = if_else(relab > 0.1, T, F)) %>% 
+  filter(rm == TRUE) %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+real_low <- low[!low %in% low_all_rm]
+
+cts_all_full %>% 
+  filter(mrn %in% real_low) %>% 
+  split(.$family) %>% 
+  imap(~ ggdotchart(data = .x, ,x = 'sdrt', y = 'relab',  facet.by = 'mrn',  add = "segments",
+                   sorting = 'none', font.label = list(size = 5, face = "plain"),
+                   title = str_glue('{.y}')) +
+         geom_hline(yintercept = 0.1,  linetype="dashed", color = "red") +
+        theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+         ylim(0, 1) +
+        ggsave(str_glue('../figs/REAL_low_shotgun_family_2_dom_{.y}.pdf'), width = 15, height = 7))
+
+# select this patient as the low: 35503789 
+shotgun_lookup_ad %>% 
+  filter(str_detect(sampleid, '^FMT.0066'))
+
+```
+
+
+## the comparison I'm aiming at
+
+```{r}
+dense <- c(35469632, 35503789)
+
+dense_df <- cts_all_full %>% 
+  filter(mrn %in% dense)
+
+day0 <- which(dense_df$sdrt == 0)[1]
+
+dense_df %>% 
+  ggdotchart(x = 'sdrt', y = 'relab',  add = "segments", 
+             sorting = 'none', font.label = list(size = 5, face = "plain")) +
+  geom_hline(yintercept = 0.1,  linetype="dashed", color = "red") +
+  #geom_vline(xintercept = as.numeric(dense_df$sdrt[day0]),  linetype="dashed", color = "blue") +
+  ylim(0, 1) +
+  facet_grid(mrn ~ family) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size=5, angle=90, hjust=1))
+```
+
+
+```{r}
+loose <- c(787607, 35425665)
+
+cts_all_full %>% 
+  filter(mrn %in% loose) %>% 
+  ggdotchart(x = 'sdrt', y = 'relab',  add = "segments",
+             sorting = 'none', font.label = list(size = 5, face = "plain")) +
+  geom_hline(yintercept = 0.1,  linetype="dashed", color = "red") +
+  #geom_vline(xintercept = as.numeric(dense_df$sdrt[day0]),  linetype="dashed", color = "blue") +
+  ylim(0, 1) +
+  facet_grid(mrn ~ family) +
+  theme_bw() +
+  theme(axis.text.x = element_text(size=5, angle=90, hjust=1))  
+```
+
+
+
+```{r}
+# the qpcr table
+# perg_16s: tht I can say how many copies of 16s dna total per gram of stool
+# and then I can use that to time the relative abundance of a spp
+list_table_from_database('qpcr') 
+get_table_from_database('qpcr_16s')
 ```
 
