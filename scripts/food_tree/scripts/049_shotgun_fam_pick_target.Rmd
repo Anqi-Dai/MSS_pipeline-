@@ -221,3 +221,16 @@ list_table_from_database('qpcr')
 get_table_from_database('qpcr_16s')
 ```
 
+```{r}
+test <- read_csv('../data/growth/test_sample_info.csv')
+
+# make a file with the fids only to upload to the cluster 
+test %>% 
+  distinct(fid) %>% 
+  write_csv('../data/growth/test_fid.csv', col_names = F)
+
+testsum <- test %>% 
+  distinct(fid, .keep_all = T) %>% 
+  add_count(mrn) # FMT_92BB is not on the cluster ignore for now
+```
+
