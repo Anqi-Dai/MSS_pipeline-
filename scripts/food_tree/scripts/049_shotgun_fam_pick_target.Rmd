@@ -232,5 +232,22 @@ test %>%
 testsum <- test %>% 
   distinct(fid, .keep_all = T) %>% 
   add_count(mrn) # FMT_92BB is not on the cluster ignore for now
+
+
+keep632 <- testsum %>% 
+  filter(mrn == 35469632 & sdrt %in% -2:23) %>% 
+  distinct(sdrt, .keep_all = T) %>% 
+  slice_sample(n = 8)
+
+keep789 <- testsum %>% 
+  filter(mrn == 35503789) %>% 
+  inner_join(keep632 %>% select(sdrt), by = 'sdrt') %>% 
+  slice_sample(n = 4)
+
+keep_all <- bind_rows(
+  keep632, keep789
+) %>% 
+  select(fid) %>% 
+  write_csv('../data/growth/test_fid_minimal.csv', col_names = F)
 ```
 

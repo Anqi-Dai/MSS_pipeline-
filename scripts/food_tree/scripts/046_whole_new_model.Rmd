@@ -210,6 +210,13 @@ model_brm <- brm( log(simpson_reciprocal)~
 ```
 
 ```{r}
+meta %>% 
+  select(-mrn, -ave_cal) %>% 
+  summary
+```
+
+
+```{r}
 posterior_model <- posterior_samples(model_brm) %>% 
   select(starts_with('b')) %>% 
   select(-b_Intercept) %>% 
@@ -219,7 +226,8 @@ posterior_model <- posterior_samples(model_brm) %>%
   ungroup() 
 
 posterior_model_only_food_group <- posterior_model %>% 
-  filter(str_detect(item, '_fg_|ave'))
+  filter(str_detect(item, '_fg_|ave')) %>% 
+  mutate(item = str_replace(item, 'b_fg_',''))
 
 ggplot()+
   ggridges::geom_density_ridges(data  = posterior_model_only_food_group, 
@@ -233,15 +241,10 @@ ggplot()+
   labs(y = 'Food groups',
        title = 'Posterior distribution of regression coefficient for food groups') +
   theme(axis.text.y = element_text(size=20)) +
-  ggthemes::theme_tufte() 
+  ggthemes::theme_tufte() +
+  theme(axis.text.y = element_text(size=30),
+        axis.text.x = element_text(size=15))
 
 ```
-```{r}
-library(here)
-data("dat.bangertdrowns2004", package = "metafor")
-dat <- dat.bangertdrowns2004 %>%
-  mutate(study = paste0(author, " (", year, ")"), sei = sqrt(vi)) %>%
-  select(study, yi, sei) %>%
-  slice(1:15)
-```
+
 
