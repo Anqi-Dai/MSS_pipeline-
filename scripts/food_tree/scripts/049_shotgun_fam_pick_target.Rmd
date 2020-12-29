@@ -232,8 +232,10 @@ test %>%
 testsum <- test %>% 
   distinct(fid, .keep_all = T) %>% 
   add_count(mrn) # FMT_92BB is not on the cluster ignore for now
+```
 
 
+```{r}
 keep632 <- testsum %>% 
   filter(mrn == 35469632 & sdrt %in% -2:23) %>% 
   distinct(sdrt, .keep_all = T) %>% 
