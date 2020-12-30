@@ -161,8 +161,6 @@ other <- patient_allo_ag %>%
 ```
 
 
-
-
 ```{r}
 new1 <- tibble(
   mrn = 38084143,
@@ -198,3 +196,68 @@ ptb %>%
 ptb %>% 
   write_csv('../data/cleaned_patients/diet_patients_97.csv')
 ```
+
+
+## a more comprehensive summary of the data
+
+```{r}
+library(gtsummary) 
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+ci <- read_csv('../data/cleaned_patients/angel_hctci.csv')  %>% 
+  select(mrn, hct_ci) %>% 
+  rename(ci = hct_ci)
+
+old_ci <- ci_pt %>% 
+  select(mrn, ci) %>% 
+  filter(!is.na(ci))
+
+CI <- bind_rows(
+  ci, old_ci
+)
+
+PTB <- ptb %>% 
+  full_join(CI) 
+
+PTB %>% 
+  write_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+final <- PTB %>% 
+  select(age, sex, Disease = disease.simple, source,  intensity, ci) %>% 
+  mutate(Disease = case_when(
+    Disease == 'NHL' ~ "Non-Hodgkin's lymphoma",
+    Disease == 'MDS/MPN' ~ 'Myelodysplastic/myeloproliferative neoplasms',
+    Disease == 'AML' ~ 'Acute myeloid leukemia',
+    Disease == 'ALL' ~ 'Acute lymphoid leukemia',
+    Disease == 'CLL' ~ 'Chronic lymphocytic leukemia',
+    Disease == 'CML' ~ 'Chronic myeloid leukemia',
+    Disease == 'Hodgkins' ~ "Hodgkin's lymphoma",
+    Disease == 'Myeloma' ~ 'Myeloma', 
+    Disease == 'AA' ~ 'Aplastic anaemia'
+  )) %>% 
+  mutate(source = case_when(
+    source == 'unmodified' ~ "Unmodified bone marrow or PBSCs",
+    source == 'cord' ~ "Cord blood",
+    source == 'TCD' ~ "T-cell depleted PBSCs"
+  )) %>% 
+  mutate(intensity = case_when(
+    intensity == 'nonablative' ~ "Nonmyeloablative",
+    intensity == 'ablative' ~ "Ablative",
+    intensity == 'reduced' ~ "Reduced intensity"
+  )) %>% 
+  mutate(intensity = fct_reorder(intensity, intensity, .fun=length, .desc = T),
+         source = fct_reorder(source, source, .fun=length, .desc = T),
+         Disease = fct_reorder(Disease, Disease, .fun=length, .desc = T),
+         sex = fct_reorder(sex, sex, .fun=length, .desc = T)) %>% 
+  rename(`Graft type` = source, 
+         `Intensity of conditioning regimen` = intensity,
+         `HCT-CI` = ci) 
+
+final %>% 
+  tbl_summary(
+    statistic = list(all_continuous() ~ "{mean} ({sd})")
+  ) %>%
+  bold_labels()
+
+```
+
