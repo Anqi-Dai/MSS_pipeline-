@@ -1,0 +1,47 @@
+---
+title: "Visualizing on the meta table"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn))
+
+meta %>% glimpse
+```
+
+
+```{r}
+# break down by week
+meta %>% 
+  select(timebin, starts_with('fg') )  %>% 
+  gather('fg', 'gram', names(.)[2]:names(.)[ncol(.)]) %>% 
+  mutate(fg = fct_reorder(fg, gram, .fun=median, .desc = T)) %>% 
+  ggviolin(x = 'timebin', y = 'gram', add.params = list(alpha = 0.2), add = 'jitter' ) +
+  facet_grid(fg ~ ., scales = 'free') +
+  theme_pubclean() 
+```
+
+```{r}
+meta %>% 
+  select( starts_with('fg'))  %>% 
+  gather('grp', 'value') %>% 
+  mutate(grp = fct_reorder(grp, value, .fun=median, .desc = T)) %>% 
+  ggviolin(x = 'grp', y = 'value', add.params = list(alpha = 0.05), add = 'jitter' , draw_quantiles = 0.5, size = 1.5, color = 'grp', palette = 'lancet')+ 
+  facet_grid( ~ grp, scales = 'free') +
+  scale_y_sqrt() + 
+  theme_pubclean()  +
+  ggsave('../figs/p2d_mean_fg.pdf', width = 7, height = 5)
+```
+

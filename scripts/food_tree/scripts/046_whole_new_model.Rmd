@@ -145,7 +145,11 @@ meta %>%
 
 meta %>% 
   summary
+```
 
+## the finalized meta table
+
+```{r}
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
@@ -246,5 +250,3 @@ ggplot()+
         axis.text.x = element_text(size=15))
 
 ```
-
-
