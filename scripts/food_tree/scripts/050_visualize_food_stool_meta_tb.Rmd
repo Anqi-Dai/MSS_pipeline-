@@ -14,9 +14,10 @@ library(ggpubr)
 
 ```{r}
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  #mutate(mrn = factor(mrn)) %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn))
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) 
+  
 
 meta %>% glimpse
 ```
@@ -36,12 +37,39 @@ meta %>%
 ```{r}
 meta %>% 
   select( starts_with('fg'))  %>% 
-  gather('grp', 'value') %>% 
+  gather('grp', 'value') %>%  
   mutate(grp = fct_reorder(grp, value, .fun=median, .desc = T)) %>% 
-  ggviolin(x = 'grp', y = 'value', add.params = list(alpha = 0.05), add = 'jitter' , draw_quantiles = 0.5, size = 1.5, color = 'grp', palette = 'lancet')+ 
-  facet_grid( ~ grp, scales = 'free') +
-  scale_y_sqrt() + 
+  ggviolin(x = 'grp', y = 'value', add.params = list(alpha = 0.05), add = 'jitter' , draw_quantiles = 0.5, size = 1, color = 'grp', palette = 'lancet')+ 
+  facet_grid( ~ grp, scales = 'free') + 
+  scale_y_continuous(trans = "sqrt", breaks = c(20, 30, 50,100,200, 500,1000, 1500)) +
   theme_pubclean()  +
   ggsave('../figs/p2d_mean_fg.pdf', width = 7, height = 5)
 ```
+
+```{r}
+library(gganimate)
+# pick one patient to test
+test_pt <- meta %>% 
+  count(mrn, sort = T) %>% 
+  slice(17) %>% 
+  pull(mrn)
+
+test_df <- meta %>% 
+  filter(mrn == test_pt) %>% 
+  select(sdrt, simpson_reciprocal, starts_with('fg') )  %>% 
+  gather('fg', 'gram', names(.)[3]:names(.)[ncol(.)]) %>% 
+  mutate(fg = fct_reorder(fg, gram, .fun=median, .desc = T)) %>% 
+  arrange(sdrt)
+  
+test_df  %>% 
+  ggbarplot(x = 'fg', y = 'gram', color = 'fg', fill = 'fg') +
+  annotate(geom="text", x=4, y=max(test_df$gram), label=str_glue('Day relative to transplant: {test_df$sdrt}'),color="red") +
+  transition_states(sdrt,
+                  transition_length = 2,
+                  state_length = 1) +
+  ease_aes('linear') 
+
+anim_save("../figs/testpt.gif")
+```
+
 
