@@ -201,7 +201,7 @@ ptb %>%
 ## a more comprehensive summary of the data
 
 ```{r}
-library(gtsummary) 
+
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
 ci <- read_csv('../data/cleaned_patients/angel_hctci.csv')  %>% 
@@ -221,9 +221,15 @@ PTB <- ptb %>%
 
 PTB %>% 
   write_csv('../data/cleaned_patients/diet_patients_97.csv')
+```
+
+
+```{r}
+library(gtsummary) 
+PTB <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
 final <- PTB %>% 
-  select(age, sex, Disease = disease.simple, source,  intensity, ci) %>% 
+  select(age, sex, Disease = disease.simple, source,  intensity) %>% 
   mutate(Disease = case_when(
     Disease == 'NHL' ~ "Non-Hodgkin's lymphoma",
     Disease == 'MDS/MPN' ~ 'Myelodysplastic/myeloproliferative neoplasms',
@@ -250,11 +256,12 @@ final <- PTB %>%
          Disease = fct_reorder(Disease, Disease, .fun=length, .desc = T),
          sex = fct_reorder(sex, sex, .fun=length, .desc = T)) %>% 
   rename(`Graft type` = source, 
-         `Intensity of conditioning regimen` = intensity,
-         `HCT-CI` = ci) 
+         #`HCT-CI` = ci,
+         `Intensity of conditioning regimen` = intensity ) 
 
 final %>% 
   tbl_summary(
+    type = list(all_integer() ~ "continuous"), 
     statistic = list(all_continuous() ~ "{mean} ({sd})")
   ) %>%
   bold_labels()

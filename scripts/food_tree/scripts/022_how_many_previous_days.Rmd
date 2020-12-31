@@ -19,7 +19,7 @@ TRYING TO figure out how many previous days to combine if just do a asymmetrical
 # what if use all stool samples not only prophylactic ones
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```
@@ -268,5 +268,14 @@ procrustes_Nday %>%
   ggboxplot(y =  'ss', add = 'dotplot', label = 'pNd', repel = T,
             xlab = '', ylab = 'Sum of squares',
             title = 'procrustes ss (all qualified stool samples)')
+```
+
+```{r}
+# or plot in another way 
+procrustes_Nday %>% 
+  ggdotchart(x = 'pNd', y = 'ss',
+  ggtheme = theme_bw(), size = 3, xlab = 'Pairing with previous N days', ylab = 'Residual sum of squares', label = 'pNd') +
+  theme(axis.text.x = element_blank()) +
+  ggsave('../figs/procrustes_Nday_SS.pdf', width = 4.5, height = 4.5) 
 ```
 

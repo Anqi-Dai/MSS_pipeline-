@@ -191,7 +191,7 @@ fns_both <- data_frame(
 
 
 # a function to do the procrustes as a pair
-procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+noprocrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
     filter(! X1 %in% c('Biplot','Site constraints')) %>% 
     column_to_rownames('X1') %>% 
