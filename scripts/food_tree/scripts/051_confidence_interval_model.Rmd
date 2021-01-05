@@ -1,0 +1,72 @@
+---
+title: "confidence interval for the brms model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(brms)
+```
+
+```{r}
+nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description)
+```
+
+```{r}
+res <- read_csv('../data/brms_model_var_res.csv') %>% 
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(value, probs = 0.025),
+            q97.5 = quantile(value, probs = 0.975),
+            q50 = quantile(value, probs = 0.5)) %>% 
+  split(str_detect(.$item, '_fg_'))
+```
+```{r}
+# food groups
+res_fg <- res %>% 
+  pluck('TRUE') %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(nodes) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 25, indent = 2, exdent = 0))
+res_fg
+```
+
+
+```{r}
+res_fg_interval <- res_fg %>%  
+  mutate(q2.5 = 100*q2.5,
+         q97.5 = 100*q97.5,
+         q50 = 100*q50) %>% 
+  arrange(q50) %>% 
+  ggscatter(x = 'fdesc', y = 'q50', color = 'red',
+            ylab = 'Regression coefficients',
+            title = '',
+            xlab = 'High-level food categories\nFNDDS') +
+  geom_pointrange(aes( ymin  = q2.5,ymax  = q97.5), fatten = 5, col = 'red') +
+  geom_hline(yintercept = 0, col = "black", linetype = 'dashed') +
+  scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
+  coord_flip()
+res_fg_interval
+```
+```{r}
+
+```
+

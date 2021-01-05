@@ -240,8 +240,6 @@ allstool_res %>%
             xlab = '', ylab = '',
             title = 'procrustes test  (all qualified stool samples)') +
   facet_wrap(~ type, scales = 'free_y')
-  
- 
 
 ```
 
@@ -273,8 +271,9 @@ procrustes_Nday %>%
 ```{r}
 # or plot in another way 
 procrustes_Nday %>% 
-  ggdotchart(x = 'pNd', y = 'ss',
-  ggtheme = theme_bw(), size = 3, xlab = 'Pairing with previous N days', ylab = 'Residual sum of squares', label = 'pNd') +
+  ggpubr::ggdotchart(x = 'pNd', y = 'ss',
+  ggtheme = theme_bw(), size = 3, xlab = 'No. diet-data days preceding each stool sample', ylab = 'association between\ndiet composition and microbiome composition', label = 'pNd',
+    sorting = 'none') +
   theme(axis.text.x = element_blank()) +
   ggsave('../figs/procrustes_Nday_SS.pdf', width = 4.5, height = 4.5) 
 ```

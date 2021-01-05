@@ -236,15 +236,15 @@ final <- PTB %>%
     Disease == 'AML' ~ 'Acute myeloid leukemia',
     Disease == 'ALL' ~ 'Acute lymphoid leukemia',
     Disease == 'CLL' ~ 'Chronic lymphocytic leukemia',
-    Disease == 'CML' ~ 'Chronic myeloid leukemia',
-    Disease == 'Hodgkins' ~ "Hodgkin's lymphoma",
+    Disease == 'CML' ~ 'Other',
+    Disease == 'Hodgkins' ~ "Other",
     Disease == 'Myeloma' ~ 'Myeloma', 
-    Disease == 'AA' ~ 'Aplastic anaemia'
+    Disease == 'AA' ~ 'Other'
   )) %>% 
   mutate(source = case_when(
-    source == 'unmodified' ~ "Unmodified bone marrow or PBSCs",
+    source == 'unmodified' ~ "Unmodified bone marrow or PBSC",
     source == 'cord' ~ "Cord blood",
-    source == 'TCD' ~ "T-cell depleted PBSCs"
+    source == 'TCD' ~ "T-cell depleted PBSC"
   )) %>% 
   mutate(intensity = case_when(
     intensity == 'nonablative' ~ "Nonmyeloablative",

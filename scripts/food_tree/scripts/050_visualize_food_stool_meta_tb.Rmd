@@ -59,17 +59,19 @@ test_df <- meta %>%
   select(sdrt, simpson_reciprocal, starts_with('fg') )  %>% 
   gather('fg', 'gram', names(.)[3]:names(.)[ncol(.)]) %>% 
   mutate(fg = fct_reorder(fg, gram, .fun=median, .desc = T)) %>% 
+  mutate(gram = round(gram)) %>% 
   arrange(sdrt)
   
 test_df  %>% 
-  ggbarplot(x = 'fg', y = 'gram', color = 'fg', fill = 'fg') +
-  annotate(geom="text", x=4, y=max(test_df$gram), label=str_glue('Day relative to transplant: {test_df$sdrt}'),color="red") +
+  ggbarplot(x = 'fg', y = 'gram', color = 'fg', fill = 'fg', label = T) +
   transition_states(sdrt,
                   transition_length = 2,
                   state_length = 1) +
   ease_aes('linear') 
-
+  
 anim_save("../figs/testpt.gif")
+
 ```
+
 
 

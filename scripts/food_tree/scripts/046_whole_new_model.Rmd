@@ -223,7 +223,7 @@ meta %>%
 ```{r}
 posterior_model <- posterior_samples(model_brm) %>% 
   select(starts_with('b')) %>% 
-  select(-b_Intercept) %>% 
+  #select(-b_Intercept) %>% 
   gather('item', 'value') %>% 
   group_by(item) %>% 
   mutate(meanperitem = mean(value))%>%
@@ -249,4 +249,16 @@ ggplot()+
   theme(axis.text.y = element_text(size=30),
         axis.text.x = element_text(size=15))
 
+posterior_model %>% 
+  distinct(item)
+
+posterior_model %>% 
+  write_csv('../data/brms_model_var_res.csv')
 ```
+
+```{r}
+# using tidybayes to draw the forest kind of plot
+library(tidybayes)
+tidybayes(model_brm)
+```
+
