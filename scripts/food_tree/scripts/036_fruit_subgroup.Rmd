@@ -17,6 +17,8 @@ fruit2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>%
   filter(str_length(Level.code) == 2)
 
 dtbn <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 ```
 ```{r}
 # what food items are in the fruit group
@@ -64,10 +66,7 @@ dtbn_fruit <- dtbn %>%
 # get the mean of previous two days for every stool sample I'm currently using
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 
-# pulling the alpha diversity 
-source('~/db_connect_simple.R')
-connect_database(config_file = '~/dbConfig.txt')
-get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+
   
 stb_pair <- stb %>%  
   select(mrn, sdrt) %>% 
@@ -92,18 +91,17 @@ mean_p2d_l2_fruit_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
   select(-L2_grp ) %>% 
   spread('Main.food.description', 'ave_L2', fill = 0) %>% 
-  inner_join(stb, by = "sampleid") %>% 
-  select(-count_total, -age, -sex, -source) %>% 
-  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))
+  inner_join(meta, by = "sampleid")
+```
 
+```{r}
 mean_p2d_l2_fruit_df  %>% 
   write_csv('../data/cleaned_stool/all_samples_meta_p2d_L2_fruit_only.csv')
-
 ```
 
 ```{r}
 library(lmerTest)
-mean_p2d_l2_fruit_df <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_L2_fruit_only.csv')
+
 # to make sure the columns are in right type
 fruitdat <- mean_p2d_l2_fruit_df %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
@@ -113,8 +111,15 @@ fruitdat <- mean_p2d_l2_fruit_df %>%
 mod_fruit <-  lmer(log(simpson_reciprocal) ~ 
               Citrus_fruits_juices+
                Dried_fruits+
-               Fruit_juices_and_nectars_excluding_citrus+
                Other_fruits+
+                 fg_meat+
+               fg_milk+
+               #fg_oils+
+                #fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                #fg_legume+
+                fg_veggie+
                empirical + 
                intensity + 
                (1 | mrn) +

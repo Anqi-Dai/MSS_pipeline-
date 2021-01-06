@@ -139,11 +139,56 @@ ret <- target_genera %>%
       gather('item', 'value') %>% 
         filter(str_detect(item, '_fg_')) %>% 
       group_by(item) %>% 
-      summarise(meanperitem = mean(value))%>%
+      summarise(meanperitem = mean(value),
+                q2.5 = quantile(value, probs = 0.025),
+                q97.5 = quantile(value, probs = 0.975))%>%
       ungroup()
     
     return(res)
   })
 ```
 
+```{r}
+# df work
+retdf <- ret %>% 
+  bind_rows(.id = 'genus') %>% 
+  mutate(sig = if_else(q97.5 < 0 | q2.5 > 0, T, F)) %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+  mutate(mark = if_else(sig == T, '*',''))
+
+range(retdf$meanperitem)
+
+retdf_matrix <- retdf %>% 
+  select(genus, item, meanperitem) %>% 
+  spread('item', 'meanperitem') %>% 
+  column_to_rownames('genus') %>% 
+  as.matrix()
+
+library(pheatmap)
+pheatmap(
+  retdf_matrix,
+  #annotation_col = annot,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  filename = '../figs/heatmap_47_genera.pdf',
+  height = 10,
+  width = 7,
+  display_numbers = T,
+  number_format = "%.3f",
+  
+  #cluster_rows =F,
+  #cluster_cols=F
+)
+```
+
+```{r}
+ggplot(retdf, aes(x = item, y = genus)) +
+  geom_tile(aes(fill = meanperitem)) +
+  geom_text(aes(label = round(meanperitem, 3))) +
+  geom_text(aes(label = mark, x = item,y =  genus),
+           nudge_y = -0.3, nudge_x = -0.4,size = 8) +
+  # As our values are continuous, we'll use scale_fill_continuous instead of scale_fill_manual
+  scale_fill_continuous(low = "violetred", high = "aquamarine") +
+  ggsave('../figs/heatmap_47_genera_ggplot.pdf')
+```
 
