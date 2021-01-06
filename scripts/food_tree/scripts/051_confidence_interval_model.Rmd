@@ -58,7 +58,7 @@ res_fg_interval <- res_fg %>%
   arrange(q50) %>% 
   ggscatter(x = 'fdesc', y = 'q50', color = 'red',
             ylab = 'Regression coefficients',
-            title = '',
+            title = 'Change in log scale simposon reciprocal unit\nassociated with 100g food consumption',
             xlab = 'High-level food categories\nFNDDS') +
   geom_pointrange(aes( ymin  = q2.5,ymax  = q97.5), fatten = 5, col = 'red') +
   geom_hline(yintercept = 0, col = "black", linetype = 'dashed') +
@@ -67,6 +67,19 @@ res_fg_interval <- res_fg %>%
 res_fg_interval
 ```
 ```{r}
+res_other <- res %>% 
+  pluck('FALSE')  %>% 
+  mutate(item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'TRUE',''))
 
+res_other   %>% 
+  arrange(q50) %>% 
+  ggscatter(x = 'item', y = 'q50', color = 'red',
+            ylab = 'Regression coefficients',
+            title = '',
+            xlab = '') +
+  geom_pointrange(aes( ymin  = q2.5,ymax  = q97.5), fatten = 5, col = 'red') +
+  geom_hline(yintercept = 0, col = "black", linetype = 'dashed') +
+  #scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
+  coord_flip()
 ```
-

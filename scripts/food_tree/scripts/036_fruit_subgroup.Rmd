@@ -16,7 +16,7 @@ fruit2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>%
   filter(str_detect(Level.code, '^6')) %>% 
   filter(str_length(Level.code) == 2)
 
-dtbn <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
+dtbn <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ```
 ```{r}
 # what food items are in the fruit group
@@ -30,6 +30,28 @@ what_fruit <- dtbn %>%
 what_fruit %>% 
   kableExtra::kable() %>% 
   kableExtra::kable_styling()
+
+
+
+dtbn %>% 
+  mutate(Food_code = as.character(Food_code)) %>% 
+  filter(str_detect(Food_code, '^6'))  %>% 
+  mutate(l2 = str_sub(Food_code, start = 1, end = 2)) %>% 
+  distinct(l2)
+```
+
+
+```{r}
+# some examples contained in this group 
+set.seed(2)
+what_fruit %>% 
+  group_by(L2_grp) %>% 
+  sample_n(1) %>% 
+  mutate(desc = str_replace_all(Main.food.description, '_',' ')) %>% 
+  ungroup() %>% 
+  select(desc, Food_NSC) %>% 
+  kableExtra::kable( ) %>% 
+  kableExtra::kable_styling(full_width = F)
 ```
 
 ```{r}
@@ -40,9 +62,7 @@ dtbn_fruit <- dtbn %>%
   summarise(L2_total = sum(dehydrated_weight))
 
 # get the mean of previous two days for every stool sample I'm currently using
-stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
-  mutate(empirical = if_else(abx == 'empirical', T, F)) %>% 
-  select(-abx)
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 
 # pulling the alpha diversity 
 source('~/db_connect_simple.R')
@@ -83,7 +103,7 @@ mean_p2d_l2_fruit_df  %>%
 
 ```{r}
 library(lmerTest)
-
+mean_p2d_l2_fruit_df <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_L2_fruit_only.csv')
 # to make sure the columns are in right type
 fruitdat <- mean_p2d_l2_fruit_df %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 

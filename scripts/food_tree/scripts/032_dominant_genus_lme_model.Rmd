@@ -19,7 +19,7 @@ library(ggpubr)
 ```
 
 ```{r}
-dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(empirical = factor(empirical, levels = c('FALSE','TRUE')))
@@ -30,6 +30,8 @@ cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>%
   dplyr::select(sampleid, taxa_genus, relab) %>% 
   mutate(taxa_genus = str_extract(taxa_genus, 'g__.+$'))
 
+dat %>% 
+  summary
 ```
 
 ## The dominating genera:
@@ -80,11 +82,10 @@ mod_staphy <-  lmer(Staphylococcus ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_staphy)
@@ -105,11 +106,10 @@ mod_g__Enterococcus <-  lmer(Enterococcus ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Enterococcus)
@@ -119,7 +119,7 @@ summary(mod_g__Enterococcus)
 
 ```{r}
 mod_g__Escherichia <-  lmer(Escherichia ~ 
-              fg_fruit+
+               fg_fruit+
                fg_meat+
                fg_milk+
                fg_oils+
@@ -128,11 +128,10 @@ mod_g__Escherichia <-  lmer(Escherichia ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Escherichia)
@@ -142,7 +141,7 @@ summary(mod_g__Escherichia)
 
 ```{r}
 mod_g__Klebsiella <-  lmer(Klebsiella ~ 
-              fg_fruit+
+               fg_fruit+
                fg_meat+
                fg_milk+
                fg_oils+
@@ -151,11 +150,10 @@ mod_g__Klebsiella <-  lmer(Klebsiella ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Klebsiella)
@@ -174,11 +172,10 @@ mod_g__Lactobacillus <-  lmer(Lactobacillus ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Lactobacillus)
@@ -197,11 +194,10 @@ mod_g__Streptococcus <-  lmer(Streptococcus ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin), REML = F, data = all )
 summary(mod_g__Streptococcus)
@@ -258,11 +254,10 @@ model_Staphylococcus <- brm( Staphylococcus ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin),  
               data = all, 
@@ -284,11 +279,10 @@ model_Enterococcus <- brm( Enterococcus ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin),  
               data = all, 
@@ -311,11 +305,10 @@ model_Escherichia <- brm( Escherichia ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin),  
               data = all, 
@@ -328,7 +321,7 @@ draw_ridge_density_fg(model_Escherichia)
 
 ```{r}
 model_Klebsiella <- brm( Klebsiella ~ 
-              fg_fruit+
+               fg_fruit+
                fg_meat+
                fg_milk+
                fg_oils+
@@ -337,11 +330,10 @@ model_Klebsiella <- brm( Klebsiella ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin),  
               data = all, 
@@ -354,7 +346,7 @@ draw_ridge_density_fg(model_Klebsiella)
 
 ```{r}
 model_Lactobacillus  <- brm( Lactobacillus  ~ 
-              fg_fruit+
+               fg_fruit+
                fg_meat+
                fg_milk+
                fg_oils+
@@ -363,11 +355,10 @@ model_Lactobacillus  <- brm( Lactobacillus  ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin),  
               data = all, 
@@ -379,7 +370,7 @@ draw_ridge_density_fg(model_Lactobacillus)
 ```
 ```{r}
 model_Streptococcus  <- brm( Streptococcus  ~ 
-              fg_fruit+
+               fg_fruit+
                fg_meat+
                fg_milk+
                fg_oils+
@@ -388,11 +379,10 @@ model_Streptococcus  <- brm( Streptococcus  ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_ndrink+
-                fg_EN+
-               empirical + 
+               empirical +  
                intensity + 
-                 TPN +
+                TPN +
+                EN +
                (1 | mrn) +
                 (1 | timebin),  
               data = all, 
@@ -419,5 +409,38 @@ dom %>%
   ) %>% 
   cowplot::plot_grid(plotlist = ., align = 'hv', ncol = 3, labels = names(.))  +
   ggsave('../figs/dom_genera_brms.pdf', width = 14, height = 10)
+```
+```{r}
+# tsoni's idea of the heatmap
+domres  <- dom %>% 
+  map(~ posterior_samples(x = .) %>% 
+    select(starts_with('b')) %>% 
+    gather('item', 'value') %>% 
+      filter(str_detect(item, '_fg_')) %>% 
+    group_by(item) %>% 
+    summarise(meanperitem = mean(value))%>%
+    ungroup()) %>% 
+  bind_rows(.id = 'grp') %>% 
+  mutate(grp = str_replace(grp, 'model_',''),
+         item = str_replace(item, 'b_fg_','')) %>% 
+  spread('item', 'meanperitem') %>% 
+  select(-oils, -egg, -legume) %>% 
+  column_to_rownames('grp') %>% 
+  as.matrix()
+
+library(pheatmap)
+pheatmap(
+  domres,
+  #annotation_col = annot,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  filename = '../figs/all6.pdf',
+  height = 4,
+  width = 8,
+  display_numbers = T,
+  number_format = "%.3f"
+  #cluster_rows =F,
+  #cluster_cols=F
+)
 ```
 
