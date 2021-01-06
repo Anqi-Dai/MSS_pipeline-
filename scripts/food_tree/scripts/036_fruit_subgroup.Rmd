@@ -52,6 +52,7 @@ what_fruit %>%
   mutate(desc = str_replace_all(Main.food.description, '_',' ')) %>% 
   ungroup() %>% 
   select(desc, Food_NSC) %>% 
+  mutate(Food_NSC = c('Orange juice','Dried mixed Fruit','Banana')) %>% 
   kableExtra::kable( ) %>% 
   kableExtra::kable_styling(full_width = F)
 ```

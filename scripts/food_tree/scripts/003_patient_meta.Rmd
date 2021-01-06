@@ -268,3 +268,26 @@ final %>%
 
 ```
 
+
+## for Tsoni's survival analysis I need to send the data
+
+```{r}
+faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
+  separate(X1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) 
+
+# a summary of cal per day per patient 
+day_cal <- dtb %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(cal = sum(Calories_kcal))
+
+send <- faith %>% 
+  inner_join(day_cal) %>% 
+  left_join(ptb)
+
+send %>% 
+  write_csv('../data/diet_pt_daily_cal_and_faith.csv')
+
+colnames(send)
+```
+

@@ -1,0 +1,107 @@
+---
+title: "heatmap family level"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(brms)
+library(ggpubr)
+```
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(empirical = factor(empirical, levels = c('FALSE','TRUE')))
+
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  dplyr::select(sampleid, taxa_family, relab) %>% 
+  mutate(taxa_family = str_extract(taxa_family, 'f__.+$')) %>% 
+  mutate(taxa_family = str_replace(taxa_family, 'f__','')) %>% 
+  filter(taxa_family != 'NA')
+```
+```{r}
+thre <- seq(0.0001, 0.003, 0.0001)
+thre %>% 
+  set_names(thre) %>% 
+  map_dfr(function(num){
+    cts %>% 
+    group_by(taxa_family) %>% 
+    count(relab > num) %>% 
+    rename(criteria = names(.)[2]) %>% 
+    filter(criteria == 'TRUE') %>% 
+    arrange(-n) %>% 
+    mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+    filter(perc > 10) %>% 
+      nrow
+  }) %>% 
+  gather('thre', 'num')
+# choose 0.002
+
+
+target_family <-  cts %>% 
+  group_by(taxa_family) %>% 
+  count(relab > 0.002) %>% 
+  rename(criteria = names(.)[2]) %>% 
+  filter(criteria == 'TRUE') %>% 
+  arrange(-n) %>% 
+  mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+  filter(perc > 10) %>% 
+  pull(taxa_family)
+```
+```{r}
+domcts <- cts %>% 
+  filter(taxa_family %in% target_family) %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  dplyr::select(-relab) %>% 
+  spread(key = 'taxa_family', value = 'relablog')
+
+All <- domcts %>% 
+  full_join(meta, by = "sampleid")
+```
+
+```{r}
+ret <- target_family %>% 
+  set_names(target_family) %>% 
+  map(function(fam) {
+    mod =  brm( as.formula(str_glue('{fam}  ~ 
+               fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               empirical +  
+               intensity + 
+                TPN +
+                EN +
+               (1 | mrn) +
+                (1 | timebin)')),  
+              data = All, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+    
+    res = posterior_samples(mod) %>% 
+      select(starts_with('b')) %>% 
+      gather('item', 'value') %>% 
+        filter(str_detect(item, '_fg_')) %>% 
+      group_by(item) %>% 
+      summarise(meanperitem = mean(value),
+                q2.5 = quantile(value, probs = 0.025),
+                q97.5 = quantile(value, probs = 0.975))%>%
+      ungroup()
+    
+    return(res)
+  })
+```
+
