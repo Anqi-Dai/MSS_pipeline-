@@ -103,5 +103,51 @@ final <- All %>%
 
 final %>% 
   write_csv('../data/cleaned_stool/filtered_meta_genera.csv')
+
+
 ```
+
+## using all the target genera as the outcome
+
+```{r}
+ret <- target_genera %>% 
+  set_names(target_genera) %>% 
+  map(function(genus) {
+    mod =  brm( as.formula(str_glue('{genus}  ~ 
+               fg_fruit+
+               fg_meat+
+               fg_milk+
+               #fg_oils+
+                #fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                #fg_legume+
+                fg_veggie+
+               empirical +  
+               intensity + 
+                TPN +
+                EN +
+               (1 | mrn) +
+                (1 | timebin)')),  
+              data = final, 
+              warmup = 1000, iter = 3000, 
+              cores = 8, chains = 2, 
+              seed = 123) 
+    
+    res = posterior_samples(mod) %>% 
+      select(starts_with('b')) %>% 
+      gather('item', 'value') %>% 
+        filter(str_detect(item, '_fg_')) %>% 
+      group_by(item) %>% 
+      summarise(meanperitem = mean(value))%>%
+      ungroup()
+    
+    return(res)
+  })
+
+
+
+
+```
+
 
