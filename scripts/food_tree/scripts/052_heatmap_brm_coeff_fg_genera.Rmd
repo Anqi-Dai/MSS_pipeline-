@@ -1,0 +1,107 @@
+---
+title: "brm model coeff heatmap with food and genera"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(brms)
+library(ggpubr)
+```
+
+## load tables
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(empirical = factor(empirical, levels = c('FALSE','TRUE')))
+
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  dplyr::select(sampleid, taxa_genus, relab) %>% 
+  mutate(taxa_genus = str_extract(taxa_genus, 'g__.+$')) %>% 
+  mutate(taxa_genus = str_replace(taxa_genus, 'g__',''))
+```
+
+## filger on the food consumption and the genera
+
+```{r}
+thre <- seq(0.0001, 0.001, 0.0001)
+thre %>% 
+  set_names(thre) %>% 
+  map_dfr(function(num){
+    cts %>% 
+    group_by(taxa_genus) %>% 
+    count(relab > num) %>% 
+    rename(criteria = names(.)[2]) %>% 
+    filter(criteria == 'TRUE') %>% 
+    arrange(-n) %>% 
+    filter(taxa_genus != 'NA') %>% 
+    mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+    filter(perc > 10) %>% 
+      nrow
+  }) %>% 
+  gather('thre', 'num')
+
+# i think I am happy with 47 genera left after filtering 
+```
+
+```{r}
+target_genera <-  cts %>% 
+  group_by(taxa_genus) %>% 
+  count(relab > 0.001) %>% 
+  rename(criteria = names(.)[2]) %>% 
+  filter(criteria == 'TRUE') %>% 
+  arrange(-n) %>% 
+  filter(taxa_genus != 'NA') %>% 
+  mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+  filter(perc > 10) %>% 
+  pull(taxa_genus)
+```
+
+```{r}
+domcts <- cts %>% 
+  filter(taxa_genus %in% target_genera) %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  dplyr::select(-relab) %>% 
+  spread(key = 'taxa_genus', value = 'relablog')
+
+All <- domcts %>% 
+  full_join(meta, by = "sampleid")
+```
+ 
+
+```{r}
+# also need to filter on the food somehow 
+fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  gather() %>% 
+  mutate(key = fct_reorder(key, value, .fun=median, .desc = T)) 
+
+fg %>% 
+  ggboxplot(x = 'key', y = 'value') +
+  scale_y_sqrt()
+
+# decided: median intake > 0 
+
+remove_fg <- fg %>% 
+  group_by(key) %>% 
+  summarise(median_intake = median(value)) %>% 
+  arrange(median_intake)  %>% 
+  filter(median_intake == 0) %>% 
+  mutate(key = as.character(key)) %>% 
+  pull(key)
+  
+
+final <- All %>% 
+  select(-all_of(remove_fg))
+
+final %>% 
+  write_csv('../data/cleaned_stool/filtered_meta_genera.csv')
+```
+
