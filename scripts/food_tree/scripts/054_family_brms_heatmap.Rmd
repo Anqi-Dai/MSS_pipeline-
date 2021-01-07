@@ -103,5 +103,100 @@ ret <- target_family %>%
     
     return(res)
   })
+
+retdf <- ret %>% 
+  bind_rows(.id = 'family') %>% 
+  mutate(sig = if_else(q97.5 < 0 | q2.5 > 0, T, F)) %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+  mutate(mark = if_else(sig == T, '*','')) %>% 
+  filter(!item %in% c('egg','legume','oils')) %>% 
+  mutate(meanperitem = meanperitem*100)
+
+range(retdf$meanperitem)
 ```
+
+```{r}
+ggplot(retdf, aes(x = item, y = family)) +
+  geom_tile(aes(fill = meanperitem)) +
+  geom_text(aes(label = round(meanperitem, 3))) +
+  geom_text(aes(label = mark, x = item,y =  family),
+           nudge_y = -0.3, nudge_x = -0.4,size = 8) +
+  # As our values are continuous, we'll use scale_fill_continuous instead of scale_fill_manual
+  scale_fill_continuous(low = "aquamarine", high = "orchid1") +
+  ggsave('../figs/heatmap_family_24_ggplot.pdf', width = 10, height = 9)
+```
+
+```{r}
+# Add a family annotation at the class level 
+source('~/db_connect_simple.R')
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('asv_annotation_blast_ag')
+list_table_from_database('blast')
+
+annot_class <- asv_annotation_blast_ag %>% 
+  filter(family %in% retdf$family) %>% 
+  distinct(family, class) %>% 
+  column_to_rownames('family')
+
+annot_phy <- asv_annotation_blast_ag %>% 
+  filter(family %in% retdf$family) %>% 
+  distinct(family, phylum) %>% 
+  column_to_rownames('family')
+
+class_cols <- tibble(
+  class = unique(annot_class$class),
+  color = RColorBrewer::brewer.pal(n = 9, name = 'Set1')
+) %>% 
+  deframe()
+
+
+colGradient <- function( cols, length, cmax=255 )
+{ ramp <- colorRamp(cols)
+  rgb( ramp(seq(0,1,length=length)), max=cmax )
+}
+
+bwrPalette <- colGradient(c("blue","white","red"),length=11) # this is the scale of the score
+
+```
+
+
+```{r}
+retdf_matrix_lbl <- retdf %>% 
+  mutate(meanperitem = round(meanperitem, 3)) %>% 
+  mutate(meanperitem = as.character(meanperitem)) %>% 
+  mutate(meanperitem = if_else(mark == '*', '*', '')) %>% 
+  select(family, item, meanperitem) %>% 
+  spread('item', 'meanperitem') %>% 
+  column_to_rownames('family') %>% 
+  as.matrix()
+
+retdf_matrix <- retdf %>% 
+  select(family, item, meanperitem) %>% 
+  spread('item', 'meanperitem') %>% 
+  column_to_rownames('family') %>% 
+  as.matrix()
+
+library(pheatmap)
+pheatmap(
+  retdf_matrix,
+  color=bwrPalette, 
+  clustering_distance_cols ='correlation',
+  clustering_distance_rows ='canberra',
+  annotation_row = annot_class,
+  annotation_colors = list(class = class_cols),
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  filename = '../figs/heatmap_24_family.pdf',
+  number_color = "white",
+  fontsize_number = 15,
+  fontsize = 13, 
+  height = 8,
+  width = 9,
+  display_numbers = retdf_matrix_lbl
+  #cluster_rows =F,
+  #cluster_cols=F
+)
+```
+
+
 
