@@ -128,19 +128,27 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
   group_by(mrn, fdrt) %>% 
   summarise(cal =  sum(Calories_kcal)) %>% 
   ungroup() %>% 
-  mutate(food = T)
+  mutate(food = 1)
 
-stb <- read_csv('../data/cleaned_stool/selected_stool_samples_ALL_abx.csv') %>% 
-  mutate(stool = F)
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
+  mutate(stool = 0)
 ```
 
 ```{r}
 dtb %>% 
-  ggscatter(x = 'fdrt', y = 'food') +
-  geom_point(data = stb, aes(x = sdrt, y = stool)) +
+  ggplot(aes(x = fdrt, y = food )) +
+  geom_point(color = 'darkolivegreen4', size = 1.5) +
+  geom_point(data = stb, aes(x = sdrt, y = stool), color = 'gold4', size = 1.5) +
   facet_wrap(~mrn, scales = 'free') +
-  labs(y = '') +
-  theme_light() +
-  ggsave('../figs/timeline_pair.pdf', width = 8, height = 6)
+  theme_classic() +
+  theme(strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        legend.position = "none") +
+  ylim(-0.5, 1.5) +
+  ggsave('../figs/timeline_pair.pdf', width = 18, height = 9)
 ```
 
