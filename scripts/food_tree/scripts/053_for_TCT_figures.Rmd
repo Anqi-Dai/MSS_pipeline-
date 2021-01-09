@@ -16,8 +16,7 @@ library(ggpubr)
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative')))
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
 
 faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
   separate(X1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
@@ -29,10 +28,10 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
 dat <- read_csv('../data/diet_pt_daily_cal_and_faith.csv')
 
 
-alpha_val <- 0.2
+alpha_val <- 0.1
 cal_ <- dat %>% 
   ggscatter(x = 'fdrt', y = 'cal', alpha = alpha_val, 
-            xlab = '',
+            xlab = 'Day relative to HCT',
             ylab = 'Caloric intake',
             add = "loess", color = 'maroon',
             add.params = list(color = "brown", fill = "darkgray", size = 2), 
@@ -47,7 +46,7 @@ cal_
 cal_split <- dat %>% 
   ggscatter(x = 'fdrt', y = 'cal', alpha = alpha_val, 
             color = 'intensity', palette = 'lancet',
-            xlab = 'Day relative to transplant',
+            xlab = 'Day relative to HCT',
             ylab = 'Caloric intake',
             add = "loess", 
             conf.int = TRUE) +
@@ -64,7 +63,7 @@ diet_alpha <- faith %>%
             color = 'forestgreen',
             #size = 1,
             ylab = 'Diet alpha diversity', 
-            xlab = '',
+            xlab = 'Day relative to HCT',
             title = '',
             add = "loess", 
             add.params = list(color = "darkgreen", fill = "darkgray", size = 2), 
@@ -83,7 +82,7 @@ faith_split <- dat %>%
             color = 'intensity', palette = 'lancet',
             #size = 1,
             ylab = 'Diet alpha diversity', 
-            xlab = 'Day relative to transplant',
+            xlab = 'Day relative to HCT',
             title = '',
             add = "loess", 
             conf.int = TRUE) +
@@ -98,7 +97,7 @@ faith_split
 stool_alpha <- meta %>% 
   mutate(log_div = log(simpson_reciprocal)) %>% 
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, 
-            xlab = 'Day relative to transplant',
+            xlab = 'Day relative to HCT',
             ylab = 'Microbiome alpha diversity',
             add = "loess", color = 'darkgoldenrod',
             add.params = list(color = "darkgoldenrod4", fill = "darkgray", size = 2), 
@@ -108,17 +107,58 @@ stool_alpha <- meta %>%
 stool_alpha
 ```
 
+```{r}
+# stool split
+stool_split <-  meta %>% 
+  mutate(log_div = log(simpson_reciprocal)) %>% 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, 
+            xlab = 'Day relative to HCT',
+            ylab = 'Microbiome alpha diversity',
+            add = "loess", color = 'intensity', palette = 'lancet',
+            conf.int = TRUE) +
+  xlim(-10, 50) +
+  theme(legend.position = 'none') + 
+  scale_x_continuous(breaks = seq(-10, 50, 10)) + theme(aspect.ratio=1)
+stool_split
+```
 
 
 ```{r}
-alpha <- plot_grid(cal_, diet_alpha, stool_alpha, cal_split, faith_split,
+library(cowplot)
+alpha <- plot_grid(cal_, diet_alpha, stool_alpha,
                    byrow = T,
-          nrow = 2, 
+          nrow = 1, 
           align = 'hv',
           #rel_heights = c(1,1),
           axis = 'blrt')  +
-  ggsave('../figs/alhpa_ch.pdf', width = 10, height = 7)
-alpha 
+  ggsave('../figs/all_alpha.pdf', width = 10, height = 6)
+
+
+split <- plot_grid(cal_split, faith_split,stool_split,
+                   byrow = T,
+          nrow = 1, 
+          align = 'hv',
+          #rel_heights = c(1,1),
+          axis = 'blrt')  +
+  ggsave('../figs/split_alpha.pdf', width = 12, height = 8)
+split 
+```
+```{r}
+# to get the legend with different abbreviations
+meta %>% 
+  mutate(intensity = case_when(
+    intensity == 'ablative' ~'MA',
+    intensity == 'reduced' ~'RIC',
+    intensity == 'nonablative' ~'NMA'
+  )) %>% 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, 
+            xlab = 'Day relative to HCT',
+            ylab = 'Microbiome alpha diversity',
+            add = "loess", color = 'intensity', palette = 'lancet',
+            conf.int = TRUE) +
+  xlim(-10, 50) +
+  #theme(legend.position = 'none') + 
+  scale_x_continuous(breaks = seq(-10, 50, 10)) + theme(aspect.ratio=1)
 ```
 
 ## the timeline plot 
@@ -151,4 +191,6 @@ dtb %>%
   ylim(-0.5, 1.5) +
   ggsave('../figs/timeline_pair.pdf', width = 18, height = 9)
 ```
+
+
 
