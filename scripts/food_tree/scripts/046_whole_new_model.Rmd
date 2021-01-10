@@ -256,9 +256,5 @@ posterior_model %>%
   write_csv('../data/brms_model_var_res.csv')
 ```
 
-```{r}
-# using tidybayes to draw the forest kind of plot
-library(tidybayes)
-tidybayes(model_brm)
-```
+
 

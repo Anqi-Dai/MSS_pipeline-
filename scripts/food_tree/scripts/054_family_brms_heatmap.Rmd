@@ -109,21 +109,38 @@ retdf <- ret %>%
   mutate(sig = if_else(q97.5 < 0 | q2.5 > 0, T, F)) %>% 
   mutate(item = str_replace(item, 'b_fg_','')) %>% 
   mutate(mark = if_else(sig == T, '*','')) %>% 
-  filter(!item %in% c('egg','legume','oils')) %>% 
-  mutate(meanperitem = meanperitem*100)
+  #filter(!item %in% c('egg','legume','oils')) %>% 
+  mutate(meanperitem = meanperitem*100) %>% 
+  mutate(family = str_replace(family, '._Incertae_Sedis','')) %>% 
+  mutate(`mean coeff` =  case_when(
+    meanperitem > 0.1 ~ '> 0.1',
+    meanperitem < -0.1 ~ '< -0.1',
+    TRUE ~ '[-0.1,0.1]'
+  )) %>% 
+  mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) 
 
 range(retdf$meanperitem)
+
+
 ```
 
 ```{r}
 ggplot(retdf, aes(x = item, y = family)) +
-  geom_tile(aes(fill = meanperitem)) +
-  geom_text(aes(label = round(meanperitem, 3))) +
+  geom_tile(aes(fill = `mean coeff`), alpha = 0.5, color='white', width=0.95, height=0.95) +
+ # geom_text(aes(label = round(meanperitem, 3))) +
   geom_text(aes(label = mark, x = item,y =  family),
-           nudge_y = -0.3, nudge_x = -0.4,size = 8) +
+            nudge_y = -0.3, nudge_x = 0,size = 8) +
   # As our values are continuous, we'll use scale_fill_continuous instead of scale_fill_manual
-  scale_fill_continuous(low = "aquamarine", high = "orchid1") +
-  ggsave('../figs/heatmap_family_24_ggplot.pdf', width = 10, height = 9)
+  #scale_fill_continuous(low = "aquamarine", high = "orchid1") +
+  scale_fill_manual(values = c('white','steelblue','maroon')) +
+  theme_minimal() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        panel.grid.major = element_blank(), 
+        #panel.grid.minor = element_blank(),
+        legend.key = element_rect( colour = "gray50"),
+        panel.background = element_blank()) +
+  ggsave('../figs/heatmap_family_24_ggplot.pdf', width = 7, height = 5)
 ```
 
 ```{r}
@@ -159,38 +176,46 @@ bwrPalette <- colGradient(c("blue","white","red"),length=11) # this is the scale
 
 ```
 
+```{r}
+# look at how to choose the threshold best scenario is that only the sig appear to be blue and red and the others are white
+retdf %>% 
+  mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) %>% 
+  ggboxplot(x = 'item', y = 'meanperitem', add = 'jitter', ggtheme = theme_minimal()) 
+```
+
 
 ```{r}
 retdf_matrix_lbl <- retdf %>% 
   mutate(meanperitem = round(meanperitem, 3)) %>% 
   mutate(meanperitem = as.character(meanperitem)) %>% 
-  mutate(meanperitem = if_else(mark == '*', '*', '')) %>% 
+  mutate(meanperitem = if_else(mark == '*', '*', meanperitem)) %>% 
   select(family, item, meanperitem) %>% 
-  spread('item', 'meanperitem') %>% 
-  column_to_rownames('family') %>% 
+  spread('family', 'meanperitem') %>% 
+  column_to_rownames('item') %>% 
   as.matrix()
 
 retdf_matrix <- retdf %>% 
   select(family, item, meanperitem) %>% 
-  spread('item', 'meanperitem') %>% 
-  column_to_rownames('family') %>% 
+  spread('family', 'meanperitem') %>% 
+  column_to_rownames('item') %>% 
   as.matrix()
 
 library(pheatmap)
 pheatmap(
   retdf_matrix,
   color=bwrPalette, 
-  clustering_distance_cols ='correlation',
-  clustering_distance_rows ='canberra',
-  annotation_row = annot_class,
+  clustering_distance_cols ='canberra',
+  clustering_distance_rows ='correlation',
+  #annotation_row = annot_class,
   annotation_colors = list(class = class_cols),
   show_rownames = TRUE,
   show_colnames = TRUE,
   filename = '../figs/heatmap_24_family.pdf',
-  number_color = "white",
-  fontsize_number = 15,
+  number_color = "black",
+  fontsize_number = 5,
+  angle_col = 45,
   fontsize = 13, 
-  height = 8,
+  height = 5,
   width = 9,
   display_numbers = retdf_matrix_lbl
   #cluster_rows =F,
