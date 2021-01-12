@@ -117,7 +117,7 @@ stool_split <-  meta %>%
             add = "loess", color = 'intensity', palette = 'lancet',
             conf.int = TRUE) +
   xlim(-10, 50) +
-  theme(legend.position = 'none') + 
+  #theme(legend.position = 'none') + 
   scale_x_continuous(breaks = seq(-10, 50, 10)) + theme(aspect.ratio=1)
 stool_split
 ```
@@ -157,7 +157,7 @@ meta %>%
             add = "loess", color = 'intensity', palette = 'lancet',
             conf.int = TRUE) +
   xlim(-10, 50) +
-  #theme(legend.position = 'none') + 
+  theme(legend.position = 'none') + 
   scale_x_continuous(breaks = seq(-10, 50, 10)) + theme(aspect.ratio=1)
 ```
 

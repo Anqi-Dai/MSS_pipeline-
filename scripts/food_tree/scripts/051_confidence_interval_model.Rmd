@@ -70,7 +70,9 @@ res_fg_interval
 res_other <- res %>% 
   pluck('FALSE')  %>% 
   mutate(item = str_replace(item, 'b_',''),
-         item = str_replace(item, 'TRUE',''))
+         item = str_replace(item, 'TRUE','')) %>% 
+  # get rid of intercept, EN and TPN
+  filter(! item %in% c('EN','TPN','Intercept'))
 
 res_other   %>% 
   arrange(q50) %>% 
@@ -80,6 +82,7 @@ res_other   %>%
             xlab = '') +
   geom_pointrange(aes( ymin  = q2.5,ymax  = q97.5), fatten = 5, col = 'red') +
   geom_hline(yintercept = 0, col = "black", linetype = 'dashed') +
+  ylim(-1, 1) +
   #scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
-  coord_flip()
+  coord_flip()  
 ```

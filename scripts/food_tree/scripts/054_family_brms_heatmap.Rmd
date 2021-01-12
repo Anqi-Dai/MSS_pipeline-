@@ -181,6 +181,12 @@ bwrPalette <- colGradient(c("blue","white","red"),length=11) # this is the scale
 retdf %>% 
   mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) %>% 
   ggboxplot(x = 'item', y = 'meanperitem', add = 'jitter', ggtheme = theme_minimal()) 
+
+
+retdf %>% 
+  mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) %>% 
+  ggboxplot(x = 'sig', y = 'meanperitem', add = 'jitter', ggtheme = theme_minimal()) 
+
 ```
 
 
