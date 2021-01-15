@@ -113,8 +113,8 @@ retdf <- ret %>%
   mutate(meanperitem = meanperitem*100) %>% 
   mutate(family = str_replace(family, '._Incertae_Sedis','')) %>% 
   mutate(`mean coeff` =  case_when(
-    meanperitem > 0.1 ~ '> 0.1',
-    meanperitem < -0.1 ~ '< -0.1',
+    meanperitem > 0.4 ~ '> 0.1',
+    meanperitem < -0.4 ~ '< -0.1',
     TRUE ~ '[-0.1,0.1]'
   )) %>% 
   mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) 
@@ -186,6 +186,13 @@ retdf %>%
 retdf %>% 
   mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) %>% 
   ggboxplot(x = 'sig', y = 'meanperitem', add = 'jitter', ggtheme = theme_minimal()) 
+
+retdf %>% 
+  group_by(sig) %>% 
+  summarise(med = median(meanperitem))
+
+retdf %>% 
+  filter(meanperitem < -0.5)
 
 ```
 
