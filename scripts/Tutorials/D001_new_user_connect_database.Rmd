@@ -1,0 +1,81 @@
+---
+title: "New user connects to vdb database"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+This document lists the steps how a new user can connect to the vdbr database and also some important notes.
+
+**Please make sure you are compliant with the protocol and be careful of using the information in this database since there is sensitive PHI contained.**
+
+**AAA** refers to the current database manager you should contact. Currently it's Angel (daia1@mskcc.org)
+
+## AAA notify you with a temporary password with your new account
+
+You get information like this: (an example)
+
+- user: mab4025
+- temporary password: test123456
+- pass expiration: 2020-1-17
+
+**Please act fast and finish the below steps before the expiration date. Thank you.**
+
+## Install the vdbR package
+
+```{r }
+remotes::install_git("https://github.mskcc.org/gomesa/vdbR.git",quiet=T)
+```
+
+**Choose 1 to install or update all necessary package**
+
+If the above line doen't run:
+
+- Your R version might need to be updated, for example at the time of this document's creation, you need to use R 4.3.0
+- You need to have the package `remotes`
+
+```{r}
+# to test if this package has been successfully installed
+library(vdbR)
+```
+
+## Create a config file and put it at your home directory
+
+Create a config file and put it at your home directory: `~`
+
+The config file should be named "dbConfig.txt" and has the following info for this example user (currently with the temprary password).
+
+```{bash}
+# I created the below file name just to show what the format should be like
+cat ~/dbConfig_format_example.txt
+```
+ 
+
+```{r echo=F}
+# run the below lines 
+library(vdbR)
+connect_database(config_file = "~/dbConfig.txt")
+```
+ 
+Then you are prompted to create a new password. Doesn't matter how complicated it is, as long as it's different from the temp. And your new password will be writen to your config file.
+
+## Notify AAA of your password change so he/she can unlock you
+
+AAA rerun the create_new_postgres_user_vbdlab.R script
+
+## Then you should be good to go, try it with commands like
+
+```{r}
+list_table_from_database()
+get_table_from_database("asv_alpha_diversity_ag")
+```
+

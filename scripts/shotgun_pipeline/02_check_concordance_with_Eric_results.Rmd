@@ -1,0 +1,176 @@
+---
+title: "Check Eric's and my results concordance"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(ggpubr)
+library(RVenn)
+library(cowplot)
+```
+
+```{r}
+# load the data (Antonio pointed to me)
+load('/Volumes/vandenbrinklab/gomesa/2Angel/kate_markey_full_humann2_shotgun.RData')
+```
+
+```{r}
+# subset to get the samples I have tested
+# I can just check one sample and the gene family table
+
+samples <- names(table(gene_df$Sample_ID))
+
+# write out the sample IDs that Eric has generated results for
+write.table(samples, '../data/sample_id_Eric_results.txt', quote = F, row.names = F, col.names = F)
+```
+
+
+
+
+# Make the above a function to process all samples in a row
+
+```{r}
+input_df <- link %>% 
+  # the input and the column name can't be the same!!!!!!!!!
+  select(sampleID = Sample_ID, jobID = job_id_index) 
+```
+
+```{r}
+# the function should take two inputs the Sample_ID and job_id_index
+compare2 <- function(sampleID, jobID){
+  
+  # Eric result
+  Littmann <- gene_df %>% 
+    filter(type == 'gene family' & Sample_ID == sampleID) %>% 
+    select(gene, abundance_rpk_Littmann = abundance_rpk)
+
+  # my result 
+  Dai <- read_tsv(str_glue('../../../learning/testRunWorkflow/analysis/data/raw_input_R1.{jobID}_kneaddata_paired_concat_genefamilies.tsv')) %>% 
+    select(gene = names(.)[1],
+           abundance_rpk_Dai = names(.)[2])
+  
+  # make a venn diagram to show the intersection of the two parts
+  two_list <- Venn(list(Dai = Dai$gene,
+                   Littmann = Littmann$gene))
+   
+  venn_plot <- ggvenn(two_list) +
+    labs(title = str_glue('Intersected gene family items Sample {sampleID}')) +
+    theme(panel.background = element_rect(fill = "white")) 
+  
+
+  # join the tables with abundance together to see how the counts compare
+  # take a full join to see how to item missing in one group is acting in another group.
+  res <- Littmann %>%  
+    full_join(Dai, by = 'gene') %>% 
+    mutate(abundance_rpk_Littmann = as.numeric(abundance_rpk_Littmann))  %>% 
+    # add a pseudocount to the 0 cuz I'm gonna take a log10 later
+    mutate_all(~ifelse(is.na(.), 0.01, .)) 
+  
+  # Spearman Rank Correlation
+  # insensitive to outliers
+  rho <- round(cor.test(res$abundance_rpk_Littmann, 
+                        res$abundance_rpk_Dai, 
+                        method = 'spearman', 
+                        exact = F)$estimate, 2)
+  
+  # scatter plot to show the comparison
+  # also add the correlation to the plot
+  scatter_plot <- res %>% 
+    ggscatter(x = 'abundance_rpk_Dai',
+              y = 'abundance_rpk_Littmann',
+              alpha = 0.5) +
+    scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
+                labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+    geom_abline(slope=1, intercept=0, color = 'red') +
+    labs(x = 'Abundance RPK from Dai',
+         y = 'Abundance RPK from Littmann',
+         title = str_glue('Sample {sampleID} (Spearman cor: {rho})')) 
+
+  
+  g <- plot_grid(venn_plot, scatter_plot,
+          nrow = 2, 
+          align = 'hv',
+          labels = 'AUTO',
+          axis = 'b')  +
+  ggsave(str_glue('../figs/compare {sampleID} abundance with Venn and scatter.jpg'), width = 8, height = 12, dpi = 300)
+
+}
+```
+
+```{r}
+# run the above function on all the samples
+pmap(input_df %>% 
+       filter(sampleID == '1191U'), compare2)
+```
+
+# check out that one dot that has high abundance in Eric but low in mine
+
+```{r}
+# for example in 1191U
+
+Littmann <- gene_df %>% 
+  filter(type == 'gene family' & Sample_ID == '1191U') %>% 
+  select(gene, abundance_rpk_Littmann = abundance_rpk)
+
+# my result 
+Dai <- read_tsv(str_glue('../../../learning/testRunWorkflow/analysis/data/raw_input_R1.8_kneaddata_paired_concat_genefamilies.tsv')) %>% 
+  select(gene = names(.)[1],
+         abundance_rpk_Dai = names(.)[2])
+
+res <- Littmann %>%  
+  full_join(Dai, by = 'gene') %>% 
+  mutate(abundance_rpk_Littmann = as.numeric(abundance_rpk_Littmann))  %>% 
+  # add a pseudocount to the 0 cuz I'm gonna take a log10 later
+  mutate_all(~ifelse(is.na(.), 0.01, .)) 
+
+# so the dot is niRef90_V1DPZ3(UniRef90_V1DPZ3|unclassified)
+```
+
+```{r}
+# check if there is anything in common in the items missing in either one of us
+# REMOVING THE V1DPZ3 SINCE IT'S SKEWING ALL THE OTHER TERMS
+dai_missing <- res %>% 
+  filter(abundance_rpk_Dai == 0.01) %>% 
+  filter(!str_detect(gene, 'V1DPZ3'))
+
+# what are the missing items 
+# 1. how many items are unclassified and 2. for the classified items what's the distribution like
+# split the df by whether there is "unclassified" in the item
+
+ret <- dai_missing %>% 
+  split(str_detect(.$gene, '\\|unclassified$'))
+
+ret %>% 
+  imap(.f = function(df, .y) {
+    df %>% 
+      gghistogram(x = 'abundance_rpk_Littmann',
+                  bins = 10, 
+                  fill = 'dark gray',
+                  color = 'white') +
+      labs(title = str_glue('Contains "unclassified": {.y}   Total: {nrow(df)}\nmissing in Dai')) +
+      ggsave(str_glue('../figs/abundance_rpk_Littmann_dist_dai_missing_{.y}.jpg'), width = 5, height = 4, dpi = 300)
+  })
+```
+
+```{r}
+# missing in Eric's results
+res %>% 
+  filter(abundance_rpk_Littmann == 0.01) %>% 
+  split(str_detect(.$gene, '\\|unclassified$')) %>% 
+  imap(.f = function(df, .y) {
+    df %>% 
+      gghistogram(x = 'abundance_rpk_Dai',
+                  bins = 10, 
+                  fill = 'dark gray',
+                  color = 'white') +
+      labs(title = str_glue('Contains "unclassified": {.y}   Total: {nrow(df)}\nmissing in Littmann')) +
+      ggsave(str_glue('../figs/abundance_rpk_Dai_dist_dai_missing_{.y}.jpg'), width = 5, height = 4, dpi = 300)
+  })
+```
+
+
+

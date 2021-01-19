@@ -1,0 +1,62 @@
+---
+title: "Extract the path of the test samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(RPostgreSQL)
+```
+
+Extract the path to the test samples on the server and then upload to cluster to run thru my workflow to see whether my results validates Eric's results.
+
+```{r}
+list_of_tables <- dbListTables(con);
+
+shotgun_lookup <- dbReadTable(con,"shotgun_sample_lookup")
+
+# I can only test my concordance on the intersection between Eric results and the samples that i have access to
+# load the eric samples
+eric <- read.table('../data/sample_id_Eric_results.txt') %>% 
+  rename(Sample_ID = names(.)[1])
+
+overlap <- shotgun_lookup %>% 
+  filter(Sample_ID %in% eric$Sample_ID) %>% 
+  filter(str_detect(directory, 'vandenBrinkLab')) #samples on the vdb lab server that i have access to
+```
+
+```{r}
+# select the top 5 to test
+test_samples <- overlap %>% 
+  head(n = 5) 
+
+# then I access these samples on the lab server and then scp the files to the cluster
+test_samples %>% 
+  mutate(directory = str_replace(directory, 'smb://skimcs.mskcc.org','/Volumes')) %>% 
+  select(directory) %>% 
+  write.table('../output/test_samples_5_path.txt', quote = F, row.names = F, col.names = F )
+```
+
+## Below is to link the original file name to something with job id for the bsub lsf
+
+```{r}
+# write a script to link the input file with some job ID
+link <- test_samples %>% 
+  select(Sample_ID) %>% 
+  mutate(lilac_path_R1 = str_glue('~/my_workdir/samples/Sample_{Sample_ID}*/*R1*'),
+         lilac_path_R2 = str_replace(lilac_path_R1, 'R1','R2'),
+         job_id_index = seq(6, 10)) %>% 
+  mutate(cmd_link_R1 = str_glue('ln -s {lilac_path_R1} ~/my_workdir/samples/raw_input_R1.{job_id_index}.fastq.gz'),
+         cmd_link_R2 = str_glue('ln -s {lilac_path_R2} ~/my_workdir/samples/raw_input_R2.{job_id_index}.fastq.gz'))
+
+
+# put all the ln -s command together and it will be scp to the cluster to run
+link %>% 
+  select(cmd_link_R1, cmd_link_R2) %>% 
+  gather(key = 'type', value = 'cmd') %>% 
+  select(cmd) %>% 
+  write_csv('../scripts/001_link_input_to_jobid.sh', col_names = F)
+  
+```
+
