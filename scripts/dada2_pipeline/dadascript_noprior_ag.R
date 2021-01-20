@@ -5,8 +5,8 @@ library(dada2); packageVersion("dada2")
 library(ShortRead); #To subsample fastq sequences.
 #forward
 path <- args[1];
-filter_trunclen = c(180,180); #c(180,180) is default
-asv_len=seq(300,360); #c(300,360) is default
+filter_trunclen = c(180,180); #c(180,180) is default # the length of the reads to be truncated at
+asv_len=seq(300,360); #c(300,360) is default # the length of the asv sequences 
 
 # filter_trunclen = c(145,151); #c(180,180) is default
 # asv_len=seq(240,260); #c(300,360) is default
@@ -14,7 +14,7 @@ asv_len=seq(300,360); #c(300,360) is default
 
 #fnFs <- Sys.glob(file.path(path, "*R1*.fastq.gz"))
 fnFs <- Sys.glob(file.path(path, "*_R1*.fastq.gz"))
-fnFs <- fnFs[lapply(fnFs,function(x) length(grep("_unsigned",x,value=FALSE))) == 0]
+fnFs <- fnFs[lapply(fnFs,function(x) length(grep("_unsigned",x,value=FALSE))) == 0] # to get rid of the files with unsigned in it
 
 #backward
 #fnRs <- Sys.glob(file.path(path, "*R2*.fastq.gz"))
@@ -24,6 +24,7 @@ fnRs <- fnRs[lapply(fnRs,function(x) length(grep("_unsigned",x,value=FALSE))) ==
 
 print(fnRs);
 
+# the below is the filter out the samples with very small file size. to remove samples with low content.
 forwardfileinfo <- file.info(fnFs)
 forwardsizes <- forwardfileinfo[,"size"]
 reversefileinfo <- file.info(fnRs)
@@ -31,13 +32,14 @@ reversesizes <- reversefileinfo[,"size"]#forwardfileinfo[,"size"]
 
 fnFs <- fnFs[which(forwardsizes>10000 | reversesizes>10000)]
 fnRs <- fnRs[which(forwardsizes>10000 | reversesizes>10000)]
+
 #get sample names (update depending on filename conventions)
 #sample.names <- sapply(strsplit(sapply(strsplit(basename(fnFs), ".fastq.gz"), `[`, 1), "fastq_"), `[`,2)
 #sample.names <- sapply(strsplit(sapply(strsplit(basename(fnFs), ".fastq"), `[`, 1), "fastq_"), `[`,2)
-sample.names = sapply(strsplit(basename(fnFs), "_R1.fastq.gz"), `[`, 1);
+sample.names = sapply(strsplit(basename(fnFs), "_R1.fastq.gz"), `[`, 1); # get the sample names
 
 
-#temporary files for storing filtered data
+#temporary files for storing filtered data # create filenames for the filtered reads
 filtFs <- file.path(path, "filtered", paste0(sample.names, "_F_filt.fastq.gz"))
 filtRs <- file.path(path, "filtered", paste0(sample.names, "_R_filt.fastq.gz"))
 
@@ -47,11 +49,12 @@ randomize_var=F; #T;
 temp_log_file = sprintf("%s/temp_log.txt",path);
 write.table(sprintf("%s - before filterAndTrim Fs",Sys.time()), temp_log_file);
 
+# from dada2, filter and trim
 out <- filterAndTrim(fnFs, filtFs, fnRs, filtRs, truncLen=filter_trunclen,
                      maxN=0, maxEE=2, truncQ=2,
                      compress=TRUE, multithread=multithread_var) #TRUE)
 
-#Capping sampleids up to 50k reads.
+#Capping sampleids up to 50k reads.(subsampling, and replace the original samples with capped samples)
 write.table(sprintf("%s - before capping",Sys.time()), temp_log_file);
 
 Nread_cap=1e5;
@@ -88,12 +91,14 @@ if(do_capping){
   
 }
 
+# learning errors
 write.table(sprintf("%s - before learnErrors Fs",Sys.time()), temp_log_file, append=T);
 errF <- learnErrors(filtFs, multithread=multithread_var, randomize=randomize_var);#imultithread=multithread_var)
 
 write.table(sprintf("%s - before learnErrors Rs",Sys.time()), temp_log_file, append=T);
 errR <- learnErrors(filtRs, multithread=multithread_var, randomize=randomize_var);#TRUE)
 
+# dereplicating amplicon sequences somewhat like remove redundant and getting the unique
 write.table(sprintf("%s - before derep F",Sys.time()), temp_log_file, append=T);
 derepFs <- derepFastq(filtFs);#, verbose=TRUE)
 
@@ -110,6 +115,12 @@ write.table(sprintf("%s - before dada R",Sys.time()), temp_log_file, append=T);
 dadaRs <- dada(derepRs, err=errR,multithread=multithread_var);#TRUE)
 
 write.table(sprintf("%s - before merge",Sys.time()), temp_log_file, append=T);
+
+# This function (mergePairs) attempts to merge each denoised pair of forward and reverse reads, 
+#rejecting any pairs which do not sufficiently overlap or which contain too many (>0 by default) 
+#mismatches in the overlap region. Note: This function assumes that the fastq files for the forward 
+#and reverse reads were in the same order.
+
 mergers <- mergePairs(dadaFs, derepFs, dadaRs, derepRs);#, verbose=TRUE)
 seqtab <- makeSequenceTable(mergers)
 
@@ -117,8 +128,11 @@ write.table(sprintf("%s - before removebimera",Sys.time()), temp_log_file, appen
 
 seqtab_prebimera_file = sprintf("%s/seqtab_prebimera.rds",path);
 saveRDS(seqtab, seqtab_prebimera_file);
+
+# remove Bimeras
 seqtab.nochim <- removeBimeraDenovo(seqtab, method="consensus", multithread=multithread_var)#, verbose=TRUE)
 
+# seqtabfinal
 seqtabfinal <- seqtab.nochim[,nchar(colnames(seqtab.nochim)) %in% asv_len, drop=F]
 #rownames(seqtabfinal) = names(derepFs);
 rownames(seqtabfinal) = sample.names; # I changed names to sample.names to avoid error when dealing with 1 dimension data.
@@ -129,6 +143,7 @@ write.csv(seqtabfinal,outfile);
 outfile <- file.path(path, 'seqtab_noprior.rds')
 saveRDS(seqtabfinal, file=outfile)
 
+# the sequences for the asv
 ASV_sequences <- colnames(seqtabfinal);
 
 fasta_file= file.path(path,'ASV_sequences.fasta');
@@ -142,6 +157,7 @@ seqtabfinal_counts_raw$oligos_id = rownames(seqtabfinal);
 seqtabfinal_counts = melt(seqtabfinal_counts_raw, id.vars="oligos_id", variable.name="asv_temp_id",value.name="count" )
 seqtabfinal_counts = seqtabfinal_counts[seqtabfinal_counts$count!=0,];
 
+# the counts for the asv namely the count of how many times the asv showed up for that give asv ID 
 count_table_outfile <- file.path(path, "asv_counts.csv");
 write.csv(seqtabfinal_counts, count_table_outfile, row.names = F);
 
