@@ -60,7 +60,7 @@ cat ~/dbConfig_format_example.txt
 ```
  
 
-```{r echo=F}
+```{r}
 # run the below lines 
 library(vdbR)
 connect_database(config_file = "~/dbConfig.txt")

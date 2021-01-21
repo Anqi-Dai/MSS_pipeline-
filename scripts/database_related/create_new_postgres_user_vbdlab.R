@@ -12,7 +12,9 @@
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # when there is request for new connection, add the new username to the list downbelow 
 # after the person changed the password, run this script again to unlock this user. then he should be good to go.
-# (if the person doesn't change pw within 3 days), run : dbSendQuery(conn = con, "drop owned by mab4025; drop role mab4025") to drop the user 
+# (if the person doesn't change pw within 3 days), run : 
+#dbSendQuery(conn = con, "drop owned by <user>; drop role <user>") 
+#to drop the user 
 
 # (run this script and look down below to check who changed and who didn't  )
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++

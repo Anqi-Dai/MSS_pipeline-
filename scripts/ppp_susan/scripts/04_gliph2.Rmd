@@ -74,6 +74,8 @@ all %>%
   write_csv('../data/Pt3_colon_TCR_data.csv')
 ```
 
+
+
 ## Format the HLA table
 
 ```{r} 
