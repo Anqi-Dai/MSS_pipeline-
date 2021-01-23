@@ -253,3 +253,11 @@ keep_all <- bind_rows(
   write_csv('../data/growth/test_fid_minimal.csv', col_names = F)
 ```
 
+```{r}
+library(vdbR)
+connect_database(config_file = '~/dbConfig.txt')
+list_table_from_database(pattern = 'domi')
+get_table_from_database('asv_dominant_ag')
+```
+
+
