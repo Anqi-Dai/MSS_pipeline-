@@ -5,11 +5,12 @@
 #nodate
 #
 #Check samples id in castori that are not in our database
+library(vdbR)
+connect_database('~/dbConfig.txt')
+#source('~/pipeline/scripts/database_related/get_data_from_query_OTU.R');
 
-source('~/projects/human_microbiota/library/sql/get_data_from_query_OTU.R');
-
-#path_castori_mounted="/Volumes/castoricenter";
-path_castori_mounted="/tmp/castoricenter";
+path_castori_mounted="/Volumes/castoricenter";
+#path_castori_mounted="/tmp/castoricenter";
 
 #require(xlsx);
 # sequenced_castori = read.xlsx("/Volumes/castoricenter/Human.Sequencing.Data/Sequenced.BMT.xlsx", sheetIndex = 1 ); #Information for sequenced samples
@@ -22,9 +23,10 @@ if(!exists("sequenced_castori")){
 }
 # q11 = get_data_from_query_OTU(11); #Information for Castori samples;
 # q11$sampleid = q11$Sample_ID
-q11 = get_table_psql("samples_castori_ag");
-get_table_psql("asv_alpha_diversity_ag");#q12 = get_data_from_query_OTU(12); #Alpha diversity table contains the samples that are sequenced.
-
+get_table_from_database("samples_castori_ag");
+q11 = samples_castori_ag
+get_table_from_database("asv_alpha_diversity_ag");#q12 = get_data_from_query_OTU(12); #Alpha diversity table contains the samples that are sequenced.
+q12 = asv_alpha_diversity_ag
 sample_id_not_analyzed_yet = q11[!sampleid %in% asv_alpha_diversity_ag$sampleid]$sampleid; #Define sample_ids in castori that are not in postgreSQl database.
 
 #sample_id_not_analyzed_yet = q11$Sample_ID; #Selecting all samples;
@@ -67,7 +69,7 @@ copy_pool_from_castori <- function(pool_number, to_cluster=F){
   }else{
     output_path="lilac.mskcc.org:/data/brinkvd/gomesa/e63data/pipeline_16S_call/Human_data_castori_update/";
   }
-  sync_str = sprintf("rsync -vrtgoD -R %s/ %s",castori_path, output_path);
+  sync_str = sprintf("rsync -vrtgoD -P -R %s/ %s",castori_path, output_path);
   if(0){
     #I made this comment to force copying oligos file.
     castori_last_path = tail(strsplit(castori_path,"/")[[1]],1)
