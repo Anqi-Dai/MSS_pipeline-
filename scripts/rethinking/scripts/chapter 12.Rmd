@@ -1,0 +1,158 @@
+---
+title: "chapter12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(rethinking)
+```
+```{r}
+pbar <- 0.5
+theta <- 5
+curve( dbeta2(x,pbar,theta) , from=0 , to=1 ,
+    xlab="probability" , ylab="Density" )
+
+## R code 12.2
+library(rethinking)
+data(UCBadmit)
+d <- UCBadmit
+d$gid <- ifelse( d$applicant.gender=="male" , 1L , 2L )
+dat <- list( A=d$admit , N=d$applications , gid=d$gid )
+m12.1 <- ulam(
+    alist(
+        A ~ dbetabinom( N , pbar , theta ),
+        logit(pbar) <- a[gid],
+        a[gid] ~ dnorm( 0 , 1.5 ),
+        transpars> theta <<- phi + 2.0,
+        phi ~ dexp(1)
+    ), data=dat , chains=4, iter = 6000)
+
+## R code 12.3
+post <- extract.samples( m12.1 )
+post$da <- post$a[,1] - post$a[,2]
+precis( post , depth=2 )
+
+## R code 12.4
+gid <- 2
+# draw posterior mean beta distribution
+curve( dbeta2(x,mean(logistic(post$a[,gid])),mean(post$theta)) , from=0 , to=1 ,
+    ylab="Density" , xlab="probability admit", ylim=c(0,3) , lwd=2 )
+
+# draw 50 beta distributions sampled from posterior
+for ( i in 1:50 ) {
+    p <- logistic( post$a[i,gid] )
+    theta <- post$theta[i]
+    curve( dbeta2(x,p,theta) , add=TRUE , col=col.alpha("black",0.2) )
+}
+mtext( "distribution of female admission rates" )
+
+## R code 12.5
+postcheck( m12.1 )
+```
+```{r}
+## R code 12.6
+library(rethinking)
+data(Kline)
+d <- Kline
+d$P <- standardize( log(d$population) )
+d$contact_id <- ifelse( d$contact=="high" , 2L , 1L )
+
+dat2 <- list(
+    t = d$total_tools,
+    P = d$population,
+    cid = d$contact_id )
+
+m12.2 <- ulam(
+    alist(
+        t ~ dgampois( lambda , phi ),
+        lambda <- exp(a[cid])*P^b[cid] / g,
+        a[cid] ~ dnorm(1,1),
+        b[cid] ~ dexp(1),
+        g ~ dexp(1),
+        phi ~ dexp(1)
+    ), data=dat2 , chains=4 , log_lik=TRUE )
+```
+```{r}
+## R code 12.7
+# define parameters
+prob_drink <- 0.2 # 20% of days
+rate_work <- 1    # average 1 manuscript per day
+
+# sample one year of production
+N <- 365
+
+# simulate days monks drink
+set.seed(365)
+drink <- rbinom( N , 1 , prob_drink )
+
+# simulate manuscripts completed
+y <- (1-drink)*rpois( N , rate_work )
+
+## R code 12.8
+simplehist( y , xlab="manuscripts completed" , lwd=4 )
+zeros_drink <- sum(drink)
+zeros_work <- sum(y==0 & drink==0)
+zeros_total <- sum(y==0)
+lines( c(0,0) , c(zeros_work,zeros_total) , lwd=4 , col=rangi2 )
+
+## R code 12.9
+m12.3 <- ulam(
+    alist(
+        y ~ dzipois( p , lambda ),
+        logit(p) <- ap,
+        log(lambda) <- al,
+        ap ~ dnorm( -1.5 , 1 ),
+        al ~ dnorm( 1 , 0.5 )
+    ) , data=list(y=y) , chains=4 )
+precis( m12.3 )
+
+## R code 12.10
+post <- extract.samples( m12.3 )
+mean( inv_logit( post$ap ) ) # probability drink
+mean( exp( post$al ) )       # rate finish manuscripts, when not drinking
+
+## R code 12.11
+m12.3_alt <- ulam(
+    alist(
+        y|y>0 ~ custom( log1m(p) + poisson_lpmf(y|lambda) ),
+        y|y==0 ~ custom( log_mix( p , 0 , poisson_lpmf(0|lambda) ) ),
+        logit(p) <- ap,
+        log(lambda) <- al,
+        ap ~ dnorm(-1.5,1),
+        al ~ dnorm(1,0.5)
+    ) , data=list(y=as.integer(y)) , chains=4 )
+```
+
+```{r}
+## R code 12.12
+library(rethinking)
+data(Trolley)
+d <- Trolley
+
+## R code 12.13
+simplehist( d$response , xlim=c(1,7) , xlab="response" )
+
+## R code 12.14
+# discrete proportion of each response value
+pr_k <- table( d$response ) / nrow(d)
+
+# cumsum converts to cumulative proportions
+cum_pr_k <- cumsum( pr_k )
+
+# plot
+plot( 1:7 , cum_pr_k , type="b" , xlab="response" ,
+ylab="cumulative proportion" , ylim=c(0,1) )
+
+## R code 12.15
+logit <- function(x) log(x/(1-x)) # convenience function
+round( lco <- logit( cum_pr_k ) , 2 )
+```
+```{r}
+meta <- read_csv('../../food_tree/data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  inner_join(joined)
+```
+

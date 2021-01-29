@@ -8,6 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+library(tidyverse)
 target <- read_csv('../data/growth/test_sample_info.csv')
 ```
 ```{r}
@@ -38,6 +39,7 @@ joined %>%
   gather('type', 'value', ptr:relab) %>% 
   ggplot(aes(x = sdrt, y = value, col = type)) +
   geom_point() +
-  facet_grid(spp~ mrn)
+  geom_line() +
+  facet_grid(spp ~ mrn)
 ```
 
