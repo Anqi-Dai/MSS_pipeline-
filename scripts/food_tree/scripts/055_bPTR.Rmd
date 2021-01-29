@@ -1,0 +1,43 @@
+---
+title: "Visualize bPTR"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+target <- read_csv('../data/growth/test_sample_info.csv')
+```
+```{r}
+# the bPTR results
+fns <- list.files('../data/growth/PTR/', pattern = 'tsv', full.names = T)
+
+res <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., col_types = 'cccc', col_names = c('fn','ORI','TER','PTR'), skip = 1)) %>% 
+  bind_rows(.id = 'fid') %>% 
+  mutate(fid = str_replace(fid, '../data/growth/PTR//',''),
+         fid = str_replace(fid, '_bPTR.tsv',''),
+         fid = str_replace(fid, '_Ecoli$|_Efaecium$','')) %>% 
+  mutate(spp = str_extract(fn, 'E.+_')) %>% 
+  select(-fn) %>% 
+  mutate(family = if_else(spp == 'Ecoli_', 'f__Enterobacteriaceae','f__Enterococcaceae')) %>% 
+  mutate(ptr = if_else(PTR == 'n/a', 0, as.numeric(PTR)))
+ 
+res  
+```
+
+```{r}
+joined <- res %>% 
+  inner_join(target)
+
+joined %>% 
+  select(spp, mrn, ptr, relab, sdrt) %>% 
+  gather('type', 'value', ptr:relab) %>% 
+  ggplot(aes(x = sdrt, y = value, col = type)) +
+  geom_point() +
+  facet_grid(spp~ mrn)
+```
+
