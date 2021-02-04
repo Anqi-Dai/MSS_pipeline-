@@ -16,7 +16,7 @@ To use published tool to check the growth rate of the samples using shotgun data
 
 ```{r}
 # how many have been shotgun sequenced and rank by fruit consumption
-source('~/db_connect_simple.R')
+library(vdbR)
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database('shotgun_lookup_ad')
 
@@ -30,5 +30,9 @@ yes_shotgun <- meta %>%
 meta %>% 
   ggboxplot(x = 'yes_shotgun', y = 'fg_fruit', add = 'jitter')
 
-```
+# get the fid for those shotgun sequenced samples 
+ret <- meta %>% 
+  inner_join(shotgun_lookup_ad, by  = 'sampleid')
 
+ret$fid
+```

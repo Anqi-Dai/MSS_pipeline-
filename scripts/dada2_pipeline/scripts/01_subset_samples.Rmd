@@ -1,0 +1,19 @@
+---
+title: "Subset samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Get the asv counts and taxanomy and alpha diversity for that specific project samples
+
+```{r}
+# load the three tables
+library(vdbR)
+library(tidyverse)
+connect_database('~/dbConfig.txt')
+get_table_from_database('asv_counts_ag')
+```
+

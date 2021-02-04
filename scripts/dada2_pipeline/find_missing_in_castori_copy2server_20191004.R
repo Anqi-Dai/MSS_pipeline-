@@ -48,6 +48,10 @@ list_of_missing_pools = sort(as.numeric(names(t[t[,2] < t[,1],1]))); #I assume t
 
 #stop();
 
+list_of_missing_pools
+
+
+
 copy_pool_from_castori <- function(pool_number, to_cluster=F){
   
   castori_path=sprintf("%s/Human.Sequencing.Data/Miseq/./Sample_pool%d_complete",
