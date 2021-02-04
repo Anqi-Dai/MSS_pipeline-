@@ -15,5 +15,31 @@ library(vdbR)
 library(tidyverse)
 connect_database('~/dbConfig.txt')
 get_table_from_database('asv_counts_ag')
+list_table_from_database('alpha')
+get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+# Wisconsin samples 
+
+```{r}
+alpha <- asv_alpha_diversity_ag %>% 
+  filter(uploaded_date == '2021-02-03') %>% 
+  select(sampleid:shannon)
+
+cts <- asv_counts_ag %>% 
+  filter(sampleid %in% alpha$sampleid) %>% 
+  select(asv_key:count_total, count_relative)
+
+taxa <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  select(asv_key:blast_pass)
+
+list(alpha = alpha,
+     counts = cts,
+     taxa = taxa) %>% 
+  imap(function(.x, .y){
+    write_csv(.x, str_glue('../data/MCW_ASV_{.y}.csv'))
+  })
 ```
 

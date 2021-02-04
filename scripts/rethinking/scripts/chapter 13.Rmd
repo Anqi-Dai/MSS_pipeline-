@@ -79,3 +79,74 @@ text( 16+8 , 0 , "medium tanks" )
 text( 32+8 , 0 , "large tanks" )
 ```
 
+```{r}
+## R code 13.6
+# show first 100 populations in the posterior
+plot( NULL , xlim=c(-3,4) , ylim=c(0,0.35) ,
+    xlab="log-odds survive" , ylab="Density" )
+for ( i in 1:100 )
+    curve( dnorm(x,post$a_bar[i],post$sigma[i]) , add=TRUE ,
+    col=col.alpha("black",0.2) )
+
+# sample 8000 imaginary tanks from the posterior distribution
+sim_tanks <- rnorm( 8000 , post$a_bar , post$sigma )
+
+# transform to probability and visualize
+dens( inv_logit(sim_tanks) , lwd=2 , adj=0.1 )
+```
+
+```{r}
+a_bar <- 1.5
+sigma <- 1.5
+nponds <- 60
+Ni <- as.integer( rep( c(5,10,25,35) , each=15 ) )
+
+## R code 13.8
+set.seed(5005)
+a_pond <- rnorm( nponds , mean=a_bar , sd=sigma )
+
+## R code 13.9
+dsim <- data.frame( pond=1:nponds , Ni=Ni , true_a=a_pond )
+
+dsim$Si <- rbinom( nponds , prob=logistic(dsim$true_a) , size=dsim$Ni )
+
+dsim$p_nopool <- dsim$Si / dsim$Ni
+```
+
+```{r}
+## R code 13.13
+dat <- list( Si=dsim$Si , Ni=dsim$Ni , pond=dsim$pond )
+m13.3 <- ulam(
+    alist(
+        Si ~ dbinom( Ni , p ),
+        logit(p) <- a_pond[pond],
+        a_pond[pond] ~ dnorm( a_bar , sigma ),
+        a_bar ~ dnorm( 0 , 1.5 ),
+        sigma ~ dexp( 1 )
+    ), data=dat , chains=4 )
+
+## R code 13.14
+precis( m13.3 , depth=2 )
+
+## R code 13.15
+post <- extract.samples( m13.3 )
+dsim$p_partpool <- apply( inv_logit(post$a_pond) , 2 , mean )
+
+## R code 13.16
+dsim$p_true <- inv_logit( dsim$true_a )
+
+## R code 13.17
+nopool_error <- abs( dsim$p_nopool - dsim$p_true )
+partpool_error <- abs( dsim$p_partpool - dsim$p_true )
+
+## R code 13.18
+plot( 1:60 , nopool_error , xlab="pond" , ylab="absolute error" ,
+    col=rangi2 , pch=16 )
+points( 1:60 , partpool_error )
+
+## R code 13.19
+nopool_avg <- aggregate(nopool_error,list(dsim$Ni),mean)
+partpool_avg <- aggregate(partpool_error,list(dsim$Ni),mean)
+
+```
+
