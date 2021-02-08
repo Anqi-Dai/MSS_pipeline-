@@ -93,6 +93,14 @@ mean_p2d_l2_fruit_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   select(-L2_grp ) %>% 
   spread('Main.food.description', 'ave_L2', fill = 0) %>% 
   inner_join(meta, by = "sampleid")
+
+mean_p2d_l2_fruit_df %>% 
+  select(Citrus_fruits_juices:Other_fruits) %>% 
+  gather('group','value', Citrus_fruits_juices:Other_fruits) %>% 
+  ggpubr::ggboxplot(x = 'group', y = 'value')
+
+mean_p2d_l2_fruit_df %>% 
+  summary
 ```
 
 ```{r}

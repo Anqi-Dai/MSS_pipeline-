@@ -291,3 +291,20 @@ send %>%
 colnames(send)
 ```
 
+## add the donor source 
+
+```{r}
+get_table_from_database('patient_allo_ag')
+donor<- patient_allo_ag %>% 
+  filter(mrn %in% dtb$mrn) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  select(mrn, hla) %>% 
+  count(hla)
+  mutate(donor_clean = if_else(str_detect(donor, 'Unrelated'), 'Unrelated', 'Related')) %>% 
+  count(donor_clean) %>% 
+  mutate(perc = round(n/sum(n)*100))
+
+
+
+```
+

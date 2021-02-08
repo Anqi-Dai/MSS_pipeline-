@@ -34,5 +34,23 @@ meta %>%
 ret <- meta %>% 
   inner_join(shotgun_lookup_ad, by  = 'sampleid')
 
-ret$fid
+ret %>% 
+  select(fid) %>% 
+  write_csv('../data/diet_11_shotgun.csv', col_names = F)
 ```
+
+```{r}
+# the current diet samples 
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+O500 <- readxl::read_excel('../data/ShotgunSeqSubmissionandQC.xlsx') %>% 
+  rename_all(~ gsub(" |:", "_", .))
+
+O500_seq <- O500$Samples_Submitted_
+O500_no <- O500 %>% 
+  filter(Samples_that_did_not_pass_iGO_QC_!='NA') %>% 
+  pull(Samples_that_did_not_pass_iGO_QC_)
+
+O500_ <- setdiff(O500_seq, O500_no)
+length(intersect(O500_, meta$sampleid))
+```
+
