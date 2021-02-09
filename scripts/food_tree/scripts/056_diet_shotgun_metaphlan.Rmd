@@ -1,0 +1,49 @@
+---
+title: "Diet shotgun samples metaphlan"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+metaph <- read_tsv('../data/merged_abundance_table.txt', skip = 1) %>% 
+  filter(str_detect(clade_name, 's__')) %>% 
+  select(-NCBI_tax_id) %>% 
+  rename_all(~ gsub("_profile", "", .)) %>% 
+  mutate(clade_name = str_extract(clade_name, 's__.+$')) %>% 
+  column_to_rownames('clade_name')
+
+sort(rownames(metaph))
+
+# some filtering 
+thre <- floor(ncol(metaph) * 0.1)
+
+metaph_fil <- metaph[rowSums(metaph >= 0.01) >= 3, ]
+```
+
+
+```{r}
+library(pheatmap)
+pheatmap(
+  metaph_fil,
+  #color=bwrPalette, 
+  #annotation_col = annot,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  filename = '../figs/heatmap_11_shotgun_spp_relab.pdf',
+  height = 15,
+  width = 10,
+  display_numbers = T,
+  cluster_rows =T,
+  cluster_cols=T
+)
+
+# great this patient that we have several longitudinal stool samples have developed entercoccus domination!
+```
+

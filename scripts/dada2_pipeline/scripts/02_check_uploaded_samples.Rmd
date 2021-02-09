@@ -1,0 +1,45 @@
+---
+title: "Check uploaded samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('asv_alpha_diversity_ag')
+```
+```{r}
+# so these samples contain both Florida and colitis samples
+florida <- asv_alpha_diversity_ag %>% 
+  filter(uploaded_date == '2021-02-09') 
+
+# the key from Tsoni about these three pools
+key <- readxl::read_excel('../data/Set_91_SampleKey.xlsx') %>% 
+  mutate(yes_16s = if_else(OligoID %in% florida$oligos_id, T, F)) %>% 
+  arrange(yes_16s)
+
+key %>% 
+  filter(str_detect(OligoID, 'blank'))
+
+key %>% 
+  rename(oligos_id = OligoID) %>% 
+  inner_join(florida)
+
+key %>% 
+  write_csv('../data/Florida_pool_set91_samples_list.csv')
+
+false <- key %>% 
+  filter(yes_16s == 'FALSE') %>% 
+  split(str_detect(.$OligoID, 'blank'))
+
+# “blank” samples are samples that were not submitted (and thus should not be able to be pulled out). The reason for the “blank” samples is for record keeping, indicating that the samples were not purposefully left out of the project, but rather were worked on and did not amplify.
+```
+
