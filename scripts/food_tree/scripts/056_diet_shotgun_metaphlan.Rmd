@@ -47,3 +47,14 @@ pheatmap(
 # great this patient that we have several longitudinal stool samples have developed entercoccus domination!
 ```
 
+# find the complete genomes of enterococcus faecium from genbank
+
+```{r}
+list <- read_tsv('~/Downloads/assembly_summary.txt', skip = 1) %>% 
+  filter(assembly_level == 'Complete Genome') %>% 
+  mutate(rysnc = str_replace(ftp_path, 'ftp:','rsync:')) %>% 
+  mutate(dl_cmd = str_glue('rsync --copy-links --recursive --times --verbose {rysnc} /home/daia1/my_workdir/faecium')) %>% 
+  select(dl_cmd) %>% 
+  write_csv('../data/download_faecium.sh', col_names = F)
+```
+
