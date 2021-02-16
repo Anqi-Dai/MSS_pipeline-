@@ -135,3 +135,29 @@ rest %>%
   write_csv('../data/rest_samples_KO_all.csv')
 ```
 
+## the Mait samples 2021-2-15
+
+```{r}
+mait <- read_csv('../data/samples_picrust.csv')
+
+all <- res %>% 
+  distinct(sampleid) %>% pull(sampleid)
+
+length(intersect(all, mait$sampleid ))
+
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('asv_alpha_diversity_ag')
+
+no <- setdiff(mait$sampleid , all)
+
+no <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% no)
+
+current <- res %>% 
+  filter(sampleid %in% mait$sampleid)
+
+current %>% 
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/Mait_392_samples_picrust2.csv')
+```
+

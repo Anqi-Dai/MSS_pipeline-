@@ -58,3 +58,9 @@ list <- read_tsv('~/Downloads/assembly_summary.txt', skip = 1) %>%
   write_csv('../data/download_faecium.sh', col_names = F)
 ```
 
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  filter(str_detect(sampleid, '^2142') )
+```
+
+

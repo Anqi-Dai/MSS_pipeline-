@@ -1,0 +1,30 @@
+---
+title: "look at the bPTR results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# coverage
+fns <- list.files('../data/growth/bPTR/', full.names = T)
+covres <- fns %>% 
+  set_names(fns) %>% 
+  purrr::map(~ read_tsv(file = . , col_types = 'cccc', col_names = c('genome','ORI','TER','PTR'))) %>% 
+  bind_rows(.id = 'fn') %>% 
+  filter(!str_detect(genome, '^#')) %>% 
+  mutate(grp = if_else(str_detect(fn, 'cov.tsv'), 'coverage', 'GC_skew')) %>% 
+  mutate(target_genome = 'spp') %>% 
+  filter(str_detect(fn, '2142K|2142L|2142J')) %>% 
+  mutate(sampleid = str_extract(fn, '2142[KLJ]')) %>% 
+  mutate(sampleid_ = str_glue('S{as.numeric(as.factor(sampleid))}')) %>% 
+  select(sampleid_, target_genome, grp, ORI:PTR) %>% 
+  arrange(grp)
+```
+
