@@ -9,7 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
-library(ggpubr)
+library(ggpubr) 
 ```
 
 1.	Peruse the 92 patients and look at which dominations they have
@@ -18,28 +18,112 @@ library(ggpubr)
 4.	Identify which ones have qPCRs available (can request more))
 
 ```{r}
-# the current 92 mrns being used
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') 
-```
-
-
-```{r}
-ctsfam_dom2 <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
+# the current 92 mrns being use
+fam <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) %>% 
   mutate(family = str_extract(taxa_family, 'f__.+$')) %>% 
-  mutate(family = str_replace(family, 'f__','')) %>% 
+  mutate(family = str_replace(family, 'f__',''))
+
+# find the two families relab for every stool sample
+fam2 <- fam %>% 
   filter(family %in% c('Enterococcaceae','Enterobacteriaceae')) %>% 
-  filter(relab > 0.1) %>% 
-  left_join(meta %>% select(mrn, sampleid, sdrt))
+  select(sampleid, family, relab) %>% 
+  spread('family','relab')
 
-ctsfam_dom2 %>% 
-  count(mrn) %>% 
-  arrange(-n)
-
-ctsfam_dom2 %>% 
-  split(.$family) %>% 
-  imap(~ ggdotchart(data = .x, ,x = 'sdrt', y = 'relab',  facet.by = 'mrn',  add = "segments",
-                   sorting = 'none', font.label = list(size = 5, face = "plain")) +
-        theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
-        ggsave(str_glue('../figs/family_2_dom_{.y}.pdf'), width = 15, height = 7))
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')  %>% 
+  full_join(fam2)
 ```
+
+```{r}
+# the patients that have the domination samples occur
+target_fam <- c('Enterococcaceae','Enterobacteriaceae')
+
+target_fam %>% 
+  map(function(var){
+
+    mrns <- fam %>% 
+      filter(family == var) %>% 
+      filter(relab > 0.1) %>% 
+      left_join(meta %>% select(mrn, sampleid, sdrt)) %>% 
+      distinct(mrn) %>% 
+      pull(mrn)
+    
+    # visualize all the samples for these patients
+    mrn_samp <- meta %>% 
+      filter(mrn %in% mrns)
+    
+    mrn_samp %>% 
+      ggdotchart(x = 'sdrt', y = var,  facet.by = 'mrn',  add = "segments",
+                       sorting = 'none', font.label = list(size = 5, face = "plain"),
+                 title = str_glue('{var}')) +
+            theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+            geom_hline(yintercept = 0.1, linetype = 'dashed', color = 'red') +
+            ggsave(str_glue('../figs/family_2_dom_{var}.jpg'), width = 15, height = 7)
+  })
+```
+
+```{r}
+# to see the overlap between these two groups of patients
+target_fam <- c('Enterococcaceae','Enterobacteriaceae')
+
+fam_patients <- target_fam %>% 
+  map(function(var){
+
+    mrns <- fam %>% 
+      filter(family == var) %>% 
+      filter(relab > 0.1) %>% 
+      left_join(meta %>% select(mrn, sampleid, sdrt)) %>% 
+      distinct(mrn) %>% 
+      pull(mrn)
+  }) 
+
+length(intersect(fam_patients[[1]], fam_patients[[2]]))
+
+# the 2 patients that were not in the overlap  
+setdiff(fam_patients[[2]], fam_patients[[1]]) # these two can be ignored doesn't reach the requirement 
+
+# how many patients I selected
+length(fam_patients[[1]])
+```
+```{r}
+# the current stool sample table 
+samps <- meta %>% 
+      filter(mrn %in% fam_patients[[1]])
+
+stb_ <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
+  filter(sampleid %in% samps$sampleid)
+```
+
+```{r}
+# to get whether those stool samples have at least one diet data in the previous three days 
+qual_stool_df <- stb_ %>% 
+  mutate(p1d = sdrt-1,
+         p2d = sdrt-2,
+         p3d = sdrt-3) %>% 
+  select(mrn, p1d, p2d, p3d)
+
+# use the no fake diet counts table and get the stool samples that should be removed -- not even one day
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+no_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_, p3d_){
+  df = dtb %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt == p1d_ | fdrt == p2d_  | fdrt == p3d_) %>% 
+    nrow()
+  return(df)
+}
+
+qual_stool<- pmap(qual_stool_df, function(mrn, p1d, p2d, p3d){
+    no_diet_d_to_be_rm_stool_s(mrn, p1d, p2d, p3d)
+  }) %>% 
+  set_names(stb_ %>% pull(sampleid)) %>% 
+  bind_rows() %>% 
+  gather(key = 'sampleid', value = 'num_d_records') %>% 
+  arrange(num_d_records) 
+
+nrow(qual_stool[qual_stool$num_d_records> 0,]) == nrow(qual_stool)
+# so all of these stool samples have at least one diet record in the previous three days 
+# aka qualified 
+```
+  
+**Need to remove the 11 that have already been sequenced **

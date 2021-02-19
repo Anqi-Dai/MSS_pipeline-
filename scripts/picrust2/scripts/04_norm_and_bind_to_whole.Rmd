@@ -36,9 +36,10 @@ res <- kos %>%
   }) %>% 
   bind_rows()
 
-# res %>% 
-#   write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/normalized_picrust2_pred_metagenome_KO_all_counts.csv')
-
+# the samples that I already have the picrust2 data
+res %>% 
+  distinct(sampleid) %>% 
+  write_csv('../data/current_picrust_sampleids.csv')
 ```
 
 ```{r}
@@ -159,5 +160,26 @@ current <- res %>%
 
 current %>% 
   write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/Mait_392_samples_picrust2.csv')
+```
+
+## Marina samples 2021-2-16
+
+```{r}
+m <- read_csv('../data/Doris_total_sampleids.csv')
+
+all <- res %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+
+length(intersect(all, m$sampleid))
+
+m_res <- res %>% 
+  filter(sampleid %in% m$sampleid)
+
+m_res %>% 
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/Doris_2186_samples_picrust2.csv')
+
+m_res %>% 
+  distinct(sampleid)
 ```
 
