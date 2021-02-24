@@ -288,3 +288,32 @@ str(post)
 post$a
 ```
 
+```{r}
+d$tank <- 1:nrow(d)
+
+dat <- list(
+    S = d$surv,
+    N = d$density,
+    tank = d$tank)
+dat$size_id <- ifelse(d$size == 'big', 2, 1)
+dat$pred <- ifelse(d$pred == 'pred', 1, 0)
+
+
+m13.8 <- ulam(
+    alist(
+        S ~ dbinom( N , p ) ,
+        logit(p) <- a[tank] + s[tank],
+        a[tank] ~ dnorm( a_bar , sigma ) ,
+        a_bar ~ dnorm( 0 , 1.5 ) ,
+        s[size_id] ~  dnorm( 0 , 1.5 ),
+        sigma ~ dexp( 1 )
+    ), data=dat , chains=4 , log_lik=TRUE )
+
+precis(m13.8, depth=2)
+## R code 13.4
+compare( m13.1 , m13.2 )
+
+
+
+```
+

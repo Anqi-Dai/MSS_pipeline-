@@ -43,3 +43,29 @@ list(alpha = alpha,
   })
 ```
 
+Use the matching table from Gabe to count how many samples from how many patients 
+
+```{r}
+matching <- readxl::read_excel('../data/Set_90_SampleKey_MCW_matching.xlsx')
+alpha <- read_csv('../data/MCW_ASV_alpha.csv')
+
+matched <- matching %>% 
+  left_join(alpha, by = c('OligoID' = 'oligos_id'))
+
+matched %>% 
+  filter(is.na(simpson_reciprocal))
+
+succe <- matched %>% 
+  filter(!is.na(simpson_reciprocal)) %>% 
+  mutate(`Sample ID` = case_when(
+  `Sample ID` == 'MCW_0022_A' ~ 'MCW_0022-A',
+  `Sample ID` == 'MCW_0021_A' ~ 'MCW_0021-A',
+  TRUE ~ `Sample ID`
+)) %>% 
+  separate(`Sample ID`, into = c('Patient','ID'), sep = '-')
+
+succe %>% 
+  count(Patient)
+```
+
+A total of 122 samples, 15 failed at the lib prep. 107 succeeded from 27 patients 

@@ -127,3 +127,41 @@ nrow(qual_stool[qual_stool$num_d_records> 0,]) == nrow(qual_stool)
 ```
   
 **Need to remove the 11 that have already been sequenced **
+**Need also remove the ones that already been sequenced by Oriana batch**
+**Remember that very new diet patient that wasn't included before**
+
+# selecting samples for shotgun sequencing 
+
+```{r}
+# The 16 patients that will all be sequenced 
+all16 <- intersect(fam_patients[[1]], fam_patients[[2]])
+
+all16_samps <- meta %>% 
+  filter(mrn %in% all16)
+
+# the remaining patients that have enterococcaeae domination occuring 
+enter_only <- setdiff(fam_patients[[1]], fam_patients[[2]])
+
+# find the patients that have no non-dominating samples before a dominating one
+# if the earliest sample has Enterococcaceae relab > 0.1 ....
+enter_rm <- meta %>%  
+  filter(mrn %in% enter_only) %>% 
+  select(sampleid, mrn, sdrt, Enterococcaceae) %>% 
+  arrange(mrn, sdrt) %>% 
+  group_by(mrn) %>% 
+  slice(1) %>% 
+  filter(Enterococcaceae > 0.1) %>% 
+  pull(mrn)
+
+# remove the above patients  
+enter_only_updated <- setdiff(enter_only, enter_rm)
+```
+
+```{r}
+# find all the non-dominating samples until the first dominating one for the above patients 
+enter_dom_samples <- meta %>%  
+  filter(mrn %in% enter_only_updated)
+
+# sequence all the non-dominating ones up till the first dominating one
+
+```
