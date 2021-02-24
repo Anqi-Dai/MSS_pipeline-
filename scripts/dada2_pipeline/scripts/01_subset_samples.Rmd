@@ -56,16 +56,20 @@ matched %>%
   filter(is.na(simpson_reciprocal))
 
 succe <- matched %>% 
-  filter(!is.na(simpson_reciprocal)) %>% 
+  #filter(!is.na(simpson_reciprocal)) %>% 
   mutate(`Sample ID` = case_when(
   `Sample ID` == 'MCW_0022_A' ~ 'MCW_0022-A',
   `Sample ID` == 'MCW_0021_A' ~ 'MCW_0021-A',
   TRUE ~ `Sample ID`
 )) %>% 
-  separate(`Sample ID`, into = c('Patient','ID'), sep = '-')
+  separate(`Sample ID`, into = c('Patient','ID'), sep = '-', remove = F)
 
 succe %>% 
   count(Patient)
+
+succe %>% 
+  select(-`Date Collected`) %>% 
+  write_csv('../data/MCW_sampleid_patient_match.csv')
 ```
 
 A total of 122 samples, 15 failed at the lib prep. 107 succeeded from 27 patients 

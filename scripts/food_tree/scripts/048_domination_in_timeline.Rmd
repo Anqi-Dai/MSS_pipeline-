@@ -136,9 +136,12 @@ nrow(qual_stool[qual_stool$num_d_records> 0,]) == nrow(qual_stool)
 # The 16 patients that will all be sequenced 
 all16 <- intersect(fam_patients[[1]], fam_patients[[2]])
 
-all16_samps <- meta %>% 
-  filter(mrn %in% all16)
+all16_samps <- meta %>%    
+  filter(mrn %in% all16)  
+```
 
+
+```{r}
 # the remaining patients that have enterococcaeae domination occuring 
 enter_only <- setdiff(fam_patients[[1]], fam_patients[[2]])
 
@@ -163,5 +166,54 @@ enter_dom_samples <- meta %>%
   filter(mrn %in% enter_only_updated)
 
 # sequence all the non-dominating ones up till the first dominating one
-
+# first visualize 
+var <- 'Enterococcaceae'
+enter_dom_samples %>% 
+      ggdotchart(x = 'sdrt', y = var,  facet.by = 'mrn',  add = "segments",
+                       sorting = 'none', font.label = list(size = 5, face = "plain"),
+                 title = str_glue('{var}')) +
+            theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+            geom_hline(yintercept = 0.1, linetype = 'dashed', color = 'red') +
+            ggsave(str_glue('../figs/family_dom_{var}.jpg'), width = 15, height = 7)
 ```
+```{r}
+# find for each patient the day of the first dominance
+enter_dom_samples_day <- enter_dom_samples %>% 
+  filter(Enterococcaceae > 0.1) %>% 
+  arrange(mrn, sdrt) %>% 
+  group_by(mrn) %>% 
+  slice(1) %>% 
+  select(mrn, sdrt)
+
+# use some loop to find for each patient stool sample up till that day 
+select_up_until <- function(mrn_, sdrt_){
+  enter_dom_samples %>% 
+    filter(mrn == mrn_) %>% 
+    filter(sdrt <= sdrt_)
+}
+
+select_up_until_res <- pmap(enter_dom_samples_day, function(mrn, sdrt){
+    select_up_until(mrn, sdrt)
+  }) %>% 
+  set_names(enter_dom_samples_day %>%  pull(mrn)) %>% 
+  bind_rows(.id = 'mrn') %>% 
+  mutate(mrn = as.numeric(mrn))
+ 
+```
+
+```{r}
+# the current all (16 pt that have all to be sequneced and then some that have non-dom samples before a dom one)
+current <- bind_rows(
+  all16_samps, select_up_until_res
+)
+```
+
+```{r}
+# check that patient that has pretty recent transplant 
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database ("antibiotics_antibacterial_multicenter_ag")
+get_table_from_database('samples_castori_ag')
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+```
+
