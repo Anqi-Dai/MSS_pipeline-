@@ -18,13 +18,13 @@ library(tidyverse)
 ```
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_Oct8_actual.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
-source('~/db_connect_simple.R')
+library(vdbR)
 connect_database(config_file = "~/dbConfig.txt")
 get_table_from_database('samples_castori_ag')
-get_table_from_database_predefined_filter('asv_alpha_diversity_ag')
+get_table_from_database('asv_alpha_diversity_ag')
 get_table_from_database('antibiotics_antibacterial_multicenter_ag')
 ```
 
@@ -97,7 +97,8 @@ stb3 %>%
 ```{r}
 censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_meropenem',	'active_atb_ertapenem',		'active_atb_cefepime',		'active_atb_linezolid',	'active_atb_metro',	'active_atb_piptazo')
 
-abx_all <- read_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info.csv')
+# 2021-2-24 update the abx to be considering 2-day effect only (instead of 20 days)
+abx_all <- read_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info_2day_effect.csv')
   
 # how many samples in stb3 have records in abx_all
 have_abx_info <- abx_all %>% 

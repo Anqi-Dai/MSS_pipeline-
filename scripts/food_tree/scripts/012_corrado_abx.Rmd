@@ -274,8 +274,6 @@ new_samples <- samples %>%
 ```
 
 ```{r}
-
-
 new_samples %>% 
   write_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info_2day_effect.csv')
 
