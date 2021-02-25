@@ -7,6 +7,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+This script generates the most updated all_samples_meta_p2d_fg9_updated.csv table
+
 ```{r}
 library(tidyverse)
 library(ggpubr)
