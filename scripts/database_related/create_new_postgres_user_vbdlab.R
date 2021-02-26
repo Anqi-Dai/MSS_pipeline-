@@ -44,7 +44,8 @@ vdb_users <- c("peledj",
                "ngb",
                "chens8",
                "elkriefa",
-               "mab4025");
+               "mab4025",
+               "harfordl");
 #               "gomesa_cluster");
 
 collaboration_users <- c("shouvalr",

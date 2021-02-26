@@ -1,0 +1,30 @@
+---
+title: "metacyc_pathway"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+Look at the smart tables of the pathway from metacyc
+
+```{r}
+ids <- read_csv('~/Downloads/All_pathways_of_MetaCyc.txt', 
+                col_names = T, 
+                cols(
+  Pathways = col_character()
+))
+
+names <- read_delim('~/Downloads/All_pathways_of_MetaCyc_name.txt', delim = ',')
+
+pw <- bind_cols(ids, names)
+
+pw %>% 
+  write_csv('../data/metacyc_pathway_name_and_ID.csv')
+```
+

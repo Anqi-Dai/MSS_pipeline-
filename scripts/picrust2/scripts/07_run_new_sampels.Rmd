@@ -1,0 +1,59 @@
+---
+title: "New sampels that i need to run picrust2 on"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# the current samples list that i already run picrust2 on 
+current <- read_csv('../data/current_picrust_sampleids.csv')
+```
+
+```{r}
+# the ones that marina and hana requested
+mait <- read_csv('../data/samples_picrust.csv')
+marina <- read_csv('../data/Doris_total_sampleids.csv')
+requested <- union(mait$sampleid, marina$sampleid)
+needed <- setdiff(requested, current$sampleid) 
+```
+```{r}
+# get the 
+library(vdbR)
+connect_database(config_file = "~/dbConfig.txt")
+get_table_from_database('asv_counts_ag')
+get_table_from_database('asv_sequences_ag')
+```
+
+
+```{r}
+# check if there are any samples did not pass the count threshold of 200
+asv_counts_ag %>% 
+  filter(sampleid %in% needed) %>% 
+  filter(count_total < 200) %>% 
+  nrow
+
+# get the counts table and the asv seq table
+cts <- asv_counts_ag %>% 
+    filter(sampleid %in% needed) %>% 
+    select(asv_key, sampleid, count) %>% 
+    spread(key = 'sampleid' , value = 'count', fill = 0)
+
+seqs <- asv_sequences_ag %>% 
+  filter(asv_key %in% cts$asv_key)
+
+# because of the snakefile I have to put it as "filtered counts"
+cts %>% 
+  write_tsv('../data/splitted_100/filtered_counts_requested.tsv')
+
+seqs %>% 
+  write_tsv('../data/splitted_100/filtered_counts_asv_sequence_requested.tsv')
+  
+```
+

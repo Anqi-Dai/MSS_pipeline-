@@ -1,0 +1,40 @@
+---
+title: "collate the pathway prediction from picrust2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+pws <- list.files('../data/done_results/', recursive = T, full.names = T, pattern = 'path_abun_unstrat.tsv')
+
+pw_res <- pws %>% 
+  purrr::map(function(fn){
+    tb <- read_tsv(fn, cols(.default = col_double(),pathway = col_character()), col_names = T) %>% 
+        gather('sampleid','count', names(.)[2]:names(.)[ncol(.)]) %>% 
+        filter(count != 0)
+      
+      tb_sum <- tb %>% 
+        group_by(sampleid) %>% 
+        summarise(total =  sum(count))
+      
+      tb_norm <- tb %>% 
+        left_join(tb_sum, by = 'sampleid') %>% 
+        mutate(cpm = count/total*1000000) %>% 
+        rename(PWID = names(.)[1]) %>% 
+        select(PWID, sampleid, cpm)
+      return(tb_norm)
+  }) %>% 
+  bind_rows()
+
+pw_res %>% 
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/normalized_picrust2_pred_pathway_abundance_all.csv')
+```
+

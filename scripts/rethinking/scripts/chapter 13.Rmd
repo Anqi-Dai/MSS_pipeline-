@@ -288,32 +288,97 @@ str(post)
 post$a
 ```
 
+
 ```{r}
+# the homework 13.4
+data(reedfrogs)
+d <- reedfrogs
+
+## R code 13.2
+# make the tank cluster variable
 d$tank <- 1:nrow(d)
+d$size_id <- ifelse(d$size == 'big', 2, 1)
+d$predator <- ifelse(d$pred == 'pred', 2, 1)
 
 dat <- list(
     S = d$surv,
     N = d$density,
-    tank = d$tank)
-dat$size_id <- ifelse(d$size == 'big', 2, 1)
-dat$pred <- ifelse(d$pred == 'pred', 1, 0)
-
-
-m13.8 <- ulam(
+    tank = d$tank,
+    size_id = d$size_id ,
+    pid = d$predator)
+```
+ 
+```{r}
+# add the size to the model 
+h13.4_size <- ulam(
     alist(
         S ~ dbinom( N , p ) ,
-        logit(p) <- a[tank] + s[tank],
+        logit(p) <- a[tank] + bs[size_id],
         a[tank] ~ dnorm( a_bar , sigma ) ,
         a_bar ~ dnorm( 0 , 1.5 ) ,
-        s[size_id] ~  dnorm( 0 , 1.5 ),
+        bs[size_id] ~  dnorm( 0 , 0.5 ),
         sigma ~ dexp( 1 )
-    ), data=dat , chains=4 , log_lik=TRUE )
+    ), data=dat , chains=4 , log_lik=TRUE , iter = 3000)
+# add the iter number makes the ESS too low problem go away 
 
-precis(m13.8, depth=2)
-## R code 13.4
-compare( m13.1 , m13.2 )
+precis(h13.4_size, depth=2)
 
+plot(precis(h13.4_size, depth=2, pars = c('bs', 'sigma')))
+# no big difference in terms of size 
+```
 
+```{r}
+# add the predator to the model
+h13.4_pred <- ulam(
+    alist(
+        S ~ dbinom( N , p ) ,
+        logit(p) <- a[tank] + bp*pid,
+        a[tank] ~ dnorm( a_bar , sigma ) ,
+        a_bar ~ dnorm( 0 , 1.5 ) ,
+        bp ~  dnorm( 0 , 0.5 ),
+        sigma ~ dexp( 1 )
+    ), data=dat , chains=4 , log_lik=TRUE , iter = 5000)
+# if the low ESS error keep showing up then keep adding the iter number 
+precis(h13.4_pred, depth=2)
+plot(precis(h13.4_pred, depth=2, pars = c('bp', 'sigma')))
+# the bp have very big difference one is strictly positve one is strictly negative 
+# 2 is when there is predator 1 is when there is no predator 
+# 
+```
 
+```{r}
+# both of the predictors
+h13.4_both <- ulam( 
+    alist(
+        S ~ dbinom( N , p ) ,
+        logit(p) <- a[tank] + bp[pid] + bs[size_id],
+        a[tank] ~ dnorm( a_bar , sigma ) ,
+        a_bar ~ dnorm( 0 , 1.5 ) ,
+        bp[pid] ~  dnorm( 0 , 0.5 ),
+        bs[size_id] ~  dnorm( 0 , 0.5 ),
+        sigma ~ dexp( 1 )
+    ), data=dat , chains=4 , log_lik=TRUE , iter = 5000)
+# if the low ESS error keep showing up then keep adding the iter number 
+
+plot(precis(h13.4_both, depth=2, pars = c('bp', 'bs','sigma')))
+# controlling for size the predator is still very negatively associated with survival 
+```
+
+```{r}
+# an interaction term
+h13.4_interaction <- ulam( 
+    alist(
+        S ~ dbinom( N , p ) , 
+        logit(p) <- a[tank] + bp[pid] + bs[size_id] + bps*pid*bs[size_id],
+        a[tank] ~ dnorm( a_bar , sigma ) ,
+        a_bar ~ dnorm( 0 , 1.5 ) ,
+        bp[pid] ~  dnorm( 0 , 0.5 ),
+        bs[size_id] ~  dnorm( 0 , 0.5 ),
+        sigma ~ dexp( 1 )
+    ), data=dat , chains=4, log_lik=TRUE , iter = 10000)
+# if the low ESS error keep showing up then keep adding the iter number 
+precis(h13.4_interaction, depth=2)
+plot(precis(h13.4_interaction, depth=2, pars = c('bp', 'bs','sigma')))
+# predator is the deciding factor   
 ```
 
