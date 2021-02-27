@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(seqinr)
 ```
 
 ```{r}
@@ -52,8 +53,10 @@ seqs <- asv_sequences_ag %>%
 cts %>% 
   write_tsv('../data/splitted_100/filtered_counts_requested.tsv')
 
-seqs %>% 
-  write_tsv('../data/splitted_100/filtered_counts_asv_sequence_requested.tsv')
+write.fasta(sequences = as.list(seqs$asv_sequence), 
+              names = seqs$asv_key,
+              file.out = '../data/splitted_100/filtered_counts_asv_sequence_requested.tsv')
+
   
 ```
 
