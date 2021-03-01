@@ -35,6 +35,11 @@ pw_res <- pws %>%
   bind_rows()
 
 pw_res %>% 
-  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/normalized_picrust2_pred_pathway_abundance_all.csv')
+  arrange(sampleid, PWID) %>% 
+  distinct(sampleid, PWID, .keep_all = T) %>% #needs to have a unique sampleid, better not to confuse people
+  write_csv('../data/normalized_picrust2_pred_pathway_abundance_all.csv')
+
+
+  
 ```
 

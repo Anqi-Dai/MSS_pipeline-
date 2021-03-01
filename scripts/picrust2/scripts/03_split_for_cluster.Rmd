@@ -253,7 +253,7 @@ After finish running on the cluster, download the results to local. First create
 ```{r}
 # create bash script for creating the dir and then download only the file into the corresponding dir
 src <- tibble(
-  id = seq(1, 178),
+  id = 'requested',
   local_dir = str_glue('/Users/daia1/pipeline/scripts/picrust2/data/done_results/subset_{id}'),
   ko_file = str_glue('daia1@lilac.mskcc.org:~/my_workdir/other_pipeline/picrust2/output/picrust2_out_{id}/KO_metagenome_out/pred_metagenome_unstrat.tsv.gz'),
   pw_file = str_glue('daia1@lilac.mskcc.org:~/my_workdir/other_pipeline/picrust2/output/picrust2_out_{id}/pathways_out/path_abun_unstrat.tsv.gz'),

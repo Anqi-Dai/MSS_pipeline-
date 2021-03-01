@@ -23,7 +23,7 @@
 #
 #6. antibiotics data.
 #
-
+library(tidyverse)
 library(seqinr);
 library(stringr); #For string replace.
 #library(stringi); #For string replace.
@@ -37,8 +37,8 @@ if(file.exists('~/projects/general/library/antoniostats/intervalcluster2.R')){
   print("Intervalcluster2.R not loaded! Check path if you need it!")
 }
 
-source('~/MSK/work/microbiome_db/SQL/scripts/get_data_from_query_OTU.R')
-source('~/MSK/work/microbiome_db/SQL/scripts/db_connect.R'); #Start a connection here; The connection variable is `con`.
+source('/Users/daia1/pipeline/scripts/database_related/get_data_from_query_OTU.R')
+source('/Users/daia1/pipeline/scripts/database_related/db_connect.R'); #Start a connection here; The connection variable is `con`.
 
 #warning("TO DO: ADD a step to get last `id` from database.")
 
@@ -224,6 +224,18 @@ upload_data_from_query_OTU <- function(query_number, ...){
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
   
+  if(query_number==2){
+    table_name = "picrust2_pathway_counts";
+    
+    d_set_input = read_csv('~/pipeline/scripts/picrust2/data/normalized_picrust2_pred_pathway_abundance_all.csv')
+
+    
+    d_set=data.frame(pwid=d_set_input$PWID,
+                     sampleid=d_set_input$sampleid,
+                     cpm=d_set_input$cpm);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
 }
 
 

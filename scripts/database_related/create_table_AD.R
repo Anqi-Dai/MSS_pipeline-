@@ -7,7 +7,7 @@
 #The default annotation for fields that refer to foreign keys is the `FOREIGNTABLENAME` + `_key` `FOREIGNTABLENAME_key`.
 
 
-source('~/projects/human_microbiota/library/sql/db_connect.R'); #Initialize connection.
+source('/Users/daia1/pipeline/scripts/database_related/db_connect.R'); #Initialize connection.
 
 
 check_column_exists <- function(connection, table, column) {
@@ -158,6 +158,18 @@ create_table_type <- function(query_type, ...){
     create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
   }
   
+  if(query_type==2){
+    table_name = "picrust2_pathway_counts";
+    
+    table_fields=c("pwid","sampleid","cpm");
+    
+    field_type=c("text","text","real");
+    
+    
+    unique_set = c("pwid","sampleid");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
 
   
      

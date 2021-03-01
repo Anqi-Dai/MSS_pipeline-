@@ -1,0 +1,27 @@
+---
+title: "Put the pathway table into the database"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+source('~/pipeline/scripts/database_related/create_table_AD.R')
+```
+
+
+```{r}
+pw <- read_csv('../data/normalized_picrust2_pred_pathway_abundance_all.csv')
+create_table_prepare(pw)
+
+# copy the table_fields and field_type to the create_table_AD.R script inside the create_table_type funtion and then run 
+
+# then create_table_type(2) to create this table 
+```
+
