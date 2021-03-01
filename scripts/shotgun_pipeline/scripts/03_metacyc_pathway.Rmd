@@ -18,13 +18,15 @@ ids <- read_csv('~/Downloads/All_pathways_of_MetaCyc.txt',
                 col_names = T, 
                 cols(
   Pathways = col_character()
-))
+)) %>% 
+  rename(PWID = Pathways)
 
-names <- read_delim('~/Downloads/All_pathways_of_MetaCyc_name.txt', delim = ',')
+names <- read_tsv('~/Downloads/All_pathways_of_MetaCyc_name.txt') %>% 
+  rename(pw_name = Pathways)
 
 pw <- bind_cols(ids, names)
 
 pw %>% 
-  write_csv('../data/metacyc_pathway_name_and_ID.csv')
+  write_tsv('../data/metacyc_pathway_name_and_ID.tsv')
 ```
 

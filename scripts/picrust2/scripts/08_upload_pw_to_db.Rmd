@@ -23,5 +23,28 @@ create_table_prepare(pw)
 # copy the table_fields and field_type to the create_table_AD.R script inside the create_table_type funtion and then run 
 
 # then create_table_type(2) to create this table 
+
+# then going to the upload_data_from_query_OTU_AD.R script to change the function upload_data_from_query_OTU by adding a new query number and then change the table_name, d_set_input, and d_set.
+
+# then upload_data_from_query_OTU(2)
+
+# now load this table to see
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('picrust2_pathway_counts')
+```
+
+
+```{r}
+# also need to create the table for the metacyc pw name 
+dat <- read_tsv('../../shotgun_pipeline/data/metacyc_pathway_name_and_ID.tsv',
+                col_types = 'cc') 
+
+dat %>% 
+  distinct(PWID)
+
+create_table_prepare(dat)
+
+get_table_from_database('metacyc_pathway_name')
 ```
 

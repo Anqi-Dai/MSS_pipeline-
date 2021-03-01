@@ -172,7 +172,18 @@ create_table_type <- function(query_type, ...){
   }
 
   
-     
+  if(query_type==3){
+    table_name = "metacyc_pathway_name";
+    
+    table_fields=c("pwid","pw_name");
+    
+    field_type=c("text","text");
+    
+    
+    unique_set = c("PWID");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
 }
 
 

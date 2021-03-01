@@ -236,6 +236,18 @@ upload_data_from_query_OTU <- function(query_number, ...){
     
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
+  
+  if(query_number==3){
+    table_name = "metacyc_pathway_name";
+    
+    d_set_input = read_tsv('~/pipeline/scripts/shotgun_pipeline/data/metacyc_pathway_name_and_ID.tsv')
+    
+    
+    d_set=data.frame(pwid=d_set_input$PWID,
+                     pw_name=d_set_input$pw_name);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
 }
 
 
