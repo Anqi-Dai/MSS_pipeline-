@@ -52,12 +52,9 @@ library(vdbR)
 
 Create a config file and put it at your home directory: `~`
 
-The config file should be named "dbConfig.txt" and has the following info for this example user (currently with the temprary password).
+The config file should be named "dbConfig.txt" and the format should be following the example file in this folder. (See the file dbConfig.txt)
 
-```{bash}
-# I created the below file name just to show what the format should be like
-cat ~/dbConfig_format_example.txt
-```
+Don't worry you will only need to do this once. After you get this done you don't need to worry about it further.
  
 
 ```{r}
