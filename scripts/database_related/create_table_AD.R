@@ -184,6 +184,25 @@ create_table_type <- function(query_type, ...){
     
     create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
   }
+  
+  if(query_type==4){
+    table_name = "metacyc_pathway_ontology";
+    
+    table_fields=c("pwid","l1","l2","l3","l4",
+                   "l5","l6","l7","l8","l9",
+                   "l10","l11","l12","l13","l14",
+                   "l15","l16");
+    
+    field_type=c("text","text","text","text","text",
+                 "text","text","text","text","text",
+                 "text","text","text","text","text",
+                 "text","text");
+    
+    
+    unique_set = c("pwid");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
 }
 
 

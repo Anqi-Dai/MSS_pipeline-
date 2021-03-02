@@ -248,6 +248,33 @@ upload_data_from_query_OTU <- function(query_number, ...){
     
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
+  
+  if(query_number==4){
+    table_name = "metacyc_pathway_ontology";
+    
+    d_set_input = read_csv('~/pipeline/scripts/shotgun_pipeline/data/metacyc_pathway_class_and_superclass_levels.csv', col_types = 'ccccccccccccccccc')
+    
+    
+    d_set=data.frame(pwid=d_set_input$pwid,
+                     l1=d_set_input$L1,
+                     l2=d_set_input$L2,
+                     l3=d_set_input$L3,
+                     l4=d_set_input$L4,
+                     l5=d_set_input$L5,
+                     l6=d_set_input$L6,
+                     l7=d_set_input$L7,
+                     l8=d_set_input$L8,
+                     l9=d_set_input$L9,
+                     l10=d_set_input$L10,
+                     l11=d_set_input$L11,
+                     l12=d_set_input$L12,
+                     l13=d_set_input$L13,
+                     l14=d_set_input$L14,
+                     l15=d_set_input$L15,
+                     l16=d_set_input$L16);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
 }
 
 

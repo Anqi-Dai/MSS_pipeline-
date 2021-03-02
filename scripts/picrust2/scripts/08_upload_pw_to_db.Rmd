@@ -48,3 +48,14 @@ create_table_prepare(dat)
 get_table_from_database('metacyc_pathway_name')
 ```
 
+```{r}
+# upload the pw ontology table to the db
+level <- read_csv('~/pipeline/scripts/shotgun_pipeline/data/metacyc_pathway_class_and_superclass_levels.csv', col_types = 'ccccccccccccccccc')
+
+create_table_prepare(level)
+
+
+get_table_from_database('metacyc_pathway_ontology')
+
+```
+

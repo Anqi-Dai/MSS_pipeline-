@@ -34,5 +34,6 @@ level <- tb %>%
 
 level %>% 
   write_csv('../data/metacyc_pathway_class_and_superclass_levels.csv')
+
 ```
 
