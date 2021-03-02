@@ -1,0 +1,38 @@
+---
+title: "metacyc pathway ontology"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+list_table_from_database('metacyc')
+get_table_from_database('metacyc_pathway_name')
+```
+
+```{r}
+# trying to break the ontology into different levels like a tree
+tb <- read_tsv('~/Downloads/ontology_All_pathways_MetaCyc.txt') %>% 
+  select(Pathways, ontology = `Ontology - parents of class`) %>% 
+  mutate(n = str_count(ontology, ' // ')) # this finds the max number of levels in breaks into
+
+# break
+level <- tb %>% 
+  select(-n) %>% 
+  rename(pwid = Pathways) %>% 
+  separate(col = ontology,
+           into = paste('L', seq(1,16), sep = ''),
+           sep = ' // ',
+           remove = T,
+           extra = 'merge',  
+           fill = 'right')
+
+level %>% 
+  write_csv('../data/metacyc_pathway_class_and_superclass_levels.csv')
+```
+
