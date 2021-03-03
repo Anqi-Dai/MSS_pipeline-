@@ -183,3 +183,32 @@ m_res %>%
   distinct(sampleid)
 ```
 
+```{r}
+kos <- list.files('../data/done_results/subset_requested/', recursive = T, full.names = T, pattern = 'pred_metagenome_unstrat.tsv')
+
+res <- kos %>% 
+  purrr::map(function(fn){
+    tb <- read_tsv(fn) %>% 
+        gather('sampleid','count', names(.)[2]:names(.)[ncol(.)]) %>% 
+        filter(count != 0)
+      
+      tb_sum <- tb %>% 
+        group_by(sampleid) %>% 
+        summarise(total =  sum(count))
+      
+      tb_norm <- tb %>% 
+        left_join(tb_sum, by = 'sampleid') %>% 
+        mutate(cpm = count/total*1000000) %>% 
+        rename(KOID = names(.)[1]) %>% 
+        select(KOID, sampleid, cpm)
+      return(tb_norm)
+  }) %>% 
+  bind_rows()
+
+res %>% 
+  distinct(sampleid)
+
+res %>% 
+  write_csv('/Volumes/vandenBrinkLab/Angel_Dai/picrust2_and_bile/remaining_from_Hana_and_Marina_picruest2_KO.csv')
+```
+
