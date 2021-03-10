@@ -70,3 +70,38 @@ wait <- rnorm( N_visits*N_cafes , mu , sigma )
 d <- data.frame( cafe=cafe_id , afternoon=afternoon , wait=wait )
 ```
 
+```{r}
+library(rethinking)
+data(chimpanzees)
+d <- chimpanzees
+d$block_id <- d$block
+d$treatment <- 1L + d$prosoc_left + 2L*d$condition
+
+dat <- list(
+    L = d$pulled_left,
+    tid = d$treatment,
+    actor = d$actor,
+    block_id = as.integer(d$block_id) )
+
+set.seed(4387510)
+m14.2 <- ulam(
+    alist(
+        L ~ dbinom(1,p),
+        logit(p) <- g[tid] + alpha[actor,tid] + beta[block_id,tid],
+
+        # adaptive priors
+        vector[4]:alpha[actor] ~ multi_normal(0,Rho_actor,sigma_actor),
+        vector[4]:beta[block_id] ~ multi_normal(0,Rho_block,sigma_block),
+
+        # fixed priors
+        g[tid] ~ dnorm(0,1),
+        sigma_actor ~ dexp(1),
+        Rho_actor ~ dlkjcorr(4),
+        sigma_block ~ dexp(1),
+        Rho_block ~ dlkjcorr(4)
+    ) , data=dat , chains=4 , cores=4 )
+```
+
+
+
+

@@ -1,0 +1,236 @@
+---
+title: "Bayesian (Multilevel) Generalised Linear Models"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# if you dont have these packages installed yet, please use the install.packages("package_name") command.
+library(tidyverse) # for data manipulation and plots
+library(haven) #for reading sav data
+library(sjstats) #for calculating intra-class correlation (ICC)
+library(ROCR) #for calculating area under the curve (AUC) statistics
+library(brms) #for Bayesian (multilevel) generalised linear modelling
+library(modelr) #for data manipulation
+library(tidybayes) #for analysis of posterior draws of a Bayesian model
+```
+```{r}
+ThaiEdu_Raw <- read_sav("https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book/blob/master/chapter%206/Thaieduc/thaieduc.sav?raw=true")
+head(ThaiEdu_Raw)
+
+ThaiEdu_New <- ThaiEdu_Raw %>%
+  mutate(SCHOOLID = factor(SCHOOLID),
+         SEX = if_else(SEX == 0, "girl", "boy"),
+         SEX = factor(SEX, levels = c("girl", "boy")),
+         PPED = if_else(PPED == 0, "no", "yes"),
+         PPED = factor(PPED, levels = c("no", "yes")))
+
+head(ThaiEdu_New)
+
+ThaiEdu_New <- ThaiEdu_New %>%
+  filter(!is.na(MSESC))
+```
+
+```{r}
+Bayes_Model_Binary <- brm(formula = REPEAT ~ SEX + PPED,  
+                   data=ThaiEdu_New, 
+                   family = bernoulli(link = "logit"),
+                   warmup = 500, 
+                   iter = 2000, 
+                   chains = 2, 
+                   inits= "0", 
+                   cores=2,
+                   seed = 123)
+```
+
+```{r}
+stanplot(Bayes_Model_Binary, 
+         type = "trace")
+
+stanplot(Bayes_Model_Binary, 
+         type = "acf_bar")
+# The plot shows no evidence of autocorrelation for all model variables in both chains, as the autocorrelation parameters all quickly diminish to around zero.
+
+summary(Bayes_Model_Binary)
+# In contrast, in the Bayesian model, the 95% uncertainty interval (called credibility interval), which is more interpretable, states that there is 95% chance that the true population value falls within this interval. When the 95% credibility intervals do not contain zero, we conclude that the respective model parameters are likely meaningful.
+
+stanplot(Bayes_Model_Binary, 
+         type = "areas",
+         prob = 0.95)
+# We can easily see that both SEX and PPED are meaningful predictors, as their credibility intervals do not contain zero and their densities have a very narrow shape.
+exp(fixef(Bayes_Model_Binary)[,-2])
+```
+```{r}
+stanplot(Bayes_Model_Binary, 
+         type = "areas",
+         prob = 0.95,
+         transformations = "exp") +
+  geom_vline(xintercept = 1, color = "grey")  
+# The baseline odds (indicated by the intercept term) of repeating a grade, namely if you’re a girl with no previous schooling, is about 17%.
+```
+
+```{r}
+ThaiEdu_New %>%
+  data_grid(SEX, PPED) %>%
+  add_fitted_draws(Bayes_Model_Binary) %>%
+  ggplot(aes(x = .value, y = interaction(SEX, PPED))) +
+  stat_pointintervalh(.width = c(.68, .95)) +
+  coord_flip() +
+  xlab("predicted probability") +
+  scale_x_continuous(breaks = seq(0, 0.24, 0.02))
+```
+
+```{r}
+#use the `predict()` function to calculate the predicted probabilities of pupils in the original data from the fitted model
+Pred <- predict(Bayes_Model_Binary, type = "response")
+Pred <- if_else(Pred[,1] > 0.5, 1, 0)
+ConfusionMatrix <- table(Pred, pull(ThaiEdu_New, REPEAT)) #`pull` results in a vector
+#correct classification rate
+sum(diag(ConfusionMatrix))/sum(ConfusionMatrix)
+
+
+# Compute AUC for predicting Class with the model
+Prob <- predict(Bayes_Model_Binary, type="response")
+Prob <- Prob[,1]
+Pred <- prediction(Prob, as.vector(pull(ThaiEdu_New, REPEAT)))
+AUC <- performance(Pred, measure = "auc")
+AUC <- AUC@y.values[[1]]
+AUC
+```
+
+```{r}
+ThaiEdu_Prop <- ThaiEdu_New %>%
+  group_by(SCHOOLID, MSESC) %>%
+  summarise(REPEAT = sum(REPEAT),
+            TOTAL = n()) %>%
+  ungroup()
+
+head(ThaiEdu_Prop)
+
+
+ThaiEdu_Prop %>%
+  ggplot(aes(x = exp(MSESC)/(1+exp(MSESC)), y = REPEAT/TOTAL)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+```{r}
+Bayes_Model_Prop <- brm(REPEAT | trials(TOTAL) ~ MSESC,  
+                        data = ThaiEdu_Prop, 
+                        family = binomial(link = "logit"),
+                        warmup = 500, 
+                        iter = 2000, 
+                        chains = 2, 
+                        inits = "0", 
+                        cores = 2,
+                        seed = 123)
+summary(Bayes_Model_Prop)
+
+exp(fixef(Bayes_Model_Prop)[2,-2]*sd(pull(ThaiEdu_Prop, MSESC), na.rm = T))
+```
+```{r}
+Bayes_Model_Prop %>%
+  spread_draws(b_Intercept, b_MSESC) %>%
+  mutate(MSESC = list(seq(-0.77, 1.49, 0.01))) %>% #the observed value range of MSESC
+  unnest(MSESC) %>%
+  mutate(pred = exp(b_Intercept + b_MSESC*MSESC)/(1+exp(b_Intercept + b_MSESC*MSESC))) %>%
+  group_by(MSESC) %>%
+  summarise(pred_m = mean(pred, na.rm = TRUE),
+            pred_low = quantile(pred, prob = 0.025),
+            pred_high = quantile(pred, prob = 0.975)) %>%
+  ggplot(aes(x = MSESC, y = pred_m)) +
+  geom_line() +
+  geom_ribbon(aes(ymin = pred_low, ymax = pred_high), alpha=0.2) +
+  ylab("Predicted Probability of Repeating a Grade") +
+  scale_y_continuous(breaks = seq(0, 0.22, 0.01))
+```
+
+```{r}
+ThaiEdu_Center <- ThaiEdu_New %>%
+  mutate(SEX = if_else(SEX == "girl", 0, 1),
+         PPED = if_else(PPED == "yes", 1, 0)) %>%
+  group_by(SCHOOLID) %>%
+  mutate(SEX = SEX - mean(SEX),
+         PPED = PPED - mean(PPED)) %>%
+  ungroup() %>%
+  mutate(MSESC = MSESC - mean(MSESC, na.rm = T))
+
+head(ThaiEdu_Center)
+```
+```{r}
+Bayes_Model_Multi_Intercept <- brm(REPEAT ~ 1 + (1|SCHOOLID),
+                                   data = ThaiEdu_Center, 
+                                   family = bernoulli(link = "logit"),
+                                   warmup = 500, 
+                                   iter = 2000, 
+                                   chains = 2, 
+                                   inits = "0", 
+                                   cores = 2,
+                                   seed = 123)
+icc(Bayes_Model_Multi_Intercept, ppd = T)
+```
+```{r}
+Bayes_Model_Multi_Full <- brm(REPEAT ~ SEX + PPED + MSESC + (1 + SEX + PPED|SCHOOLID),
+                          data = ThaiEdu_Center, 
+                          family = bernoulli(link = "logit"),
+                          warmup = 500, 
+                          iter = 2000, 
+                          chains = 2, 
+                          inits = "0", 
+                          cores = 2,
+                          seed = 123)
+summary(Bayes_Model_Multi_Full)
+```
+
+```{r}
+stanplot(Bayes_Model_Multi_Full, 
+         type = "areas",
+         prob = 0.95)
+#Now let’s look at the random effect terms (sd(Intercept), sd(SEX) and sd(PPED)). The density of sd(Intercept) in the plot is clearly away from zero, indicating the relevance of including this random intercept term in the model. The variance of the random slope of SEX is 0.382=0.14, and that of PPED is 0.262=0.07. Both variances are not negligible. However, if we look at the density plot, the lower bounds of the credibility intervals of both sd(SEX) and sd(PPED) are very close to zero, and their densities also not clearly separate from zero. This suggests that including these two random slope terms may not be necessary.
+```
+
+```{r}
+#extract posterior distributions of all the random effect terms
+data_RandomEffect <- ranef(Bayes_Model_Multi_Full)
+
+#extract posterior distributions of `sd(Intercept)`
+r_Intercept <- data_RandomEffect$SCHOOLID[, , 1] %>%
+  as_tibble() %>%
+  rownames_to_column(var = "SCHOOLID") %>%
+  mutate(Variable = "sd(Intercept)")
+
+#extract posterior distributions of `sd(SEX)`
+r_SEX <- data_RandomEffect$SCHOOLID[, , 2] %>%
+  as_tibble() %>%
+  rownames_to_column(var = "SCHOOLID") %>%
+  mutate(Variable = "sd(SEX)")
+
+#extract posterior distributions of `sd(PPED)`
+r_PPED <- data_RandomEffect$SCHOOLID[, , 3] %>%
+  as_tibble() %>%
+  rownames_to_column(var = "SCHOOLID") %>%
+  mutate(Variable = "sd(PPED)")
+
+#plot
+r_Intercept %>%
+  bind_rows(r_SEX) %>%
+  bind_rows(r_PPED) %>%
+  mutate(Contain_Zero = if_else(Q2.5*Q97.5 > 0, "no", "yes")) %>%
+  ggplot(aes(x = SCHOOLID, y = Estimate, col = Contain_Zero)) +
+  geom_point() +
+  geom_errorbar(aes(ymin=Q2.5, ymax=Q97.5)) +
+  facet_grid(. ~ Variable, scale = "free") +
+  coord_flip() +
+  theme(legend.position = "top")
+# Again, we can see that the posterior distributions of the random intercept term (sd(Intercept)) have a large variance across schools. Quite a number of them are also away from zero. Therefore, we can conclude that the inclusion of the random intercept is necessary. In comparison, all of the posterior distributions of sd(SEX) and sd(PPED) go through zero, suggesting that there is probably no need to include the two random slopes in the model.
+```
+```{r}
+#the categorical variables: SEX and PPED
+exp(fixef(Bayes_Model_Multi_Full)[-4,-2])
+
+#the continous variable: MSESC
+exp(fixef(Bayes_Model_Multi_Full)[4,-2]*sd(pull(ThaiEdu_Prop, MSESC), na.rm = T))
+```
+

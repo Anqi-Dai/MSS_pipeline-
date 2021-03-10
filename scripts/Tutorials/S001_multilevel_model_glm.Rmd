@@ -1,0 +1,222 @@
+---
+title: "tutorial"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(lme4) # for multilevel models
+library(tidyverse) # for data manipulation and plots
+library(haven) #for reading sav data
+library(sjstats) #for calculating intra-class correlation (ICC)
+library(effects) #for plotting parameter effects
+library(jtools) #for transformaing model summaries
+library(ROCR) #for calculating area under the curve (AUC) statistics
+```
+
+```{r}
+ThaiEdu_Raw <- read_sav("https://github.com/MultiLevelAnalysis/Datasets-third-edition-Multilevel-book/blob/master/chapter%206/Thaieduc/thaieduc.sav?raw=true")
+head(ThaiEdu_Raw)
+
+ThaiEdu_New <- ThaiEdu_Raw %>%
+  mutate(SCHOOLID = factor(SCHOOLID),
+         SEX = if_else(SEX == 0, "girl", "boy"),
+         SEX = factor(SEX, levels = c("girl", "boy")),
+         PPED = if_else(PPED == 0, "no", "yes"),
+         PPED = factor(PPED, levels = c("no", "yes")))
+
+head(ThaiEdu_New)
+
+ThaiEdu_New %>%
+  summarise_each(list(~sum(is.na(.)))) %>%
+  gather()
+
+ThaiEdu_New <- ThaiEdu_New %>%
+  filter(!is.na(MSESC))
+
+ThaiEdu_New %>%
+  group_by(SEX) %>%
+  summarise(REPEAT = sum(REPEAT))
+
+ThaiEdu_New %>%
+  group_by(PPED) %>%
+  summarise(REPEAT = sum(REPEAT))
+
+Model_Binary <- glm(formula = REPEAT ~ SEX + PPED,
+                    family = binomial(link = "logit"),
+                    data = ThaiEdu_New)
+summary(Model_Binary)
+
+summ(Model_Binary, exp = T) # set "exp = T" to show esponentiated estimates; if you need standardised estimaets, set "scale = T" 
+# here it is the odds
+
+plot(allEffects(Model_Binary)) # here it is the probability
+# Probabilities are more interpretable than odds. The probability scores for each variable are calculated by assuming that the other variables in the model are constant and take on their average values. As we can see, assuming that a pupil has an average preschool education, being a boy has a higher probability (~0.16) of repeating a grade than being a girl ~0.11). Likewise, assuming that a pupil has an average gender, having preschool education has a lower probability (~0.11) of repeating a grade than not having preschool education (~0.18). Note that in both plots the confidence intervals for the estimates are also included to give us some idea of the uncertainties of the estimates.
+
+plot(allEffects(Model_Binary, fixed.predictors = list(given.values=c(SEXboy=0, PPEDyes = 0))))
+```
+```{r}
+# goodness of fit
+#specify a model with only the `SEX` variable
+Model_Binary_Test <- glm(formula = REPEAT ~ SEX,
+                         family = binomial(link = "logit"),
+                         data = ThaiEdu_New)
+
+#use the `anova()` function to run the likelihood ratio test
+anova(Model_Binary_Test, Model_Binary, test ="Chisq")
+
+#use the `predict()` function to calculate the predicted probabilities of pupils in the original data from the fitted model
+Pred <- predict(Model_Binary, type = "response")
+Pred <- if_else(Pred > 0.5, 1, 0)
+ConfusionMatrix <- table(Pred, pull(ThaiEdu_New, REPEAT)) #`pull` results in a vector
+#correct classification rate
+sum(diag(ConfusionMatrix))/sum(ConfusionMatrix)
+
+# We can see that the model correctly classifies 85.8% of all the observations. However, a closer look reveals that the model predicts all of the observations to belong to class “0”, meaning that all pupils are predicted not to repeat a grade. Given that the majority category of the REPEAT variable is 0 (No), the model does not perform better in classification than simply assigning all observations to the majority class 0 (No).
+
+
+# Compute AUC for predicting Class with the model
+Prob <- predict(Model_Binary, type="response")
+Pred <- prediction(Prob, as.vector(pull(ThaiEdu_New, REPEAT)))
+AUC <- performance(Pred, measure = "auc")
+AUC <- AUC@y.values[[1]]
+AUC
+```
+```{r}
+ThaiEdu_Prop <- ThaiEdu_New %>%
+  group_by(SCHOOLID, MSESC) %>%
+  summarise(REPEAT = sum(REPEAT),
+            TOTAL = n()) %>%
+  ungroup()
+
+head(ThaiEdu_Prop)
+
+ThaiEdu_Prop %>%
+  ggplot(aes(x = exp(MSESC)/(1+exp(MSESC)), y = REPEAT/TOTAL)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+
+# Note that we model the variable MSESC as its inverse-logit because in a binomial regression model, we assume a linear relationship between the inverse-logit of the linear predictor and the outcome (i.e. proportion of events), not linearity between the predictor itself and the outcome.
+
+Model_Prop <- glm(formula = cbind(REPEAT, TOTAL-REPEAT) ~ MSESC,
+                  family = binomial(logit),
+                  data = ThaiEdu_Prop)
+
+summary(Model_Prop)
+
+
+#Note that to use the summ() function for a binomial regression model, we need to make the outcome variable explicit objects:
+REPEAT <- pull(filter(ThaiEdu_Prop, !is.na(MSESC)), REPEAT)
+TOTAL <- pull(filter(ThaiEdu_Prop, !is.na(MSESC)), TOTAL)
+summ(Model_Prop, exp = T, scale = T)
+
+plot(allEffects(Model_Prop))
+```
+The binary logistic regression model introduced earlier is limited to modelling the effects of pupil-level predictors; the binomial logistic regression is limited to modelling the effects of school-level predictors. To incorporate both pupil-level and school-level predictors, we can use multilevel models. 
+
+In addition to the motivation above, there are more reasons to use multilevel models. For instance, as the data are clustered within schools, it is likely that pupils from the same school are more similar to each other than those from other schools. Because of this, in one school, the probability of a pupil repeating a grade may be high, while in another school, low. Furthermore, even the relationship between the outcome (i.e. repeating a grade) and the predictor variabales (e.g. gender, preschool education, SES) may be different across schools. Also note that there are missing values in the MSESC variable. Using multilevel models can appropriately address these issues.
+
+```{r}
+ThaiEdu_New %>%
+  group_by(SCHOOLID) %>%
+  summarise(PROP = sum(REPEAT)/n()) %>%
+  plot()
+
+
+ThaiEdu_New %>%
+  mutate(SEX = if_else(SEX == "boy", 1, 0)) %>%
+  ggplot(aes(x = SEX, y = REPEAT, color = as.factor(SCHOOLID))) +
+  geom_point(alpha = .1, position = "jitter")+
+  geom_smooth(method = "glm", se = F, 
+              method.args = list(family = "binomial")) +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(0, 1)) +
+  scale_y_continuous(breaks = c(0, 1))
+
+ThaiEdu_New %>%
+  mutate(PPED = if_else(PPED == "yes", 1, 0)) %>%
+  ggplot(aes(x = PPED, y = REPEAT, color = as.factor(SCHOOLID))) +
+  geom_point(alpha = .1, position = "jitter")+
+  geom_smooth(method = "glm", se = F, 
+              method.args = list(family = "binomial")) +
+  theme(legend.position = "none") +
+  scale_x_continuous(breaks = c(0, 1)) +
+  scale_y_continuous(breaks = c(0, 1))
+```
+
+```{r}
+# Prior to fitting a multilevel model, it is necessary to center the predictors by using an appropriately chosen centering method (i.e. grand-mean centering or within-cluster centering), because the centering approach matters for the interpretation of the model estimates. Following the advice of Enders and Tofighi (2007), we should use within-cluster centering for the first-level predictors SEX and PPED, and grand-mean centering for the second-level predictor MSESC.
+ThaiEdu_Center <- ThaiEdu_New %>%
+  mutate(SEX = if_else(SEX == "girl", 0, 1),
+         PPED = if_else(PPED == "yes", 1, 0)) %>%
+  group_by(SCHOOLID) %>%
+  mutate(SEX = SEX - mean(SEX),
+         PPED = PPED - mean(PPED)) %>%
+  ungroup() %>%
+  mutate(MSESC = MSESC - mean(MSESC, na.rm = T))
+
+head(ThaiEdu_Center)
+```
+```{r}
+# We start by specifying an intercept-only model, in order to assess the impact of the clustering structure of the data.
+Model_Multi_Intercept <- glmer(formula = REPEAT ~ 1 + (1|SCHOOLID),
+                               family = binomial(logit),
+                               data = ThaiEdu_Center,
+                               control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)))
+
+summary(Model_Multi_Intercept)
+
+performance::icc(Model_Multi_Intercept)
+# An ICC of 0.33 means that 33% of the variation in the outcome variable can be accounted for by the clustering stucture of the data.
+Model_Multi_Full <- glmer(REPEAT ~ SEX + PPED + MSESC + (1 + SEX + PPED|SCHOOLID),
+                          family = binomial(logit),
+                          data = ThaiEdu_Center,
+                          control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)))
+summary(Model_Multi_Full)
+summ(Model_Multi_Full, exp = T)
+
+plot(allEffects(Model_Multi_Full))
+
+# In addition to the fixed-effect terms, let’s also look at the random effect terms. From the ICC value before, we know that it’s necessary to include a random intercept. However, the necessity of including random slopes for SEX and PPED is less clear. To find this out, we can use the likelihood ratio test and AIC to judge whether the inclusion of the random slope(s) improves model fit.
+#let's fit a less-than-full model that leaves out the random slope term of `SEX`
+Model_Multi_Full_No_SEX <- glmer(REPEAT ~ SEX + PPED + MSESC + (1 + PPED|SCHOOLID),
+                                 family = binomial(logit),
+                                 data = ThaiEdu_Center,
+                                 control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)))
+
+#let's fit a less-than-full model that leaves out the random slope term of `PPED`
+Model_Multi_Full_No_PPED <- glmer(REPEAT ~ SEX + PPED + MSESC + (1 + SEX|SCHOOLID),
+                                  family = binomial(logit),
+                                  data = ThaiEdu_Center,
+                                  control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)))
+
+#let's fit a less-than-full model that leaves out the random slope terms of both `SEX` and `PPED`
+Model_Multi_Full_No_Random_Slope <- glmer(REPEAT ~ SEX + PPED + MSESC + (1|SCHOOLID),
+                                      family = binomial(logit),
+                                      data = ThaiEdu_Center,
+                                      control = glmerControl(optimizer = "bobyqa", optCtrl = list(maxfun=2e5)))
+```
+
+```{r}
+#compare the full model with that model that excludes `SEX`
+anova(Model_Multi_Full_No_SEX, Model_Multi_Full, test="Chisq")
+
+#compare the full model with that model that excludes `PPED`
+anova(Model_Multi_Full_No_PPED, Model_Multi_Full, test="Chisq")
+
+anova(Model_Multi_Full_No_Random_Slope, Model_Multi_Full, test="Chisq")
+
+AIC(logLik(Model_Multi_Full)) #full model
+
+AIC(logLik(Model_Multi_Full_No_SEX)) #model without SEX
+
+AIC(logLik(Model_Multi_Full_No_PPED)) #model without PPED
+
+AIC(logLik(Model_Multi_Full_No_Random_Slope)) #model without random slopes
+
+# From the AIC results, we see that including random slope terms either does not substantially improve AIC (indicated by lower AIC value) or leads to worse AIC (i.e. higher). Therefore, we also conclude there is no need to include the random effect term(s).
+```
+
