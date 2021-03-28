@@ -208,13 +208,7 @@ upload_data_from_query_OTU <- function(query_number, ...){
   if(query_number==1){
     table_name = "shotgun_lookup_ad";
     
-    d_set_input = fread("/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/full_human_shotgun_catalog_updated.csv")
-    # new samples from Italy and upenn
-    d_set_input = fread("/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_cart_earlier.csv")
-    
-    d_set_input = fread("/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1204.csv")
-    d_set_input = fread("/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1207.csv")
-    d_set_input = fread("/Volumes/vandenbrinklab/Angel_Dai/Full_human_shotgun_catalog/shotgun_update_1208.csv")
+    d_set_input = fread("~/projects/Catalog/data/Oriana_480_update.csv")
     
     d_set=data.frame(directory=d_set_input$directory,
                      projectid=d_set_input$projectID,
