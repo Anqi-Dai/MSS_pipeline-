@@ -49,3 +49,15 @@ cts_all <- cts %>%
 cts_all %>% write_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv')
 ```
 
+```{r}
+fns <- tibble(
+  fn = list.files('../data/growth/assemble/')
+) %>% 
+  mutate(fn = str_glue('/home/daia1/my_workdir/samples/metabat2_bin/{fn}'))
+
+fns %>% 
+  write_csv(
+    '../data/thebinpath.csv'
+  )
+```
+

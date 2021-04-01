@@ -209,33 +209,6 @@ text( 0.5 , 0.5 , "prior" )
 text( 0.2 , 0.1 , "posterior" , col=rangi2 )
 ```
 
-```{r}
-# H1
-data("bangladesh")
-d <- bangladesh %>% 
-    sample_frac(size = 0.1)
-dat_list <- list(
-    did = d$district,
-    use = d$use.contraception,
-    urban = d$urban
-    )
-
-
-set.seed(123)
-mH1 <- ulam(
-    alist(
-        use ~ dbinom( 1 , p ) ,
-        logit(p) <- a_d[did] + b_d[did]*urban,
-        c(a_d,b_d)[did] ~ multi_normal( c(a,b) , Rho , sigma_d ),
-        a ~ normal(0,2),
-        b ~ normal(0,2),
-        sigma_d ~ exponential(1),
-        Rho ~ lkj_corr(2)
-    ) , data=dat_list , chains=1 , log_lik=TRUE ,cores=16 )
-precis(mH1)
-
-
-```
 
 ```{r}
 ## R code 14.23
@@ -346,3 +319,64 @@ m14.7 <- ulam(
 precis( m14.7 , depth=3 , pars=c("Rho_gr","sigma_gr") )
 ```
 
+
+```{r}
+# H1
+data("bangladesh")
+# the distict 54 is missing , so need to change the data a bit
+d <- bangladesh 
+dat_list <- list(
+    did = as.integer(as.factor(d$district)),
+    use = d$use.contraception,
+    urban = d$urban
+    ) 
+
+
+set.seed(123)
+mH1 <- ulam(
+    alist(
+        use ~ dbinom( 1 , p ) ,
+        logit(p) <- a_d[did] + b_d[did]*urban,
+        c(a_d,b_d)[did] ~ multi_normal( c(a,b) , Rho , sigma_d ),
+        a ~ normal(0,2),
+        b ~ normal(0,2),
+        sigma_d ~ exponential(1),
+        Rho ~ lkj_corr(2)
+    ) , data=dat_list , chains=4 , log_lik=TRUE ,cores=16 )
+precis(mH1, depth = 3)
+
+res <- precis(mH1, depth = 3)
+
+```
+```{r}
+# the correlation between the intercept and the slope  
+res['Rho[1,2]', 'mean']
+# plot the mean varying effect estimates for both the intercepts and the slopes by district
+ret <- tibble(
+    rowname = rownames(res),
+    mean = res$mean,
+    q55 = res$`5.5%`,
+    q945 = res$`94.5%`
+) %>% 
+    filter(str_detect(rowname, '^a_|^b_')) %>% 
+    separate(rowname, into = c('var','did'), sep = '_d')
+
+
+```
+
+```{r}
+# the district and the contraception use data
+real <- d %>% 
+    distinct(district, urban, use.contraception)
+
+ret %>% 
+  ggscatter(x = 'did', y = 'mean', color = 'red', 
+            #ylab = 'Regression coefficients',
+            #title = 'Change in log scale simposon reciprocal unit\nassociated with 100g food consumption',
+            xlab = 'district') +
+  geom_pointrange(aes( ymin  = q55,ymax  = q945), fatten = 5, col = 'red')  +
+  geom_hline(yintercept = 0, col = "black", linetype = 'dashed')  +
+    facet_grid(var ~ .) +
+ #scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
+  ggsave('../14H1_did.pdf', width = 15, height = 7) 
+```
