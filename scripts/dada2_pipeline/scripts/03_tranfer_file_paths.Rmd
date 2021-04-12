@@ -1,0 +1,32 @@
+---
+title: "figure out the transfer file names"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fl <- read_csv('~/pipeline/scripts/dada2_pipeline/data/Florida_pool_set91_samples_list.csv') %>% 
+  filter(yes_16s == 'TRUE' & str_detect(Experiment, 'University of Florida'))
+
+folder <- normalizePath('../data/downloaded/')
+
+ret <- fl %>% 
+  select(OligoID, sampleid = `Sample ID`, experiment = Experiment) %>% 
+  mutate(R1 = str_glue('{folder}/{OligoID}_R1.fastq.gz')) %>% 
+  mutate(R2 = str_glue('{folder}/{OligoID}_R2.fastq.gz')) 
+
+att <- ret %>% 
+  select(OligoID, R1, R2)
+
+att %>% 
+  write_csv('../data/florida_samples.csv')
+
+```
+
