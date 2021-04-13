@@ -28,5 +28,17 @@ att <- ret %>%
 att %>% 
   write_csv('../data/florida_samples.csv')
 
+ret %>% 
+  select(R1, R2) %>% 
+  gather() %>% 
+  mutate(cmd = str_glue('mv {value} /Users/daia1/MSK/work/projects/MSS_pipeline-/scripts/dada2_pipeline/data/downloaded/send')) %>% 
+  select(cmd) %>% 
+  write_csv('../scripts/mv_files.sh', col_names = F)
+
+ret %>% 
+  mutate(R1 = str_replace(R1, '/Users/daia1/MSK/work/projects/MSS_pipeline-/scripts/dada2_pipeline/data/downloaded/','')) %>% 
+  mutate(R2 = str_replace(R2, '/Users/daia1/MSK/work/projects/MSS_pipeline-/scripts/dada2_pipeline/data/downloaded/','')) %>% 
+  write_csv('../data/Florida_pool_set91_samples_list_match.csv')
+
 ```
 
