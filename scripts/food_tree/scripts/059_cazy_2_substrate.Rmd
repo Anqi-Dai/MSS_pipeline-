@@ -1,0 +1,29 @@
+---
+title: "cazy fam and subtrate"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(docxtractr)
+```
+
+
+```{r}
+# convert that supp table from paper to csv files
+doc <- read_docx('../data/growth/pone.0028742.s002.docx')
+tbls <- docx_extract_all_tbls(doc)
+```
+
+
+```{r}
+tb <- assign_colnames(tbls[[1]], 1) %>% 
+  mutate(items = str_split(`CAZy Families`, '; '))
+
+tb
+```
+

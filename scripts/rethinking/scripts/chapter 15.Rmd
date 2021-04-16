@@ -70,3 +70,12 @@ m15.1 <- ulam(
     ) , data=dlist , chains=4 , cores=4 )
 ```
 
+```{r}
+## R code 15.24
+data(Moralizing_gods)
+str(Moralizing_gods)
+
+## R code 15.25
+table( Moralizing_gods$moralizing_gods , useNA="always" )
+```
+
