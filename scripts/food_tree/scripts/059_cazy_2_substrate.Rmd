@@ -12,18 +12,31 @@ library(tidyverse)
 library(docxtractr)
 ```
 
-
 ```{r}
 # convert that supp table from paper to csv files
 doc <- read_docx('../data/growth/pone.0028742.s002.docx')
 tbls <- docx_extract_all_tbls(doc)
 ```
 
+```{r}
+# makes this a df with different cazy families for one substrate
+tb <- assign_colnames(tbls[[1]], 1) %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  mutate(items = str_split(CAZy_Families, '; '))
+
+
+
+```
 
 ```{r}
-tb <- assign_colnames(tbls[[1]], 1) %>% 
-  mutate(items = str_split(`CAZy Families`, '; '))
+names(tb$items) <- tb$Broad_Substrate
+for(i in 1:nrow(tb)) {
+  names(tb$items[[i]]) <- rep(tb$Broad_Substrate[i], length(tb$items[[i]]))
+}
+res <- tb$items %>% 
+  map_dfr(~ enframe(.))
 
-tb
+res %>% 
+  write_csv('../../shotgun_pipeline/data/cazyime_substrate_table.csv')
 ```
 
