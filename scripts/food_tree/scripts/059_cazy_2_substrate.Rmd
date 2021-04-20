@@ -10,7 +10,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(docxtractr)
+library(ggpubr)
 ```
+
+# cleaned the matching table to be a joinable format
 
 ```{r}
 # convert that supp table from paper to csv files
@@ -24,19 +27,59 @@ tb <- assign_colnames(tbls[[1]], 1) %>%
   rename_all(~ gsub(" ", "_", .)) %>% 
   mutate(items = str_split(CAZy_Families, '; '))
 
-
-
-```
-
-```{r}
 names(tb$items) <- tb$Broad_Substrate
 for(i in 1:nrow(tb)) {
   names(tb$items[[i]]) <- rep(tb$Broad_Substrate[i], length(tb$items[[i]]))
 }
 res <- tb$items %>% 
-  map_dfr(~ enframe(.))
+  map_dfr(~ enframe(.)) %>% 
+  rename(substrate = name, cazyme = value) %>% 
+  mutate(substrate = str_replace_all(substrate, ' |/','_'))
 
-res %>% 
+res  %>% 
   write_csv('../../shotgun_pipeline/data/cazyime_substrate_table.csv')
+```
+
+# clean the results from the dbcan2 pipeline
+
+```{r}
+# map this cleaning and calculation to all the samples
+fns <- list.files('../data/growth/dbcan/', '_overview.txt$', full.names = T)
+
+ret <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., col_types = 'ccccd') %>% 
+          rename_all(~ gsub(" ", "_", .)) %>% 
+          rename_all(~ gsub("#", "", .)) %>% 
+          filter(ofTools >= 2) %>%  # must be identified by no less than 2 tools
+          select(-ofTools) %>%
+          gather('tool', 'cazyme', HMMER:DIAMOND) %>% 
+          mutate(cazyme = str_replace(cazyme, '\\(.+\\)','')) %>%  # cleaning the cazyme terms 
+          mutate(cazyme = str_replace(cazyme, '_.+$','')) %>% 
+          filter(cazyme != '-') %>% 
+          count(Gene_ID, cazyme) %>% 
+          filter(n >= 2) %>% 
+          left_join(res, by = "cazyme")) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/growth/dbcan//',''),
+         sampleid = str_replace(sampleid, '_overview.txt','')) 
+  
+```
+
+# make figures like the paper fig 4
+
+```{r}
+final <- ret %>% 
+  filter(!is.na(substrate)) %>% 
+  count(sampleid, substrate) %>% 
+  spread('substrate','n', fill = 0) %>% 
+  mutate(r_suc_sta = round(Sucrose_Fructans/Starch_Glycogen, 2))
+ 
+```
+
+```{r}
+final %>% 
+  ggbarplot(x = 'sampleid', y = 'r_suc_sta', fill = 'forestgreen', color = 'white',
+            ylab = 'Ratio of Sucrose+Fructans/Starch+Glycogen')
 ```
 
