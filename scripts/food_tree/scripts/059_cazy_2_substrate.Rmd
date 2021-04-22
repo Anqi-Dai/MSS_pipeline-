@@ -84,25 +84,37 @@ final <- ret %>%
 final %>% 
   ggbarplot(x = 'sampleid', y = 'r_suc_sta', fill = 'forestgreen', color = 'white',
             ylab = 'Ratio of Sucrose+Fructans/Starch+Glycogen')
+
 ```
 # scatterplot with the fruit intake
 
 ```{r}
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
-
+ 
 overlap <- meta %>% 
-  inner_join(final %>%  select(sampleid, r_suc_sta))
+  inner_join(final %>%  select(sampleid, r_suc_sta, Sucrose_Fructans))
 
 overlap %>% 
-  mutate(logratio = log(r_suc_sta),
+  mutate(logratio = log(r_suc_sta), 
          logfruit = log(fg_fruit + 0.01)) %>% 
-  ggscatter(x = 'logratio', y = 'logfruit',
+  ggscatter(x = 'r_suc_sta', y = 'fg_fruit',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = F, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))
 ``` 
 
+```{r}
+overlap %>% 
+  mutate(logsugar = log(Sucrose_Fructans), 
+         logfruit = log(fg_fruit + 0.01)) %>% 
+  ggscatter(x = 'logsugar', y = 'fg_fruit',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = F, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))
+```
 
 
