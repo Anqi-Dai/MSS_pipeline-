@@ -208,7 +208,7 @@ upload_data_from_query_OTU <- function(query_number, ...){
   if(query_number==1){
     table_name = "shotgun_lookup_ad";
     
-    d_set_input = fread("~/projects/Catalog/data/Oriana_480_update.csv")
+    d_set_input = fread("~/projects/Catalog/data/new_20210420.csv")
     
     d_set=data.frame(directory=d_set_input$directory,
                      projectid=d_set_input$projectID,

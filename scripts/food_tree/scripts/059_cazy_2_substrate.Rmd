@@ -11,6 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(docxtractr)
 library(ggpubr)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+list_table_from_database('metacyc')
 ```
 
 # cleaned the matching table to be a joinable format
@@ -82,4 +85,24 @@ final %>%
   ggbarplot(x = 'sampleid', y = 'r_suc_sta', fill = 'forestgreen', color = 'white',
             ylab = 'Ratio of Sucrose+Fructans/Starch+Glycogen')
 ```
+# scatterplot with the fruit intake
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+
+overlap <- meta %>% 
+  inner_join(final %>%  select(sampleid, r_suc_sta))
+
+overlap %>% 
+  mutate(logratio = log(r_suc_sta),
+         logfruit = log(fg_fruit + 0.01)) %>% 
+  ggscatter(x = 'logratio', y = 'logfruit',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = F, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+``` 
+
+
 

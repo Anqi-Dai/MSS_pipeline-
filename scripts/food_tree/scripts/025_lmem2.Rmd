@@ -19,6 +19,7 @@ library(lmerTest)
 library(ggpubr)
 ```
 
+
 ```{r}
 dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
