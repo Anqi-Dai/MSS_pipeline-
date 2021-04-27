@@ -295,6 +295,9 @@ target_fam %>%
 last <- all16_samps 
 
 last %>% 
+  write_csv('../data/growth/shotgun_request_meta_full.csv')
+
+last %>% 
   select(sampleid) %>% 
   write_csv('../data/growth/shotgun_request_nutrition_sampleid_Angel_final.csv')
 ```

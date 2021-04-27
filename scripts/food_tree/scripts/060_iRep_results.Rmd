@@ -22,8 +22,44 @@ irep <- fns %>%
          fn = str_replace(fn, '../data/growth/irep///','')) %>% 
   separate(fn, into = c('sampleid','samplebin'), sep = '_', remove = T) %>% 
   mutate(iRep = as.numeric(iRep)) 
-   
-irep %>% 
-  filter(is.na(iRep))
+
 ```
 
+```{r}
+# the new batch with two __ as the separator
+fn <- list.files('../data/growth/irep//', pattern = '__',full.names = T)
+new <- fn %>% 
+  set_names(fn) %>% 
+  purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '_irep.tsv$',''),
+         fn = str_replace(fn, '../data/growth/irep///','')) %>% 
+  separate(fn, into = c('sampleid','samplebin'), sep = '__', remove = T) %>% 
+  mutate(iRep = as.numeric(iRep)) 
+
+total <- bind_rows(new,irep )
+
+# how many perc are NA?
+total %>% 
+  split(is.na(.$iRep) ) %>% 
+  map_dfr( ~ nrow(.)) %>% 
+  gather() %>% 
+  mutate(perc = round(value/sum(value)*100, 1))
+
+# how many samples only have one bin
+total %>% 
+  count(sampleid, sort = T) %>% 
+  arrange(n)
+```
+
+```{r}
+# the samples that don't have any NA
+has_na <- total %>% 
+  filter(is.na(iRep)) %>% 
+  distinct(sampleid)
+
+total_samp <- total %>% 
+  distinct(sampleid)
+
+no_na <- setdiff(total_samp$sampleid, has_na$sampleid)
+```

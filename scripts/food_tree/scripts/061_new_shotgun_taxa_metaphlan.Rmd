@@ -1,0 +1,66 @@
+---
+title: "new shotgun metaphlan result"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+taxa <- read_tsv('../data/growth/merged_abundance_table.txt', skip = 1)  %>% 
+  rename_all(funs(str_replace(., '_profile$',''))) %>% 
+  select(-NCBI_tax_id)
+
+taxa2 <- taxa %>% 
+  filter(str_detect(clade_name, 'f__Enterococcaceae|f__Enterobacteriaceae')) 
+taxa2$clade_name
+
+# look at the family level 
+# the meta table with food intake
+meta <- read_csv('../data/growth/shotgun_request_meta_full.csv')
+
+taxa2fam <- taxa2 %>% 
+  filter(str_detect(clade_name, 'f__Enterococcaceae$|f__Enterobacteriaceae$'))  %>% 
+  gather('fid', 'relab100', names(.)[2]:names(.)[ncol(.)]) %>% 
+  inner_join(shotgun_lookup_ad %>% distinct(sampleid, fid)) %>% 
+  rename(taxa = clade_name) %>% 
+  mutate(taxa = str_replace(taxa, '^.+f__','')) %>% 
+  select(-fid) %>% 
+  spread('taxa', 'relab100') %>% 
+  inner_join(meta %>% select(-Enterobacteriaceae, -Enterococcaceae))
+
+target_fam <- c('Enterococcaceae','Enterobacteriaceae')
+
+target_fam %>% 
+  map(function(var){
+    taxa2fam %>% 
+      ggdotchart(x = 'sdrt', y = var,  facet.by = 'mrn',  add = "segments", color = 'empirical',
+                       sorting = 'none', font.label = list(size = 5, face = "plain"),
+                 title = str_glue('{var}')) +
+            theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+            geom_hline(yintercept = 10, linetype = 'dashed', color = 'red') +
+            ggsave(str_glue('../figs/shotgun_family_2_dom_{var}.pdf'), width = 15, height = 7)
+  })
+
+# so I decided to look at the samples from three patients for now
+now <- taxa2fam %>% 
+  filter(str_detect(sampleid, '^1461|^1574|^1521'))
+
+total %>% 
+  filter(sampleid %in% now$sampleid) %>% 
+  filter(!is.na(iRep)) %>% 
+  mutate(cmd = str_glue('cp SPAdes_scaffolds_{samplebin}.fa ../subbin')) %>% 
+  select(cmd) %>% 
+  write_csv('../data/cp_cmd.sh', col_names = F)
+
+```
+
