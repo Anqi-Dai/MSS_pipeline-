@@ -74,17 +74,24 @@ ret <- fns %>%
 ```{r}
 final <- ret %>% 
   filter(!is.na(substrate)) %>% 
-  count(sampleid, substrate) %>% 
-  spread('substrate','n', fill = 0) %>% 
-  mutate(r_suc_sta = round(Sucrose_Fructans/Starch_Glycogen, 2))
- 
+  count(sampleid, substrate)
+
+# per sample sum
+samp_sum <- final %>% 
+  group_by(sampleid) %>% 
+  summarise(samptotal = sum(n))
+
+final_ <- final %>% 
+  left_join(samp_sum) %>% 
+  mutate(substrate_r = round(n/samptotal , 2)) %>% 
+  select(sampleid, substrate, substrate_r) %>% 
+  spread('substrate', 'substrate_r')
 ```
 
 ```{r}
 final %>% 
   ggbarplot(x = 'sampleid', y = 'r_suc_sta', fill = 'forestgreen', color = 'white',
             ylab = 'Ratio of Sucrose+Fructans/Starch+Glycogen')
-
 ```
 # scatterplot with the fruit intake
 
@@ -92,18 +99,27 @@ final %>%
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
  
 overlap <- meta %>% 
-  inner_join(final %>%  select(sampleid, r_suc_sta, Sucrose_Fructans))
+  inner_join(final_ %>%  select(sampleid, Sucrose_Fructans)) 
 
 overlap %>% 
-  mutate(logratio = log(r_suc_sta), 
+  ggbarplot(x = 'sampleid', y = 'Sucrose_Fructans', fill = 'forestgreen', color = 'white',
+            ylab = 'Ratio of Sucrose+Fructans/Starch+Glycogen')
+```
+
+```{r}
+overlap %>% 
+  filter(empirical == 'FALSE') %>% 
+  mutate(logratio = log(Sucrose_Fructans), 
          logfruit = log(fg_fruit + 0.01)) %>% 
-  ggscatter(x = 'r_suc_sta', y = 'fg_fruit',
+  ggscatter(x = 'Sucrose_Fructans', y = 'fg_fruit', xlab = 'Sucrose/Fructans cazyme proportion',
+            #facet.by = 'mrn',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = F, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n"))
-``` 
+
+```
 
 ```{r}
 overlap %>% 
@@ -116,5 +132,3 @@ overlap %>%
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n"))
 ```
-
-

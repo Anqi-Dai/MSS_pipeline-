@@ -1,0 +1,29 @@
+---
+title: "irep"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fns <- list.files('../data/growth/irep//', full.names = T)
+
+irep <- fns %>% 
+  set_names(fns) %>% 
+  purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '_irep.tsv$',''),
+         fn = str_replace(fn, '../data/growth/irep///','')) %>% 
+  separate(fn, into = c('sampleid','samplebin'), sep = '_', remove = T) %>% 
+  mutate(iRep = as.numeric(iRep)) 
+   
+irep %>% 
+  filter(is.na(iRep))
+```
+
