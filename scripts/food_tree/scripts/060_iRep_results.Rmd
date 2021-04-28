@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
 ```
 
 ```{r}
@@ -63,3 +64,187 @@ total_samp <- total %>%
 
 no_na <- setdiff(total_samp$sampleid, has_na$sampleid)
 ```
+
+# looking at the results returned by CAT
+
+```{r}
+cats <- list.files('../data/growth/CAT/', pattern = 'CAT', full.names = T)
+
+cat <-  cats %>% 
+  set_names(cats) %>% 
+  purrr::map(~  read_tsv(file = ., skip = 1, col_names = F, col_types = cols(.default = col_character()))  ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_extract(fn, '//.+_'),
+         fn = str_replace(fn , '//',''),
+         fn = str_replace(fn , '_','')) %>% 
+  rename(samplebin = fn) %>% 
+  inner_join(total, by = "samplebin") %>% 
+  select(sampleid, iRep, samplebin, X5, X7:X16) %>% 
+  # look at X13 mostly family level
+  mutate(family = str_replace(X13, ':.+$','')) %>% 
+  mutate(order = str_replace(X12, ':.+$',''))
+# Lachnospiraceae # Ruminococcaceae   # order : Clostridiales
+# Streptococcaceae # # Lactobacillales-order
+
+# to tally what families are relatively reliably identified
+cat_family <- cat %>% 
+  count(family, sort = T)
+
+
+# also looking at order level
+cat_order <- cat %>% 
+  count(order, sort = T)
+
+```
+
+```{r} 
+zoom_order <- cat %>% 
+  select(sampleid, iRep, family, order) %>% 
+  group_by(sampleid, order) %>% 
+  summarise(med_irep = median(iRep)) %>% 
+  filter(!is.na(order))
+
+zoom_order_clostri <- zoom_order %>% 
+  filter(order == 'Clostridiales (order)')  %>% 
+  spread('order','med_irep', fill = NA)
+
+# the several families
+zoom_fam <- cat %>% 
+  select(sampleid, iRep, family) %>% 
+  group_by(sampleid, family) %>% 
+  summarise(med_irep = median(iRep)) %>% 
+  filter(!is.na(family)) %>% 
+  mutate(family = str_replace(family, ' \\(family\\)$',''))
+
+  
+zoom_fam1 <- zoom_fam %>% 
+  filter(family %in% c('Streptococcaceae', 'Ruminococcaceae', 'Lachnospiraceae'))  %>% 
+  mutate(family = str_glue('{family}_irep')) %>% 
+  spread('family','med_irep', fill = NA) 
+
+```
+
+```{r}
+# join with my taxaall table
+final <- taxaall %>% 
+  filter(sampleid %in% now2$sampleid)  %>% 
+  left_join(zoom_order_clostri)   %>% 
+  left_join(zoom_fam1) %>% 
+  rename(Clostridiales_irep = `Clostridiales (order)`)
+colnames(final)
+```
+
+```{r}
+# with diversity 
+final %>% 
+  filter(Clostridiales_irep < 5) %>% 
+  ggscatter(x = 'Clostridiales_irep', y = 'simpson_reciprocal',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") ) +
+  ggsave('../figs/subbin2_Clostridiales_irep_simpson_reciprocal.pdf', width = 6, height = 4)
+
+final %>% 
+  filter(Clostridiales_irep < 5) %>% 
+  ggscatter(x = 'Clostridiales_irep', y = 'fg_fruit',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") ) +
+  ggsave('../figs/subbin2_Clostridiales_irep_fg_fruit.pdf', width = 6, height = 4)
+
+final %>% 
+  filter(Clostridiales_irep < 5) %>% 
+  ggscatter(x = 'Clostridiales_irep', y = 'Clostridiales',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") ) +
+  ggsave('../figs/subbin2_Clostridiales_irep_Clostridiales.pdf', width = 6, height = 4)
+```
+
+
+```{r}
+final %>% 
+  #filter(Streptococcaceae_irep < 5) %>% 
+  ggscatter(x = 'Streptococcaceae_irep', y = 'simpson_reciprocal',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") ) +
+  ggsave('../figs/subbin2_Streptococcaceae_irep_simpson_reciprocal.pdf', width = 6, height = 4)
+
+
+final %>% 
+  #filter(Streptococcaceae_irep < 5) %>% 
+  ggscatter(x = 'Streptococcaceae_irep', y = 'fg_milk',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") ) +
+  ggsave('../figs/subbin2_Streptococcaceae_irep_fg_milk.pdf', width = 6, height = 4)
+
+final %>% 
+  #filter(Streptococcaceae_irep < 5) %>% 
+  ggscatter(x = 'Streptococcaceae_irep', y = 'fg_egg',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") )  +
+  ggsave('../figs/subbin2_Streptococcaceae_irep_fg_egg.pdf', width = 6, height = 4)
+
+colnames(final)
+```
+
+```{r}
+# Lachnospiraceae # Ruminococcaceae 
+final %>% 
+  #filter(Lachnospiraceae_irep < 5) %>% 
+  ggscatter(x = 'Lachnospiraceae_irep', y = 'fg_fruit',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") )  +
+  ggsave('../figs/subbin2_Lachnospiraceae_irep_fg_fruit.pdf', width = 6, height = 4)
+
+final %>% 
+  #filter(Lachnospiraceae_irep < 5) %>% 
+  ggscatter(x = 'Lachnospiraceae_irep', y = 'simpson_reciprocal',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") )  +
+  ggsave('../figs/subbin2_Lachnospiraceae_irep_simpson_reciprocal.pdf', width = 6, height = 4)
+```
+
+```{r}
+final %>% 
+  #filter(Lachnospiraceae_irep < 5) %>% 
+  ggscatter(x = 'Ruminococcaceae_irep', y = 'fg_fruit',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") )  +
+  ggsave('../figs/subbin2_Ruminococcaceae_irep_fg_fruit.pdf', width = 6, height = 4)
+
+final %>% 
+  #filter(Ruminococcaceae_irep < 5) %>% 
+  ggscatter(x = 'Ruminococcaceae_irep', y = 'simpson_reciprocal',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson", label.sep = "\n") )  +
+  ggsave('../figs/subbin2_Ruminococcaceae_irep_simpson_reciprocal.pdf', width = 6, height = 4)
+```
+

@@ -21,7 +21,7 @@ taxa <- read_tsv('../data/growth/merged_abundance_table.txt', skip = 1)  %>%
   select(-NCBI_tax_id)
 
 taxa2 <- taxa %>% 
-  filter(str_detect(clade_name, 'f__Enterococcaceae|f__Enterobacteriaceae')) 
+  filter(str_detect(clade_name, 'f__Enterococcaceae|f__Enterobacteriaceae|f__Streptococcaceae')) 
 taxa2$clade_name
 
 # look at the family level 
@@ -29,7 +29,7 @@ taxa2$clade_name
 meta <- read_csv('../data/growth/shotgun_request_meta_full.csv')
 
 taxa2fam <- taxa2 %>% 
-  filter(str_detect(clade_name, 'f__Enterococcaceae$|f__Enterobacteriaceae$'))  %>% 
+  filter(str_detect(clade_name, 'f__Enterococcaceae$|f__Enterobacteriaceae$|f__Streptococcaceae$'))  %>% 
   gather('fid', 'relab100', names(.)[2]:names(.)[ncol(.)]) %>% 
   inner_join(shotgun_lookup_ad %>% distinct(sampleid, fid)) %>% 
   rename(taxa = clade_name) %>% 
@@ -37,6 +37,22 @@ taxa2fam <- taxa2 %>%
   select(-fid) %>% 
   spread('taxa', 'relab100') %>% 
   inner_join(meta %>% select(-Enterobacteriaceae, -Enterococcaceae))
+
+# also want to add the Clostridiales order
+taxaO <- taxa %>% 
+  filter(str_detect(clade_name, 'o__Clostridiales'))  %>% 
+  filter(str_detect(clade_name, 'o__Clostridiales$'))  %>% 
+  gather('fid', 'relab100', names(.)[2]:names(.)[ncol(.)]) %>% 
+  inner_join(shotgun_lookup_ad %>% distinct(sampleid, fid)) %>% 
+  rename(taxa = clade_name) %>% 
+  mutate(taxa = str_replace(taxa, '^.+o__','')) %>% 
+  select(-fid) %>% 
+  spread('taxa', 'relab100') %>% 
+  inner_join(meta %>% select(-Enterobacteriaceae, -Enterococcaceae)) %>% 
+  select(sampleid, Clostridiales)
+
+taxaall <- taxaO %>% 
+  full_join(taxa2fam)
 
 target_fam <- c('Enterococcaceae','Enterobacteriaceae')
 
@@ -46,9 +62,10 @@ target_fam %>%
       ggdotchart(x = 'sdrt', y = var,  facet.by = 'mrn',  add = "segments", color = 'empirical',
                        sorting = 'none', font.label = list(size = 5, face = "plain"),
                  title = str_glue('{var}')) +
-            theme(axis.text.x = element_text(size=5, angle=90, hjust=1)) +
+            theme(axis.text.x = element_text(size=5, angle=90, hjust=1),
+                  strip.text.x = element_blank()) +
             geom_hline(yintercept = 10, linetype = 'dashed', color = 'red') +
-            ggsave(str_glue('../figs/shotgun_family_2_dom_{var}.pdf'), width = 15, height = 7)
+            ggsave(str_glue('../figs/shotgun_family_2_dom_{var}_no_mrn.pdf'), width = 15, height = 7)
   })
 
 # so I decided to look at the samples from three patients for now
@@ -62,5 +79,21 @@ total %>%
   select(cmd) %>% 
   write_csv('../data/cp_cmd.sh', col_names = F)
 
+# I noticed I should select more abx_not exposed ones 
+now2 <- taxa2fam %>% 
+  filter(str_detect(sampleid, '^2231|^1776|^1546'))
+
+total %>% 
+  filter(sampleid %in% now2$sampleid) %>% 
+  filter(!is.na(iRep)) %>% 
+  mutate(cmd = str_glue('cp SPAdes_scaffolds_{samplebin}.fa ../subbin2')) %>% 
+  select(cmd) %>% 
+  write_csv('../data/cp_cmd2.sh', col_names = F)
+
+total %>% 
+  filter(sampleid %in% now2$sampleid) %>% 
+  filter(!is.na(iRep)) %>% 
+  select(samplebin) %>% 
+  write_csv('../data/subbin2_samplebin.csv', col_names = F)
 ```
 
