@@ -54,6 +54,9 @@ taxaO <- taxa %>%
 taxaall <- taxaO %>% 
   full_join(taxa2fam)
 
+taxaall %>% 
+  write_csv('../data/cleaned_stool/nutrition_samples_meta_p2d_fg9_updated.csv')
+
 target_fam <- c('Enterococcaceae','Enterobacteriaceae')
 
 target_fam %>% 

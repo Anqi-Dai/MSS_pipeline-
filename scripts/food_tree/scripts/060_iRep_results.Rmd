@@ -13,14 +13,14 @@ library(ggpubr)
 ```
 
 ```{r}
-fns <- list.files('../data/growth/irep//', full.names = T)
+fns <- list.files('../data/growth/irep/oneunderscore/', full.names = T)
 
 irep <- fns %>% 
   set_names(fns) %>% 
   purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
   bind_rows(.id = 'fn') %>% 
   mutate(fn = str_replace(fn, '_irep.tsv$',''),
-         fn = str_replace(fn, '../data/growth/irep///','')) %>% 
+         fn = str_replace(fn, '../data/growth/irep/oneunderscore//','')) %>% 
   separate(fn, into = c('sampleid','samplebin'), sep = '_', remove = T) %>% 
   mutate(iRep = as.numeric(iRep)) 
 
@@ -28,13 +28,13 @@ irep <- fns %>%
 
 ```{r}
 # the new batch with two __ as the separator
-fn <- list.files('../data/growth/irep//', pattern = '__',full.names = T)
+fn <- list.files('../data/growth/irep/twounderscores/', pattern = '__',full.names = T)
 new <- fn %>% 
   set_names(fn) %>% 
   purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
   bind_rows(.id = 'fn') %>% 
   mutate(fn = str_replace(fn, '_irep.tsv$',''),
-         fn = str_replace(fn, '../data/growth/irep///','')) %>% 
+         fn = str_replace(fn, '../data/growth/irep/twounderscores//','')) %>% 
   separate(fn, into = c('sampleid','samplebin'), sep = '__', remove = T) %>% 
   mutate(iRep = as.numeric(iRep)) 
 
@@ -76,10 +76,10 @@ cat <-  cats %>%
   bind_rows(.id = 'fn') %>% 
   mutate(fn = str_extract(fn, '//.+_'),
          fn = str_replace(fn , '//',''),
-         fn = str_replace(fn , '_','')) %>% 
+         fn = str_replace(fn , '_$','')) %>% 
   rename(samplebin = fn) %>% 
   inner_join(total, by = "samplebin") %>% 
-  select(sampleid, iRep, samplebin, X5, X7:X16) %>% 
+  select(sampleid, iRep, samplebin, X5, X7:X22) %>% 
   # look at X13 mostly family level
   mutate(family = str_replace(X13, ':.+$','')) %>% 
   mutate(order = str_replace(X12, ':.+$',''))
@@ -95,6 +95,8 @@ cat_family <- cat %>%
 cat_order <- cat %>% 
   count(order, sort = T)
 
+cat_class <- cat %>% 
+  count(X11, sort = T)
 ```
 
 ```{r} 
@@ -126,8 +128,9 @@ zoom_fam1 <- zoom_fam %>%
 
 ```{r}
 # join with my taxaall table
+taxaall <- read_csv('../data/cleaned_stool/nutrition_samples_meta_p2d_fg9_updated.csv')
+
 final <- taxaall %>% 
-  filter(sampleid %in% now2$sampleid)  %>% 
   left_join(zoom_order_clostri)   %>% 
   left_join(zoom_fam1) %>% 
   rename(Clostridiales_irep = `Clostridiales (order)`)
@@ -137,7 +140,7 @@ colnames(final)
 ```{r}
 # with diversity 
 final %>% 
-  filter(Clostridiales_irep < 5) %>% 
+  #filter(Clostridiales_irep < 5) %>% 
   ggscatter(x = 'Clostridiales_irep', y = 'simpson_reciprocal',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
@@ -147,7 +150,7 @@ final %>%
   ggsave('../figs/subbin2_Clostridiales_irep_simpson_reciprocal.pdf', width = 6, height = 4)
 
 final %>% 
-  filter(Clostridiales_irep < 5) %>% 
+  #filter(Clostridiales_irep < 5) %>% 
   ggscatter(x = 'Clostridiales_irep', y = 'fg_fruit',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
@@ -157,7 +160,7 @@ final %>%
   ggsave('../figs/subbin2_Clostridiales_irep_fg_fruit.pdf', width = 6, height = 4)
 
 final %>% 
-  filter(Clostridiales_irep < 5) %>% 
+  #filter(Clostridiales_irep < 5) %>% 
   ggscatter(x = 'Clostridiales_irep', y = 'Clostridiales',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line

@@ -1,5 +1,5 @@
 ---
-title: "Match the species name"
+title: "Compare Bio-Me normalized absolute quantification of the samples with our 16s results"
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
 output:
@@ -23,7 +23,7 @@ library(kableExtra)
 
 ```{r}
 normcts <- read_csv('../data/frombiome/Merged Client Report_only_abundance.csv', 
-                    col_types = cols(.default = col_number(), `Sample ID` = col_character())) %>% 
+                    col_types = cols(.default = col_number(), `Sample ID` = col_character())) %>%
   rename_all(~ gsub(" ", "_", .)) %>% 
   gather('species', 'normcts', names(.)[2]: names(.)[ncol(.)])
 ```
@@ -53,22 +53,35 @@ normcts__ %>%
   
 ```
 
+## summarise the bio-me table into genus level abundance
+
+```{r}
+# look at the species name in this table
+biome_spp <- normcts__ %>% 
+  distinct(species)
+
+# need to remove the trail _subsp.....
+# and break the species to make genus and the species name
+normcts___ <- normcts__ %>% 
+  mutate(species = str_replace(species, '_subsp.+$','')) %>% 
+  separate(species, into = c('genus','species'), sep = '_', remove = T) %>% 
+  group_by(sampleid , genus) %>% 
+  summarise(ge_ncts = sum(normcts))
+
+```
+
 ## Load our relab of the species of the same samples
 
 ```{r}
 # our spp
-source('~/db_connect_simple.R')
+library(vdbR)
 connect_database(config_file = '~/dbConfig.txt')
-
 get_table_from_database('asv_annotation_blast_ag')
-get_table_from_database_predefined_filter('asv_counts_ag')
 
 
-ourcts <- asv_counts_ag %>% 
-  filter(sampleid %in% normcts__$sampleid) %>% 
-  select(asv_key, sampleid, count) %>% 
-  spread(key = 'sampleid', value = 'count', fill = 0) %>% 
-  arrange(asv_key)  
+# get the count relative and the annotation of the genus in the samples from our database
+ourcts <- get_counts_subset(normcts___$sampleid) %>% 
+  select(asv_key, sampleid, count_relative)
 
 
 annot <- asv_annotation_blast_ag %>% 
@@ -76,116 +89,76 @@ annot <- asv_annotation_blast_ag %>%
   mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
          family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
          genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
-         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_species = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}|s__{species}'))
-
+         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) 
 
 # replace the asv_key with the genus taxa level
 # summarize from asv level to genus level
 # get the relative abundance for the genera
 ourcts_all <- ourcts %>% 
-  full_join(annot %>%  select(asv_key, taxa_species), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
-  gather(key = 'sampleid', value = 'count', names(.)[1]:names(.)[ncol(.) - 1]) %>% 
-  group_by(sampleid, taxa_species) %>% 
-  summarise(cnt = sum(count)) %>% 
-  # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_species, relab) %>% 
-  mutate(species = str_extract(taxa_species, 's__.+$'),
-         species = str_replace(species, '^s__','')) %>% 
-  select(sampleid, species, relab) %>% 
-  ungroup() %>% 
-  # get rid of the [] in the genus name
-  mutate(species = str_replace_all(species, '\\[|\\]',''))
+  left_join(annot %>%  select(asv_key, genus), by  = 'asv_key') %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>% 
+  ungroup() 
+
 ```
 
-## How many are overlapping and how many are missing
+## How many genera are overlapping and how many are missing
 
 ```{r}
 # the overlap of the species name
-biome_spp <- normcts__ %>% 
-  distinct(species) %>% 
-  pull(species)
+biome_genus <- normcts___ %>% 
+  distinct(genus) %>% 
+  pull(genus)
 
-our_spp <- ourcts_all %>% 
-  ungroup() %>% 
-  distinct(species)%>%  
-  pull(species)
+our_genus <- ourcts_all %>% 
+  distinct(genus)%>%  
+  pull(genus)
 
 # a venn diagram
 library(ggvenn)
 two_list <- list(
-  our_spp = our_spp,
-  biome_spp = biome_spp)
+  our_genus = our_genus,
+  biome_genus = biome_genus)
 
 ggvenn(two_list)
+
+# the 4 that show in biome genus only 
+setdiff(biome_genus, our_genus)
 ```
 
+## the correlation between the overlapping genera at log10 transformed scales 
 
 ```{r}
-# overlap
+all <- normcts___ %>% 
+  inner_join(ourcts_all, by = c("sampleid", "genus")) %>% 
+  # log10 transform both here
+  mutate(logge_ncts = log10(ge_ncts + 1),
+         logrelab = log10(relab + 2*10^-6))
 
-only_biome <- tibble(species = setdiff(biome_spp, our_spp)) %>% 
-  mutate(genus = str_extract( species,"[^_]+"))
-  
+# spearman correlation
+spearman_res <- all %>% 
+  split(.$sampleid) %>% 
+  map(function(df){
+    test = cor.test(df$logge_ncts, df$logrelab, method = 'spearman', exact = F)
+    return(list(rho = round(test$estimate, 2), pval = test$p.value))
+}) %>% 
+  bind_rows(.id = 'sampleid')
 
-our_Bacteroides <- asv_annotation_blast_ag %>% 
-  filter(genus == 'Bacteroides') %>% 
-  distinct(species)
-
-
-# check the mean norm counts in the biome table for the missing spp in our counts
-mean_missing <- normcts__ %>% 
-  filter(species %in% only_biome$species) %>% 
-  group_by(species) %>% 
-  summarise(mean_normcts = mean(normcts, na.rm = T),
-            median_normcts = median(normcts, na.rm = T)) %>% 
-  mutate(in_blast_db = species %in% asv_annotation_blast_ag$species)
+# plot
+# look at the distribution of the spearman correlation 
+spearman_res %>% 
+  ggboxplot(y = 'rho', add = 'jitter',
+            ylab = 'Spearman rho', xlab = '')
 
 
-mean_missing %>% 
-  gghistogram(x = 'mean_normcts', title = 'Mean norm cts in the biome table of the spp that is missing in our cts table') 
-
-mean_missing %>% 
-  gghistogram(x = 'median_normcts', title = 'Median norm cts in the biome table of the spp that is missing in our cts table') 
-
-color_false <- which(mean_missing$in_blast_db == FALSE)
-
-mean_missing %>% 
-  kable(caption = 'species missing in our quantification of the same samples') %>% 
-  kable_styling(full_width = F) %>%
-  row_spec(color_false,  color = "red")
-
+# look at a series of scatterplot with rho and pvalue
+all %>% 
+  ggscatter(x = 'logge_ncts', y = 'logrelab', facet.by = 'sampleid',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
+  ggsave('../data/all_samples_67_scatter_genus_spearman_log10.pdf', width = 20, height = 18)
 ```
-
-## Look at some missing species
-
-```{r}
-# take a look at the ones that have mean_normcts > 2000
-big <- mean_missing %>% 
-  filter(mean_normcts > 2000)
-```
-
-
-```{r}
-# the biggest difference 
-our_Streptococcus <- asv_annotation_blast_ag %>% 
-  filter(genus == 'Streptococcus') %>% 
-  distinct(species)
-
-# Streptococcus_thermophilus seems like a very common bacteria
-# but in our blast db
-asv_annotation_blast_ag %>% 
-  filter(str_detect(species, '_thermophilus'))
-```
-
-
-- others
-- Bifidobacterium_longum also seems quite common
-- also Lactobacillus_paracasei
-- what about Enterococcus_hirae 
-- what to do with Bifidobacterium_longum_subsp._longum	 this kind of format
-
 
