@@ -82,7 +82,8 @@ cat <-  cats %>%
   select(sampleid, iRep, samplebin, X5, X7:X22) %>% 
   # look at X13 mostly family level
   mutate(family = str_replace(X13, ':.+$','')) %>% 
-  mutate(order = str_replace(X12, ':.+$',''))
+  mutate(order = str_replace(X12, ':.+$','')) %>% 
+  filter(!is.na(iRep))
 # Lachnospiraceae # Ruminococcaceae   # order : Clostridiales
 # Streptococcaceae # # Lactobacillales-order
 
@@ -90,24 +91,29 @@ cat <-  cats %>%
 cat_family <- cat %>% 
   count(family, sort = T)
 
-
 # also looking at order level
 cat_order <- cat %>% 
   count(order, sort = T)
 
 cat_class <- cat %>% 
   count(X11, sort = T)
+
+cat %>% 
+  write_csv('../data/growth/cat_irep_taxa.csv')
 ```
 
 ```{r} 
 zoom_order <- cat %>% 
-  select(sampleid, iRep, family, order) %>% 
+  select(sampleid, iRep, order) %>% 
   group_by(sampleid, order) %>% 
   summarise(med_irep = median(iRep)) %>% 
-  filter(!is.na(order))
+  filter(!is.na(order)) %>% 
+  arrange(sampleid, order) %>% 
+  mutate(order = str_replace(order, ' \\(order\\)$',''))
 
-zoom_order_clostri <- zoom_order %>% 
-  filter(order == 'Clostridiales (order)')  %>% 
+zoom_order_2 <- zoom_order %>% 
+  filter(order %in% c('Clostridiales', 'Lactobacillales'))  %>% 
+  mutate(order = str_glue('{order}_irep')) %>% 
   spread('order','med_irep', fill = NA)
 
 # the several families
@@ -118,7 +124,6 @@ zoom_fam <- cat %>%
   filter(!is.na(family)) %>% 
   mutate(family = str_replace(family, ' \\(family\\)$',''))
 
-  
 zoom_fam1 <- zoom_fam %>% 
   filter(family %in% c('Streptococcaceae', 'Ruminococcaceae', 'Lachnospiraceae'))  %>% 
   mutate(family = str_glue('{family}_irep')) %>% 
@@ -131,9 +136,8 @@ zoom_fam1 <- zoom_fam %>%
 taxaall <- read_csv('../data/cleaned_stool/nutrition_samples_meta_p2d_fg9_updated.csv')
 
 final <- taxaall %>% 
-  left_join(zoom_order_clostri)   %>% 
-  left_join(zoom_fam1) %>% 
-  rename(Clostridiales_irep = `Clostridiales (order)`)
+  left_join(zoom_order_2)   %>% 
+  left_join(zoom_fam1)
 colnames(final)
 ```
 
@@ -150,7 +154,7 @@ final %>%
   ggsave('../figs/subbin2_Clostridiales_irep_simpson_reciprocal.pdf', width = 6, height = 4)
 
 final %>% 
-  #filter(Clostridiales_irep < 5) %>% 
+  filter(Clostridiales_irep < 5) %>% 
   ggscatter(x = 'Clostridiales_irep', y = 'fg_fruit',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
@@ -160,7 +164,7 @@ final %>%
   ggsave('../figs/subbin2_Clostridiales_irep_fg_fruit.pdf', width = 6, height = 4)
 
 final %>% 
-  #filter(Clostridiales_irep < 5) %>% 
+  filter(Clostridiales_irep < 5) %>% 
   ggscatter(x = 'Clostridiales_irep', y = 'Clostridiales',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line

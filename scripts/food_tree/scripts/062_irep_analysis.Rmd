@@ -1,0 +1,18 @@
+---
+title: "iRep analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+cat <- read_csv('../data/growth/cat_irep_taxa.csv', col_types = cols(.default = col_character()))
+taxaall <- read_csv('../data/cleaned_stool/nutrition_samples_meta_p2d_fg9_updated.csv')
+```
+
