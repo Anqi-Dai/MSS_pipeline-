@@ -269,6 +269,20 @@ upload_data_from_query_OTU <- function(query_number, ...){
     
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
+  
+  if(query_number==5){
+    table_name = "qpcr_16s_ag";
+    
+    d_set_input = fread("~/projects/Catalog/data/Emily_16s_qpcr_0514_cleaned.csv")
+    
+    d_set=data.frame(sample_id=d_set_input$sample_id,
+                     copy_number_16s=d_set_input$copy_number_16s,
+                     copies_16s_per_g=d_set_input$copies_16s_per_g,
+                     comments=d_set_input$comments,
+                     sample_id_unique = d_set_input$sample_id_unique);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
 }
 
 

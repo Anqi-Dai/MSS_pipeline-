@@ -1,0 +1,55 @@
+---
+title: "food consumption for that day"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+For the irep results analysis, I need to generate the food consumption for the stool collection day for the stool samples I have.
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+```
+
+# get the summarized food groups per day
+
+Go to script 009 to run
+
+```{r}
+fgroup <- read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv') %>% 
+  select(mrn, fdrt, fg1_name, grp_tol) %>% 
+  mutate(fg1_name = str_glue('{fg1_name}_d0')) %>% 
+  spread('fg1_name','grp_tol', fill = 0) %>% 
+  rename(sdrt = fdrt)
+
+joined <- meta %>% 
+  inner_join(fgroup, by = c("mrn", "sdrt"))
+
+joined %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_and_d0_fg9_updated.csv')
+```
+
+```{r}
+# consider fg_fruit+fg_veg+fg_sweets x on same day as sample vs.  2 days prior - total 6 food columns
+c3 <- joined %>% 
+  select(sampleid, matches('fg_fruit|fg_sweets|fg_veggie')) %>% 
+  gather('fg', 'value', fg_fruit:fg_veggie_d0) %>% 
+  mutate(grp = if_else(str_detect(fg, 'd0$'), 'day0_g3', 'p2d_g3')) %>% 
+  group_by(sampleid, grp) %>% 
+  summarise(g3 = sum(value)) %>% 
+  spread('grp', 'g3')
+
+combined <- joined %>% 
+  full_join(c3, by = "sampleid")
+
+combined %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_and_d0_fg9_updated_g3.csv')
+```
+

@@ -85,6 +85,7 @@ fgroup_all <- total_per_group %>%
     fgrp1 == '9' ~ 'fg_sweets',
   ))
 ```
+
 ```{r}
 # output these two tables
 fgroup_all %>% 

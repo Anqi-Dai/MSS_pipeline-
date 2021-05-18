@@ -16,7 +16,7 @@ library(lmerTest)
 cat <- read_csv('../data/growth/cat_irep_taxa.csv', col_types = cols(.default = col_character())) %>% 
   mutate(iRep = as.numeric(iRep))
 
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_and_d0_fg9_updated_g3.csv')
 
 together <- cat %>% 
   left_join(meta, by = "sampleid") %>% 
@@ -25,11 +25,26 @@ together <- cat %>%
 Clostridiales_df <- together %>% 
   filter(str_detect(order, 'Clostridiales'))
 
+hist(cat %>% filter(iRep <=3) %>% pull(iRep), breaks = 50)
 ```
 
 ```{r}
+# prepare the table to send to Jonas
+send <- together %>% 
+  mutate(pt = str_glue('P{as.numeric(as.factor(mrn))}')) %>% 
+  select(-mrn, -sampleid) %>% 
+  separate(samplebin, into = c('sampleid','binnum'), sep = '\\.fa\\.') %>% 
+  mutate(sampleid = str_glue('S{as.numeric(as.factor(sampleid))}'))
+send %>% 
+  write_csv('../data/growth/Jonas_nutrition_with_irep.csv')
+
+colnames(send)
+```
+
+
+```{r}
 mod_Clostridiales <-  lmer(iRep ~ 
-             0 +
+            # 0 +
               fg_fruit+ 
                empirical + 
                intensity + 
@@ -37,11 +52,16 @@ mod_Clostridiales <-  lmer(iRep ~
                 (1 | sampleid) +
                 (1 | timebin), REML = F, data = Clostridiales_df )
 summary(mod_Clostridiales)
+
+Clostridiales_df %>% 
+  filter(iRep <= 3) %>% 
+  ggscatter(x = 'fg_fruit', y = 'iRep', facet.by = 'empirical')
+
 ```
 
 ```{r}
 mod_Clostridiales2 <-  lmer(log(simpson_reciprocal)  ~ 
-             0 +
+            # 0 +
               iRep +
                empirical + 
                intensity + 

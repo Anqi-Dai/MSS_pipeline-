@@ -42,3 +42,17 @@ false <- key %>%
 
 # “blank” samples are samples that were not submitted (and thus should not be able to be pulled out). The reason for the “blank” samples is for record keeping, indicating that the samples were not purposefully left out of the project, but rather were worked on and did not amplify.
 ```
+
+```{r}
+# 2021-5-17 
+# the samples I need to upload for John's oral microbiome samples
+oral <- read_csv('../data/oral_microbiota_samples.csv') %>% 
+  filter(in_asv_counts == 'no') 
+
+oral %>% 
+  distinct(igo_seq_dir)
+
+
+
+```
+
