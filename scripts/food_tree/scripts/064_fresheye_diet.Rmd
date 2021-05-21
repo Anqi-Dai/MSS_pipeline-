@@ -1,0 +1,166 @@
+---
+title: "fresh eye growth rate"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(lmerTest)
+```
+
+# sketch out figure panels / narrative (allow 3-6 figures)
+# figure out why there could be such huge irep values
+the coverage low to high is very spread out
+see the screen shots 
+
+# what is the filtered irep represent? how is it filtered?
+Since highly conserved regions, strain variation, or integrated phage can result in highly variable coverage, high and low coverage windows are filtered out of the analysis. Coverage windows are filtered out of the analysis if the values differ from the median by a factor greater than eight
+
+# What is the reason for the NA values?
+If more than 40% of the windows are excluded, no bPTR value will be calculated (threshold also used by kPTR)
+
+# histograms of iRep (where iRep<=3), faceted by quartiles of fg_fruit (vs. lmer() model)
+
+# scatterplot of iReps vs. fg_fruit, all together, and also faceted by empiric abx and by Enterobacteriales_irep, Lactobacillales_irep, Erysipelotrichiales_irep, Bacteroidia_irep
+
+lower priority
+# Yingstyle hospitalome time-series plot Enterobacteriales_irep, Lactobacillales_irep, Clostridiales_irep, Bacteroidia_irep, Erysipelotrichiales_irep
+# send de-identified data to Jonas 
+# consider fg_fruit+fg_veg+fg_sweets x on same day as sample vs.  2 days prior - total 6 food columns
+
+```{r}
+dat <- read_csv('../data/growth/nutrition_meta_with_irep.csv')
+
+# histograms of iRep (where iRep<=3), faceted by quartiles of fg_fruit (vs. lmer() model)
+Clostridiales_df <- dat %>% 
+  filter(str_detect(order, 'Clostridiales'))
+
+sub <- Clostridiales_df %>% 
+  select(fg_fruit, sampleid, iRep, samplebin, empirical) %>% 
+  # create a column to represent which quartile the fruit intake is in
+  mutate(quantile = ntile(fg_fruit, 4)) 
+
+library(arrangements)
+pool <- c('1','2','3','4')
+pairwise_comparison <- combinations(pool, 2) 
+
+sub %>% 
+  filter(iRep <= 3) %>% 
+  filter(empirical == 'FALSE') %>% 
+  ggboxplot(x = 'quantile', y = 'iRep',add = 'jitter',) +
+  scale_y_log10() +
+  stat_compare_means(comparisons= list(c('1', '2'), c('1', '3'), c('1', '4'), c('2', '3'),
+                                       c('2', '4'), c('3', '4')),
+										label= "p.signif",
+										method= 'wilcox.test',
+										correct=FALSE)
+```
+
+
+
+
+```{r}
+# scatterplot of iReps vs. fg_fruit, all together, and also faceted by empiric abx
+dat %>% 
+  filter(iRep <= 3) %>% 
+  filter(!is.na(order)) %>% 
+  ggscatter(x = 'fg_fruit', y = 'iRep', facet.by = 'empirical',color = 'order',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+dat %>% 
+  filter(iRep <= 3) %>% 
+  filter(!is.na(order)) %>% count(sampleid)
+```
+
+
+```{r}
+# aggregate on the sample and order level
+dat %>% 
+  filter(iRep <= 3) %>% 
+  group_by(sampleid, order, fg_fruit, empirical) %>% 
+  filter(!is.na(order)) %>% 
+  summarise(med_irep = median(iRep)) %>% 
+  ggscatter(x = 'fg_fruit', y = 'med_irep', facet.by = 'empirical',color = 'order',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+# looks like its Micrococcales specifically Rothia 
+# and Lactobacillales includes Enterococcaceae , Lactobacillaceae and Streptococcaceae
+
+# to differentiate what abx?
+
+s %>% 
+  ggscatter(x = 'day0_g3', y = 'med_irep', facet.by = 'empirical',color = 'order',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+```
+
+```{r}
+# scatterplot of iReps vs. fg_fruit, all together, and also faceted by empiric abx and by Enterobacteriales_irep, Lactobacillales_irep, Erysipelotrichiales_irep, Bacteroidia_irep
+
+s <- dat %>% 
+  filter(iRep <= 3) %>% 
+  group_by(mrn, sampleid, order, family, fg_fruit, empirical, day0_g3, p2d_g3) %>% 
+  summarise(med_irep = median(iRep)) %>% 
+  filter(!is.na(order) & !is.na(family))
+
+s %>% 
+  mutate(short = str_sub(family, start = 1, end = 5)) %>% 
+    ggscatter(x = 'fg_fruit', y = 'med_irep', facet.by = 'empirical',color = 'family',label = 'short',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+# for the Lactobacillales_irep only
+s %>% 
+  filter(str_detect(order, 'Lactobacillales')) %>% 
+  mutate(short = str_sub(family, start = 1, end = 5)) %>% 
+    ggscatter(x = 'p2d_g3', y = 'med_irep', facet.by = 'empirical',color = 'family',label = 'short',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+
+# for the Micrococcales only
+s %>% 
+  filter(str_detect(order, 'Micrococcales')) %>% 
+  mutate(short = str_sub(family, start = 1, end = 5)) %>% 
+    ggscatter(x = 'p2d_g3', y = 'med_irep', facet.by = 'empirical',color = 'family',label = 'short',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+Micrococcales_pt <- s %>% 
+  filter(str_detect(order, 'Micrococcales'))  %>% 
+  ungroup() %>% 
+  count(mrn)
+
+
+library(vdbR)
+connect_database('~/dbConfig.txt')
+list_table_from_database('qpcr')
+get_table_from_database('qpcr_16s_ag')
+```
+

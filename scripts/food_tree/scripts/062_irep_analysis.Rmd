@@ -26,6 +26,9 @@ Clostridiales_df <- together %>%
   filter(str_detect(order, 'Clostridiales'))
 
 hist(cat %>% filter(iRep <=3) %>% pull(iRep), breaks = 50)
+
+together %>% 
+  write_csv('../data/growth/nutrition_meta_with_irep.csv')
 ```
 
 ```{r}
