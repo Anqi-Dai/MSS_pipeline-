@@ -42,3 +42,17 @@ ret %>%
 
 ```
 
+```{r}
+# Oriana neuroblastoma 16s samples
+nb <- readxl::read_excel('~/Downloads/Oriana16S_5.17.21.xlsx') %>% 
+  filter(`Run.Number` != 'NA') %>% 
+  distinct(`Directory.16S`) %>% 
+  filter(str_detect(`Directory.16S`, '/Volumes/')) %>%
+  mutate(fd = str_replace(`Directory.16S`,'/Volumes/castoricenter/Human.Sequencing.Data/Miseq/','')) %>% 
+  mutate(cmd = str_glue('rsync --progress --partial -avz {fd} daia1@lilac.mkscc.org:~/my_workdir/samples/amplicon')) %>% 
+  select(cmd)
+
+nb %>% 
+  write_csv('../data/upload_O.sh', col_names = F)
+```
+

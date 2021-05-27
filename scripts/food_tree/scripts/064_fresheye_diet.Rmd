@@ -161,6 +161,11 @@ Micrococcales_pt <- s %>%
 library(vdbR)
 connect_database('~/dbConfig.txt')
 list_table_from_database('qpcr')
-get_table_from_database('qpcr_16s_ag')
+get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('asv_counts_ag')
+list_table_from_database('castori')
+get_table_from_database('samples_castori_ag') 
+shotgun_lookup_ad %>% 
+  filter(fid == '195E')
 ```
 
