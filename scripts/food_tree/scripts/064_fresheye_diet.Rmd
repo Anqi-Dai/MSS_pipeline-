@@ -59,6 +59,18 @@ sub %>%
 										label= "p.signif",
 										method= 'wilcox.test',
 										correct=FALSE)
+
+t <- dat %>% 
+  filter(iRep > 10) %>% 
+  #count(X11) %>% 
+  mutate(X11 = str_replace(X11, ':.+$','')) %>% 
+  count(X11)
+
+d <- dat %>% 
+  filter(iRep < 10) %>% 
+  #count(X11) %>% 
+  mutate(X11 = str_replace(X11, ':.+$','')) %>% 
+  count(X11)
 ```
 
 
@@ -86,10 +98,12 @@ dat %>%
 # aggregate on the sample and order level
 dat %>% 
   filter(iRep <= 3) %>% 
-  group_by(sampleid, order, fg_fruit, empirical) %>% 
+  mutate(total_fg = fg_fruit+fg_egg+fg_grain+fg_legume+fg_meat+fg_milk+fg_oils+fg_sweets+fg_veggie) %>% 
+  group_by(sampleid, order, total_fg, empirical) %>% 
   filter(!is.na(order)) %>% 
-  summarise(med_irep = median(iRep)) %>% 
-  ggscatter(x = 'fg_fruit', y = 'med_irep', facet.by = 'empirical',color = 'order',
+  summarise(med_irep = median(iRep)) %>%
+  #filter(order != 'Micrococcales (order)') %>% 
+  ggscatter(x = 'total_fg', y = 'med_irep', facet.by = 'empirical',color = 'order',
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
@@ -98,17 +112,6 @@ dat %>%
 
 # looks like its Micrococcales specifically Rothia 
 # and Lactobacillales includes Enterococcaceae , Lactobacillaceae and Streptococcaceae
-
-# to differentiate what abx?
-
-s %>% 
-  ggscatter(x = 'day0_g3', y = 'med_irep', facet.by = 'empirical',color = 'order',
-            add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
-
 ```
 
 ```{r}

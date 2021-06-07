@@ -12,6 +12,7 @@
 /scripts/MG_fast/*
 /scripts/Rmd/*/dada/*
 /scripts/*/doc/*
+/scripts/quast/*
 /scripts/Rmd/*/data/*
 /scripts/*/software/*
 *.snakemake
