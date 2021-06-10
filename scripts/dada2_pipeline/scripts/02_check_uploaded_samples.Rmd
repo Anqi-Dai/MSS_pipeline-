@@ -51,8 +51,25 @@ oral <- read_csv('../data/oral_microbiota_samples.csv') %>%
 
 oral %>% 
   distinct(igo_seq_dir)
+```
 
+```{r}
+# oriana's neuroblastoma samples 
+odf <- readxl::read_excel('~/Downloads/Oriana16S_5.17.21.xlsx') %>% 
+  filter(str_detect(`Directory.16S`, '/Volume')) %>% 
+  distinct(Sample_ID, .keep_all = T)
 
+are <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% odf$Sample_ID) %>% 
+  distinct(sampleid, .keep_all = T)
 
+missing <- odf %>% 
+  filter(! Sample_ID %in% are$sampleid)
+
+# upload some of the pools ....
+missing %>% 
+  mutate(cmd = str_glue('rsync --partial -avz --progress {`Directory.16S`} daia1@lilac.mskcc.org:~/my_workdir/samples/amplicon')) %>% 
+  select(cmd) %>% 
+  write_csv('../scripts/upload_4pools.csv', col_names = F)
 ```
 

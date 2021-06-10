@@ -15,7 +15,6 @@ library(tidyverse)
 ```{r}
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
   mutate(mrn = factor(mrn))
-
 ```
 
 # Look at the pca using the nutrients from the 5230 meals
@@ -34,7 +33,6 @@ meal <- dtb %>%
   mutate(ID = str_glue('M{seq(1, nrow(.))}'))
 
 dm_tb <- meal %>% 
-  #select(-mrn, -Meal, -fdrt) %>% 
   column_to_rownames('ID') %>% 
   mutate(sum = rowSums(.[4:9])) %>% 
   filter(sum > 0) %>% 
@@ -42,21 +40,27 @@ dm_tb <- meal %>%
   mutate(menu = str_replace(Meal, '^.+Menu: ','')) %>% 
   mutate(time = case_when(
     fdrt < 0 ~"pre_transplant",
-    fdrt < 7 ~ 'before_engraftment',
-    fdrt < 14 ~  'engraftment',
+    fdrt < 7 ~ 'before_periengraftment',
+    fdrt < 21 ~  'periengraftment',
     TRUE ~ 'after'
   ))
-
+ 
 pca <- prcomp(dm_tb[,c(4:9)], center = TRUE,scale. = TRUE)
 summary(pca)
 
 
-
+# to look at whether time menu or mrn has some separation
+# each dot is a meal for that patient on that day 
 ggbiplot(pca, alpha = 0.3, groups  = dm_tb$time, ellipse=TRUE)
+ggbiplot(pca, alpha = 0.3, groups  = dm_tb$menu, ellipse=TRUE)
+ggbiplot(pca, alpha = 0.3, groups  = dm_tb$mrn, ellipse=TRUE) + theme(legend.position = "none")
 
-tt <- dm_tb %>% 
+menus <- dm_tb %>% 
   ungroup() %>% 
   distinct(menu)
 ```
+# How many days of dietary data to pair up with microbiome data?
+
+
 
 

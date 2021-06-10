@@ -1,0 +1,38 @@
+---
+title: "Maxbin2  binning irep resutls"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fn <- list.files('../data/growth/irep/maxbin2_bin/', pattern = '.tsv$',full.names = T)
+
+maxbinirep <- fn %>% 
+  set_names(fn) %>% 
+  purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '_irep.tsv$',''),
+         fn = str_replace(fn, '../data/growth/irep/maxbin2_bin//','')) %>% 
+  separate(fn, into = c('sampleid','samplebin'), sep = '__', remove = T) %>% 
+  mutate(iRep = as.numeric(iRep))  %>% 
+  mutate(samplebinsampleid = str_replace(samplebin, '_SPAdes_maxbin2.+$','')) %>% 
+  # remove several spurious ones due to the string over matching
+  filter(sampleid == samplebinsampleid)
+
+maxbinirep %>% 
+  filter(is.na(iRep))
+# 77% are NA
+```
+
+```{r}
+# what aobut the irep from the metabat2 bin
+metabat <- read_csv('../data/growth/nutrition_meta_with_irep.csv')
+```
+
