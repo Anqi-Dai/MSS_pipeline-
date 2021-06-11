@@ -29,6 +29,28 @@ maxbinirep <- fn %>%
 maxbinirep %>% 
   filter(is.na(iRep))
 # 77% are NA
+
+
+# the cat results from CAT
+cats <- list.files('../data/growth/CAT/maxbin2_cat/', pattern = 'CAT', full.names = T)
+
+maxbin_irep <-  cats %>% 
+  set_names(cats) %>% 
+  purrr::map(~  read_tsv(file = ., skip = 1, col_names = F, col_types = cols(.default = col_character()))  ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_extract(fn, '//.+_'),
+         fn = str_replace(fn , '//',''),
+         fn = str_replace(fn , '_$','')) %>% 
+  rename(samplebin = fn) %>% 
+  left_join(maxbinirep, by = "samplebin") %>% 
+  select(sampleid, iRep, samplebin, X5, X7:X18) %>% 
+  # look at X13 mostly family level
+  mutate(family = str_replace(X13, ':.+$','')) %>% 
+  mutate(order = str_replace(X12, ':.+$','')) %>% 
+  filter(!is.na(iRep))
+
+
+  
 ```
 
 ```{r}

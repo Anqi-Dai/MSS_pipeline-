@@ -40,8 +40,6 @@ dm_tb <- meal %>%
   mutate(menu = str_replace(Meal, '^.+Menu: ','')) %>% 
   mutate(time = case_when(
     fdrt < 0 ~"pre_transplant",
-    fdrt < 7 ~ 'before_periengraftment',
-    fdrt < 21 ~  'periengraftment',
     TRUE ~ 'after'
   ))
  
@@ -54,7 +52,7 @@ summary(pca)
 ggbiplot(pca, alpha = 0.3, groups  = dm_tb$time, ellipse=TRUE)
 ggbiplot(pca, alpha = 0.3, groups  = dm_tb$menu, ellipse=TRUE)
 ggbiplot(pca, alpha = 0.3, groups  = dm_tb$mrn, ellipse=TRUE) + theme(legend.position = "none")
-
+ggbiplot(pca, alpha = 0.3)
 menus <- dm_tb %>% 
   ungroup() %>% 
   distinct(menu)

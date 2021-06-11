@@ -138,7 +138,6 @@ library(vdbR)
 connect_database(config_file = '~/dbConfig.txt')
 get_table_from_database('asv_annotation_blast_ag')
 
-
 cts <- get_counts_subset(stb$sampleid)
 
 annot <- asv_annotation_blast_ag %>% 
@@ -162,8 +161,7 @@ cts_genus %>%
 ```{r}
 # the species counts data would be :
 cts_long <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
-  filter(sampleid %in% p5d_samples) %>% 
-  select(sampleid, taxa_genus, relab) 
+  filter(sampleid %in% p5d_samples) 
  
 # since the samples in the diet counts are different so need to subset according to each
 p1d_scts <- cts_long %>% 
