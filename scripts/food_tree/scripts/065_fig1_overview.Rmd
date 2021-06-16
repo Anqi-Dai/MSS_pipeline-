@@ -15,6 +15,17 @@ library(tidyverse)
 ```{r}
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
   mutate(mrn = factor(mrn))
+
+# select one patient to have a representation of the three meals in a day 
+
+examplen6 <- dtb %>% 
+  filter(mrn == 38016516 & fdrt == -6)
+
+exampled0 <- dtb %>% 
+  filter(mrn == 38016516 & fdrt == 0)
+
+exampled20 <- dtb %>% 
+  filter(mrn == 38016516 & fdrt == 20)
 ```
 
 # Look at the pca using the nutrients from the 5230 meals
@@ -52,13 +63,14 @@ summary(pca)
 ggbiplot(pca, alpha = 0.3, groups  = dm_tb$time, ellipse=TRUE)
 ggbiplot(pca, alpha = 0.3, groups  = dm_tb$menu, ellipse=TRUE)
 ggbiplot(pca, alpha = 0.3, groups  = dm_tb$mrn, ellipse=TRUE) + theme(legend.position = "none")
-ggbiplot(pca, alpha = 0.3)
+ggbiplot(pca, alpha = 0.3) + theme_minimal() +
+  ggsave('../figs/pca_macro.pdf')
+
 menus <- dm_tb %>% 
   ungroup() %>% 
   distinct(menu)
 ```
+
 # How many days of dietary data to pair up with microbiome data?
-
-
 
 

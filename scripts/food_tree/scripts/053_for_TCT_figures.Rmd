@@ -182,7 +182,7 @@ dtb %>%
   facet_wrap(~mrn, scales = 'free') +
   theme_classic() +
   theme(strip.background = element_blank(),
-        strip.text.x = element_blank(),
+        #strip.text.x = element_blank(),
         axis.title.y=element_blank(),
         axis.title.x=element_blank(),
         axis.text.y=element_blank(),
