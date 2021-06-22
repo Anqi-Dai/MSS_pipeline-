@@ -48,6 +48,7 @@ vdb_users <- c("peledj",
                "harfordl",
                "jesusfar",
                "crossj",
+               'funnellt',
                "watersn");
 #               "gomesa_cluster");
 

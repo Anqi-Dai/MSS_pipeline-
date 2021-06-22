@@ -215,7 +215,14 @@ for (i in 1:length(scts)){
 }
 ```
 
+
+
+
 ```{r}
+# get the results from the snakemake pipeline that used the qiime2 methods 
+# the protest is a test for significance , but I care more about the sum of squares not a p value 
+
+
 fns_both <- tibble(
   sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
   dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa$', full.names = T)

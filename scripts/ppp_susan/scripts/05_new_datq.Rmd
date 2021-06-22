@@ -1,0 +1,59 @@
+---
+title: "new public data"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fns <- list.files('/Volumes/vandenBrinkLab/Susan/Human GVHD/GLIPH2/publicGVHDJCIinsightsamples/', full.names = T)
+
+tb <- readxl::read_excel('~/Downloads/renaming_public_data.xlsx') %>% 
+  rename(sample_name = names(.)[1],
+         subject = names(.)[2]) %>% 
+  mutate(sample_name = str_replace(sample_name,'\\.tsv',''))
+
+new <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., col_types = cols(.default = "c")) %>% 
+        filter(frame_type == 'In') %>% 
+        select(CDR3b = cdr3_amino_acid,
+               TRBV = v_gene,
+               TRBJ = j_gene,
+               sample_name = sample_name)) %>% 
+  bind_rows() %>% 
+  left_join(tb, by = 'sample_name')
+
+new_ <- new %>%    
+  mutate(CDR3a = "NA") %>% 
+  mutate(`subject:condition` = str_glue('{subject}:{Tissue}')) %>% 
+  select(-sample_name, -subject, -Tissue) %>% 
+  count(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`) %>% 
+  rename(count = n)  %>% 
+  #
+  mutate(TRBV = str_replace(TRBV, 'TCRB.',''),
+         TRBJ = str_replace(TRBJ, 'TCRB.','')) %>% 
+  mutate(TRBV = str_replace(TRBV, '/.+$',''),
+         TRBJ = str_replace(TRBJ, '/.+$','')) %>% 
+  separate(TRBV, into = c('v1','v2'), sep = '-') %>% 
+  separate(TRBJ, into = c('j1','j2'), sep = '-')  %>% 
+  mutate(v1 = str_remove(v1, "^0+"),
+         v2 = str_remove(v2, "^0+"),
+         j1 = str_remove(j1, "^0+"),
+         j2 = str_remove(j2, "^0+")) %>% 
+  mutate(TRBV = if_else(is.na(v1), "NA", as.character(str_glue('TRBV{v1}-{v2}'))),
+         TRBJ = if_else(is.na(j1), "NA", as.character(str_glue('TRBJ{j1}-{j2}'))))  %>% 
+  select(-v1, -v2,-j1, -j2) %>% 
+  select(CDR3b, TRBV, TRBJ, CDR3a, `subject:condition`, count) %>% 
+  mutate(TRBV = if_else(TRBV == 'TRBVunresolved-NA', 'NA', TRBV))
+
+new_ %>% 
+  write_tsv('/Volumes/vandenBrinkLab/Susan/Human GVHD/GLIPH2/publicGVHDJCIinsightsamples_table_cleaned.tsv',  col_names = F)
+```
+

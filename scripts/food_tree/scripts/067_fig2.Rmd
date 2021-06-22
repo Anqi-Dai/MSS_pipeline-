@@ -1,0 +1,32 @@
+---
+title: "Fig 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# a zoom in look at the tree and the fruit group
+
+```{r}
+tree <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv')
+fruit <- tree %>% 
+  mutate(Food.Code  = as.character(Food.Code )) %>% 
+  filter(str_detect(Food.Code , '^6'))
+
+```
+
+# a look at the p2d diet and genera(log)
+
+```{r}
+genera <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  mutate(logrelab = log10(relab + 2*10^-6)) 
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+```
+
