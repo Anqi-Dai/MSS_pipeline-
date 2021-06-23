@@ -1,10 +1,16 @@
 ---
 title: "The model re-done with Bayesian"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
@@ -14,77 +20,51 @@ library(vdbR)
 library(ggpubr)
 ```
 
+## Loading meta data table
+
 ```{r}
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn))
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100)
+
 ```
+## Priors 
+
+### Setting priors
 
 ```{r}
-priors <- c(prior(normal(0, 1), class = 'b'),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_egg"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_fruit"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_grain"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_legume"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_meat"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_milk"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_oils"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_sweets"),
-            prior(normal(0, 0.01), class = 'b', coef = "fg_veggie"),
-            prior(normal(0, 0.2), class = 'b', coef = "TPNTRUE"),
-            prior(normal(0, 0.2), class = 'b', coef = "ENTRUE"),
-            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE"),
-            prior(normal(0, 1), class = 'b', coef = "intensityreduced"),
-            prior(normal(0, 1), class = 'b', coef = "intensityablative"))
-
-model_brm <- brm( log(simpson_reciprocal)~ 
-                fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
-                fg_grain+
-                fg_sweets+  
-                fg_legume+
-                fg_veggie+
-               empirical +  
-               intensity + 
-                TPN +
-                EN +
-               (1 | mrn) +
-                (1 | timebin),  
-              data = meta, 
-              warmup = 1000, iter = 3000, 
-              prior = priors,
-              cores = 16, chains = 2, 
-              seed = 123) 
-
-summary(model_brm)
-
-
-# 
-# get_prior(log(simpson_reciprocal)~ 
-#                 fg_fruit+
-#                fg_meat+
-#                fg_milk+
-#                fg_oils+
-#                 fg_egg+ 
-#                 fg_grain+
-#                 fg_sweets+  
-#                 fg_legume+
-#                 fg_veggie+
-#                empirical +  
-#                intensity + 
-#                 TPN +
-#                 EN +
-#                (1 | mrn) +
-#                 (1 | timebin),  
-#               data = meta)
+priors <- c(prior(normal(0, 0.5), class = 'b'),   
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "empiricalTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(0, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.5), class = 'Intercept'))
 ```
 
+### Draw samples only from the priors
 
 ```{r}
+# samples are drawn solely from the priors ignoring the likelihood
 model_prior <- brm( log(simpson_reciprocal)~ 
                 fg_fruit+
                fg_meat+
@@ -108,51 +88,48 @@ model_prior <- brm( log(simpson_reciprocal)~
               chains = 2, 
               seed = 123, sample_prior = T) 
 
+# look at the priors set for the model
 prior_summary(model_prior)
-samples_prior <- prior_samples(model_prior)
 
-stancode(model_prior)
-# mrns <- meta %>% 
-#   mutate(mrn = as.character(mrn)) %>% 
-#   distinct(mrn) %>% 
-#   pull(mrn) %>% 
-#   set_names(meta %>% 
-#   mutate(mrn = as.character(mrn)) %>% 
-#   distinct(mrn) %>% 
-#   pull(mrn) )
-# 
-# prior__ <- marginal_effects(
-#   model_prior, conditions = mrns, 
-#   re_formula = NULL, method = "predict"
-# )
-# 
-# p0 <- plot(prior__, ncol = 5, points = TRUE, plot = FALSE)
-# p0$dev + ggtitle("Prior predictive distributions")
+# the model in stan code 
+#stancode(model_prior)
+
+# actually draw samples from the priors 
+samples_prior <- prior_samples(model_prior)
 
 #plot(hypothesis(model_prior, "fg_fruit < 0"))
 #plot(hypothesis(model_prior, "empiricalTRUE < 0"))
-```
 
-
-```{r}
 # the mean food group intake from our data 
 mean_fg <- meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean))
 
+# the max fruit intake 
 max_fruit <- max(meta$fg_fruit)
 
+# the min of the fruit intake
+min_fruit <- min(meta$fg_fruit) 
+
+# get the following two 
+# sample prior coefficients and multiply with the mean diet
+# sample prior coefficients and multiply with the mean diet changed so that fruits are the max fruit values
 prior_mean <- samples_prior %>% 
-  mutate(mean_prior = Intercept + b_fg_fruit*mean_fg$fg_fruit +
-           b_fg_meat*mean_fg$fg_meat + b_fg_milk*mean_fg$fg_milk + 
+  mutate(mean_prior = Intercept + 
+           b_fg_fruit*mean_fg$fg_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
            b_fg_oils*mean_fg$fg_oils + 
            b_fg_egg*mean_fg$fg_egg + 
            b_fg_grain*mean_fg$fg_grain +
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
            b_fg_veggie*mean_fg$fg_veggie,
-         max_fruit_prior = Intercept + b_fg_fruit*max_fruit +
-           b_fg_meat*mean_fg$fg_meat + b_fg_milk*mean_fg$fg_milk + 
+         
+         max_fruit_prior = Intercept + 
+           b_fg_fruit*max_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
            b_fg_oils*mean_fg$fg_oils + 
            b_fg_egg*mean_fg$fg_egg + 
            b_fg_grain*mean_fg$fg_grain +
@@ -162,108 +139,110 @@ prior_mean <- samples_prior %>%
   select(mean_prior, max_fruit_prior) %>% 
   gather()
 
+# plot 
 prior_mean %>% 
-  gghistogram(x = 'value', fill = 'key', color = 'white', palette = 'nejm', add_density = TRUE,  rug = TRUE,
-              title = 'Prior predictive check\nred:max fruit with others average;blue:all groups average')
+  gghistogram(x = 'value', fill = 'key', color = 'white', palette = 'nejm', xlab = 'log(diversity)',
+              #add_density = TRUE,  
+              rug = TRUE,
+              title = 'Prior check\nred:max fruit(87) with others average;blue:all groups average(11)')
+```
 
-# sample prior coefficients and multiply with the mean diet
 
+## The full model incorporating the data 
 
-# sample prior coefficients and multiply with the mean diet changed so that fruits are the max fruit values
+```{r}
+model_brm <- brm( log(simpson_reciprocal) ~ 
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               empirical +  
+               intensity + 
+                TPN +
+                EN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = 16, chains = 2, 
+              seed = 123) 
+
+summary(model_brm)
+# 
+# get_prior(log(simpson_reciprocal)~ 
+#                 fg_fruit+
+#                fg_meat+
+#                fg_milk+
+#                fg_oils+
+#                 fg_egg+ 
+#                 fg_grain+
+#                 fg_sweets+  
+#                 fg_legume+
+#                 fg_veggie+
+#                empirical +  
+#                intensity + 
+#                 TPN +
+#                 EN +
+#                (1 | mrn) +
+#                 (1 | timebin),  
+#               data = meta)
+```
+
+### Extract the posterior samples 
+
+```{r}
+# extract posterior samples for the coeff
+post_samples  <- posterior_samples(model_brm, "^b")
+
 # sample posterior coefficients and multiply with the mean diet
 # sample posterior coefficients and multiply with the mean diet changed so that fruits are the max fruit values
+
+post_2 <- post_samples %>% 
+  mutate(mean_post = b_Intercept + 
+           b_fg_fruit*mean_fg$fg_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
+           b_fg_oils*mean_fg$fg_oils + 
+           b_fg_egg*mean_fg$fg_egg + 
+           b_fg_grain*mean_fg$fg_grain +
+           b_fg_sweets*mean_fg$fg_sweets +
+           b_fg_legume*mean_fg$fg_legume +
+           b_fg_veggie*mean_fg$fg_veggie,
+         
+         max_fruit_post = b_Intercept + 
+           b_fg_fruit*max_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
+           b_fg_oils*mean_fg$fg_oils + 
+           b_fg_egg*mean_fg$fg_egg + 
+           b_fg_grain*mean_fg$fg_grain +
+           b_fg_sweets*mean_fg$fg_sweets +
+           b_fg_legume*mean_fg$fg_legume +
+           b_fg_veggie*mean_fg$fg_veggie,
+         
+        min_fruit_post = b_Intercept + 
+           b_fg_fruit*min_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
+           b_fg_oils*mean_fg$fg_oils + 
+           b_fg_egg*mean_fg$fg_egg + 
+           b_fg_grain*mean_fg$fg_grain +
+           b_fg_sweets*mean_fg$fg_sweets +
+           b_fg_legume*mean_fg$fg_legume +
+           b_fg_veggie*mean_fg$fg_veggie ) %>% 
+  select(mean_post, max_fruit_post, min_fruit_post) %>% 
+  gather()
+
+post_2 %>% 
+  gghistogram(x = 'value', fill = 'key', color = 'white', palette = 'lancet', add_density = T,
+              xlab = 'log(diversity)',
+              #add_density = TRUE,  
+              rug = TRUE,
+              title = 'Post check\nmax_fruit(87) with others average;mean_post:all groups average(11)\nmin_fruit:(0)')
 ```
-
-
-
-
-```{r}
-library(magrittr)
-library(dplyr)
-library(purrr)
-library(forcats)
-library(tidyr)
-library(modelr)
-library(ggdist)
-library(tidybayes)
-library(ggplot2)
-library(cowplot)
-library(rstan)
-library(brms)
-library(ggrepel)
-library(RColorBrewer)
-library(gganimate)
-
-theme_set(theme_tidybayes() + panel_border())
-
-rstan_options(auto_write = TRUE)
-options(mc.cores = parallel::detectCores())
-```
-
-
-```{r}
-set.seed(5)
-n = 10
-n_condition = 5
-ABC =
-  tibble(
-    condition = rep(c("A","B","C","D","E"), n),
-    response = rnorm(n * 5, c(0,1,2,1,-1), 0.5)
-  )
-get_prior(response ~ (1|condition), data = ABC)
-
-
-m = brm(
-  response ~ (1|condition), 
-  data = ABC, 
-  prior = c(
-    prior(normal(0, 1), class = Intercept),
-    prior(student_t(3, 0, 1), class = sd),
-    prior(student_t(3, 0, 1), class = sigma)
-  ),
-  control = list(adapt_delta = .99)
-)
-
-summary(m)
-get_variables(m)
-
-m %>%
-  spread_draws(r_condition[condition,term]) %>%
-  head(10)
-```
-```{r}
-library(rstan)
-library(brms)
-library(bayesplot)
-rstan_options(auto_write = TRUE)
-options(mc.cores = parallel::detectCores())
-theme_update(text = element_text(family = "sans"))
-
-library(data.table)
-url <- "https://raw.githubusercontent.com/mages/diesunddas/master/Data/ClarkTriangle.csv"
-loss <- fread(url)
-
-nlform1 <- bf(cum ~ ult * (1 - exp(-(dev/theta)^omega)),
-             ult ~ 1 + (1|AY), omega ~ 1, theta ~ 1, 
-             nl = TRUE)
-m1 <- brm(nlform1, data = loss, family = gaussian(),
-  prior = c(
-    prior(normal(5000, 1000), nlpar = "ult"),
-    prior(normal(1, 2), nlpar = "omega"),
-    prior(normal(45, 10), nlpar = "theta")
-  ),
-  sample_prior = "only", seed = 1234,
-  control = list(adapt_delta = 0.9)
-)
-
-
-conditions <- data.frame(AY = unique(loss$AY))
-rownames(conditions) <- unique(loss$AY)
-me_loss_prior1 <- marginal_effects(
-  m1, conditions = conditions, 
-  re_formula = NULL, method = "predict"
-)
-p0 <- plot(me_loss_prior1, ncol = 5, points = TRUE, plot = FALSE)
-p0$dev + ggtitle("Prior predictive distributions")
-```
-
