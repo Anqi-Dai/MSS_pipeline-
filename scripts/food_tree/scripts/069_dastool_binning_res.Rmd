@@ -1,0 +1,73 @@
+---
+title: "Look at binning results from dastool"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+fns <- list.files('../data/growth/irep/bhatirep/', full.names = T)
+
+irep <- fns %>% 
+  set_names(fns) %>% 
+  purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '_irep.tsv$',''),
+         fn = str_replace(fn, '../data/growth/irep/bhatirep//','')) %>% 
+  separate(fn, into = c('sampleid','samplebin'), sep = '__concat__', remove = T) %>% 
+  mutate(iRep = as.numeric(iRep)) %>% 
+  mutate(samplebin = str_replace(samplebin, '_irep_dastool.tsv','')) %>% 
+  mutate(sbid = str_glue('{sampleid}__{samplebin}'))
+
+tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
+  rename_all(~ gsub("\\.", "_", .)) %>% 
+  filter(bin_quality_call %in% c('2) medium quality','3) high quality Nayfach','4) high quality Bowers'))  %>% 
+  mutate(Sample = str_replace(Sample, '__concat',''),
+         sbid = str_glue('{Sample}__{Bin}')) %>% 
+  inner_join(irep, by  = 'sbid')
+
+```
+
+```{r}
+# meta data of the samples
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+
+selected <- read_csv('../data/growth/shotgun_request_meta_full.csv') %>% 
+  select(sampleid, mrn, sdrt) %>% 
+  mutate(sampleid = str_replace(sampleid, 'FMT\\.','FMT_'))
+
+
+# explore the bins 
+df <- tb %>% 
+  count(sampleid) %>% 
+  left_join(bind_rows(meta %>% select(sampleid, mrn, sdrt), selected) %>% distinct(sampleid, mrn, sdrt), by = "sampleid")
+
+df %>% 
+  ggbarplot(x = 'sdrt', y = 'n', facet.by = 'mrn', label = T)
+```
+```{r}
+# the distribution of the bin numbers in each sample
+tb %>%  
+  count(sampleid) %>% 
+  ggboxplot(y = 'n', add = 'jitter') +
+  theme_pubclean()
+
+# the irep value 
+tb %>% 
+  split(is.na(.$iRep)) %>% 
+  map_dfr(~ nrow(x = .)) %>% 
+  gather() %>% 
+  mutate(perc = round(value/sum(value)*100, 2))
+
+# ignore the NA irep values for now
+dat <- tb %>% 
+  filter(!is.na(iRep))
+```
+
