@@ -69,5 +69,103 @@ tb %>%
 # ignore the NA irep values for now
 dat <- tb %>% 
   filter(!is.na(iRep))
+
+dat %>% 
+  gghistogram(x = 'iRep')
+
+# look at the sample that has the most bins
+most <- dat %>%      
+  filter(sampleid == 'FMT_0217C') %>% 
+  select(sbid, best_species, best_level, iRep)
+
+# look at how many are unclassified 
+dat %>% 
+  split(.$best_species == 'Unclassified') %>% 
+  map_dfr(~ nrow(x = .)) %>% 
+  gather() %>% 
+  mutate(perc = round(value/sum(value)*100, 2))
+
+# look at the best level column
+dat %>% 
+  count(best_level, sort = T)  
+
+best_species <- dat %>% 
+  count(best_species, best_level, sort = T)  
+best_species
+
+Entero <- dat %>% 
+  filter(str_detect(best_species, 'Enterococcus'))
+
+# the 4 samples that have 100% E faecium
+Entero %>% 
+  filter(str_detect(sampleid, '^2142'))
+```
+
+```{r}
+# join with the meta table 
+# there are p2d and d0 diet data
+combined <- dat %>% 
+  inner_join(meta , by = "sampleid") %>% 
+  select(sampleid, iRep, sbid, best_level, best_species, starts_with('fg'), simpson_reciprocal, empirical) %>% 
+  gather('grp', 'gram', fg_egg:fg_veggie)
+
+# some samples don't have diet data 
+combined %>% 
+  distinct(sampleid) %>% 
+  nrow() 
+
+combined %>% 
+  filter(best_species == 'Enterococcus faecium T110') %>% 
+  ggscatter(x = 'simpson_reciprocal', y = 'iRep', facet.by = 'empirical',
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  ggsave('../figs/alpha_Enterococcus_irep.pdf')
+
+combined %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  #filter(iRep < 4) %>% 
+  ggscatter(x = 'gram', y = 'iRep', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  facet_wrap(grp ~ ., scales = 'free')
+ 
+combined %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  #filter(iRep < 4) %>% 
+  ggscatter(x = 'gram', y = 'iRep', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  facet_wrap(grp ~ empirical, scales = 'free')
+
+combined %>% 
+  filter(str_detect(best_species, 'Blautia')) %>% 
+  #filter(iRep < 4) %>% 
+  ggscatter(x = 'gram', y = 'iRep', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  facet_wrap(grp ~ empirical, scales = 'free')
+
+combined %>% 
+  filter(str_detect(best_species, 'Escherichia')) %>% 
+  #filter(iRep < 4) %>% 
+  ggscatter(x = 'gram', y = 'iRep', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  facet_wrap(grp ~ empirical, scales = 'free')
 ```
 
