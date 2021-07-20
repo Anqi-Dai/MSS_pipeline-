@@ -121,19 +121,19 @@ combined %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  ggsave('../figs/alpha_Enterococcus_irep.pdf')
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) 
 
 combined %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
-  #filter(iRep < 4) %>% 
+  filter(iRep < 4) %>% 
   ggscatter(x = 'gram', y = 'iRep', 
           add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ ., scales = 'free')
+  facet_wrap(grp ~ ., scales = 'free') +
+  ggsave('../figs/alpha_Enterococcus_irep_no_abx.pdf', width = 13, height = 10)
  
 combined %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
@@ -144,8 +144,12 @@ combined %>%
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ empirical, scales = 'free')
+  facet_wrap(grp ~ empirical, scales = 'free') +
+  ggsave('../figs/alpha_Enterococcus_irep.pdf', width = 13, height = 10)
+```
 
+
+```{r}
 combined %>% 
   filter(str_detect(best_species, 'Blautia')) %>% 
   #filter(iRep < 4) %>% 
@@ -155,7 +159,7 @@ combined %>%
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ empirical, scales = 'free')
+  facet_wrap(grp ~ empirical, scales = 'free') 
 
 combined %>% 
   filter(str_detect(best_species, 'Escherichia')) %>% 
@@ -167,5 +171,26 @@ combined %>%
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
   facet_wrap(grp ~ empirical, scales = 'free')
+```
+
+```{r}
+# per sample mean of irep
+df <- combined %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(iRep)) %>% 
+  inner_join(meta)
+
+df %>% 
+  gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+  #filter(str_detect(best_species, 'Escherichia')) %>% 
+  #filter(iRep < 4) %>% 
+  ggscatter(x = 'gram', y = 'ave_irep', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  facet_wrap(grp ~ ., scales = 'free') +
+  ggsave('../figs/alpha_Enterococcus_mean_irep.pdf', width = 13, height = 10)
 ```
 
