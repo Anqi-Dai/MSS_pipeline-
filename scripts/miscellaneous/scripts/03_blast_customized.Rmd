@@ -1,0 +1,67 @@
+---
+title: "Blast 2 strains against ASV seqs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+devtools::install_github("mhahsler/rBLAST")
+library(rBLAST)
+library(tidyverse)
+```
+
+## Make customized blast database using the asv sequence of Clostridiales order
+
+Lachnospiraceae is a family of the Clostridiales order.
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('asv_sequences_ag')
+get_table_from_database('asv_annotation_blast_ag')
+```
+
+```{r}
+# the asv key for the order we are collecting
+target_asv <- asv_annotation_blast_ag %>% 
+  filter(ordr == 'Clostridiales')
+
+target_asv_seq <- asv_sequences_ag %>% 
+  filter(asv_key %in% target_asv$asv_key)
+
+# output this to a fasta file with asv_key as the ID
+seqinr::write.fasta(sequences = as.list(target_asv_seq$asv_sequence), 
+              names = target_asv_seq$asv_key,
+              file.out = str_glue('../data/Clostridiales_asv_seq.fasta'))
+
+```
+
+```{bash}
+# make the blast database using the makeblastdb from command line
+makeblastdb -in ../data/Clostridiales_asv_seq.fasta -out Clostridiales_asv_ref -parse_seqids -dbtype nucl
+```
+```{bash}
+blastn -query ../data/Clostridiales\ bacterium_1_7_47FAA.fasta -db Clostridiales_asv_ref  -out results_Clostridiales_bacterium.out
+
+blastn -query ../data/lachnospiraceae_3_1_57FAA.fasta -db Clostridiales_asv_ref  -out results_lachnospiraceae_3_1_57FAA.out
+```
+
+```{r}
+all_asv_seq <- asv_sequences_ag
+
+seqinr::write.fasta(sequences = as.list(all_asv_seq$asv_sequence), 
+              names = all_asv_seq$asv_key,
+              file.out = str_glue('../data/all_asv_seq.fasta'))
+```
+
+```{bash}
+makeblastdb -in ../data/all_asv_seq.fasta -out all_asv_ref -parse_seqids -dbtype nucl
+
+blastn -query ../data/Clostridiales\ bacterium_1_7_47FAA.fasta -db all_asv_ref  -out results_Clostridiales_bacterium_new.out
+```
+
+
+

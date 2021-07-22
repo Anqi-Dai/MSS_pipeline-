@@ -13,6 +13,9 @@ library(ggpubr)
 ```
 
 ```{r}
+# after the dastool, do the drep to de-replicate
+drep <- read_csv('../data/growth/quality_metrics_filtered.csv', col_names = F)
+
 fns <- list.files('../data/growth/irep/bhatirep/', full.names = T)
 
 irep <- fns %>% 
@@ -31,7 +34,9 @@ tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>%
   filter(bin_quality_call %in% c('2) medium quality','3) high quality Nayfach','4) high quality Bowers'))  %>% 
   mutate(Sample = str_replace(Sample, '__concat',''),
          sbid = str_glue('{Sample}__{Bin}')) %>% 
-  inner_join(irep, by  = 'sbid')
+  inner_join(irep, by  = 'sbid') %>% 
+  mutate(drepid = str_glue('{Sample}__concat__{Bin}.fa')) %>% 
+  filter(drepid %in% drep$X1)
 
 ```
 
