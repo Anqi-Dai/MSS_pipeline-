@@ -172,6 +172,14 @@ combined %>%
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
   facet_wrap(grp ~ empirical, scales = 'free') +
   ggsave('../figs/fg_Enterococcus_mean_irep.pdf', width = 13, height = 10)
+
+
+test <- combined %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(iRep)) %>% 
+  inner_join(meta) %>% 
+  gather('grp', 'gram', fg_egg:fg_veggie)
 ```
 
 
@@ -257,10 +265,9 @@ df %>%
 ## the 5 taxa we are interested in
 
 ```{r}
-
 target <- c('Blautia','Enterococcus','Lactobacillus','Rothia','Klebsiella')
-
-target %>% 
+# if including the outlier
+withoutlier <- target %>% 
   set_names(target) %>% 
   imap(function(.x, .y){
     combined %>% 
@@ -275,18 +282,42 @@ target %>%
                add.params = list(color = "blue", fill = "lightgray"), # Customize line
                conf.int = TRUE, # Add confidence interval
                cor.coef = TRUE, # Add correlation coefficient.
-               cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
+               cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
       facet_wrap(grp ~ ., scales = 'free') +
       ggsave(str_glue('../figs/fg_{.y}_irep_no_abx.pdf'), width = 10, height = 7)
-  })
+  }) 
 
+ggarrange(plotlist = withoutlier, nrow = length(target)) +
+  ggsave('../figs/mean_irep_5_genus_scatter_with_outlier.pdf', width = 9, height = 28)
+
+# if not including the outlier
+no_outlier <- target %>% 
+  set_names(target) %>% 
+  imap(function(.x, .y){
+    combined %>% 
+      filter(str_detect(best_species, .x)) %>% 
+      group_by(sampleid) %>% 
+      summarise(ave_irep = mean(iRep)) %>% 
+      inner_join(meta) %>% 
+      gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+      filter(ave_irep < 4) %>% 
+      ggscatter(x = 'gram', y = 'ave_irep', title = .x,
+              add = "reg.line",  # Add regressin line
+               add.params = list(color = "blue", fill = "lightgray"), # Customize line
+               conf.int = TRUE, # Add confidence interval
+               cor.coef = TRUE, # Add correlation coefficient.
+               cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
+      facet_wrap(grp ~ ., scales = 'free') +
+      ggsave(str_glue('../figs/fg_{.y}_irep_no_abx_no_outlier.pdf'), width = 10, height = 7)
+  }) 
+
+ggarrange(plotlist = no_outlier, nrow = length(target)) +
+  ggsave('../figs/mean_irep_5_genus_scatter_No_outlier.pdf', width = 9, height = 28)
+ 
 ```
 
 ```{r}
 # make a table that records the pvalue and the spearman correlation  
-
-
-
 spearman <- target %>% 
   set_names(target) %>% 
   imap(function(.x, .y){
@@ -305,7 +336,38 @@ spearman <- target %>%
       mutate(genus = .y)
   })  %>% 
   bind_rows()
-  
-         
+
+
+spearman_no_outlier <-  target %>% 
+  set_names(target) %>% 
+  imap(function(.x, .y){
+    combined %>% 
+      filter(str_detect(best_species, .x)) %>% 
+      group_by(sampleid) %>% 
+      summarise(ave_irep = mean(iRep)) %>% 
+      inner_join(meta, by = "sampleid") %>% 
+      gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+      filter(ave_irep < 4) %>% 
+      split(.$grp) %>% 
+      map(function(df){
+        res = cor.test(df$ave_irep, df$gram, method = 'spearman', exact = F)
+        return(list(pval = res$p.value, rho = res$estimate))
+      }) %>% 
+      bind_rows(.id = 'grp') %>% 
+      mutate(genus = .y)
+  })  %>% 
+  bind_rows() 
+
+both <- bind_rows(
+  spearman_no_outlier %>% mutate(condition = 'no_outlier'),
+  spearman %>% mutate(condition = 'yes_outlier')
+)
+
+both %>% 
+  write_csv('../data/growth/mean_irep_fg_spearman_table.csv')
+
+sig <- both %>% 
+  filter(pval < 0.05)
+
 ```
 
