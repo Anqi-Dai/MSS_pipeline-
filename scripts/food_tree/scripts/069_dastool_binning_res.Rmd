@@ -14,8 +14,24 @@ library(ggpubr)
 
 ```{r}
 # after the dastool, do the drep to de-replicate
-drep <- read_csv('../data/growth/quality_metrics_filtered.csv', col_names = F)
+drep <- read_delim('../data/growth/bhatpipeline/all_derepliated_genomes.txt', col_names = F, delim = ' ') %>% 
+  select(X9) %>% 
+  separate(X9, into = c('Sample','bin'), remove = F, sep = '__concat__')
 
+all <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
+  rename_all(~ gsub("\\.", "_", .)) %>% 
+  mutate(genome = str_glue('{Sample}__concat__{Bin}.fa')) 
+
+df <- all %>% 
+  count(Sample) %>% 
+  mutate(Sample = str_replace(Sample, '__concat','')) %>% 
+  left_join(drep %>% count(Sample) %>% rename(drepn = n))
+
+
+```
+
+
+```{r}
 fns <- list.files('../data/growth/irep/bhatirep/', full.names = T)
 
 irep <- fns %>% 
@@ -35,8 +51,8 @@ tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>%
   mutate(Sample = str_replace(Sample, '__concat',''),
          sbid = str_glue('{Sample}__{Bin}')) %>% 
   inner_join(irep, by  = 'sbid') %>% 
-  mutate(drepid = str_glue('{Sample}__concat__{Bin}.fa')) %>% 
-  filter(drepid %in% drep$X1)
+  distinct(Sample, best_species, .keep_all = T)
+  
 
 ```
 
@@ -111,7 +127,7 @@ Entero %>%
 # there are p2d and d0 diet data
 combined <- dat %>% 
   inner_join(meta , by = "sampleid") %>% 
-  select(sampleid, iRep, sbid, best_level, best_species, starts_with('fg'), simpson_reciprocal, empirical) %>% 
+  select(sampleid, iRep, sbid, mrn, best_level, best_species, starts_with('fg'), simpson_reciprocal, empirical) %>% 
   gather('grp', 'gram', fg_egg:fg_veggie)
 
 # some samples don't have diet data 
@@ -119,64 +135,41 @@ combined %>%
   distinct(sampleid) %>% 
   nrow() 
 
-combined %>% 
-  filter(best_species == 'Enterococcus faecium T110') %>% 
-  ggscatter(x = 'simpson_reciprocal', y = 'iRep', facet.by = 'empirical',
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) 
+
 
 combined %>% 
-  filter(str_detect(best_species, 'Enterococcus')) %>% 
-  filter(iRep < 4) %>% 
-  ggscatter(x = 'gram', y = 'iRep', 
+  filter(str_detect(best_species, 'Blautia')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(iRep)) %>% 
+  inner_join(meta) %>% 
+  gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+  #filter(iRep < 4) %>% 
+  ggscatter(x = 'gram', y = 'ave_irep', 
           add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
   facet_wrap(grp ~ ., scales = 'free') +
-  ggsave('../figs/alpha_Enterococcus_irep_no_abx.pdf', width = 13, height = 10)
+  ggsave('../figs/alpha_Blautia_irep_no_abx.pdf', width = 13, height = 10)
  
 combined %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
-  #filter(iRep < 4) %>% 
-  ggscatter(x = 'gram', y = 'iRep', 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(iRep)) %>% 
+  inner_join(meta) %>% 
+  gather('grp', 'gram', fg_egg:fg_veggie) %>%
+  filter(ave_irep < 4) %>% 
+  ggscatter(x = 'gram', y = 'ave_irep', 
           add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
   facet_wrap(grp ~ empirical, scales = 'free') +
-  ggsave('../figs/alpha_Enterococcus_irep.pdf', width = 13, height = 10)
+  ggsave('../figs/fg_Enterococcus_mean_irep.pdf', width = 13, height = 10)
 ```
 
-
-```{r}
-combined %>% 
-  filter(str_detect(best_species, 'Blautia')) %>% 
-  #filter(iRep < 4) %>% 
-  ggscatter(x = 'gram', y = 'iRep', 
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ empirical, scales = 'free') 
-
-combined %>% 
-  filter(str_detect(best_species, 'Escherichia')) %>% 
-  #filter(iRep < 4) %>% 
-  ggscatter(x = 'gram', y = 'iRep', 
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ empirical, scales = 'free')
-```
 
 ```{r}
 # per sample mean of irep
@@ -196,6 +189,67 @@ df %>%
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
   facet_wrap(grp ~ ., scales = 'free') +
-  ggsave('../figs/alpha_Enterococcus_mean_irep.pdf', width = 13, height = 10)
+  ggsave('../figs/food_group_mean_irep.pdf', width = 13, height = 10)
+
+# milk fruit sweets and veggie be positively linked with mean irep
+# what's driving?
+```
+```{r}
+# to look at samples with mean irep > 1.45
+look <- df %>% 
+  filter(ave_irep > median(df$ave_irep)) %>% 
+  pull(sampleid)
+
+# the distribution of the mean irep
+summary(df$ave_irep)
+
+look_df <- combined %>% 
+  filter(sampleid %in% look) %>% 
+  filter(best_species != 'Unclassified') %>% 
+  mutate(shortname = str_sub(best_species, 1,5)) 
+  
+library(randomcoloR)
+n <- 14
+palette <- distinctColorPalette(n)
+pie(rep(1, n), col=palette)
+
+colors <- look_df %>% 
+  count(shortname, sort = T) %>% 
+  mutate(color = c(palette, rep('gray', 33)))
+
+look_df_ <- look_df %>% 
+  left_join(colors %>% 
+              select(shortname, color))
+
+look_df %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  count(mrn, sort = T)
+
+look_df %>% 
+  split(.$mrn) %>% 
+  map(~ ggdotchart(data = ., x = 'best_species', y = 'iRep', sorting = 'descending') +
+        geom_hline(yintercept = median(df$ave_irep))) 
+
+
+look_df_ %>% 
+  filter(iRep  > median(df$ave_irep)) %>% 
+  filter(grp %in% c('fg_milk','fg_fruit','fg_sweets','fg_veggie')) %>% 
+  split(.$mrn) %>% 
+  map(~ ggscatter(data = ., x = 'gram', y = 'iRep', facet.by = 'grp', label = 'shortname', repel = T, color = 'shortname') +
+        geom_hline(yintercept = median(df$ave_irep))+
+        scale_color_manual(values=colors$color, labels = colors$shortname))
 ```
 
+
+```{r}
+look_df_ %>% 
+  filter(iRep  > median(df$ave_irep)) %>% 
+  filter(grp %in% c('fg_milk','fg_fruit','fg_sweets','fg_veggie')) %>% 
+  ggscatter(x = 'gram', y = 'iRep', facet.by = 'grp', color = 'shortname') +
+        geom_hline(yintercept = median(df$ave_irep)) +
+  scale_color_manual(values=colors$color, labels = colors$shortname)
+
+
+
+
+```
