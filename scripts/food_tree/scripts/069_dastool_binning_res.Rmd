@@ -127,16 +127,20 @@ Entero %>%
 # there are p2d and d0 diet data
 combined <- dat %>% 
   inner_join(meta , by = "sampleid") %>% 
-  select(sampleid, iRep, sbid, mrn, best_level, best_species, starts_with('fg'), simpson_reciprocal, empirical) %>% 
-  gather('grp', 'gram', fg_egg:fg_veggie)
+  select(sampleid, iRep, sbid, mrn, best_level, best_species, starts_with('fg'), simpson_reciprocal, empirical)
 
 # some samples don't have diet data 
 combined %>% 
   distinct(sampleid) %>% 
-  nrow() 
+  nrow()
+
+combined %>% 
+  select(-mrn) %>% 
+  write_csv('../data/growth/irep_with_diet_for_jonas.csv')
+```
 
 
-
+```{r}
 combined %>% 
   filter(str_detect(best_species, 'Blautia')) %>% 
   group_by(sampleid) %>% 
@@ -196,60 +200,112 @@ df %>%
 ```
 ```{r}
 # to look at samples with mean irep > 1.45
-look <- df %>% 
-  filter(ave_irep > median(df$ave_irep)) %>% 
-  pull(sampleid)
-
-# the distribution of the mean irep
-summary(df$ave_irep)
-
-look_df <- combined %>% 
-  filter(sampleid %in% look) %>% 
-  filter(best_species != 'Unclassified') %>% 
-  mutate(shortname = str_sub(best_species, 1,5)) 
-  
-library(randomcoloR)
-n <- 14
-palette <- distinctColorPalette(n)
-pie(rep(1, n), col=palette)
-
-colors <- look_df %>% 
-  count(shortname, sort = T) %>% 
-  mutate(color = c(palette, rep('gray', 33)))
-
-look_df_ <- look_df %>% 
-  left_join(colors %>% 
-              select(shortname, color))
-
-look_df %>% 
-  distinct(sampleid, .keep_all = T) %>% 
-  count(mrn, sort = T)
-
-look_df %>% 
-  split(.$mrn) %>% 
-  map(~ ggdotchart(data = ., x = 'best_species', y = 'iRep', sorting = 'descending') +
-        geom_hline(yintercept = median(df$ave_irep))) 
-
-
-look_df_ %>% 
-  filter(iRep  > median(df$ave_irep)) %>% 
-  filter(grp %in% c('fg_milk','fg_fruit','fg_sweets','fg_veggie')) %>% 
-  split(.$mrn) %>% 
-  map(~ ggscatter(data = ., x = 'gram', y = 'iRep', facet.by = 'grp', label = 'shortname', repel = T, color = 'shortname') +
-        geom_hline(yintercept = median(df$ave_irep))+
-        scale_color_manual(values=colors$color, labels = colors$shortname))
+# look <- df %>% 
+#   filter(ave_irep > median(df$ave_irep)) %>% 
+#   pull(sampleid)
+# 
+# # the distribution of the mean irep
+# summary(df$ave_irep)
+# 
+# look_df <- combined %>% 
+#   filter(sampleid %in% look) %>% 
+#   filter(best_species != 'Unclassified') %>% 
+#   mutate(shortname = str_sub(best_species, 1,5)) 
+#   
+# library(randomcoloR)
+# n <- 14
+# palette <- distinctColorPalette(n)
+# pie(rep(1, n), col=palette)
+# 
+# colors <- look_df %>% 
+#   count(shortname, sort = T) %>% 
+#   mutate(color = c(palette, rep('gray', 33)))
+# 
+# look_df_ <- look_df %>% 
+#   left_join(colors %>% 
+#               select(shortname, color))
+# 
+# look_df %>% 
+#   distinct(sampleid, .keep_all = T) %>% 
+#   count(mrn, sort = T)
+# 
+# look_df %>% 
+#   split(.$mrn) %>% 
+#   map(~ ggdotchart(data = ., x = 'best_species', y = 'iRep', sorting = 'descending') +
+#         geom_hline(yintercept = median(df$ave_irep))) 
+# 
+# 
+# look_df_ %>% 
+#   filter(iRep  > median(df$ave_irep)) %>% 
+#   filter(grp %in% c('fg_milk','fg_fruit','fg_sweets','fg_veggie')) %>% 
+#   split(.$mrn) %>% 
+#   map(~ ggscatter(data = ., x = 'gram', y = 'iRep', facet.by = 'grp', label = 'shortname', repel = T, color = 'shortname') +
+#         geom_hline(yintercept = median(df$ave_irep))+
+#         scale_color_manual(values=colors$color, labels = colors$shortname))
 ```
-
 
 ```{r}
-look_df_ %>% 
-  filter(iRep  > median(df$ave_irep)) %>% 
-  filter(grp %in% c('fg_milk','fg_fruit','fg_sweets','fg_veggie')) %>% 
-  ggscatter(x = 'gram', y = 'iRep', facet.by = 'grp', color = 'shortname') +
-        geom_hline(yintercept = median(df$ave_irep)) +
-  scale_color_manual(values=colors$color, labels = colors$shortname)
+# look_df_ %>% 
+#   filter(iRep  > median(df$ave_irep)) %>% 
+#   filter(grp %in% c('fg_milk','fg_fruit','fg_sweets','fg_veggie')) %>% 
+#   ggscatter(x = 'gram', y = 'iRep', facet.by = 'grp', color = 'shortname') +
+#         geom_hline(yintercept = median(df$ave_irep)) +
+#   scale_color_manual(values=colors$color, labels = colors$shortname)
+```
 
 
+## the 5 taxa we are interested in
 
+```{r}
+
+target <- c('Blautia','Enterococcus','Lactobacillus','Rothia','Klebsiella')
+
+target %>% 
+  set_names(target) %>% 
+  imap(function(.x, .y){
+    combined %>% 
+      filter(str_detect(best_species, .x)) %>% 
+      group_by(sampleid) %>% 
+      summarise(ave_irep = mean(iRep)) %>% 
+      inner_join(meta) %>% 
+      gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+      #filter(iRep < 4) %>% 
+      ggscatter(x = 'gram', y = 'ave_irep', title = .x,
+              add = "reg.line",  # Add regressin line
+               add.params = list(color = "blue", fill = "lightgray"), # Customize line
+               conf.int = TRUE, # Add confidence interval
+               cor.coef = TRUE, # Add correlation coefficient.
+               cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
+      facet_wrap(grp ~ ., scales = 'free') +
+      ggsave(str_glue('../figs/fg_{.y}_irep_no_abx.pdf'), width = 10, height = 7)
+  })
 
 ```
+
+```{r}
+# make a table that records the pvalue and the spearman correlation  
+
+
+
+spearman <- target %>% 
+  set_names(target) %>% 
+  imap(function(.x, .y){
+    combined %>% 
+      filter(str_detect(best_species, .x)) %>% 
+      group_by(sampleid) %>% 
+      summarise(ave_irep = mean(iRep)) %>% 
+      inner_join(meta, by = "sampleid") %>% 
+      gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+      split(.$grp) %>% 
+      map(function(df){
+        res = cor.test(df$ave_irep, df$gram, method = 'spearman', exact = F)
+        return(list(pval = res$p.value, rho = res$estimate))
+      }) %>% 
+      bind_rows(.id = 'grp') %>% 
+      mutate(genus = .y)
+  })  %>% 
+  bind_rows()
+  
+         
+```
+
