@@ -34,7 +34,8 @@ dtb1 %>%
 
 ```{r}
 # use the dtb with EN data also 
-DTB <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_W_EN.csv')
+# updated 2021-7-29 since in 2020-10 the dtb changed 
+DTB <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 
 
 fcts <-  DTB %>% 

@@ -113,16 +113,16 @@ g <- plot_grid(fg, stool,  stool_empirical,
 
 ```{r}
 # the unifrac pcoa colored by fruit consumption
-source('~/db_connect_simple.R')
+library(vdbR)
 connect_database(config_file = '~/dbConfig.txt')
-get_table_from_database_predefined_filter('asv_counts_ag') 
-ANNOT <- get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_counts_ag') 
+get_table_from_database('asv_annotation_blast_ag')
 
 cts <- asv_counts_ag %>% 
   filter(sampleid %in% meta$sampleid) %>% 
   select(asv_key, sampleid, count) 
 
-annot <- ANNOT %>% 
+annot <- asv_annotation_blast_ag %>% 
   filter(asv_key %in% cts$asv_key) %>% 
   mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
          family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
@@ -179,7 +179,7 @@ cts_genus_fil_pcoa %>%
 
 ## Just stack the diet alpha and stool alpha together 
 
-Tho the diet table values changed, the foods did not change, so the diet faith alpha should not change.
+Tho the diet table values changed, the foods did not change, so the diet faith alpha should not change. 
 
 ```{r d_alpha}
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
@@ -224,27 +224,44 @@ stool_alpha <- meta %>%
   xlim(-10, 50) +
   scale_x_continuous(breaks = seq(-10, 50, 10))
   
-
-cal_ <- meta %>% 
-  mutate(log_div = log(simpson_reciprocal)) %>% 
-  ggscatter(x = 'sdrt', y = 'ave_cal', alpha = 0.8, 
-            xlab = 'Day relative to transplant',
-            ylab = 'Caloric intake',
-            add = "loess", color = 'maroon',
-            add.params = list(color = "darkgray", fill = "darkgray", size = 2), 
-            conf.int = TRUE) +
-  xlim(-10, 50) +
-  scale_x_continuous(breaks = seq(-10, 50, 10))
-
-# combine them
-alpha <- plot_grid(cal_, diet_alpha, stool_alpha, 
-          nrow = 3, 
-          align = 'hv',
-          rel_heights = c(1,1),
-          axis = 'b')  +
-  ggsave('../figs/alhpa_ch.pdf', width = 4, height = 6)
-alpha 
+# 
+# cal_ <- meta %>% 
+#   mutate(log_div = log(simpson_reciprocal)) %>% 
+#   ggscatter(x = 'sdrt', y = 'ave_cal', alpha = 0.8, 
+#             xlab = 'Day relative to transplant',
+#             ylab = 'Caloric intake',
+#             add = "loess", color = 'maroon',
+#             add.params = list(color = "darkgray", fill = "darkgray", size = 2), 
+#             conf.int = TRUE) +
+#   xlim(-10, 50) +
+#   scale_x_continuous(breaks = seq(-10, 50, 10))
+# 
+# # combine them
+# alpha <- plot_grid(cal_, diet_alpha, stool_alpha, 
+#           nrow = 3, 
+#           align = 'hv',
+#           rel_heights = c(1,1),
+#           axis = 'b')  +
+#   ggsave('../figs/alhpa_ch.pdf', width = 4, height = 6)
+# alpha 
 ```
+
+
+```{r}
+# need to re-calcualte the beta diversity for the food
+# need to re-generate the counts for the food code data 
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  transmute(fsampleid = str_glue('{mrn}d{fdrt}'),
+            dehydrated_weight = dehydrated_weight,
+            Food_code = Food_code) %>% 
+  group_by(fsampleid, Food_code) %>% 
+  summarise(total = sum(dehydrated_weight)) %>% 
+  spread(key = 'fsampleid', value = 'total', fill = 0)
+
+dtb %>% 
+  write_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix_UPDATED.tsv')
+```
+
 
 ```{r}
 # the beta diversity colored with alpha diversity for the diet 
@@ -265,9 +282,10 @@ pcoa_f <- as.data.frame(ape::pcoa(food_dist)$vectors) %>%
 beta_viz <- pcoa_f %>% 
   mutate(mrn = as.numeric(mrn)) %>% 
   full_join(faith)
+```
 
 
-
+```{r}
 beta_diet <- beta_viz %>% 
   arrange(faith_pd) %>% 
   mutate(logfaith = log(faith_pd)) %>% 
@@ -276,11 +294,15 @@ beta_diet <- beta_viz %>%
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme_classic() +
-  labs(title = 'Diet data beta diversity (unweighted UniFrac)') + 
+  labs(title = 'Nutrition Composition Ordination\n(unweighted UniFrac)') + 
   #theme(legend.position = 'none') +
   scale_color_gradient2(midpoint = mid, low = "black", mid = "cornflowerblue",
-                            high = "red", space = "Lab", name = 'Diet\nalpha\ndiversity' ) +
-  theme(legend.position = c(.95,.3))
+                            high = "red", space = "Lab", name = 'Nutrional alpha\ndiversity' ) +
+  theme(legend.position = c(1.2,.25),
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        plot.title = element_text(size=14, face = 'bold', hjust = 0.6)) + 
+  coord_fixed(ratio=1)
 beta_diet
 
 ```
@@ -392,8 +414,11 @@ top <- plot_grid(diet_alpha, beta_diet,
           align = 'hv',
           #rel_heights = c(1,1),
           labels = "AUTO",
-          axis = 'br') 
+          axis = 'br')
+```
 
+
+```{r assemble}
 bottom <-  plot_grid(pos_interval,
           nrow = 1, 
           labels = "C",
