@@ -195,17 +195,24 @@ diet_alpha <- faith %>%
              alpha = 0.8,
             color = 'faith_pd',
             #size = 1,
-            ylab = 'Diet alpha diversity', 
+            ylab = "Diet alpha diversity\n(Faith's phylogenetic index)", 
             xlab = 'Day relative to transplant',
-            title = 'Diet data alpha diversity',
+            title = 'Nutritional alpha diversity',
             add = "loess", 
             add.params = list(color = "lightsteelblue4", fill = "darkgray", size = 2), 
             conf.int = TRUE) +
-  xlim(-10, 50)+
-  scale_x_continuous(breaks = seq(-10, 50, 10)) +
+  #xlim(-10, 50)+
+  #scale_x_continuous(breaks = seq(-10, 50, 10)) +
   scale_color_gradient2(midpoint = mid, low = "black", mid = "cornflowerblue",
                             high = "red", space = "Lab", name = 'Diet\nalpha\ndiversity' )+
-  theme(legend.position = c(20,2000))
+  theme(legend.position = 'none') +
+  theme(
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        plot.title = element_text(size=14, 
+                                  hjust = 0.5, 
+                                  face = 'bold')) + 
+  theme(aspect.ratio=1)
 diet_alpha
 ```
 
@@ -294,7 +301,7 @@ beta_diet <- beta_viz %>%
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme_classic() +
-  labs(title = 'Nutrition Composition Ordination\n(unweighted UniFrac)') + 
+  labs(title = 'Nutrition composition ordination\n(unweighted UniFrac)') + 
   #theme(legend.position = 'none') +
   scale_color_gradient2(midpoint = mid, low = "black", mid = "cornflowerblue",
                             high = "red", space = "Lab", name = 'Nutrional alpha\ndiversity' ) +
