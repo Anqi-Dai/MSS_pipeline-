@@ -1,0 +1,65 @@
+---
+title: "Updated forest plot"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+Following 068_model_with_bayesian
+
+```{r}
+nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description) 
+  
+```
+
+```{r}
+res <- read_csv('../data/brms_model_var_res_updated.csv') %>% 
+  group_by(item, meanperitem) %>% 
+  summarise(q2.5 = quantile(value, probs = 0.025),
+            q97.5 = quantile(value, probs = 0.975)) %>% 
+  filter(str_detect(item, '_fg_')) %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(nodes) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 35, indent = 2, exdent = 0)) %>% 
+  ungroup() %>% 
+  arrange(meanperitem)  %>% 
+  mutate(fdesc = str_replace(fdesc, 'and','&'))
+
+# no need to times 100 since the original fg intake already divided by 100
+res %>%  
+  arrange(meanperitem) %>% 
+  ggscatter(x = 'fdesc', y = 'meanperitem', color = 'red', size = 3,
+            ylab = 'Regression coefficients',
+            title = 'Multivariate mixed-effect model of fecal diversity as a function of food\n(Controlling for clinical variables, time, and antibiotic exposure)',
+            xlab = 'High-level food categories\n(FNDDS)') +
+  geom_errorbar(aes(ymin  = q2.5,ymax  = q97.5),width = 0.3, size  = 0.7,
+                position = "dodge", color="black") +
+  geom_point(aes(x = fdesc, y = meanperitem), color = 'red', size = 3) +
+  geom_hline(yintercept = 0, col = "red",   size = 1) +
+  #scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
+  coord_flip()+
+  ggsave('../figs/bayesian_confidence_95.pdf', width = 8, height = 5)
+```
+

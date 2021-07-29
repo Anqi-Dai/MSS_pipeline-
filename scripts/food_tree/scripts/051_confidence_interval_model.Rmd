@@ -49,7 +49,7 @@ res_fg <- res %>%
 res_fg
 ```
 
-
+ 
 ```{r}
 res_fg_interval <- res_fg %>%  
   mutate(q2.5 = 100*q2.5,

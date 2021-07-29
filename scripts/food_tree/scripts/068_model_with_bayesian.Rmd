@@ -175,6 +175,19 @@ model_brm <- brm( log(simpson_reciprocal) ~
               seed = 123) 
 
 summary(model_brm)
+
+
+# extract the coefficients table
+posterior_model <- posterior_samples(model_brm) %>% 
+  select(starts_with('b')) %>% 
+  #select(-b_Intercept) %>% 
+  gather('item', 'value') %>% 
+  group_by(item) %>% 
+  mutate(meanperitem = mean(value))%>%
+  ungroup() 
+
+posterior_model %>% 
+  write_csv('../data/brms_model_var_res_updated.csv')
 # 
 # get_prior(log(simpson_reciprocal)~ 
 #                 fg_fruit+
