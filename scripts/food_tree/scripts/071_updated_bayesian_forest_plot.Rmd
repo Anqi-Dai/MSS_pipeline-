@@ -14,6 +14,77 @@ library(ggpubr)
 
 Following 068_model_with_bayesian
 
+# sugar content in each food group
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+# make modifications for the abstract
+# calculate the sugar percentage in each food group using dtb
+sugar_perc_all <- dtb %>% 
+  select(Food_code, ends_with('_g')) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  select(-Food_code) %>% 
+  gather('type', 'gram', Protein_g:Sodium_g) 
+
+sugar_perc_total <- sugar_perc_all  %>% 
+  group_by(fgrp1) %>% 
+  summarise(total = sum(gram))
+
+sugar_perc_sugar <- sugar_perc_all  %>% 
+  filter(type == 'Sugars_g') %>% 
+  group_by(fgrp1) %>% 
+  summarise(total_sugar = sum(gram))
+
+sugar_df <- sugar_perc_total %>% 
+  full_join(sugar_perc_sugar) %>% 
+  mutate(sugar_frac = total_sugar/total) %>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets',
+    fgrp1 == 'N' ~ 'fg_ndrink',
+    fgrp1 == 'E' ~ 'fg_EN'
+  )) %>% 
+  mutate(sugar_perc = round(sugar_frac*100, 1)) %>% 
+  mutate(sugar_perc = str_glue('{sugar_perc}%')) %>% 
+  mutate(fg1_name = str_replace(fg1_name, 'fg_',''))
+```
+
+# patient exposed 
+
+```{r}
+# what % of patients out of the 97 had any amount of that food group?
+
+pt_perc <- dtb %>% 
+  select(mrn, Food_code) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  distinct(mrn, fgrp1) %>% 
+  count(fgrp1) %>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets',
+    fgrp1 == 'N' ~ 'fg_ndrink',
+    fgrp1 == 'E' ~ 'fg_EN'
+  )) %>% 
+  mutate(fg1_name = str_replace(fg1_name, 'fg_','')) %>% 
+  mutate(pt_perc = round(n/97*100, 1)) %>% 
+  mutate(pt_perc = str_glue('{pt_perc}%')) 
+```
+
+
 ```{r}
 nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
   filter(nchar(Level.code) == 1) %>% 
@@ -45,7 +116,9 @@ res <- read_csv('../data/brms_model_var_res_updated.csv') %>%
   mutate(fdesc = str_wrap(fdesc, width = 35, indent = 2, exdent = 0)) %>% 
   ungroup() %>% 
   arrange(meanperitem)  %>% 
-  mutate(fdesc = str_replace(fdesc, 'and','&'))
+  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
+  full_join(sugar_df %>% select(item = fg1_name, sugar_perc)) %>% 
+  full_join(pt_perc %>% select(item = fg1_name, pt_perc)) 
 
 # no need to times 100 since the original fg intake already divided by 100
 res %>%  
@@ -58,8 +131,15 @@ res %>%
                 position = "dodge", color="black") +
   geom_point(aes(x = fdesc, y = meanperitem), color = 'red', size = 3) +
   geom_hline(yintercept = 0, col = "red",   size = 1) +
-  #scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
+  geom_text(aes(x = fdesc, y = -1.8, label = sugar_perc)) +
+  geom_text(aes(x = fdesc[9], y = -1.8, label = 'Sugar\ncontent'), nudge_x = +0.8) +
+  geom_text(aes(x = fdesc, y = -1.2, label = pt_perc)) +
+  geom_text(aes(x = fdesc[9], y = -1.2, label = 'Patients\nexposed'), nudge_x = +0.8) +
   coord_flip()+
+  theme(axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        axis.title.x =element_text(hjust = 0.6),
+        plot.title = element_text(size=14, face = 'bold', hjust = 2)) +
+  ylim(-2, 1.5) +
   ggsave('../figs/bayesian_confidence_95.pdf', width = 8, height = 5)
 ```
-
