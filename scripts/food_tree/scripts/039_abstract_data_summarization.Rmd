@@ -33,151 +33,8 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
 
 ## visualize the p2d meta with drt
 
-```{r}
-library(randomcoloR)
-set.seed(112)
-n <- 10
-palette <- distinctColorPalette(n)
-#pie(rep(1, n), col=palette)
 
-
-# without EN
-fg <- meta %>% 
-  select(sdrt, starts_with('fg')) %>% 
-  #select(-fg_EN) %>% 
-  gather('term', 'value', names(.)[2]:names(.)[ncol(.)]) %>% 
-  ggscatter(x = 'sdrt',y = 'value', color = 'term',palette ='lancet',  alpha = 0.3,
-            add = "loess", add.params = list(size = 3),
-            xlab = '', ylab = 'Gram weight') + 
-  scale_y_sqrt() +
-  theme(legend.position = 'none') +
-  facet_wrap(~term, scales = 'free') +
-  ggsave('../figs/p2d_meta_fg_sdrt.pdf', width = 10, height = 6)
-
-fg
-# with EN
-# palette11 <- distinctColorPalette(11)
-# meta %>% 
-#   select(sdrt, starts_with('fg')) %>% 
-#   #select(-fg_EN) %>% 
-#   gather('term', 'value', names(.)[2]:names(.)[ncol(.)]) %>% 
-#   ggscatter(x = 'sdrt',y = 'value', color = 'term', palette = palette11, alpha = 0.3,
-#             add = "loess", add.params = list(size = 3),
-#             #xlab = 'Day relative to transplant', 
-#             ylab = 'Gram weight') + 
-#   scale_y_sqrt() +
-#   ggsave('../figs/p2d_meta_fg_sdrt_with_EN.pdf', width = 9, height = 9)
-
-```
-
-```{r}
-# the stool diversity change over time
-stool <- meta %>% 
-  mutate(log_div = log(simpson_reciprocal)) %>% 
-  ggscatter(x = 'sdrt', y = 'log_div', alpha = 0.3, color = 'intensity',xlab = '',
-            ylab = 'log(diversity)',
-            add = 'loess', add.params = list(size = 3)) + ggsci::scale_color_uchicago()+
-  theme(legend.position = 'right')
-stool
-```
-
-
-```{r}
-stool_empirical <-   meta %>% 
-  mutate(log_div = log(simpson_reciprocal)) %>% 
-  ggscatter(x = 'sdrt', y = 'log_div', alpha = 0.3, color = 'empirical', xlab = 'Day relative to transplant',
-            ylab = 'log(diversity)',
-            add = 'loess', add.params = list(size = 3)) + ggsci::scale_color_startrek() +
-  theme(legend.position = 'right')
-
-stool_empirical 
-```
-
-
-### combine plots
-
-```{r}
-library(grid)
-library(cowplot)
-g <- plot_grid(fg, stool,  stool_empirical, 
-          nrow = 3, 
-          align = 'hv',
-          rel_heights = c(5, 2, 2),
-          axis = 'b') +
-  ggsave('../figs/p2d_meta_fg_sdrt_combined.pdf', width = 8, height = 8)
-
-
-```
-
-## color the stool beta with stool alpha
-
-```{r}
-# the unifrac pcoa colored by fruit consumption
-library(vdbR)
-connect_database(config_file = '~/dbConfig.txt')
-get_table_from_database('asv_counts_ag') 
-get_table_from_database('asv_annotation_blast_ag')
-
-cts <- asv_counts_ag %>% 
-  filter(sampleid %in% meta$sampleid) %>% 
-  select(asv_key, sampleid, count) 
-
-annot <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% cts$asv_key) %>% 
-  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
-         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
-         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
-         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) %>% 
-  mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
-
-cts_genus <- cts %>% 
-  left_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
-  select(-asv_key) %>% 
-  group_by(sampleid, taxa_genus) %>% 
-  summarise(cnt = sum(count)) %>% 
-  # get the total count from the db to calculate the relab
-  left_join(asv_counts_ag %>% distinct(sampleid,count_total ), by = 'sampleid') %>% 
-  mutate(relab = cnt/count_total) %>% 
-  select(sampleid, taxa_genus, relab) 
-
-cts_ma <- cts_genus %>% 
-  spread(key = 'sampleid', value = 'relab', fill = 0) %>% 
-  column_to_rownames('taxa_genus') %>% 
-  as.matrix()
-
-num_thre <- floor(ncol(cts_ma) * 0.1)
-
-cts_ma_fil <- cts_ma[rowSums(cts_ma >= 0.0001) >= num_thre, ]
-
-# for vegan distance the sampleid needs to be in the rowname
-cts_genus_fil <- cts_ma_fil %>% 
-  as.data.frame() %>% 
-  rownames_to_column('taxa_genus') %>% 
-  gather('sampleid', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
-  spread(key = 'taxa_genus', value = 'relab') %>% 
-  column_to_rownames('sampleid')
-
-library(vegan)
-cts_genus_fil_dist <- vegdist(cts_genus_fil, method = 'bray')
-
-cts_genus_fil_pcoa <- cmdscale(cts_genus_fil_dist, k = 2) 
-
-cts_genus_fil_pcoa %>% 
-    as.data.frame() %>% 
-    rownames_to_column('sampleid') %>% 
-    full_join(meta, by = 'sampleid') %>% 
-    ggscatter(x = 'V1', y = 'V2', color =  'simpson_reciprocal', alpha = 0.3) +
-    scale_color_viridis() +
-    labs(x = 'PCo 1', y = 'PCo 2', title = '') 
-
-# ok forget about it the pattern isn't as clear as when I do coloring the diet beta with diet alpha
-```
-
-
-
-
-
-## Just stack the diet alpha and stool alpha together 
+## 
 
 Tho the diet table values changed, the foods did not change, so the diet faith alpha should not change. 
 
@@ -192,7 +49,7 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
 mid <- mean(faith$faith_pd)
 diet_alpha <- faith %>% 
   ggscatter('fdrt', 'faith_pd', 
-             alpha = 0.8,
+             alpha = 0.5,
             color = 'faith_pd',
             #size = 1,
             ylab = "Diet alpha diversity\n(Faith's phylogenetic index)", 
@@ -217,41 +74,6 @@ diet_alpha
 ```
 
 
-```{r}
-# combine with stool alpha diversity
-library(ggpubr)
-stool_alpha <- meta %>% 
-  mutate(log_div = log(simpson_reciprocal)) %>% 
-  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = 0.8, 
-            xlab = 'Day relative to transplant',
-            ylab = 'Microbiome alpha diversity',
-            add = "loess", color = 'darkgoldenrod',
-            add.params = list(color = "darkgoldenrod4", fill = "darkgray", size = 2), 
-            conf.int = TRUE) +
-  xlim(-10, 50) +
-  scale_x_continuous(breaks = seq(-10, 50, 10))
-  
-# 
-# cal_ <- meta %>% 
-#   mutate(log_div = log(simpson_reciprocal)) %>% 
-#   ggscatter(x = 'sdrt', y = 'ave_cal', alpha = 0.8, 
-#             xlab = 'Day relative to transplant',
-#             ylab = 'Caloric intake',
-#             add = "loess", color = 'maroon',
-#             add.params = list(color = "darkgray", fill = "darkgray", size = 2), 
-#             conf.int = TRUE) +
-#   xlim(-10, 50) +
-#   scale_x_continuous(breaks = seq(-10, 50, 10))
-# 
-# # combine them
-# alpha <- plot_grid(cal_, diet_alpha, stool_alpha, 
-#           nrow = 3, 
-#           align = 'hv',
-#           rel_heights = c(1,1),
-#           axis = 'b')  +
-#   ggsave('../figs/alhpa_ch.pdf', width = 4, height = 6)
-# alpha 
-```
 
 
 ```{r}
@@ -297,131 +119,40 @@ beta_diet <- beta_viz %>%
   arrange(faith_pd) %>% 
   mutate(logfaith = log(faith_pd)) %>% 
   ggplot(aes(x = Axis.1, y = Axis.2, col = faith_pd)) +
-  geom_point(alpha=0.7, size = 1.8) +
+  geom_point(alpha=0.5, size = 1.8) +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme_classic() +
   labs(title = 'Nutrition composition ordination\n(unweighted UniFrac)') + 
   #theme(legend.position = 'none') +
   scale_color_gradient2(midpoint = mid, low = "black", mid = "cornflowerblue",
-                            high = "red", space = "Lab", name = 'Nutrional alpha\ndiversity' ) +
-  theme(legend.position = c(1.2,.25),
+                            high = "red", space = "Lab", name = 'Nutritional\nalpha\ndiversity' ) +
+  theme(legend.position = c(0.15,0.22),
         axis.text=element_text(size=11),
         axis.title=element_text(size=11),
-        plot.title = element_text(size=14, face = 'bold', hjust = 0.6)) + 
-  coord_fixed(ratio=1)
+        plot.title = element_text(size=14, face = 'bold', hjust = 0.6),
+        legend.title = element_text( size=9), legend.text=element_text(size=7),
+        legend.key.size = unit(0.3, 'cm')) + 
+  guides(shape = guide_legend(override.aes = list(size = 0.3))) +
+  coord_fixed(ratio=1) 
 beta_diet
 
-```
-
-```{r}
-# experimenting with the colors
-beta_viz %>% 
-  arrange(faith_pd) %>% 
-  mutate(logfaith = log(faith_pd)) %>% 
-  ggplot(aes(x = Axis.1, y = Axis.2, col = faith_pd)) +
-  geom_point(alpha=0.7, size = 1.8) +
-  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
-  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
-  theme_classic() +
-  labs(title = 'Diet data beta diversity (unweighted UniFrac)') + 
-  #theme(legend.position = 'none') +
-  scale_color_gradient2(midpoint = mid, 
-                        low = "sienna4", 
-                        mid = "palegoldenrod",
-                        high = "forestgreen", 
-                        space = "Lab", name = 'Diet\nalpha\ndiversity' ) +
-  theme(legend.position = c(.95,.3))
-# this palette will be called spring 
-```
-
-```{r}
-beta_viz %>% 
-  arrange(faith_pd) %>% 
-  mutate(logfaith = log(faith_pd)) %>% 
-  ggplot(aes(x = Axis.1, y = Axis.2, col = faith_pd)) +
-  geom_point(alpha=1, size = 1.8) +
-  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
-  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
-  theme_classic() +
-  labs(title = 'Diet data beta diversity (unweighted UniFrac)') + 
-  #theme(legend.position = 'none') +
-  scale_color_gradient2(midpoint = mid, 
-                        low = "forestgreen", 
-                        mid = "azure",
-                        high = "violetred", 
-                        space = "Lab", name = 'Diet\nalpha\ndiversity' ) +
-  theme(legend.position = c(.95,.3))
-```
-
-## fruit and ndrink boxplot and sdrt
-
-```{r}
-box2 <- meta %>% 
-  select(fg_fruit, fg_sweets, timebin)
-
-box2 %>% 
-  group_by(timebin) %>% 
-  summarise(median_frui = median(fg_fruit))
-```
-
-
-```{r}
-grp2 <- box2 %>%  
-  gather('grp', 'gram', fg_fruit:fg_sweets) %>% 
-  ggboxplot(x = 'timebin', y = 'gram', color = 'grp', add = 'jitter', palette = c("#911eb4", "#2E86C1"),
-            add.params = list(alpha = 0.4),
-            title = "Food group intake and fecal microbiome alpha diversity's change\nover weeks") +
-  scale_y_sqrt() +
-  facet_grid(grp~., scales = 'free_y') +
-  stat_summary(fun.y = median, geom = 'line', aes(group = grp, colour =grp)) +
-  geom_text(aes(x = timebin[1], y = 140, label = grp)) +
-  theme(strip.background = element_blank(),
-   strip.text.y = element_blank(),
-   legend.position = "none") 
-grp2
-```
-
-
-```{r}
-# I can try putting the diversity into box in the timebins too
-food_box <- faith %>% 
-  mutate(timebin = cut_width(fdrt, 7, boundary=0, closed = 'left')) %>% 
-  ggboxplot(x = 'timebin', y = 'faith_pd', add = 'jitter', color = 'darkgreen', alpha = 0.6) +
-  scale_y_sqrt()+
-  scale_x_discrete(limits = c("[-14,-7)", "[-7,0)" ,  "[0,7)"  ,  "[7,14)" ,  "[14,21)"  ,"[21,28)" , "[28,35)" , "[35,42)" , "[42,49]" ,'(49,56]' ))
-
-stool_box <- meta %>% 
-  ggboxplot(x = 'timebin', y = 'simpson_reciprocal', add = 'jitter', color = 'darkgoldenrod4', alpha = 0.6,
-            add.params = list(alpha = 0.4)) +
-  scale_y_sqrt()+
-  stat_summary(fun = median, geom = 'line', group = 1, color = 'darkgoldenrod4')
-```
-
-```{r}
-# a correlation between the stool alpha and the fg_fruits
-fruit_cor <- meta %>% 
-  select(simpson_reciprocal, fg_fruit, admit_wt) %>% 
-  filter(fg_fruit > 0) %>% 
-  mutate(fruit_norm = fg_fruit/admit_wt)
-
-fruit_cor %>%  
-  ggscatter(x = 'simpson_reciprocal', y = 'fruit_norm',
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman", label.x = 3, label.sep = "\n")) +
-  scale_y_sqrt()
 ```
 
 ```{r assemble}
 top <- plot_grid(diet_alpha, beta_diet,
           nrow = 1, 
           align = 'hv',
+          #rel_widths =  c(1,1),
           #rel_heights = c(1,1),
           labels = "AUTO",
-          axis = 'br')
+          axis = 'tblr') 
+top +
+  ggsave('../figs/test_top.pdf', width = 8, height = 4)
+
+# output the top to a object to be loaded with the new bottom part 
+top %>% 
+  write_rds('../figs/abstract_top_diversity.rds')
 ```
 
 
