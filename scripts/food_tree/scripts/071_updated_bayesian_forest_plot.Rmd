@@ -121,25 +121,59 @@ res <- read_csv('../data/brms_model_var_res_updated.csv') %>%
   full_join(pt_perc %>% select(item = fg1_name, pt_perc)) 
 
 # no need to times 100 since the original fg intake already divided by 100
-res %>%  
+bottom_ <- res %>%  
   arrange(meanperitem) %>% 
   ggscatter(x = 'fdesc', y = 'meanperitem', color = 'red', size = 3,
             ylab = 'Regression coefficients',
-            title = 'Multivariate mixed-effect model of fecal diversity as a function of food\n(Controlling for clinical variables, time, and antibiotic exposure)',
-            xlab = 'High-level food categories\n(FNDDS)') +
+            xlab = 'High-level food categories\n(FNDDS)') + 
   geom_errorbar(aes(ymin  = q2.5,ymax  = q97.5),width = 0.3, size  = 0.7,
                 position = "dodge", color="black") +
+  labs(title = 'Multivariate mixed-effect model of fecal diversity as a function of food',
+       subtitle = '(Controlling for clinical variables, time, and antibiotic exposure)') + 
   geom_point(aes(x = fdesc, y = meanperitem), color = 'red', size = 3) +
   geom_hline(yintercept = 0, col = "red",   size = 1) +
-  geom_text(aes(x = fdesc, y = -1.8, label = sugar_perc)) +
-  geom_text(aes(x = fdesc[9], y = -1.8, label = 'Sugar\ncontent'), nudge_x = +0.8) +
-  geom_text(aes(x = fdesc, y = -1.2, label = pt_perc)) +
-  geom_text(aes(x = fdesc[9], y = -1.2, label = 'Patients\nexposed'), nudge_x = +0.8) +
+  geom_text(aes(x = fdesc, y = -1.2, label = sugar_perc)) +
+  #geom_text(aes(x = fdesc[9], y = -1.2, label = 'Sugar\ncontent'), nudge_x = +0.9) +
+  geom_text(aes(x = fdesc, y = -0.9, label = pt_perc)) +
+  #geom_text(aes(x = fdesc[9], y = -0.9, label = 'Patients\nexposed'), nudge_x = 0.9) +
   coord_flip()+
+  #theme_classic() +
   theme(axis.text=element_text(size=11),
         axis.title=element_text(size=11),
         axis.title.x =element_text(hjust = 0.6),
-        plot.title = element_text(size=14, face = 'bold', hjust = 2)) +
-  ylim(-2, 1.5) +
-  ggsave('../figs/bayesian_confidence_95.pdf', width = 8, height = 5)
+        plot.title = element_text(size=11, face = 'bold', hjust = 0),
+        plot.subtitle = element_text(margin = margin(b = 20))) +
+  ylim(-1.2, 1.4) 
+  
+
+bottom_
 ```
+
+
+```{r}
+# assemble to make the full panel 
+top <- read_rds('../figs/abstract_top_diversity.rds')
+
+bottom <-  plot_grid(bottom_,
+          nrow = 1, 
+          labels = "C",
+          axis = 'brlt')
+
+whole <-  plot_grid(top, bottom,
+          nrow = 2, 
+          align = 'hv',
+          #rel_heights = c(1,1),
+          labels = NULL,
+          axis = 'brlt')  +
+  ggsave('../figs/all_fig_ASH.pdf', width = 10, height = 9)
+```
+
+
+```{r}
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+en <- dtb %>% 
+  filter(Meal == 'EN') %>% 
+  distinct(mrn)
+
+```
+

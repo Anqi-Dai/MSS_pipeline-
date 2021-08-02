@@ -1,0 +1,14 @@
+---
+title: why is the simpson and shannon differ in same healthy person's stool sample 16s
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+```
+

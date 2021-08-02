@@ -1,0 +1,219 @@
+---
+title: "why is the simpson and shannon different in same stool sample's 16s"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+library(ggpubr)
+get_table_from_database('asv_annotation_blast_color_ag')
+```
+
+```{r}
+dat <- readxl::read_excel('../data/Stool_diversity_healthy_donors.xlsx') %>% 
+  filter(!str_detect(sampleid, 'blank'))  %>% 
+  mutate_at(vars(simpson_reciprocal, shannon, count_total), as.numeric) 
+# how many participants
+dat %>% 
+  count(HC_ID) %>% 
+  nrow
+
+# how many samples have 2 runs
+dat %>% 
+  count(HC_ID)  %>% 
+  count(n == 2)
+```
+
+
+```{r}
+# look at the difference between those diversity values 
+dat %>% 
+  gather('grp','value', simpson_reciprocal:count_total) %>% 
+  filter(grp != 'count_total') %>% 
+  ggbarplot(x = 'grp', y = 'value', facet.by = 'HC_ID', position = position_dodge(0.9), label = T,
+            fill = 'grp') +
+  ggsave('../data/04_bar.pdf')
+
+dat %>% 
+  gather('grp','value', simpson_reciprocal:count_total) %>% 
+  filter(grp == 'count_total') %>% 
+  ggbarplot(x = 'grp', y = 'value', facet.by = 'HC_ID', position = position_dodge(0.9), label = T,
+            fill = 'grp') +
+  ggsave('../data/04_bar_count.pdf')
+```
+
+```{r}
+counts_data <- get_counts_subset(dat$sampleid)
+counts_data %>% 
+  distinct(sampleid)
+
+df <- counts_data %>% 
+  select(asv_key:count_total, count_relative) %>% 
+  left_join(asv_annotation_blast_color_ag %>% 
+              select(asv_key,color_label_group_distinct), by = "asv_key")
+
+asv_color_set <- asv_annotation_blast_color_ag %>% 
+  distinct(color,color_label_group_distinct,color_label_group,color_base) %>% 
+  select(color_label_group_distinct, color) %>% 
+  deframe()
+
+cbd <- compute_beta_diversity_and_tsne(sampleid = df$sampleid, 
+                                      taxonomy = df$color_label_group_distinct,
+                                      count = df$count);
+#compute beta diversity
+cbd$compute_beta_diversity()
+```
+
+```{r}
+#get beta diversity
+d_beta <- cbd$get_betadiversity() 
+
+#compute hierarchical cluster
+hc <- hclust(as.dist(d_beta), method = 'complete')
+
+dend <- as.dendrogram(hc)
+
+sample_dendogram_order <- labels(dend)
+
+df$sampleid = factor(df$sampleid,levels = sample_dendogram_order)
+
+ggplot(df,aes(sampleid, count_relative, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  theme_classic() +
+  labs(title = 'stacked bar sorted with hclust') +
+  theme(axis.text.x = element_text(angle = 90),
+        axis.text.y = element_blank(),
+        legend.position = "none") +
+  scale_fill_manual(values = asv_color_set) +
+  ggsave('../data/stacked_bar_sorted_with_hclust.pdf', width = 7, height = 5)
+```
+```{r}
+# a pcoa
+# filter >0.01% in more than 25% samples
+nsamp <- dat %>% distinct(sampleid) %>% nrow
+keepa <- counts_data %>% 
+  filter(count_relative > 0.0001) %>% 
+  count(asv_key) %>% 
+  filter(n > floor(nsamp * 0.25)) %>% 
+  pull(asv_key)
+
+cts_fil <- counts_data %>% 
+  filter(asv_key %in% keepa) %>% 
+  select(sampleid, asv_key,count_relative ) %>% 
+  spread(key = 'asv_key', value = 'count_relative', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+library(vegan)
+dist_ <- vegdist(cts_fil, method = 'bray')
+eigen <- pcoa(dist_)$values$Eigenvalues
+percent_var <- signif(eigen/sum(eigen), 3)*100
+
+bc <- cmdscale(dist_, k = 2)
+
+library(randomcoloR)
+n <- dat %>% distinct(HC_ID) %>% nrow
+palette <- distinctColorPalette(n)
+pie(rep(1, n), col=palette)
+
+bc %>%
+  as.data.frame() %>%
+  rownames_to_column('sampleid')  %>% 
+  full_join(dat) %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'HC_ID') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  scale_color_manual(values = palette) 
+```
+
+```{r}
+cts_all <- counts_data %>% 
+  select(sampleid, asv_key,count_relative ) %>% 
+  spread(key = 'asv_key', value = 'count_relative', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+invsimp <- diversity(cts_all, index = 'inv') %>% 
+  enframe(name = 'sampleid', value = 'inv') %>% full_join(dat)
+invsimp %>% 
+  ggscatter(x = 'inv', y = 'simpson_reciprocal',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+
+invsimp %>% 
+  select(HC_ID, simpson_reciprocal, inv) %>% 
+  gather('grp', 'invsimp', simpson_reciprocal:inv) %>% 
+  mutate(invsimp = round(invsimp, 0)) %>% 
+  ggbarplot(x = 'grp', y = 'invsimp', facet.by = 'HC_ID',  label = T) +
+  ggsave('../data/04_bar_simpson.pdf')
+
+```
+
+The sample is not mixed, and I know how it is calculated, now the question is why the value has quite a difference. 
+
+```{r}
+# look at the A39 two samples  
+A39 <- df %>% 
+  filter(sampleid %in% c('81.ha.12','ha.69.13'))
+
+A39 %>% 
+  ggplot(aes(sampleid, count_relative, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  theme_classic() +
+  labs(title = 'stacked bar sorted with hclust') +
+  theme(axis.text.x = element_text(angle = 90),
+        axis.text.y = element_blank(),
+        legend.position = "none") +
+  scale_fill_manual(values = asv_color_set)
+
+# compare the number of ASVs found in each sample  
+A39 %>% 
+  filter(count_relative > 0)  %>% 
+  count(sampleid) %>% 
+  inner_join(dat %>% select(sampleid, simpson_reciprocal, shannon))
+```
+
+
+```{r}
+# the smallest relab 10 asv in each 
+A39 %>% 
+  split(.$sampleid) %>% 
+  discard(~ nrow(.) == 0) %>% 
+  map(~ arrange(.data = ., count_relative) %>% 
+        slice_head(n = 100))
+```
+
+```{r}
+# the measure of eveness  
+```
+
+
+
+```{r}
+# the shannon and inverse simpson corr 
+dat %>% 
+  ggscatter(x = 'simpson_reciprocal', y = 'shannon',title = 'pearson cor',
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+dat %>% 
+  ggscatter(x = 'simpson_reciprocal', y = 'shannon',title = 'spearman cor',
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))
+```
+

@@ -66,7 +66,7 @@ diet_alpha <- faith %>%
   theme(
         axis.text=element_text(size=11),
         axis.title=element_text(size=11),
-        plot.title = element_text(size=14, 
+        plot.title = element_text(size=11, 
                                   hjust = 0.5, 
                                   face = 'bold')) + 
   theme(aspect.ratio=1)
@@ -123,14 +123,15 @@ beta_diet <- beta_viz %>%
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme_classic() +
-  labs(title = 'Nutrition composition ordination\n(unweighted UniFrac)') + 
+  labs(title = 'Nutrition composition ordination',
+       subtitle = '(unweighted UniFrac)') + 
   #theme(legend.position = 'none') +
   scale_color_gradient2(midpoint = mid, low = "black", mid = "cornflowerblue",
                             high = "red", space = "Lab", name = 'Nutritional\nalpha\ndiversity' ) +
   theme(legend.position = c(0.15,0.22),
         axis.text=element_text(size=11),
         axis.title=element_text(size=11),
-        plot.title = element_text(size=14, face = 'bold', hjust = 0.6),
+        plot.title = element_text(size=11, face = 'bold', hjust = 0.6),
         legend.title = element_text( size=9), legend.text=element_text(size=7),
         legend.key.size = unit(0.3, 'cm')) + 
   guides(shape = guide_legend(override.aes = list(size = 0.3))) +
