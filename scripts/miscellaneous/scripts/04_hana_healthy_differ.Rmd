@@ -119,7 +119,7 @@ bc <- cmdscale(dist_, k = 2)
 library(randomcoloR)
 n <- dat %>% distinct(HC_ID) %>% nrow
 palette <- distinctColorPalette(n)
-pie(rep(1, n), col=palette)
+#pie(rep(1, n), col=palette)
 
 bc %>%
   as.data.frame() %>%
@@ -193,7 +193,7 @@ A39 %>%
 ```
 
 ```{r}
-# the measure of eveness  
+# the measure of eveness  : shannon
 ```
 
 

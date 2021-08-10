@@ -1,0 +1,36 @@
+---
+title: "read the current scoresheet"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+```
+
+```{r}
+# a working code on one example score sheet 
+full_path <- '/Volumes/vandenBrinkLab/Bone Marrow Transplants/Score Sheets/Finished/2021/1-19-2021 KM cGVHD IP vs Oral.xlsx'
+example <- excel_sheets(full_path) %>% 
+  set_names(excel_sheets(full_path)) %>% 
+  map(~ read_excel(full_path, sheet = .) %>% 
+    filter(rowSums(is.na(.)) < ncol(.)) %>% # remove dividing rows that are all NA
+    rename_all(~ gsub(" |\\(|\\)|/", "_", .)) %>% 
+    rename_all(~ gsub("#$", "num", .)) %>% 
+    fill(Group_num) %>% # fill the NA group num
+    select(Group_num:Weight, Posture:Activity,Died_Sac ) %>% 
+    mutate(Died_Sac = as_date(Died_Sac))) %>% 
+  bind_rows(.id = 'date_scored') %>% 
+  mutate(file_name = str_replace_all(full_path, '^.+/','')) %>% 
+  mutate(transplant_date = str_extract(file_name, "[0-9]*\\-[0-9]*\\-[0-9]*")) %>% 
+  mutate(transplant_date = mdy(transplant_date)) %>% 
+  mutate(date_scored = str_replace_all(date_scored, '\\(.+\\)','')) %>% 
+  mutate(date_scored = mdy(date_scored))
+ 
+```
+

@@ -1,0 +1,123 @@
+---
+title: "Investigate the varying simpson reciprocal of same sample"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('asv_counts_ag', pre_filter = F)
+get_table_from_database('asv_alpha_diversity_ag', pre_filter = F)
+get_table_from_database('samples_castori_ag')
+```
+
+```{r}
+# find the samples that have been sequenced >= 2 times
+du_samp <- asv_counts_ag %>% 
+  count(sampleid, count_total) %>% 
+  count(sampleid) %>% 
+  filter(n >= 2) %>% 
+  pull(sampleid)
+
+# the corresponding count total for the above samples 
+# also add the mrn for these patients 
+
+df <- asv_counts_ag %>% 
+  count(sampleid, count_total) %>% 
+  filter(sampleid %in% du_samp) %>% 
+  select(-n) %>% 
+  inner_join(asv_alpha_diversity_ag %>% 
+               select(sampleid, count_total, simpson_reciprocal, shannon), by = c("sampleid", "count_total")) %>% 
+  left_join(samples_castori_ag %>% 
+              select(sampleid, mrn), by = "sampleid") %>% 
+  mutate(mrn = if_else(is.na(mrn), as.numeric(sampleid), as.double(mrn)))
+```
+
+```{r}
+# check the general correlation
+df %>% 
+  ggscatter(x = 'simpson_reciprocal', y = 'shannon',title = 'pearson cor',
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+```
+
+
+```{r}
+# see how the alpha looks like for the same sampleid
+# look at the difference between those diversity values 
+# calculate the difference to the mean
+mean_s <- df %>% 
+  group_by(sampleid) %>% 
+  summarise(mean_sim = mean(simpson_reciprocal))
+
+dups <- df %>% 
+  left_join(mean_s, by = "sampleid") %>% 
+  mutate(mean_diff = abs(simpson_reciprocal - mean_sim)) %>% 
+  left_join(df %>% 
+              group_by(sampleid) %>% 
+              summarise(max_sim = max(simpson_reciprocal)), by = "sampleid") %>% 
+  mutate(mean_diff_perc = round(mean_diff/max_sim*100, 2)) %>% 
+  arrange(-mean_diff_perc)
+
+# is there a correlation between simpson and count
+dups %>% 
+  ggscatter(x = 'simpson_reciprocal', y = 'count_total',title = 'spearman cor',
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))
+```
+```{r}
+# do a pcoa for the samples that have meandiff perc > 30
+# filter >0.01% in more than 25% samples
+dat <- dups %>% 
+  filter(mean_diff_perc > 30)
+
+counts_data <- get_counts_subset(dat$sampleid, pre_filter = F)
+nsamp <- dat %>% nrow
+keepa <- counts_data %>% 
+  filter(count_relative > 0.0001) %>% 
+  count(asv_key) %>% 
+  filter(n > floor(nsamp * 0.25)) %>% 
+  pull(asv_key)
+
+cts_fil <- counts_data %>% 
+  filter(asv_key %in% keepa) %>% 
+  select(sampleid, asv_key,count_relative ) %>% 
+  spread(key = 'asv_key', value = 'count_relative', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+library(vegan)
+dist_ <- vegdist(cts_fil, method = 'bray')
+eigen <- pcoa(dist_)$values$Eigenvalues
+percent_var <- signif(eigen/sum(eigen), 3)*100
+
+bc <- cmdscale(dist_, k = 2)
+
+library(randomcoloR)
+n <- dat %>% distinct(HC_ID) %>% nrow
+palette <- distinctColorPalette(n)
+#pie(rep(1, n), col=palette)
+
+bc %>%
+  as.data.frame() %>%
+  rownames_to_column('sampleid')  %>% 
+  full_join(dat) %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'HC_ID') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  scale_color_manual(values = palette) 
+
+```
+
