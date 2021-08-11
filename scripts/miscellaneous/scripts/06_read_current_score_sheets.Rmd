@@ -31,6 +31,47 @@ example <- excel_sheets(full_path) %>%
   mutate(transplant_date = mdy(transplant_date)) %>% 
   mutate(date_scored = str_replace_all(date_scored, '\\(.+\\)','')) %>% 
   mutate(date_scored = mdy(date_scored))
- 
 ```
+
+```{r}
+test_fn <- list.files('/Volumes/vandenBrinkLab/Bone Marrow Transplants/Score Sheets/Finished/', 
+                      pattern = '2021|2020|2019|2018', full.names = T, recursive = T)
+
+test_fn <- list.files('../data/2021/', 
+                      pattern = '^\\d.+xlsx$', full.names = T)
+```
+
+```{r}
+clean_score_sheet <- function(f_path){
+  cleaned = excel_sheets(f_path) %>% 
+      set_names(excel_sheets(f_path)) %>% 
+      map(~ read_excel(f_path, sheet = .) %>% 
+        filter(rowSums(is.na(.)) < ncol(.)) %>% # remove dividing rows that are all NA
+        rename_all(~ gsub(" |\\(|\\)|/", "_", .)) %>% 
+        rename_all(~ gsub("#$", "num", .)) %>% 
+        fill(Group_num) %>% # fill the NA group num
+        select(Group_num:Weight, Posture:Activity,Died_Sac ) %>% 
+        mutate(Died_Sac = as_date(Died_Sac))) %>% 
+      bind_rows(.id = 'date_scored') %>% 
+      mutate(file_name = str_replace_all(f_path, '^.+/','')) %>% 
+      mutate(transplant_date = str_extract(file_name, "[0-9]*\\-[0-9]*\\-[0-9]*")) %>% 
+      mutate(transplant_date = mdy(transplant_date)) %>% 
+      mutate(date_scored = mdy(date_scored))
+  return(cleaned)
+}
+```
+
+
+```{r}
+qclean = safely(.f = clean_score_sheet, otherwise = NULL, quiet = T) 
+res <- test_fn %>%  
+  set_names(test_fn) %>% 
+  map(~ qclean(.))  
+
+map(res, "error")
+
+res[[2]]
+names(res)
+```
+
 
