@@ -15,7 +15,7 @@ library(lubridate)
 
 ```{r}
 # a working code on one example score sheet 
-full_path <- '/Volumes/vandenBrinkLab/Bone Marrow Transplants/Score Sheets/Finished/2021/1-19-2021 KM cGVHD IP vs Oral.xlsx'
+full_path <- '../data/Finished/2021/1-19-2021 KM cGVHD IP vs Oral.xlsx'
 example <- excel_sheets(full_path) %>% 
   set_names(excel_sheets(full_path)) %>% 
   map(~ read_excel(full_path, sheet = .) %>% 
@@ -23,6 +23,7 @@ example <- excel_sheets(full_path) %>%
     rename_all(~ gsub(" |\\(|\\)|/", "_", .)) %>% 
     rename_all(~ gsub("#$", "num", .)) %>% 
     fill(Group_num) %>% # fill the NA group num
+      mutate(Group_num = as.character(Group_num)) %>% 
     select(Group_num:Weight, Posture:Activity,Died_Sac ) %>% 
     mutate(Died_Sac = as_date(Died_Sac))) %>% 
   bind_rows(.id = 'date_scored') %>% 
@@ -32,46 +33,211 @@ example <- excel_sheets(full_path) %>%
   mutate(date_scored = str_replace_all(date_scored, '\\(.+\\)','')) %>% 
   mutate(date_scored = mdy(date_scored))
 ```
-
 ```{r}
-test_fn <- list.files('/Volumes/vandenBrinkLab/Bone Marrow Transplants/Score Sheets/Finished/', 
-                      pattern = '2021|2020|2019|2018', full.names = T, recursive = T)
+input_sheet <- list.files('../data/Finished/', 
+                      pattern = '^\\d.+xlsx$', full.names = T, recursive = T)
 
-test_fn <- list.files('../data/2021/', 
-                      pattern = '^\\d.+xlsx$', full.names = T)
-```
-
-```{r}
 clean_score_sheet <- function(f_path){
   cleaned = excel_sheets(f_path) %>% 
       set_names(excel_sheets(f_path)) %>% 
       map(~ read_excel(f_path, sheet = .) %>% 
-        filter(rowSums(is.na(.)) < ncol(.)) %>% # remove dividing rows that are all NA
-        rename_all(~ gsub(" |\\(|\\)|/", "_", .)) %>% 
-        rename_all(~ gsub("#$", "num", .)) %>% 
-        fill(Group_num) %>% # fill the NA group num
-        select(Group_num:Weight, Posture:Activity,Died_Sac ) %>% 
-        mutate(Died_Sac = as_date(Died_Sac))) %>% 
+            mutate(across(everything(), as.character)) %>% 
+            filter(rowSums(is.na(.)) < ncol(.)) %>% # remove dividing rows that are all NA
+            rename_all(~ gsub(" |\\(|\\)|/", "_", .)) %>% 
+            rename_all(~ gsub("#$", "num", .)) %>% 
+            fill(Group_num) %>% # fill the NA group num
+            filter(!str_detect(Group_num, '^Group')) %>% # some has a header line in the middle of it
+            filter(!is.na(Mouse_num)) %>% 
+            select(Group_num:Weight, Posture:Activity,Died_Sac ) ) %>% 
       bind_rows(.id = 'date_scored') %>% 
       mutate(file_name = str_replace_all(f_path, '^.+/','')) %>% 
-      mutate(transplant_date = str_extract(file_name, "[0-9]*\\-[0-9]*\\-[0-9]*")) %>% 
-      mutate(transplant_date = mdy(transplant_date)) %>% 
-      mutate(date_scored = mdy(date_scored))
+      mutate(transplant_date = str_extract(file_name, "[0-9]*\\-[0-9]*\\-[0-9]*")) 
   return(cleaned)
 }
+# mutate(Died_Sac = as_date(Died_Sac))%>% 
+#      mutate(transplant_date = mdy(transplant_date)) %>% 
+#      mutate(date_scored = mdy(date_scored))
 ```
 
 
 ```{r}
-qclean = safely(.f = clean_score_sheet, otherwise = NULL, quiet = T) 
-res <- test_fn %>%  
-  set_names(test_fn) %>% 
-  map(~ qclean(.))  
+# solving the error ones   
+clean_finding_error = safely(.f = clean_score_sheet, otherwise = NULL, quiet = T) 
 
-map(res, "error")
+res <- input_sheet %>% 
+  set_names(input_sheet) %>% 
+  map(~ clean_finding_error(.)) 
 
-res[[2]]
-names(res)
+error_ones <- map(res, "error") %>% 
+  keep(~ !is.null(.))
+
+
+
+
+
+res_df <- res %>% 
+  map(~ pluck(.x = ., 'result')) %>% 
+  bind_rows(.id = 'fullpath')
+res_df %>% 
+  write_csv('../data/res_df.csv')
 ```
 
 
+```{r}
+res_df <- read_csv('../data/res_df.csv', col_types = cols(.default = col_character()))
+
+res_df %>% 
+  count(fullpath)
+
+res_df_cleaned <- res_df %>% 
+  filter(!str_detect(date_scored, '\\(|\\)')) %>% 
+  mutate(Group_num = str_replace_all(Group_num, '\\(|\\)',''))
+```
+
+
+```{r}
+date_scored <- res_df_cleaned %>% 
+  count(date_scored)
+# there are letters
+date_scored_e <- date_scored %>% 
+  filter(str_detect(date_scored, '[:alpha]'))
+# no letters but the digits are wrong 
+date_scored_try <- date_scored %>% 
+  filter(!str_detect(date_scored, '[:alpha]')) %>% 
+  mutate(datescored = mdy(date_scored))
+
+
+#######################################
+Group_num <- res_df_cleaned %>% 
+  count(Group_num)
+
+
+
+
+
+#######################################
+Mouse_num <- res_df_cleaned %>% 
+  count(Mouse_num)
+
+
+#######################################
+Baseline_Weight <- res_df_cleaned %>% 
+  count(Baseline_Weight)
+
+# C009119 : should be ignored 
+# N/A and NA some has baseline weight in another col
+
+#######################################
+Weight <- res_df_cleaned %>% 
+  count(Weight)
+# FD, dead, ., NA
+
+
+#######################################
+Posture <- res_df_cleaned %>% 
+  count(Posture)
+
+#######################################
+Fur <- res_df_cleaned %>% 
+  count(Fur)
+
+#######################################
+Skin <- res_df_cleaned %>% 
+  count(Skin)
+
+
+#######################################
+Activity <- res_df_cleaned %>% 
+  count(Activity)
+
+#######################################
+Died_Sac <- res_df_cleaned %>% 
+  count(Died_Sac) %>% 
+  mutate(Died_Sac_corrected = as_date(Died_Sac))
+mdy('41355')
+with_letter <- Died_Sac %>% 
+  filter(str_detect(Died_Sac, '\\w'))
+without_letter <- Died_Sac %>% 
+  filter(!str_detect(Died_Sac, '\\w'))
+
+#######################################
+transplant_date <- res_df_cleaned %>% 
+  count(transplant_date) %>% 
+  mutate(transplant_date_corrected = mdy(transplant_date)) %>% 
+  split(is.na(.$transplant_date_corrected)) 
+
+
+transplant_date_co <- bind_rows(
+  transplant_date %>% pluck('FALSE'),
+  transplant_date %>% pluck('TRUE') %>% mutate(transplant_date_corrected = ymd(transplant_date))
+)
+# few problems it seems 
+
+#######################################
+Strain <- res_df_cleaned %>% 
+  count(Strain)
+# do we keep this col?
+
+#######################################
+Baseline_Wt <- res_df_cleaned %>% 
+  count(`Baseline_Wt.`)
+
+Baseline_Weight_num <- res_df_cleaned %>% 
+  filter(is.na(Baseline_Weight)) %>% 
+  nrow
+
+Baseline_Wt._num <- res_df_cleaned %>% 
+  filter(!is.na(`Baseline_Wt.`)) %>% 
+  nrow
+# some are in Baseline_Wt column
+```
+
+
+```{r}
+# finding the warnings and messages 
+clean_finding_warning <- quietly(.f = clean_score_sheet)
+warnning_res <- input_sheet %>% 
+  pull(fullpath) %>% 
+  set_names(input_sheet %>% 
+  pull(fullpath)) %>% 
+  map(~ clean_finding_warning(.)) 
+
+warnning_res %>%
+     map("messages") %>% 
+     unlist()
+
+
+warn <- warnning_res %>%
+     map("warnings") %>% 
+     unlist() %>% 
+  enframe() %>% 
+  mutate(name = str_replace(name, 'xlsx.+$','xlsx'))
+
+warn %>% 
+  count(name, sort = T)
+```
+
+```{r}
+full_path <- '../data/Finished/2021//2-19-2021 SJ BM185 CD19 CD20 BCL-2 PD-1 FasBB 1E5.xlsx'
+shet <- '7-26-2021'
+cleaned = excel_sheets(full_path) %>% 
+      set_names(excel_sheets(full_path)) %>% 
+      map(~ read_excel(full_path, sheet = .) %>% 
+        filter(rowSums(is.na(.)) < ncol(.)) %>% # remove dividing rows that are all NA
+        rename_all(~ gsub(" |\\(|\\)|/", "_", .)) %>% 
+        rename_all(~ gsub("#$", "num", .)) %>% 
+        fill(Group_num) %>% # fill the NA group num
+        mutate(Group_num = as.character(Group_num),
+               Mouse_num = as.character(Mouse_num)) %>% 
+        filter(!str_detect(Group_num, '^Group')) %>% # some has a header line in the middle of it
+        filter(!is.na(Mouse_num)) %>% 
+        mutate(Baseline_Weight = as.double(Baseline_Weight)) %>% 
+        select(Group_num:Weight, Posture:Activity,Died_Sac ) %>%
+          #mutate(Died_Sac = )
+        mutate(Died_Sac = as_date(Died_Sac))) %>% 
+      bind_rows(.id = 'date_scored') %>% 
+      mutate(file_name = str_replace_all(full_path, '^.+/','')) %>% 
+      mutate(transplant_date = str_extract(file_name, "[0-9]*\\-[0-9]*\\-[0-9]*")) %>% 
+      mutate(transplant_date = mdy(transplant_date)) %>% 
+      mutate(date_scored = mdy(date_scored))
+```
