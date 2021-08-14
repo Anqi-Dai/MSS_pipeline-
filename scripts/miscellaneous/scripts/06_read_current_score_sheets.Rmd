@@ -1,6 +1,8 @@
 ---
 title: "read the current scoresheet"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 ```{r setup, include=FALSE}
@@ -15,8 +17,9 @@ library(lubridate)
 
 ```{r}
 # a working code on one example score sheet 
-full_path <- '../data/Finished/2021/1-19-2021 KM cGVHD IP vs Oral.xlsx'
-example <- excel_sheets(full_path) %>% 
+full_path <- 'data/Finished/2021/4-13-2021 SL GVT T cell dose titration.xlsx'
+tmp <- excel_sheets(full_path)
+example <- tmp %>% 
   set_names(excel_sheets(full_path)) %>% 
   map(~ read_excel(full_path, sheet = .) %>% 
     filter(rowSums(is.na(.)) < ncol(.)) %>% # remove dividing rows that are all NA
@@ -80,18 +83,24 @@ res_df <- res %>%
   bind_rows(.id = 'fullpath')
 res_df %>% 
   write_csv('../data/res_df.csv')
+
+res_df %>% distinct(fullpath) %>% nrow
+
+
 ```
 
 
 ```{r}
 res_df <- read_csv('../data/res_df.csv', col_types = cols(.default = col_character()))
 
-res_df %>% 
-  count(fullpath)
+getwd()
 
 res_df_cleaned <- res_df %>% 
   filter(!str_detect(date_scored, '\\(|\\)')) %>% 
   mutate(Group_num = str_replace_all(Group_num, '\\(|\\)',''))
+
+s2021 <- res_df_cleaned %>% 
+  filter(str_detect(fullpath, 'Finished//2021'))
 ```
 
 
@@ -106,12 +115,14 @@ date_scored_try <- date_scored %>%
   filter(!str_detect(date_scored, '[:alpha]')) %>% 
   mutate(datescored = mdy(date_scored))
 
-
+res_df_cleaned %>%
+  filter(date_scored == '7-')
 #######################################
 Group_num <- res_df_cleaned %>% 
   count(Group_num)
 
-
+questions <- res_df_cleaned %>% 
+  filter(Group_num == '60')
 
 
 
@@ -151,14 +162,80 @@ Activity <- res_df_cleaned %>%
   count(Activity)
 
 #######################################
-Died_Sac <- res_df_cleaned %>% 
-  count(Died_Sac) %>% 
-  mutate(Died_Sac_corrected = as_date(Died_Sac))
-mdy('41355')
-with_letter <- Died_Sac %>% 
-  filter(str_detect(Died_Sac, '\\w'))
-without_letter <- Died_Sac %>% 
-  filter(!str_detect(Died_Sac, '\\w'))
+Died_Sac <- res_df_cleaned %>% as_tibble() %>%
+  mutate(Died_Sac_neworigin =ifelse(grepl("^4\\d{4}", Died_Sac), as.character(as.Date(as.numeric(Died_Sac), origin = "1899-12-30")), Died_Sac)) %>% 
+  mutate(date_scored_ymd =  parse_date_time(date_scored, c("ymd", "mdY", "mdy", "BdY", "Bdy", "bdY", "bdy"))) 
+
+Died_Sac_df <- Died_Sac %>% 
+  group_by(Died_Sac_neworigin) %>%
+   count(Died_Sac)
+
+#  identify those with easy-to-parse date
+Died_Sac_tmp <- Died_Sac %>% 
+  mutate(
+    sac_date_easy = parse_date_time(Died_Sac_neworigin, c("ymd", "mdY", "mdy", "BdY", "Bdy", "bdY", "bdy")),
+    year=year(date_scored_ymd))
+
+Died_Sac_done_simple_date <- Died_Sac_tmp %>% 
+  filter(!is.na(sac_date_easy)) %>%
+  rename(fixed_Died_Sac_date=sac_date_easy)
+
+#  identify those with full dates burried in the column, and mark those with string months
+
+Died_Sac_tmp2 <- Died_Sac_tmp %>% 
+  filter(grepl("[0-9]", Died_Sac )) %>% 
+  group_by(fullpath, date_scored, year) %>% 
+  filter(is.na(sac_date_easy)) %>% 
+  mutate(  
+    has_str_month = grepl("Jan|Feb|Mar|Apr|May|Ju|Aug|Sep|Oct|Nov|Dec", Died_Sac),
+    full_date = gsub("^-", "", gsub("-$", "", gsub("--", "-", gsub("/", "-", gsub("[\\(\\)A-Za-z'\", .:]", "", Died_Sac))))),
+    has_full_date = str_count(full_date, "-") == 2) %>% ungroup()
+
+Died_Sac_done_had_full_date <- Died_Sac_tmp2 %>% 
+  filter(has_full_date) %>%
+  mutate(
+    fixed_Died_Sac_date = parse_date_time(full_date, c("ymd", "mdY", "mdy"))
+  )
+
+
+#  use the year from the score date to fix up those with string months
+
+Died_Sac_tmp3 <- Died_Sac_tmp2 %>% 
+  filter(!has_full_date) %>%
+  mutate(
+    str_month = gsub(".*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec).*","\\1",  Died_Sac),
+    noalpha = gsub(" *$", "", gsub("^ *", "", gsub("> 25%", "", gsub("[A-Za-z'\",();]", "", Died_Sac)))),
+    just_day = gsub("[-./()'\" ,]", "", noalpha))
+
+Died_Sac_done_str_date <- Died_Sac_tmp3 %>% 
+  filter(has_str_month) %>% 
+  mutate(
+    raw_date_if_str_mo = paste0(year, "-", str_month, "-", just_day),
+        fixed_Died_Sac_date =  parse_date_time(raw_date_if_str_mo, orders=c("%Y-%b-%d"))
+  )
+
+
+
+Died_Sac_tmp4 <- Died_Sac_tmp3 %>%
+  filter(!has_str_month) %>% 
+  mutate(fixed_Died_Sac_date =parse_date_time(paste0(year, "/", noalpha), orders=c( "ymd", "mdY", "mdy", "BdY")))
+
+Died_Sac_done_month_day <- Died_Sac_tmp4 %>% 
+  filter(!is.na(fixed_Died_Sac_date)) 
+
+
+#############3  gather them all together
+grep("_done_", ls(), value = T)
+these_cols <- c("fullpath", "date_scored", "Group_num", "Mouse_num", "file_name", "fixed_Died_Sac_date")
+
+fixed_Died_Sac <- rbind(
+  Died_Sac_done_had_full_date %>% select(all_of(these_cols)),
+Died_Sac_done_simple_date%>% select(all_of(these_cols)),
+Died_Sac_done_month_day%>% select(all_of(these_cols)),
+Died_Sac_done_str_date%>% select(all_of(these_cols)))
+
+
+
 
 #######################################
 transplant_date <- res_df_cleaned %>% 

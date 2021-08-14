@@ -1,0 +1,246 @@
+---
+title: "score sheet 2021 clean"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+```
+
+```{r}
+res_df <- read_csv('../data/res_df.csv', col_types = cols(.default = col_character()))
+
+res_df_cleaned <- res_df %>% 
+  filter(!str_detect(date_scored, '\\(|\\)')) %>% 
+  mutate(Group_num = str_replace_all(Group_num, '\\(|\\)',''))
+```
+
+#  Clean the died/sac date
+
+```{r}
+Died_Sac <- res_df_cleaned %>% as_tibble() %>%
+  mutate(Died_Sac_neworigin =ifelse(grepl("^4\\d{4}", Died_Sac), as.character(as.Date(as.numeric(Died_Sac), origin = "1899-12-30")), Died_Sac)) %>% 
+  mutate(date_scored_ymd =  parse_date_time(date_scored, c("ymd", "mdY", "mdy", "BdY", "Bdy", "bdY", "bdy"))) 
+
+Died_Sac_df <- Died_Sac %>% 
+  group_by(Died_Sac_neworigin) %>%
+   count(Died_Sac)
+
+#  identify those with easy-to-parse date
+Died_Sac_tmp <- Died_Sac %>% 
+  mutate(
+    sac_date_easy = parse_date_time(Died_Sac_neworigin, c("ymd", "mdY", "mdy", "BdY", "Bdy", "bdY", "bdy")),
+    year=year(date_scored_ymd))
+
+Died_Sac_done_simple_date <- Died_Sac_tmp %>% 
+  filter(!is.na(sac_date_easy)) %>%
+  rename(fixed_Died_Sac_date=sac_date_easy)
+
+#  identify those with full dates burried in the column, and mark those with string months
+
+Died_Sac_tmp2 <- Died_Sac_tmp %>% 
+  filter(grepl("[0-9]", Died_Sac )) %>% 
+  group_by(fullpath, date_scored, year) %>% 
+  filter(is.na(sac_date_easy)) %>% 
+  mutate(  
+    has_str_month = grepl("Jan|Feb|Mar|Apr|May|Ju|Aug|Sep|Oct|Nov|Dec", Died_Sac),
+    full_date = gsub("^-", "", gsub("-$", "", gsub("--", "-", gsub("/", "-", gsub("[\\(\\)A-Za-z'\", .:]", "", Died_Sac))))),
+    has_full_date = str_count(full_date, "-") == 2) %>% ungroup()
+
+Died_Sac_done_had_full_date <- Died_Sac_tmp2 %>% 
+  filter(has_full_date) %>%
+  mutate(
+    fixed_Died_Sac_date = parse_date_time(full_date, c("ymd", "mdY", "mdy"))
+  )
+
+
+#  use the year from the score date to fix up those with string months
+
+Died_Sac_tmp3 <- Died_Sac_tmp2 %>% 
+  filter(!has_full_date) %>%
+  mutate(
+    str_month = gsub(".*(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec).*","\\1",  Died_Sac),
+    noalpha = gsub(" *$", "", gsub("^ *", "", gsub("> 25%", "", gsub("[A-Za-z'\",();]", "", Died_Sac)))),
+    just_day = gsub("[-./()'\" ,]", "", noalpha))
+
+Died_Sac_done_str_date <- Died_Sac_tmp3 %>% 
+  filter(has_str_month) %>% 
+  mutate(
+    raw_date_if_str_mo = paste0(year, "-", str_month, "-", just_day),
+        fixed_Died_Sac_date =  parse_date_time(raw_date_if_str_mo, orders=c("%Y-%b-%d"))
+  )
+
+
+
+Died_Sac_tmp4 <- Died_Sac_tmp3 %>%
+  filter(!has_str_month) %>% 
+  mutate(fixed_Died_Sac_date =parse_date_time(paste0(year, "/", noalpha), orders=c( "ymd", "mdY", "mdy", "BdY")))
+
+Died_Sac_done_month_day <- Died_Sac_tmp4 %>% 
+  filter(!is.na(fixed_Died_Sac_date)) 
+
+
+#############3  gather them all together
+grep("_done_", ls(), value = T)
+these_cols <- c("fullpath", "date_scored", "Group_num", "Mouse_num", "file_name", "fixed_Died_Sac_date")
+
+fixed_Died_Sac <- rbind(
+  Died_Sac_done_had_full_date %>% select(all_of(these_cols)),
+Died_Sac_done_simple_date%>% select(all_of(these_cols)),
+Died_Sac_done_month_day%>% select(all_of(these_cols)),
+Died_Sac_done_str_date%>% select(all_of(these_cols)))
+```
+
+
+```{r}
+s2021 <- res_df_cleaned %>% 
+  filter(str_detect(fullpath, 'Finished//2021'))
+```
+
+```{r group_num}
+#######################################
+Group_num <- s2021 %>% 
+  count(Group_num)
+
+questions <- s2021 %>% 
+  filter(Group_num == '20')
+```
+
+```{r group_num}
+# finding the chars that have length > 2
+Group_num_co <- Group_num %>% 
+  mutate(Group_num = str_replace(Group_num, '-.+$','')) %>% 
+  mutate(Group_num = str_replace(Group_num, ' $','')) %>% 
+  mutate(l2 = str_length(Group_num) > 2)
+
+group_num_should_be_NA <- c('*', Group_num_co %>% 
+                              filter(l2 == 'TRUE') %>% 
+                              pull(Group_num))
+
+s2021_cleaned_groupnum <- s2021 %>% 
+  mutate(Group_num = str_replace(Group_num, '-.+$','')) %>% 
+  mutate(Group_num = str_replace(Group_num, ' $','')) %>% 
+  mutate(Group_num = if_else(Group_num %in% group_num_should_be_NA, 'NA', Group_num)) %>% 
+  mutate_at(vars(Group_num), na_if, "NA") %>% 
+  fill(Group_num)
+```
+
+```{r bl_wt}
+Baseline_Weight_2b_rm <- s2021_cleaned_groupnum %>% 
+  count(Baseline_Weight) %>% 
+  filter(str_detect(Baseline_Weight,'^C.+$|N/A')) %>% 
+  pull(Baseline_Weight)
+# clean the s2021_cleaned_groupnum baseline weight NA rows
+wt_na <- s2021_cleaned_groupnum %>% 
+  filter(is.na(Baseline_Weight))
+
+keepe <- wt_na %>% 
+  filter(!is.na(Died_Sac)) %>% 
+  distinct(fullpath) %>% 
+  pull(fullpath)
+remove_e <- wt_na %>% 
+  distinct(fullpath) %>% 
+  filter(!fullpath %in% keepe) %>% 
+  pull(fullpath)
+
+s2021_cleaned_baselinewt <-  s2021_cleaned_groupnum %>% 
+  filter(!Baseline_Weight %in% Baseline_Weight_2b_rm) %>% 
+  filter(! fullpath %in% remove_e) %>% 
+  mutate(Baseline_Weight = as.double(Baseline_Weight))
+
+```
+
+```{r mouse_num}
+Mouse_num <- s2021_cleaned_baselinewt %>% 
+  count(Mouse_num)
+# no problem 
+```
+
+```{r wt}
+wt <- s2021_cleaned_baselinewt %>% 
+  count(Weight)
+
+s2021_cleaned_wt <-  s2021_cleaned_baselinewt %>% 
+  mutate(Weight = as.double(Weight))
+  
+```
+
+```{r}
+pos <- s2021_cleaned_wt %>% 
+  count(Posture)
+
+questions <- s2021_cleaned_wt %>% 
+  filter(Posture == '15')
+```
+
+```{r}
+fur <- s2021_cleaned_wt %>% 
+  count(Fur)
+```
+
+```{r}
+
+skin <- s2021_cleaned_wt %>% 
+  count(Skin)
+
+
+Activity <- s2021_cleaned_wt %>% 
+  count(Activity)
+```
+
+```{r sac-date}
+# cleant the diet/sac date column
+s2021_cleaned_died <- s2021_cleaned_wt %>% 
+  select(-Died_Sac, -Strain, -`Baseline_Wt.`) %>% 
+  left_join(fixed_Died_Sac, by = c("fullpath", "date_scored", "Group_num", "Mouse_num", "file_name")) %>% 
+  rename(Died_Sac = fixed_Died_Sac_date)
+
+```
+
+```{r transplant date}
+s2021_cleaned_tplant <- s2021_cleaned_died %>% 
+  mutate(transplant_date = parse_date_time(transplant_date, c("ymd", "mdY", "mdy", "BdY", "Bdy", "bdY", "bdy")))
+```
+
+```{r date_scored}
+s2021_cleaned_scored <- s2021_cleaned_tplant %>% 
+  mutate(date_scored = parse_date_time(date_scored, c("ymd", "mdY", "mdy", "BdY", "Bdy", "bdY", "bdy")))
+
+
+```
+
+```{r posture}
+# 3 need to be fixed for posture
+s2021_cleaned_pos <- s2021_cleaned_scored %>% 
+  mutate(Posture = as.double(Posture)) %>% 
+  mutate(Posture = if_else(Posture > 5, 1.5, Posture))
+
+s2021_cleaned_pos %>% 
+  write_csv('../data/cleaned/cleaned_2021_finished_score_sheets.csv')
+
+s2021_cleaned_pos %>% 
+  distinct(fullpath)
+```
+ 
+
+```{r posture}
+s2021_cleaned <- read_csv('../data/cleaned/cleaned_2021_finished_score_sheets.csv') %>% 
+  arrange(fullpath, date_scored, Group_num, Mouse_num, Weight) %>% 
+  distinct(fullpath, date_scored, Group_num, Mouse_num, .keep_all = T)
+
+test <- s2021_cleaned %>% 
+  count(fullpath, date_scored, Group_num, Mouse_num)
+
+sam <- s2021_cleaned %>% 
+  filter(date_scored == '2021-06-11')
+
+s2021_cleaned %>% 
+  write_csv('../data/cleaned/cleaned_2021_finished_score_sheets.csv')
+```
+
