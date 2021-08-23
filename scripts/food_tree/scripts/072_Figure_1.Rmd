@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(cowplot)
 ```
 
 # fig1 bottom 3
@@ -21,7 +22,7 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 ```
 ```{r}
-alpha_val <- 0.3
+alpha_val <- 0.1
 ```
 
 
@@ -48,11 +49,53 @@ day_cal <- day_calori %>%
   ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, 
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
-            add = "loess", color = 'maroon',
-            add.params = list(color = "brown", fill = "darkgray", size = 2), 
+            add = "loess", color = 'plum3',
+            add.params = list(color = "plum4", fill = "darkgray", size = 2), 
             conf.int = TRUE) +
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=10),
         aspect.ratio=1)
 day_cal
 ```
+
+```{r nutrition_alpha}
+# this faith pd is recently calculated in 2021-07
+faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
+  separate(X1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
+
+diet_alpha <- faith %>% 
+  ggscatter('fdrt', 'faith_pd', 
+             alpha = alpha_val,
+            color = 'mediumseagreen',
+            ylab = "Diet alpha diversity", 
+            xlab = 'Day relative to HCT',
+            #title = 'Nutritional alpha diversity',
+            add = "loess", 
+            add.params = list(color = "seagreen4", fill = "darkgray", size = 2), 
+            conf.int = TRUE) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10),
+        #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
+        ) + 
+  theme(aspect.ratio=1)
+diet_alpha
+```
+
+```{r}
+bot <- plot_grid(stool_alpha, day_cal, diet_alpha,
+          nrow = 1, 
+          align = 'hv',
+          #rel_widths =  c(1,1),
+          #rel_heights = c(1,1),
+          #labels = "AUTO",
+          axis = 'tblr') +
+  ggsave('../figs/paper/fig1_bottom.pdf',
+         width = 160,
+         #height = NA,
+         units = c("mm"),
+         dpi = 400)
+bot
+
+```
+
