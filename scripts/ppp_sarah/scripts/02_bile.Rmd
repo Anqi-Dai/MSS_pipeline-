@@ -1,0 +1,48 @@
+---
+title: "bile acid KO"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+meta <- read_csv('../data/phenon.csv', col_names = c('sampleid','pheno')) %>% 
+  mutate(sampleid = str_replace(sampleid, '_IGO.+$',''),
+         #sampleid = str_glue('{sampleid}_humann3')
+         ) %>% 
+  separate(pheno, into = c('day','grp'), sep = '_C_') %>% 
+  mutate(grp = str_replace(grp, '_0.+$', ''))
+meta
+```
+
+
+```{r}
+dat <- read_tsv('../data/humann3_KO_cpm_joined_unstratified.tsv') %>% 
+  rename_all(~ gsub("_humann3", "", .)) %>% 
+  rename(KOID = names(.)[1])
+
+KOs <- c('K01442','K15868','K15869','K15870','K15871','K15872','K15873','K15874',
+         'K07007','K22604','K22605','K22606','K22607')
+KO_str <- paste(KOs, collapse = '|')
+
+tb <- dat %>% 
+  filter(str_detect(KOID, KO_str)) %>% 
+  gather('sampleid', 'CPM', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(meta)
+```
+```{r}
+tb %>% 
+  ggboxplot(x = 'grp', y = 'CPM', add = 'jitter') +
+  facet_grid(day ~ KOID) +
+  stat_compare_means(comparisons= list(c('BM', 'BMT')),
+            label= "p.value",
+            method= 'wilcox.test',
+						correct=F) +
+  ggsave('../data/three_KO_bile_box.pdf')
+```

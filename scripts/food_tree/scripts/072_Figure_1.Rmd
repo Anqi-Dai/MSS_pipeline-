@@ -92,10 +92,57 @@ bot <- plot_grid(stool_alpha, day_cal, diet_alpha,
           axis = 'tblr') +
   ggsave('../figs/paper/fig1_bottom.pdf',
          width = 160,
-         #height = NA,
+         height = 80,
          units = c("mm"),
          dpi = 400)
 bot
 
+```
+
+# fig1 top 3
+
+```{r}
+# the patient that picked to showcase the timeline in data collection
+pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
+```
+
+```{r timeline_one}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(cal =  sum(Calories_kcal)) %>% 
+  ungroup() %>% 
+  mutate(food = 1) %>% 
+  filter(mrn == pick$mrn)
+
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
+  mutate(stool = 0) %>% 
+  filter(mrn == pick$mrn)
+
+dtb %>% 
+  ggplot(aes(x = fdrt, y = food )) +
+  geom_point(color = 'darkolivegreen4', size = 1.5) +
+  geom_point(data = stb, aes(x = sdrt, y = stool), color = 'gold4', size = 1.5) +
+  facet_wrap(~mrn, scales = 'free') +
+  theme_linedraw() +
+  theme(strip.background = element_blank(),
+        strip.text.x = element_blank(),
+        axis.title.y=element_blank(),
+        axis.title.x=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.grid.major.y=element_blank(),
+        legend.position = "none") +
+  scale_x_continuous(breaks = seq(-5, 20, by = 5), labels = seq(-5, 20, by = 5)) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10),
+        #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
+        ) +
+  ylim(-0.5, 1.5) +
+  ggsave('../figs/paper/fig1_timeline.pdf',
+         width = 70,
+         height = 30,
+         units = c("mm"),
+         dpi = 400)
 ```
 

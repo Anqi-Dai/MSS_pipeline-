@@ -1,0 +1,38 @@
+---
+title: "finding shotgun samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+
+samp <- c('FMT.0092K','FMT0092L','FMT.0092Z','1366M','1366N','FMT.0013K','FMT.0013L','1105J','1105U','628M')
+pt <- c('1110','1230','1362','FMT.0136','FMT.0023','FMT.0114','FMT.0115','FMT.0217')
+```
+
+```{r}
+samps <- shotgun_lookup_ad %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(sampleid %in% samp)
+
+pts <- shotgun_lookup_ad %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(str_detect(sampleid, paste(pt, collapse = '|')))
+
+pts %>% 
+  select(sampleid) %>% 
+  write_csv('../data/target_patients_samples_yale.csv')
+
+setdiff(samp, samps$sampleid)
+```
+

@@ -26,6 +26,9 @@ exampled0 <- dtb %>%
 
 exampled20 <- dtb %>% 
   filter(mrn == 38016516 & fdrt == 20)
+
+exampled0 %>% 
+  write_csv('../figs/paper/data/patient_pick_d0_diet.csv')
 ```
 
 # Look at the pca using the nutrients from the 5230 meals
