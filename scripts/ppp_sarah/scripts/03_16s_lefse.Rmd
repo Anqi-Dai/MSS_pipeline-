@@ -1,0 +1,74 @@
+---
+title: "16s lefse"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+cts <- get_counts_subset(meta$sampleid)
+get_table_from_database('asv_annotation_blast_ag')
+
+
+# 4 samples didn't pass the filtering step in the dada2
+setdiff(meta$sampleid, cts %>% 
+  distinct(sampleid) %>% pull(sampleid))
+```
+
+```{r}
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  mutate(ordr =  if_else(is.na(ordr), str_glue('unknown_of_class_{class}'), ordr),
+         family =  if_else(is.na(family), str_glue('unknown_of_order_{ordr}'), family),
+         genus =  if_else(is.na(genus) , str_glue('unknown_of_family_{family}'), genus),
+         species =  if_else(is.na(species) , str_glue('unknown_of_genus_{genus}'), species)) %>% 
+  mutate(taxa_genus = str_glue('k__{kingdom}|p__{phylum}|c__{class}|o__{ordr}|f__{family}|g__{genus}'))
+
+cts_all <- cts %>% 
+  left_join(annot %>%  select(asv_key, taxa_genus), by  = 'asv_key') %>% 
+  group_by(sampleid, taxa_genus) %>% 
+  summarise(relab =  sum(count_relative))
+ 
+keepg <- cts_all %>% 
+  filter(relab > 0.0001) %>%
+  ungroup() %>% 
+  count(taxa_genus) %>% 
+  filter(n > floor(nrow(meta) * 0.25)) %>% 
+  pull(taxa_genus)
+ 
+cts_fil <- cts_all %>% 
+  filter(taxa_genus %in% keepg) %>% 
+  spread('sampleid', 'relab', fill = 0)
+```
+
+
+```{r}
+day_pheno <- meta %>% 
+  split(., list(.$day))
+
+day_pheno %>% 
+  imap(function(.x, .y){
+    select(.data = .x, grp) %>% 
+      t() %>% 
+      write.table(str_glue('../data/16s_lefse//{.y}.txt'), sep = '\t', quote = F, row.names = T, col.names = F)
+  })
+
+day_pheno_tcts <- day_pheno %>% 
+  map(~ pull(.data = ., sampleid) ) %>% 
+  imap(~ cts_fil %>% select(taxa_genus, matches(.x)) %>% 
+         write_tsv(str_glue('../data/16s_lefse//{.y}_tcts.tsv')))
+
+```
+
+```{bash}
+cat ../data/16s_lefse/D7.txt ../data/16s_lefse/D7_tcts.tsv > ../data/16s_lefse/D7_lefse_ready_tcts.tsv
+```
+

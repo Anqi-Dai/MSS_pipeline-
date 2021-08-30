@@ -1,0 +1,71 @@
+---
+title: Contribution of bacterial taxa to differentially abundant pwys (not just BA,
+  but all differentially abundant pwys)
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+pres <- list.files('../data/lefse/', pattern = 'pres', full.names = T)
+
+res_all <- pres %>% 
+  set_names(pres) %>% 
+  map(~ read_tsv(., col_names = c('feature','xx','direction','score','pval')) %>% 
+        filter(!is.na(score))) %>% 
+  keep(~ nrow(.) > 0) %>% 
+  bind_rows(.id = 'res') %>% 
+  mutate(res = str_replace(res, '^.+//',''),
+         res = str_replace(res, '_pres.+$',''))  %>% 
+  rename(grp = res) %>% 
+  mutate(pwid = str_extract(feature, '^.+_PWY|^PWY.*_\\d{3,4}'))  %>% 
+  mutate(pwid = str_replace_all(pwid, '_', '-')) %>% 
+  mutate(pwid = if_else(is.na(pwid), case_when(
+     str_detect(feature, '^PWY4FS_8') ~ 'PWY4FS_8',
+     str_detect(feature, '^PWY4FS_7') ~ 'PWY4FS_7',
+     str_detect(feature, '^GLYCOLYSIS_E_D') ~ 'GLYCOLYSIS_E_D',
+     str_detect(feature, '^GLYCOLYSIS_g') ~ 'GLYCOLYSIS'
+   ), pwid)) %>% 
+  mutate(day = if_else(grp == 'd14', 'D14', 'D7')) %>% 
+  select(-grp)
+```
+```{r}
+# the stratified table
+tb <- read_tsv('../data/humann3_pathabundance_cpm_stratified.tsv') %>% 
+  rename_all(~ gsub("_humann3", "", .)) %>% 
+  rename(pathway = names(.)[1]) %>% 
+  separate(pathway, into = c('pwid','pw'), sep = ': ') %>% 
+  filter(pwid %in% res_all$pwid) %>% 
+  filter(!str_detect(pw, 'unclassified')) %>% 
+  separate(pw, into = c('pw_name','spp'), sep = '\\|') %>% 
+  gather('sampleid','CPM', names(.)[4]:names(.)[ncol(.)]) %>% 
+  left_join(meta, by = "sampleid")
+```
+```{r}
+combined <- tb %>% 
+  left_join(res_all, by = c("pwid", "day")) %>% 
+  filter(!is.na(feature))
+
+combined %>% 
+  filter(day == 'D7') %>% 
+  split(.$feature) %>% 
+  imap(~ ggboxplot(data = .x, x = 'grp', y = 'CPM', facet.by = 'spp', add = 'jitter',
+                  title = str_glue('D7-{.y}-{.x$direction[1]}-{.x$score[1]}')) +
+         ggsave(str_glue('../data/spp_contri/D7___{.y}___{.x$direction[1]}.pdf')))
+
+
+combined %>% 
+  filter(day == 'D14') %>% 
+  split(.$feature) %>% 
+  imap(~ ggboxplot(data = .x, x = 'grp', y = 'CPM', facet.by = 'spp', add = 'jitter',
+                  title = str_glue('D14-{.y}-{.x$direction[1]}-{.x$score[1]}')) +
+         ggsave(str_glue('../data/spp_contri/D14___{.y}___{.x$direction[1]}.pdf')))
+
+```
+
