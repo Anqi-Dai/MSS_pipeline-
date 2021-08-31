@@ -50,7 +50,8 @@ tb <- read_tsv('../data/humann3_pathabundance_cpm_stratified.tsv') %>%
 ```{r}
 combined <- tb %>% 
   left_join(res_all, by = c("pwid", "day")) %>% 
-  filter(!is.na(feature))
+  filter(!is.na(feature)) %>% 
+  mutate(grp = factor(grp, levels = c('BM','BMT')))
 
 combined %>% 
   filter(day == 'D7') %>% 
@@ -58,8 +59,10 @@ combined %>%
   imap(~ ggboxplot(data = .x, x = 'grp', y = 'CPM', facet.by = 'spp', add = 'jitter',
                   title = str_glue('D7-{.y}-{.x$direction[1]}-{.x$score[1]}')) +
          ggsave(str_glue('../data/spp_contri/D7___{.y}___{.x$direction[1]}.pdf')))
+```
 
 
+```{r}
 combined %>% 
   filter(day == 'D14') %>% 
   split(.$feature) %>% 
@@ -67,5 +70,12 @@ combined %>%
                   title = str_glue('D14-{.y}-{.x$direction[1]}-{.x$score[1]}')) +
          ggsave(str_glue('../data/spp_contri/D14___{.y}___{.x$direction[1]}.pdf')))
 
+```
+```{r}
+# that pathway that is related to bile acid 
+bile <- read_tsv('../data/humann3_pathabundance_cpm_stratified.tsv') %>% 
+  rename_all(~ gsub("_humann3", "", .)) %>% 
+  rename(pathway = names(.)[1]) %>% 
+  separate(pathway, into = c('pwid','pw'), sep = ': ')
 ```
 

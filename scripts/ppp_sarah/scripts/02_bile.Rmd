@@ -36,6 +36,9 @@ tb <- dat %>%
   filter(str_detect(KOID, KO_str)) %>% 
   gather('sampleid', 'CPM', names(.)[2]:names(.)[ncol(.)]) %>% 
   left_join(meta)
+
+tb %>% 
+  write_csv('../data/three_bile_KO_table.csv')
 ```
 ```{r}
 tb %>% 
