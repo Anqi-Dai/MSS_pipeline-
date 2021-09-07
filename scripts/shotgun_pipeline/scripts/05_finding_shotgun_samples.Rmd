@@ -34,5 +34,9 @@ pts %>%
   write_csv('../data/target_patients_samples_yale.csv')
 
 setdiff(samp, samps$sampleid)
+
+need <- bind_rows(pts, samps)
+
+need
 ```
 
