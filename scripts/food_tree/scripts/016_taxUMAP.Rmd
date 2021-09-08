@@ -12,11 +12,11 @@ library(tidyverse)
 library(viridis)
 ```
 
-To run the taxUMAP of Jonas repo
+**Updated 2021-9-8 the new source files for the phylo-umap**
 
 ```{r}
 # formatting the counts table to have samples in the rows
-cts <- read_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.tsv') %>% 
+cts <- read_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix_UPDATED.tsv') %>% 
   gather('fid', 'gram', names(.)[2]:names(.)[ncol(.)])
 
 fid_sum <- cts %>% 
@@ -28,7 +28,8 @@ cts_all <- cts %>%
   mutate(frelab = gram/Sum) %>% 
   select(Food_code, fid, frelab) %>% 
   spread(key = 'Food_code', value = 'frelab') %>% 
-  rename(index_column = fid)
+  rename(index_column = fid) %>% 
+  mutate(index_column = str_glue('P{index_column}'))
 
 # create pt number for the mrn
 link <- cts_all %>% 
@@ -75,11 +76,19 @@ cts_all %>%
 
 ```{r}
 # format the food taxa table 
-ftaxa <- read_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv') %>% 
-  rename(ASV = FoodID)
+ftaxa <- read_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv') 
 
 ftaxa %>% 
   write_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv')
+```
+
+```{r}
+# check if the 
+cts_food_code <- cts %>% 
+  distinct(Food_code) %>% 
+  pull(Food_code)
+
+length(intersect(ftaxa$ASV, cts_food_code))
 ```
 
 
@@ -89,7 +98,7 @@ ftaxa %>%
 dtb <- read_csv('../data/cleaned_diet_data/wide_food_grp-and_nutrients_total.csv')
 
 faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
-  rename(index_column = X1)
+  rename(index_column = ...1)
 
 # average number of samples for patients (matter to the neigh param)
 ave <- dtb %>% 
@@ -118,14 +127,15 @@ res <- read_csv('../softwares/phylo-umap/results/embedded.csv') %>%
 
 library(ggpubr)
 
-res  %>% 
+res_plot <- res  %>% 
   filter(str_detect(type, '^fg')) %>% 
   ggplot(aes(x = u1, y  = u2, color = log_gram , alpha = 0.2)) +
   geom_point() +
   scale_color_viridis() +
-  facet_wrap(~type) +
-  ggsave('../figs/umap_fg.pdf', width = 10, height = 7)
+  facet_wrap(~type) 
 
+ggsave('../figs/umap_fg.pdf', width = 10, height = 7, plot = res_plot)
+res_plot
 
 ```
 

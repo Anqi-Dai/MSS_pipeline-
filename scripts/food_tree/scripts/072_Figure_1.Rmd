@@ -13,6 +13,28 @@ library(ggpubr)
 library(cowplot)
 ```
 
+```{r}
+# the colors for each food group specified and saved here
+fpalette <- tribble(
+  ~fg1_name, ~color, ~fgrp1,
+  #--|--|
+  'fg_milk' , '#3498DB', '1',
+  'fg_meat' , '#591605', '2',
+  'fg_egg' , '#F1C40F', '3',
+  'fg_legume' , '#E67E22', '4',
+  'fg_grain' , '#D35400', '5',
+  'fg_fruit' , '#7D3C98', '6',
+  'fg_veggie' , '#229954', '7',
+  'fg_oils' , '#707B7C',  '8',
+  'fg_sweets' , '#ff24bd' , '9'
+)
+
+pie(rep(1, 9), col=fpalette$color)
+fpalette %>% 
+  write_csv('../data/cleaned_diet_data/food_group_color_key.csv')
+
+```
+
 # fig1 bottom 3
 
 The first 2 need to be redo, since the data has been updated.
@@ -61,7 +83,7 @@ day_cal
 ```{r nutrition_alpha}
 # this faith pd is recently calculated in 2021-07
 faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
-  separate(X1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
+  separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
   mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
 
 diet_alpha <- faith %>% 
@@ -89,12 +111,14 @@ bot <- plot_grid(stool_alpha, day_cal, diet_alpha,
           #rel_widths =  c(1,1),
           #rel_heights = c(1,1),
           #labels = "AUTO",
-          axis = 'tblr') +
-  ggsave('../figs/paper/fig1_bottom.pdf',
+          axis = 'tblr') 
+  
+ggsave('../figs/paper/fig1_bottom.pdf',
          width = 160,
          height = 80,
          units = c("mm"),
-         dpi = 400)
+         dpi = 400,
+       plot = bot)
 bot
 
 ```
@@ -118,7 +142,7 @@ stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>%
   mutate(stool = 0) %>% 
   filter(mrn == pick$mrn)
 
-dtb %>% 
+fig1_timeline <- dtb %>% 
   ggplot(aes(x = fdrt, y = food )) +
   geom_point(color = 'darkolivegreen4', size = 1.5) +
   geom_point(data = stb, aes(x = sdrt, y = stool), color = 'gold4', size = 1.5) +
@@ -138,12 +162,14 @@ dtb %>%
         axis.title=element_text(size=10),
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
         ) +
-  ylim(-0.5, 1.5) +
-  ggsave('../figs/paper/fig1_timeline.pdf',
+  ylim(-0.5, 1.5) 
+
+ggsave('../figs/paper/fig1_timeline.pdf',
          width = 70,
          height = 30,
          units = c("mm"),
-         dpi = 400)
+         dpi = 400,
+       plot = fig1_timeline)
 ```
 
 ```{r umap}
@@ -166,37 +192,57 @@ fcts_fg_dom <- fcts_fg %>%
    
 df <- coord %>% 
   inner_join(fcts_fg_dom) %>% 
-  mutate(color = case_when(
-    fg1_dom == 'fg_milk' ~ '#3498DB',
-    fg1_dom == 'fg_meat' ~ '#C0392B',
-    fg1_dom == 'fg_egg' ~ '#F1C40F',
-    fg1_dom == 'fg_legume' ~ '#E67E22',
-    fg1_dom == 'fg_grain' ~ '#D35400',
-    fg1_dom == 'fg_fruit' ~ '#7D3C98',
-    fg1_dom == 'fg_veggie' ~ '#229954',
-    fg1_dom == 'fg_oils' ~ '#707B7C', 
-    fg1_dom == 'fg_sweets' ~ '#D81B60'
-  )) %>% 
+  left_join(fpalette %>% select(fg1_dom = fg1_name, color)) %>% 
   add_count(fg1_dom)
 
-color_df <- df %>% 
+color_key <- df %>% 
   distinct(fg1_dom, color) %>% 
   mutate(fg1_dom = factor(fg1_dom)) %>% 
-  arrange(fg1_dom)
+  arrange(fg1_dom) %>% 
+  deframe()
 
-values <- df$color
-
-df %>% 
+fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
   ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`))+
-  geom_point(aes(colour = factor(fg1_dom)),alpha = 0.4, size = 2 ) +
-  scale_color_manual(values = color_df$color) +
+  geom_point(aes(color = fg1_dom),alpha = 0.4, size = 2 ) +
+  scale_color_manual(values = color_key) +
   theme_void() +
-  theme(legend.position = "none") +
-  ggsave('../figs/paper/fig1_umap.pdf', 
+  theme(legend.position = "none") 
+
+fig1_umap
+
+ggsave('../figs/paper/fig1_umap.pdf', 
          width = 70,
          height = 50,
          units = c("mm"),
-         dpi = 400)
+         dpi = 400,
+         plot = fig1_umap)
 
 ```
+```{r diet_composition_histogram}
+# examine that patient's dit pick the day that's most diverse
+patient_pick <- read_csv('../figs/paper/data/patient_pick_all_diet.csv')
+
+days <- patient_pick %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(each = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  count(fdrt, mrn)
+
+diverse_day <- days %>% 
+  arrange(-n) %>% 
+  slice(1) %>% 
+  pull(fdrt)
+
+# look at the day -5 diet
+dm5 <- patient_pick %>% 
+  filter(fdrt == diverse_day) %>% 
+  select( mrn, fdrt, Food_code, description ) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  left_join(fpalette)
+
+dm5 %>% 
+  ggbarplot(x = 'fdrt', y ='Food_code', color = 'fg1_name', fill = 'fg1_name') +
+  scale_fill_manual(values = color_key)
+```
+
