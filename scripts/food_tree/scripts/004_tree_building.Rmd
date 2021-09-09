@@ -14,10 +14,6 @@ knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
 library(tidyverse)
 library(data.tree)
 library(viridisLite)
-library(dplyr)
-library(tidyr)
-library(reshape2)
-library(kableExtra)
 library(readxl)
 ```
 
@@ -30,7 +26,7 @@ library(readxl)
 
 
 # uniq_food is a table with the food_nsc and food code and description
-uniq_food <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.csv') %>% 
+uniq_food <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code.csv') %>% 
   select(-Food_NSC) %>% 
   distinct()  
 
@@ -38,7 +34,7 @@ uniq_food <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code_FINAL.cs
 codes <- read_tsv('../data/finalized/paired/pNday/prophylactic_p5d_diet_foodID_dehydrated_weight_per_pt.tsv') %>% 
   pull(Food_code)
 
-current_all <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv') %>% 
+current_all <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
   distinct(Food_code) %>% 
   pull(Food_code)
 
@@ -82,9 +78,9 @@ main <- data.frame(main, flevels, stringsAsFactors=F)
 
 
 # melt the data, merge to get the node names, then cast back
-main.melt <- melt(main, id.vars = "FoodID", variable.name = "Level", value.name = "Level.code")
+main.melt <- reshape2::melt(main, id.vars = "FoodID", variable.name = "Level", value.name = "Level.code")
 main.merge <- merge(main.melt, nodes, by = "Level.code")
-main.cast <- dcast(main.merge, FoodID ~ Level, value.var = "Main.food.description")
+main.cast <- data.table::dcast(main.merge, FoodID ~ Level, value.var = "Main.food.description")
 
 # prepend level to all level descriptions
 main.cast[is.na(main.cast)] <- ""
@@ -121,9 +117,9 @@ graphlan.py guide_1.xml food_tree.pdf --dpi 300 --size 3.5
 ```
 
 ```{r}
-# library(networkD3)
-# useRtreeList <- ToListExplicit(foodTree, unname = TRUE)
-# radialNetwork( useRtreeList)
+library(networkD3)
+useRtreeList <- ToListExplicit(foodTree, unname = TRUE)
+radialNetwork( useRtreeList)
 ```
 
 # output the foodID taxanomy into a table that could be used in taxUMAP

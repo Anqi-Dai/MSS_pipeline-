@@ -7,22 +7,22 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r}
+```{r setting}
 library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(ggimage)
-```
 
-```{r}
 axis_text_size <- 10
 axis_title_size <- 10
-alpha_val < 0.2
+alpha_val <- 0.3
 point_size <- 1.2
+loess_line_col <- 'azure4'
+scatter_col <- 'gray14'
 ```
 
 
-```{r}
+```{r colors}
 # the colors for each food group specified and saved here
 fpalette <- tribble(
   ~fg1_name, ~color, ~fgrp1,
@@ -48,7 +48,7 @@ fpalette %>%
 
 The first 2 need to be redo, since the data has been updated.
 
-```{r}
+```{r load_table}
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 ```
@@ -60,8 +60,8 @@ stool_alpha <- meta %>%
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Microbiome \u03b1 diversity',
-            add = "loess", color = 'darkgoldenrod3',
-            add.params = list(color = "darkgoldenrod4", fill = "darkgray", size = 2), 
+            add = "loess", color = scatter_col, shape = 'square',
+            add.params = list(color = loess_line_col, fill = "darkgray", size = 2), 
             conf.int = TRUE) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
@@ -78,8 +78,9 @@ day_cal <- day_calori %>%
   ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
-            add = "loess", color = 'plum3',
-            add.params = list(color = "plum4", fill = "darkgray", size = 2), 
+            color = scatter_col,
+            add = "loess", 
+            add.params = list(color = loess_line_col, fill = "darkgray", size = 2), 
             conf.int = TRUE) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
@@ -96,12 +97,12 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
 diet_alpha <- faith %>% 
   ggscatter('fdrt', 'faith_pd', 
              alpha = alpha_val,size = point_size, 
-            color = 'mediumseagreen',
+            color = scatter_col, shape = 'triangle',
             ylab = "Diet \u03b1 diversity", 
             xlab = 'Day relative to HCT',
             #title = 'Nutritional alpha diversity',
             add = "loess", 
-            add.params = list(color = "seagreen4", fill = "darkgray", size = 2), 
+            add.params = list(color = loess_line_col, fill = "darkgray", size = 2), 
             conf.int = TRUE) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
@@ -111,7 +112,7 @@ diet_alpha <- faith %>%
 diet_alpha
 ```
 
-```{r}
+```{r combine_bot3}
 bot <- plot_grid(stool_alpha, day_cal, diet_alpha,
           nrow = 1, 
           align = 'hv',
@@ -121,10 +122,11 @@ bot <- plot_grid(stool_alpha, day_cal, diet_alpha,
           axis = 'tblr') 
   
 ggsave('../figs/paper/fig1_bottom.pdf',
-         width = 160,
+         width = 180,
          height = 80,
          units = c("mm"),
          dpi = 400,
+       device = cairo_pdf, 
        plot = bot)
 bot
 
@@ -135,6 +137,7 @@ bot
 ```{r}
 # the patient that is picked to showcase the timeline in data collection
 pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
+pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
 ```
 
 ```{r timeline_one}
@@ -144,14 +147,14 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
   ungroup() %>% 
   mutate(food = 1) %>% 
   filter(mrn == pick$mrn) %>% 
-  mutate(img = '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/eat.svg')
+  mutate(img = '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/forkb.svg')
 
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
   mutate(stool = 0) %>% 
   filter(mrn == pick$mrn) %>% 
-  mutate(img = '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/poop.svg')
+  mutate(img = '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/poopb.svg')
 
-asp_ratio <- 4 
+asp_ratio <- 5
 
 fig1_timeline <- dtb %>% 
   ggplot(aes(x = fdrt, y = food )) +
@@ -171,13 +174,14 @@ fig1_timeline <- dtb %>%
   scale_x_continuous(breaks = seq(-6, 21, by = 1), labels = seq(-6, 21, by = 1)) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
-        panel.border = element_rect(colour = "gray", fill = NA),
+        panel.border = element_rect(colour = "black", fill = NA, size = 0.5),
         panel.grid.major.x = element_line(colour = "black", linetype = "dashed"),
         ) +
+  labs(x = 'Day relative to transplant') +
   ylim(-0.5, 1.5) 
 
 ggsave('../figs/paper/fig1_timeline.pdf',
-         width = 160,
+         width = 170,
          height = 40,
          units = c("mm"),
          dpi = 400,
@@ -216,11 +220,12 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggplot(aes(x = `taxumap-LLLL-1`, y = `taxumap-LLLL-2`))+
-  geom_point(aes(color = fg1_dom),alpha = 0.4, size = 2 ) +
+  ggscatter(x = 'taxumap-LLLL-1', y = 'taxumap-LLLL-2', color = 'fg1_dom', alpha = alpha_val,size = point_size , xlab = 'UMAP1', ylab = 'UMAP2') +
   scale_color_manual(values = color_key) +
-  theme_void() +
-  theme(legend.position = "none") 
+  theme_classic() +
+  theme(legend.position = "none",
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size)) 
 
 fig1_umap
 
@@ -256,25 +261,8 @@ dm5 <- patient_pick %>%
   arrange(fgrp1) %>% 
   add_count(fgrp1) %>% 
   arrange(-n, -dehydrated_weight) %>% 
-  mutate(item = c('Baked salmon','Pork sausage','Beef shortribs','Pork bacon','Beef broth','Spinach','String beans','Broccoli','Tomato catsup','Gatorade G','Fruit juice drink','Chocolate cake','Milk shake','Egg omelet')) %>% 
-  mutate(img = c('/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/salmon.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/sausages.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/ribs.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/bacon.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/broth.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/spinach.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/beans.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/broccoli.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/ketchup.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/gatorade.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/juice.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/cake.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/milkshake.svg',
-                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/omelette.svg'))
-```
+  mutate(item = c('Baked salmon','Pork sausage','Beef shortribs','Pork bacon','Beef broth','Spinach','String beans','Broccoli','Tomato catsup','Gatorade G','Fruit juice drink','Chocolate cake','Milk shake','Egg omelet'))
 
-
-```{r diet_composition_histogram}
 fg_factor_level <- dm5 %>% 
   distinct(fg1_name) %>% pull(fg1_name)
 
@@ -285,7 +273,7 @@ daym5 <- dm5 %>%
   facet_grid(~ fg1_name, space = "free", scales="free_x") +
   scale_fill_manual(values = color_key) +
   scale_y_continuous(expand = c(0, 0)) + 
-  #geom_image(aes(x = item, y = -8, image = img),size = 0.14) +
+  geom_image(aes(x = item, y = -8, image = img),size = 0.14) +
   theme(strip.background = element_blank(),
         strip.text = element_blank(),
         panel.spacing.x = unit(0, "lines"),
