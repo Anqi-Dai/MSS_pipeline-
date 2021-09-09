@@ -11,7 +11,16 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 library(cowplot)
+library(ggimage)
 ```
+
+```{r}
+axis_text_size <- 10
+axis_title_size <- 10
+alpha_val < 0.2
+point_size <- 1.2
+```
+
 
 ```{r}
 # the colors for each food group specified and saved here
@@ -43,21 +52,19 @@ The first 2 need to be redo, since the data has been updated.
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 ```
-```{r}
-alpha_val <- 0.1
-```
+
 
 
 ```{r stool_alpha}
 stool_alpha <- meta %>% 
-  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
-            ylab = 'Microbiome alpha diversity',
+            ylab = 'Microbiome \u03b1 diversity',
             add = "loess", color = 'darkgoldenrod3',
             add.params = list(color = "darkgoldenrod4", fill = "darkgray", size = 2), 
             conf.int = TRUE) +
-  theme(axis.text=element_text(size=10),
-        axis.title=element_text(size=10),
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 stool_alpha
 ```
@@ -68,14 +75,14 @@ day_calori <- dtb %>%
   summarise(daycal = sum(Calories_kcal))
 
 day_cal <- day_calori %>% 
-  ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, 
+  ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
             add = "loess", color = 'plum3',
             add.params = list(color = "plum4", fill = "darkgray", size = 2), 
             conf.int = TRUE) +
-  theme(axis.text=element_text(size=10),
-        axis.title=element_text(size=10),
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 day_cal
 ```
@@ -88,16 +95,16 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
 
 diet_alpha <- faith %>% 
   ggscatter('fdrt', 'faith_pd', 
-             alpha = alpha_val,
+             alpha = alpha_val,size = point_size, 
             color = 'mediumseagreen',
-            ylab = "Diet alpha diversity", 
+            ylab = "Diet \u03b1 diversity", 
             xlab = 'Day relative to HCT',
             #title = 'Nutritional alpha diversity',
             add = "loess", 
             add.params = list(color = "seagreen4", fill = "darkgray", size = 2), 
             conf.int = TRUE) +
-  theme(axis.text=element_text(size=10),
-        axis.title=element_text(size=10),
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
         ) + 
   theme(aspect.ratio=1)
@@ -136,40 +143,46 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
   summarise(cal =  sum(Calories_kcal)) %>% 
   ungroup() %>% 
   mutate(food = 1) %>% 
-  filter(mrn == pick$mrn)
+  filter(mrn == pick$mrn) %>% 
+  mutate(img = '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/eat.svg')
 
 stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
   mutate(stool = 0) %>% 
-  filter(mrn == pick$mrn)
+  filter(mrn == pick$mrn) %>% 
+  mutate(img = '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/poop.svg')
+
+asp_ratio <- 4 
 
 fig1_timeline <- dtb %>% 
   ggplot(aes(x = fdrt, y = food )) +
-  geom_point(color = 'darkolivegreen4', size = 1.5) +
-  geom_point(data = stb, aes(x = sdrt, y = stool), color = 'gold4', size = 1.5) +
+  geom_image(aes(image = img),
+              size = 0.03, by = "width", asp = asp_ratio) +
+  #geom_point(color = 'darkolivegreen4', size = 1.5) +
+  #geom_point(data = stb, aes(x = sdrt, y = stool), color = 'gold4', size = 1.5) +
+  geom_image(data = stb, aes(x = sdrt, y = stool, image = img),
+             # Set size, and aspect ratio
+    size = 0.03, by = "width", asp = asp_ratio) +
   facet_wrap(~mrn, scales = 'free') +
   theme_linedraw() +
-  theme(strip.background = element_blank(),
-        strip.text.x = element_blank(),
-        axis.title.y=element_blank(),
-        axis.title.x=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks.y=element_blank(),
-        panel.grid.minor=element_blank(),
-        panel.grid.major.y=element_blank(),
-        legend.position = "none") +
-  scale_x_continuous(breaks = seq(-5, 20, by = 5), labels = seq(-5, 20, by = 5)) +
-  theme(axis.text=element_text(size=10),
-        axis.title=element_text(size=10),
-        #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
+  theme(strip.background = element_blank(),strip.text.x = element_blank(),
+        axis.title.y=element_blank(), axis.title.x=element_blank(),
+        axis.text.y=element_blank(),axis.ticks.y=element_blank(),
+        panel.grid.minor=element_blank(),panel.grid.major.y=element_blank(),legend.position = "none") +
+  scale_x_continuous(breaks = seq(-6, 21, by = 1), labels = seq(-6, 21, by = 1)) +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        panel.border = element_rect(colour = "gray", fill = NA),
+        panel.grid.major.x = element_line(colour = "black", linetype = "dashed"),
         ) +
   ylim(-0.5, 1.5) 
 
 ggsave('../figs/paper/fig1_timeline.pdf',
-         width = 70,
-         height = 30,
+         width = 160,
+         height = 40,
          units = c("mm"),
          dpi = 400,
        plot = fig1_timeline)
+fig1_timeline
 ```
 
 ```{r umap}
@@ -242,20 +255,51 @@ dm5 <- patient_pick %>%
   left_join(fpalette, by = "fgrp1") %>%  
   arrange(fgrp1) %>% 
   add_count(fgrp1) %>% 
-  arrange(-n, -dehydrated_weight)
+  arrange(-n, -dehydrated_weight) %>% 
+  mutate(item = c('Baked salmon','Pork sausage','Beef shortribs','Pork bacon','Beef broth','Spinach','String beans','Broccoli','Tomato catsup','Gatorade G','Fruit juice drink','Chocolate cake','Milk shake','Egg omelet')) %>% 
+  mutate(img = c('/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/salmon.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/sausages.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/ribs.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/bacon.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/broth.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/spinach.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/beans.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/broccoli.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/ketchup.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/gatorade.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/juice.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/cake.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/milkshake.svg',
+                 '/Users/daia1/pipeline/scripts/food_tree/figs/paper/pics/omelette.svg'))
+```
 
+
+```{r diet_composition_histogram}
 fg_factor_level <- dm5 %>% 
   distinct(fg1_name) %>% pull(fg1_name)
 
-dm5 %>%  
+daym5 <- dm5 %>%  
   mutate(fg1_name = factor(fg1_name, levels = fg_factor_level)) %>% 
-  ggbarplot(x = 'description', y = 'dehydrated_weight', fill = 'fg1_name', color = 'white',
+  ggbarplot(x = 'item', y = 'dehydrated_weight', fill = 'fg1_name', color = 'white', xlab = '', ylab = 'Dehydrated weight',
             width = 0.9)  +
   facet_grid(~ fg1_name, space = "free", scales="free_x") +
   scale_fill_manual(values = color_key) +
+  scale_y_continuous(expand = c(0, 0)) + 
+  #geom_image(aes(x = item, y = -8, image = img),size = 0.14) +
   theme(strip.background = element_blank(),
         strip.text = element_blank(),
         panel.spacing.x = unit(0, "lines"),
-        legend.position = 'none')
+        legend.position = 'none',
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+ggsave('../figs/paper/fig1_daym5.pdf', 
+         width = 70,
+         height = 50,
+         units = c("mm"),
+         dpi = 400,
+         plot = daym5)
 ```
 
