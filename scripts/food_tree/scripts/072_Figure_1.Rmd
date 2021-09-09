@@ -26,8 +26,8 @@ fpalette <- tribble(
   'fg_fruit' , '#7D3C98', '6',
   'fg_veggie' , '#229954', '7',
   'fg_oils' , '#707B7C',  '8',
-  'fg_sweets' , '#ff24bd' , '9'
-)
+  'fg_sweets' , '#db2589' , '9'
+) 
 
 pie(rep(1, 9), col=fpalette$color)
 fpalette %>% 
@@ -237,12 +237,25 @@ diverse_day <- days %>%
 # look at the day -5 diet
 dm5 <- patient_pick %>% 
   filter(fdrt == diverse_day) %>% 
-  select( mrn, fdrt, Food_code, description ) %>% 
+  select( mrn, fdrt, Food_code, description, dehydrated_weight ) %>% 
   mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
-  left_join(fpalette)
+  left_join(fpalette, by = "fgrp1") %>%  
+  arrange(fgrp1) %>% 
+  add_count(fgrp1) %>% 
+  arrange(-n, -dehydrated_weight)
 
-dm5 %>% 
-  ggbarplot(x = 'fdrt', y ='Food_code', color = 'fg1_name', fill = 'fg1_name') +
-  scale_fill_manual(values = color_key)
+fg_factor_level <- dm5 %>% 
+  distinct(fg1_name) %>% pull(fg1_name)
+
+dm5 %>%  
+  mutate(fg1_name = factor(fg1_name, levels = fg_factor_level)) %>% 
+  ggbarplot(x = 'description', y = 'dehydrated_weight', fill = 'fg1_name', color = 'white',
+            width = 0.9)  +
+  facet_grid(~ fg1_name, space = "free", scales="free_x") +
+  scale_fill_manual(values = color_key) +
+  theme(strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.spacing.x = unit(0, "lines"),
+        legend.position = 'none')
 ```
 
