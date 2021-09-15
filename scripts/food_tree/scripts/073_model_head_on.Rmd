@@ -1,0 +1,78 @@
+---
+title: "model head on"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(brms)  
+library(vdbR)
+library(ggpubr)
+```
+
+
+```{r}
+library(tidyverse)
+library(lme4)
+library(brms)
+library(rstan)
+library(albersusa)
+library(cowplot)
+rstan_options(auto_write=TRUE)
+options(mc.cores=parallel::detectCores())
+```
+
+```{r}
+library(rethinking)
+data(Howell1)
+d <- Howell1
+
+b5.15 <- 
+  brm(data = d, 
+      family = gaussian,
+      height ~ 1 + male,
+      prior = c(prior(normal(178, 100), class = Intercept),
+                prior(normal(0, 10), class = b),
+                prior(cauchy(0, 2), class = sigma)),
+      iter = 2000, warmup = 500, chains = 4, cores = 4,
+      seed = 5)
+
+get_prior(data = d, 
+      family = gaussian,
+      height ~ 1 + male)
+
+
+post <- posterior_samples(b5.15)
+
+post %>%
+  transmute(male_height = b_Intercept + b_male) %>% 
+  mean_qi(.width = .89)
+
+nd <- tibble(male = 1)
+
+fitted(b5.15,
+       newdata = nd)
+
+fitted(b5.15,
+       newdata = nd,
+       summary = F) %>% 
+  as_tibble() %>% 
+  
+  ggplot(aes(x = V1, y = 0)) +
+  stat_halfeye(point_interval = median_qi, .width = .95,
+               fill = "firebrick4") +
+  scale_y_continuous(NULL, breaks = NULL) +
+  labs(subtitle = "Model-implied male heights",
+       x = expression(alpha + beta["male"])) +
+  theme_bw() +
+  theme(panel.grid = element_blank())
+```
+
+
+
+
+

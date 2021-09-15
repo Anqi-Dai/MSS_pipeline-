@@ -35,11 +35,47 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          fg_milk = fg_milk/100,
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100)
-
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(empiT = if_else(empirical == 'TRUE', 1, 0),
+         empiF = if_else(empirical == 'FALSE', 1, 0),
+         tpnT = if_else(TPN == 'TRUE', 1, 0),
+         tpnF = if_else(TPN == 'FALSE', 1, 0),
+         enT = if_else(TPN == 'TRUE', 1, 0),
+         enF = if_else(TPN == 'FALSE', 1, 0))
 ```
 
 ## Priors 
+
+```{r}
+get_prior( log(simpson_reciprocal)~ 0+0+
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               empirical +  
+               intensity + 
+                TPN +
+                EN +
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta)
+
+get_prior( log(simpson_reciprocal)~ 0 +
+             intensity + 
+             empiT +  
+               empiF+
+                tpnT +tpnF+
+                enT +enF+
+               (1 | mrn) +
+                (1 | timebin),  
+              data = meta)
+```
+
 
 ### Setting priors
 

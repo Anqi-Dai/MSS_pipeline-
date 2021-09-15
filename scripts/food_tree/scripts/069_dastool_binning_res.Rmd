@@ -154,8 +154,7 @@ combined %>%
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ ., scales = 'free') +
-  ggsave('../figs/alpha_Blautia_irep_no_abx.pdf', width = 13, height = 10)
+  facet_wrap(grp ~ ., scales = 'free')
  
 combined %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
@@ -170,8 +169,7 @@ combined %>%
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ empirical, scales = 'free') +
-  ggsave('../figs/fg_Enterococcus_mean_irep.pdf', width = 13, height = 10)
+  facet_wrap(grp ~ empirical, scales = 'free') 
 
 
 test <- combined %>% 
@@ -200,8 +198,7 @@ df %>%
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
-  facet_wrap(grp ~ ., scales = 'free') +
-  ggsave('../figs/food_group_mean_irep.pdf', width = 13, height = 10)
+  facet_wrap(grp ~ ., scales = 'free') 
 
 # milk fruit sweets and veggie be positively linked with mean irep
 # what's driving?
@@ -283,12 +280,11 @@ withoutlier <- target %>%
                conf.int = TRUE, # Add confidence interval
                cor.coef = TRUE, # Add correlation coefficient.
                cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
-      facet_wrap(grp ~ ., scales = 'free') +
-      ggsave(str_glue('../figs/fg_{.y}_irep_no_abx.pdf'), width = 10, height = 7)
+      facet_wrap(grp ~ ., scales = 'free')
   }) 
 
-ggarrange(plotlist = withoutlier, nrow = length(target)) +
-  ggsave('../figs/mean_irep_5_genus_scatter_with_outlier.pdf', width = 9, height = 28)
+withoutlier_list <- ggarrange(plotlist = withoutlier, nrow = length(target)) 
+ggsave('../figs/mean_irep_5_genus_scatter_with_outlier.pdf', width = 9, height = 28, plot = withoutlier_list)
 
 # if not including the outlier
 no_outlier <- target %>% 
@@ -307,12 +303,11 @@ no_outlier <- target %>%
                conf.int = TRUE, # Add confidence interval
                cor.coef = TRUE, # Add correlation coefficient.
                cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
-      facet_wrap(grp ~ ., scales = 'free') +
-      ggsave(str_glue('../figs/fg_{.y}_irep_no_abx_no_outlier.pdf'), width = 10, height = 7)
+      facet_wrap(grp ~ ., scales = 'free')
   }) 
 
-ggarrange(plotlist = no_outlier, nrow = length(target)) +
-  ggsave('../figs/mean_irep_5_genus_scatter_No_outlier.pdf', width = 9, height = 28)
+no_outlier_list <- ggarrange(plotlist = no_outlier, nrow = length(target)) 
+ggsave('../figs/mean_irep_5_genus_scatter_No_outlier.pdf', width = 9, height = 28, plot = no_outlier_list)
  
 ```
 
@@ -368,6 +363,23 @@ both %>%
 
 sig <- both %>% 
   filter(pval < 0.05)
+
+```
+
+```{r}
+# all taxa in a sample
+ave_per_sample <- combined %>% 
+  group_by(sampleid, fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie) %>% 
+  summarise(ave_irep = mean(iRep)) %>% 
+      gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+      ggscatter(x = 'gram', y = 'ave_irep', title = '',
+              add = "reg.line",  # Add regressin line
+               add.params = list(color = "blue", fill = "lightgray"), # Customize line
+               conf.int = TRUE, # Add confidence interval
+               cor.coef = TRUE, # Add correlation coefficient.
+               cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
+      facet_wrap(grp ~ ., scales = 'free')
+ 
 
 ```
 
