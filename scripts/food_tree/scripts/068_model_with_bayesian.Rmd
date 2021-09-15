@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE, message = F)
 library(tidyverse)
 library(brms)  
 library(vdbR)
+connect_database('~/dbConfig.txt')
 library(ggpubr)
 ```
 
@@ -41,13 +42,17 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          tpnT = if_else(TPN == 'TRUE', 1, 0),
          tpnF = if_else(TPN == 'FALSE', 1, 0),
          enT = if_else(TPN == 'TRUE', 1, 0),
-         enF = if_else(TPN == 'FALSE', 1, 0))
+         enF = if_else(TPN == 'FALSE', 1, 0),
+         inten_non = if_else(intensity == 'nonablative', 1, 0),
+         inten_ab = if_else(intensity == 'ablative', 1, 0),
+         inten_re = if_else(intensity == 'reduced', 1, 0))
 ```
 
 ## Priors 
 
 ```{r}
-get_prior( log(simpson_reciprocal)~ 0+0+
+# what priors I cann set 
+model_formular <- log(simpson_reciprocal)~ 1 +
                 fg_fruit+
                fg_meat+
                fg_milk+
@@ -57,30 +62,20 @@ get_prior( log(simpson_reciprocal)~ 0+0+
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               empirical +  
-               intensity + 
-                TPN +
-                EN +
-               (1 | mrn) +
-                (1 | timebin),  
-              data = meta)
-
-get_prior( log(simpson_reciprocal)~ 0 +
-             intensity + 
-             empiT +  
-               empiF+
+               inten_non + inten_ab + inten_re +
+               empiT +  empiF+
                 tpnT +tpnF+
                 enT +enF+
                (1 | mrn) +
-                (1 | timebin),  
+                (1 | timebin)
+get_prior( model_formular,  
               data = meta)
 ```
-
 
 ### Setting priors
 
 ```{r}
-priors <- c(prior(normal(0, 0.5), class = 'b'),   
+priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_egg"),
             prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
             prior(normal(0, 1), class = 'b', coef = "fg_grain"),
@@ -90,34 +85,23 @@ priors <- c(prior(normal(0, 0.5), class = 'b'),
             prior(normal(0, 1), class = 'b', coef = "fg_oils"),
             prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
             prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
-            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
-            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
-            prior(normal(0, 0.1), class = 'b', coef = "empiricalTRUE"),
-            prior(normal(0, 0.1), class = 'b', coef = "intensityreduced"),
-            prior(normal(0, 0.1), class = 'b', coef = "intensityablative"),
-            prior(normal(2, 0.5), class = 'Intercept'))
-```
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "tpnF"),
+            prior(normal(0, 0.1), class = 'b', coef = "tpnT"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "enF"),
+            prior(normal(0, 0.1), class = 'b', coef = "enT"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiF"),
+            prior(normal(0, 0.5), class = 'b', coef = "empiT"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            prior(normal(2, 0.1), class = 'Intercept'))
 
-### Draw samples only from the priors
-
-```{r}
 # samples are drawn solely from the priors ignoring the likelihood
-model_prior <- brm( log(simpson_reciprocal)~ 
-                fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
-                fg_grain+
-                fg_sweets+  
-                fg_legume+
-                fg_veggie+
-               empirical +  
-               intensity + 
-                TPN +
-                EN +
-               (1 | mrn) +
-                (1 | timebin),  
+model_prior <- brm( model_formular,  
               data = meta, 
               warmup = 1000, iter = 3000, 
               prior = priors,
@@ -148,6 +132,8 @@ max_fruit <- max(meta$fg_fruit)
 # the min of the fruit intake
 min_fruit <- min(meta$fg_fruit) 
 
+max_log_div <- max(log(meta$simpson_reciprocal)) 
+
 # get the following two 
 # sample prior coefficients and multiply with the mean diet
 # sample prior coefficients and multiply with the mean diet changed so that fruits are the max fruit values
@@ -161,7 +147,11 @@ prior_mean <- samples_prior %>%
            b_fg_grain*mean_fg$fg_grain +
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
-           b_fg_veggie*mean_fg$fg_veggie,
+           b_fg_veggie*mean_fg$fg_veggie +
+           b_inten_non +
+           b_empiT +
+           b_tpnF +
+           b_enF,
          
          max_fruit_prior = Intercept + 
            b_fg_fruit*max_fruit +
@@ -172,7 +162,11 @@ prior_mean <- samples_prior %>%
            b_fg_grain*mean_fg$fg_grain +
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
-           b_fg_veggie*mean_fg$fg_veggie) %>% 
+           b_fg_veggie*mean_fg$fg_veggie +
+           b_inten_non +
+           b_empiT +
+           b_tpnF +
+           b_enF) %>% 
   select(mean_prior, max_fruit_prior) %>% 
   gather()
 
@@ -182,6 +176,15 @@ prior_mean %>%
               #add_density = TRUE,  
               rug = TRUE,
               title = 'Prior check\nred:max fruit(87) with others average;blue:all groups average(11)')
+
+
+
+# calculate the perc that the value for mean_prior is between 0 and 4
+
+prior_mean %>% 
+  split(.$key) %>% 
+  map_dfr(~ count(x = .x, value > 0 & value < max_log_div) %>% 
+  mutate(perc = n / 4000 *100) )
 ```
 
 
