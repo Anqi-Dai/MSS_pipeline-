@@ -280,7 +280,7 @@ post_samples  <- posterior_samples(model_wo_EN, '^b_')
 # when the food intake is average mean
 
 ave_each_fg_post <- post_samples %>% 
-  mutate(mean_fg = b_Intercept + 
+  mutate(mean_fg = exp(b_Intercept + 
            b_fg_fruit*mean_fg$fg_fruit +
            b_fg_meat*mean_fg$fg_meat + 
            b_fg_milk*mean_fg$fg_milk + 
@@ -293,7 +293,7 @@ ave_each_fg_post <- post_samples %>%
            b_inten_re +
            b_empiF +
            b_tpnF +
-           b_enF) %>% 
+           b_enF)) %>% 
   select(mean_fg) %>% 
   mutate(grp = 'ave_each') %>% 
   rename(post_res = mean_fg) %>% 
@@ -323,8 +323,72 @@ max_each_fg_post <- vals  %>%
    post_coeffs$b_tpnF$post_coeff +
    post_coeffs$b_Intercept$post_coeff) 
   }) %>% 
-  bind_rows(.id = 'grp') 
+  bind_rows(.id = 'grp')
+```
+```{r post_diff}
+# calculate the absolute difference between the max in each fg and the mean 
+# note the mean is from EN-free records.
+maxs <- max_each_fg_post %>% 
+  as.list()
 
+diff_res <- maxs %>% 
+  map(function(vec) {
+    tibble(
+      max_=vec,
+      ave=ave_each_fg_post$post_res
+    ) %>% 
+      mutate(post_diff_ = ave - max_)
+  }) %>% 
+  imap(~ gghistogram(data = .x, x = 'post_diff_', 
+                     fill = 'forestgreen', color = 'white', bins = 50,
+                     xlab = str_glue('diff between e(mean_fg) and e({.y})'),
+                     title = str_glue('{.y}')) +
+         xlim(-24, 5) +
+         geom_vline(xintercept = 0, col = 'red', linetype = 'dashed'))
+
+diff <- cowplot::plot_grid(diff_res[[1]],diff_res[[2]],diff_res[[3]],diff_res[[4]],diff_res[[5]],diff_res[[6]],diff_res[[7]],diff_res[[8]],diff_res[[9]],
+    ncol = 3, nrow= 3, 
+    o = 'hv',
+    #labels = 'AUTO',
+    axis = 'bltr') 
+diff
+ggsave('../figs/paper/post_check_9fg_diff.pdf', width = 15, height = 10, dpi = 300, plot = diff)
+
+
+all_diff <- maxs %>% 
+  map(function(vec) {
+    tibble(
+      max_=vec,
+      ave=ave_each_fg_post$post_res
+    ) %>% 
+      mutate(post_diff_ = ave - max_)
+  }) %>% 
+  bind_rows(.id = 'grp')
+
+```
+
+## the forest plot with prior and post 
+
+```{r}
+both <- bind_rows(
+  samples_prior %>% 
+    select(starts_with('b_fg')) %>% mutate(grp = 'prior'),
+  post_samples %>% 
+    select(starts_with('b_fg')) %>% mutate(grp = 'post')
+)  %>% 
+  gather('item', 'coeff', b_fg_fruit:b_fg_veggie)
+
+summ <- both %>% 
+  group_by(grp, item) %>% 
+  summarise(q025 = quantile(coeff, 0.025))
+
+summarise_draws(draws, ~ quantile(.x, probs = c(0.025, 0.975)), 'median')
+```
+
+
+## others
+
+```{r post_mean_max}
 post_all <- bind_rows(ave_each_fg_post, max_each_fg_post) %>% 
   mutate(div = exp(post_res))
 post_all %>%  write_csv('../figs/paper/data/post_ave_max_min_res_68.csv')
@@ -348,8 +412,6 @@ g_post <- cowplot::plot_grid(post_check_list[[1]],post_check_list[[2]],post_chec
 g_post
 
 ggsave('../figs/paper/post_check_9fg.pdf', width = 10, height = 10, dpi = 300, plot = g_post)
-
-
 ```
 
 ## Post_top_patients
