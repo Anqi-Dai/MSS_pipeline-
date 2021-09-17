@@ -179,7 +179,7 @@ test <- combined %>%
   inner_join(meta) %>% 
   gather('grp', 'gram', fg_egg:fg_veggie)
 ```
-
+ 
 
 ```{r}
 # per sample mean of irep
@@ -197,7 +197,7 @@ df %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
   facet_wrap(grp ~ ., scales = 'free') 
 
 # milk fruit sweets and veggie be positively linked with mean irep
@@ -368,18 +368,18 @@ sig <- both %>%
 
 ```{r}
 # all taxa in a sample
-ave_per_sample <- combined %>% 
+ggg <- combined %>% 
   group_by(sampleid, fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie) %>% 
   summarise(ave_irep = mean(iRep)) %>% 
-      gather('grp', 'gram', fg_egg:fg_veggie) %>% 
-      ggscatter(x = 'gram', y = 'ave_irep', title = '',
+  gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+  left_join(combined %>% select(sampleid, iRep)) %>% 
+  ggscatter(x = 'gram', y = 'ave_irep', title = '',
               add = "reg.line",  # Add regressin line
                add.params = list(color = "blue", fill = "lightgray"), # Customize line
                conf.int = TRUE, # Add confidence interval
                cor.coef = TRUE, # Add correlation coefficient.
                cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
       facet_wrap(grp ~ ., scales = 'free')
- 
-
+ggg
 ```
 

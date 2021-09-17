@@ -19,16 +19,138 @@ library(ggpubr)
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(empirical = factor(empirical, levels = c('FALSE','TRUE')))
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(empiT = if_else(empirical == 'TRUE', 1, 0),
+         empiF = if_else(empirical == 'FALSE', 1, 0),
+         tpnT = if_else(TPN == 'TRUE', 1, 0),
+         tpnF = if_else(TPN == 'FALSE', 1, 0),
+         enT = if_else(TPN == 'TRUE', 1, 0),
+         enF = if_else(TPN == 'FALSE', 1, 0),
+         inten_non = if_else(intensity == 'nonablative', 1, 0),
+         inten_ab = if_else(intensity == 'ablative', 1, 0),
+         inten_re = if_else(intensity == 'reduced', 1, 0))
 
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) %>% 
-  dplyr::select(sampleid, taxa_genus, relab) %>% 
-  mutate(taxa_genus = str_extract(taxa_genus, 'g__.+$')) %>% 
-  mutate(taxa_genus = str_replace(taxa_genus, 'g__',''))
+  dplyr::select(sampleid, genus, relab) 
+
+
+model_formular <- Enterococcus ~ 1 +
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               #fg_oils+
+                #fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                #fg_legume+
+                fg_veggie+
+               inten_non + inten_ab + inten_re +
+               empiT +  empiF+
+                tpnT +tpnF+
+                enT +enF+
+               (1 | mrn) +
+                (1 | timebin)
+
+
+priors <- c(# for the food group variables
+            #prior(normal(0, 3), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_grain"),
+            #prior(normal(0, 3), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_milk"),
+            #prior(normal(0, 3), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "tpnF"),
+            prior(normal(0, 0.1), class = 'b', coef = "tpnT"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "enF"),
+            prior(normal(0, 0.1), class = 'b', coef = "enT"),
+            # for the empirical 
+            prior(normal(0, 0.6), class = 'b', coef = "empiF"),
+            prior(normal(0, 0.6), class = 'b', coef = "empiT"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            prior(normal(-3, 0.4), class = 'Intercept'))
+
+
+model_prior <- brm( model_formular,  
+              data = final, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = 16, 
+              chains = 2, 
+              seed = 123, sample_prior = T) 
+
+mean_fg <-  meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean))
+
+samples_prior <- prior_samples(model_prior)
+
+ave_each_fg <- samples_prior %>% 
+  mutate(mean_fg = Intercept + 
+           b_fg_fruit*mean_fg$fg_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
+           #b_fg_oils*mean_fg$fg_oils + 
+           #b_fg_egg*mean_fg$fg_egg + 
+           b_fg_grain*mean_fg$fg_grain +
+           b_fg_sweets*mean_fg$fg_sweets +
+           #b_fg_legume*mean_fg$fg_legume +
+           b_fg_veggie*mean_fg$fg_veggie +
+           b_inten_re +
+           b_empiF +
+           b_tpnF +
+           b_enF) %>% 
+  select(mean_fg) %>% 
+  mutate(grp = 'ave_each') %>% 
+  rename(prior_res = mean_fg) %>% 
+  select(grp, prior_res)
+
+max_sweets <- samples_prior %>% 
+  mutate(mean_fg = Intercept + 
+           b_fg_fruit*mean_fg$fg_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
+           #b_fg_oils*mean_fg$fg_oils + 
+           #b_fg_egg*mean_fg$fg_egg + 
+           b_fg_grain*mean_fg$fg_grain +
+           b_fg_sweets*max_fg$fg_sweets +
+           #b_fg_legume*mean_fg$fg_legume +
+           b_fg_veggie*mean_fg$fg_veggie +
+           b_inten_re +
+           b_empiF +
+           b_tpnF +
+           b_enF) %>% 
+  select(mean_fg) %>% 
+  mutate(grp = 'max_sweets') %>% 
+  rename(prior_res = mean_fg) %>% 
+  select(grp, prior_res)
+
+bind_rows(ave_each_fg, max_sweets) %>% 
+  gghistogram(x = 'prior_res', fill = 'grp')
+ave_each_fg %>% 
+  count(prior_res >-5 & prior_res<0) %>% 
+  mutate(perc = n/4000*100)
+
 ```
 
-## filger on the food consumption and the genera
+## filter on the food consumption and the genera
 
 ```{r}
 thre <- seq(0.0001, 0.001, 0.0001)
@@ -36,43 +158,53 @@ thre %>%
   set_names(thre) %>% 
   map_dfr(function(num){
     cts %>% 
-    group_by(taxa_genus) %>% 
+    group_by(genus) %>% 
     count(relab > num) %>% 
     rename(criteria = names(.)[2]) %>% 
     filter(criteria == 'TRUE') %>% 
     arrange(-n) %>% 
-    filter(taxa_genus != 'NA') %>% 
+    filter(genus != 'NA') %>% 
     mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
     filter(perc > 10) %>% 
       nrow
   }) %>% 
   gather('thre', 'num')
 
-# i think I am happy with 47 genera left after filtering 
+# i think I am happy with 48 genera left after filtering 
 ```
 
 ```{r}
 target_genera <-  cts %>% 
-  group_by(taxa_genus) %>% 
+  group_by(genus) %>% 
   count(relab > 0.001) %>% 
   rename(criteria = names(.)[2]) %>% 
   filter(criteria == 'TRUE') %>% 
   arrange(-n) %>% 
-  filter(taxa_genus != 'NA') %>% 
+  filter(genus != 'NA') %>% 
   mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
   filter(perc > 10) %>% 
-  pull(taxa_genus)
+  pull(genus)
 ```
 
 ```{r}
 domcts <- cts %>% 
-  filter(taxa_genus %in% target_genera) %>% 
+  filter(genus %in% target_genera) %>% 
   mutate(relablog = log10(relab + 2*10^-6)) %>% 
   dplyr::select(-relab) %>% 
-  spread(key = 'taxa_genus', value = 'relablog')
+  spread(key = 'genus', value = 'relablog', fill = 0)
 
 All <- domcts %>% 
   full_join(meta, by = "sampleid")
+
+domcts_narrow <- cts %>% 
+  filter(genus %in% target_genera) %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  dplyr::select(-relab)
+
+range(domcts_narrow$relablog)
+domcts_narrow %>% 
+ggboxplot(y = 'relablog', facet.by = 'genus') +
+  theme_cleveland()
 ```
  
 

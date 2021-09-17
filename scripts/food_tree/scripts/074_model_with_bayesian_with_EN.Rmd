@@ -45,10 +45,9 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          enF = if_else(TPN == 'FALSE', 1, 0),
          inten_non = if_else(intensity == 'nonablative', 1, 0),
          inten_ab = if_else(intensity == 'ablative', 1, 0),
-         inten_re = if_else(intensity == 'reduced', 1, 0)) 
-
-
-
+         inten_re = if_else(intensity == 'reduced', 1, 0)) %>% 
+  mutate(fg_EN = if_else(EN == 'TRUE', fg_sweets, 0),
+         fg_sweets = if_else(EN == 'TRUE', 0, fg_sweets))
 ```
 
 ## Priors 
@@ -65,10 +64,10 @@ model_formular <- log(simpson_reciprocal)~ 1 +
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
+                fg_EN+
                inten_non + inten_ab + inten_re +
                empiT +  empiF+
                 tpnT +tpnF+
-                enT +enF+
                (1 | mrn) +
                 (1 | timebin)
 get_prior( model_formular,  
@@ -89,12 +88,13 @@ priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_oils"),
             prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
             prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            prior(normal(0, 1), class = 'b', coef = "fg_EN"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "tpnF"),
             prior(normal(0, 0.1), class = 'b', coef = "tpnT"),
             # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "enF"),
-            prior(normal(0, 0.1), class = 'b', coef = "enT"),
+            # prior(normal(0, 0.1), class = 'b', coef = "enF"),
+            # prior(normal(0, 0.1), class = 'b', coef = "enT"),
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiF"),
             prior(normal(0, 0.5), class = 'b', coef = "empiT"),
@@ -105,7 +105,7 @@ priors <- c(# for the food group variables
             prior(normal(2, 0.1), class = 'Intercept'))
 
 # samples are drawn solely from the priors ignoring the likelihood
-model_wo_EN <- brm( model_formular,  
+model_w_EN <- brm( model_formular,  
               data = meta, 
               warmup = 1000, iter = 3000, 
               prior = priors,
@@ -113,31 +113,30 @@ model_wo_EN <- brm( model_formular,
               chains = 2, 
               seed = 123, sample_prior = T) 
 
+# look at the priors set for the model
+summary(model_w_EN)
+
 # actually draw samples from the priors 
-samples_prior <- prior_samples(model_wo_EN)
+samples_prior <- prior_samples(model_w_EN)
 
 ```
 
 ```{r }
 # the mean food group intake from our data 
 ave_fg <- meta %>% 
-  filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean)) %>% 
   gather
 
 mean_fg <-  meta %>% 
-  filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean))
 
 max_fg <- meta %>% 
-  filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(max))
 
 min_fg <- meta %>% 
-  filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(min))
 
@@ -159,13 +158,14 @@ max_ <- ave_fg %>%
          max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
          max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
          max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
-         max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>% 
+         max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_),
+         max_fg_EN = if_else(key == 'fg_EN', max_fg$fg_EN, mean_)) %>% 
   select(-mean_) %>% 
   mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>% 
   arrange(key)
 
 prior_coeffs <- samples_prior %>% 
-  select(Intercept, b_inten_re, b_empiF, b_tpnF, b_enF, starts_with('b_fg')) %>% 
+  select(Intercept, b_inten_re, b_empiF, b_tpnF, starts_with('b_fg')) %>% 
   gather('term','prior_coeff') %>% 
   split(.$term)
   
@@ -183,7 +183,7 @@ max_each_fg <- vals  %>%
   set_names(vals) %>% 
   map(function(val) {
     res = prior_coeffs$b_empiF$prior_coeff  +
-   prior_coeffs$b_enF$prior_coeff  +
+   #prior_coeffs$b_enF$prior_coeff  +
    prior_coeffs$b_fg_egg$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_egg') +
    prior_coeffs$b_fg_fruit$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_fruit') +
    prior_coeffs$b_fg_grain$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_grain') +
@@ -193,20 +193,22 @@ max_each_fg <- vals  %>%
    prior_coeffs$b_fg_oils$prior_coeff * values %>% pluck(val) %>% pluck('b_fg_oils') +
    prior_coeffs$b_fg_sweets$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_sweets') +
    prior_coeffs$b_fg_veggie$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_veggie') +
-   prior_coeffs$b_inten_re$prior_coeff  +
+   prior_coeffs$b_fg_EN$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_EN') +
+   prior_coeffs$b_inten_re$prior_coeff   +
    prior_coeffs$b_tpnF$prior_coeff +
    prior_coeffs$Intercept$prior_coeff 
   }) %>% 
   bind_rows(.id = 'grp') %>% 
   gather('grp', 'prior_res')
+
 ```
 
 
 ```{r plot_prior}
-# combine the max and min and ave together and plot
+# combinne the max and min and ave together and plot
 ave_each_fg <- samples_prior %>% 
   mutate(mean_fg = Intercept + 
-          b_fg_fruit *mean_fg$fg_fruit+
+           b_fg_fruit *mean_fg$fg_fruit+
            b_fg_meat *mean_fg$fg_meat+ 
            b_fg_milk *mean_fg$fg_milk+ 
            b_fg_oils * mean_fg$fg_oils+ 
@@ -215,10 +217,10 @@ ave_each_fg <- samples_prior %>%
            b_fg_sweets * mean_fg$fg_sweets+
            b_fg_legume * mean_fg$fg_legume+
            b_fg_veggie* mean_fg$fg_veggie +
+           b_fg_EN* mean_fg$fg_EN +
            b_inten_re +
            b_empiF +
-           b_tpnF +
-           b_enF) %>% 
+           b_tpnF) %>% 
   select(mean_fg) %>% 
   mutate(grp = 'ave_each') %>% 
   rename(prior_res = mean_fg) %>% 
@@ -226,7 +228,7 @@ ave_each_fg <- samples_prior %>%
 
 prior_all <- bind_rows(ave_each_fg, max_each_fg) 
 
-prior_all %>%  write_csv('../figs/paper/data/prior_ave_max_min_res_68.csv')
+prior_all %>%  write_csv('../figs/paper/data/prior_ave_max_min_res_68_with_EN.csv')
 
 grps <- prior_all %>% 
   distinct(grp)
@@ -239,28 +241,29 @@ prior_check_list <- fg_cha %>%
   set_names(fg_cha) %>% 
   map(function(char){
     prior_all %>% 
-      filter(str_detect(grp, str_glue('ave_each'))) %>% 
+      filter(str_detect(grp, str_glue('ave_each|{char}'))) %>% 
       gghistogram(x = 'prior_res', fill = 'grp', color = 'white', palette = 'lancet', xlab = 'diversity',
                   #add_density = TRUE, 
                   bins = 30,
-                  title = str_glue('Prior check {char}'))
+                  title = str_glue('Prior check {char} (EN)'))
     })
 
-g <- cowplot::plot_grid(prior_check_list[[1]],prior_check_list[[2]],prior_check_list[[3]],prior_check_list[[4]],prior_check_list[[5]],prior_check_list[[6]],prior_check_list[[7]],prior_check_list[[8]],prior_check_list[[9]],
-    ncol = 3, nrow= 3, 
+g <- cowplot::plot_grid(prior_check_list[[1]],prior_check_list[[2]],prior_check_list[[3]],prior_check_list[[4]],prior_check_list[[5]],prior_check_list[[6]],prior_check_list[[7]],prior_check_list[[8]],prior_check_list[[9]],prior_check_list[[10]],
+    ncol = 3, 
     o = 'hv',
     #labels = 'AUTO',
     axis = 'bltr') 
 g
-ggsave('../figs/paper/prior_check_9fg.pdf', width = 10, height = 10, dpi = 300, plot = g)
+ggsave('../figs/paper/prior_check_10fg_EN.pdf', width = 10, height = 10, dpi = 300, plot = g)
 
 ```
 
 ## Posterior
 
 ```{r}
+
 # extract the coefficients table
-posterior_model <- posterior_samples(model_wo_EN) %>% 
+posterior_model <- posterior_samples(model_w_EN) %>% 
   select(starts_with('b')) %>% 
   #select(-b_Intercept) %>% 
   gather('item', 'value') %>% 
@@ -275,7 +278,8 @@ posterior_model <- posterior_samples(model_wo_EN) %>%
 
 ```{r post_sample}
 # extract posterior samples for the coeff
-post_samples  <- posterior_samples(model_wo_EN, '^b_')
+post_samples  <- posterior_samples(model_w_EN, '^b_')
+
 
 # when the food intake is average mean
 
@@ -290,10 +294,10 @@ ave_each_fg_post <- post_samples %>%
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
            b_fg_veggie*mean_fg$fg_veggie +
+           b_fg_EN*mean_fg$fg_EN +
            b_inten_re +
            b_empiF +
-           b_tpnF +
-           b_enF) %>% 
+           b_tpnF) %>% 
   select(mean_fg) %>% 
   mutate(grp = 'ave_each') %>% 
   rename(post_res = mean_fg) %>% 
@@ -301,15 +305,14 @@ ave_each_fg_post <- post_samples %>%
 
 # when the intake is max
 post_coeffs <- post_samples %>% 
-  select(b_Intercept, b_inten_re, b_empiF, b_tpnF, b_enF, starts_with('b_fg')) %>% 
+  select(b_Intercept, b_inten_re, b_empiF, b_tpnF, starts_with('b_fg')) %>% 
   gather('term','post_coeff') %>% 
   split(.$term) 
 
 max_each_fg_post <- vals  %>% 
   set_names(vals) %>% 
   map(function(val) {
-    res = exp(post_coeffs$b_empiF$post_coeff  +
-   post_coeffs$b_enF$post_coeff  +
+    res = post_coeffs$b_empiF$post_coeff  +
    post_coeffs$b_fg_egg$post_coeff * values %>% pluck(val) %>% pluck('b_fg_egg') +
    post_coeffs$b_fg_fruit$post_coeff * values %>% pluck(val) %>% pluck('b_fg_fruit') +
    post_coeffs$b_fg_grain$post_coeff * values %>% pluck(val) %>% pluck('b_fg_grain') +
@@ -319,35 +322,36 @@ max_each_fg_post <- vals  %>%
    post_coeffs$b_fg_oils$post_coeff * values %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_fg_EN$post_coeff * values %>% pluck(val) %>% pluck('b_fg_EN') +
    post_coeffs$b_inten_re$post_coeff  +
    post_coeffs$b_tpnF$post_coeff +
-   post_coeffs$b_Intercept$post_coeff) 
+   post_coeffs$b_Intercept$post_coeff 
   }) %>% 
-  bind_rows(.id = 'grp') 
+  bind_rows(.id = 'grp') %>% 
+  gather('grp', 'post_res')
 
-post_all <- bind_rows(ave_each_fg_post, max_each_fg_post) %>% 
-  mutate(div = exp(post_res))
-post_all %>%  write_csv('../figs/paper/data/post_ave_max_min_res_68.csv')
+post_all <- bind_rows(ave_each_fg_post, max_each_fg_post)
+post_all %>%  write_csv('../figs/paper/data/post_ave_max_min_res_68_with_EN.csv')
 
 post_check_list <- fg_cha %>% 
   set_names(fg_cha) %>% 
   map(function(char){
     post_all %>% 
       filter(str_detect(grp, str_glue('ave_each|{char}'))) %>% 
-      gghistogram(x = 'div', fill = 'grp', color = 'white', palette = 'lancet', xlab = 'logdiversity',
+      gghistogram(x = 'post_res', fill = 'grp', color = 'white', palette = 'lancet', xlab = 'logdiversity',
                   #add_density = TRUE, 
                   bins = 30,
-                  title = str_glue('Post check {char}'))
+                  title = str_glue('Post check {char} (EN)'))
     })
 
-g_post <- cowplot::plot_grid(post_check_list[[1]],post_check_list[[2]],post_check_list[[3]],post_check_list[[4]],post_check_list[[5]],post_check_list[[6]],post_check_list[[7]],post_check_list[[8]],post_check_list[[9]],
-    ncol = 3, nrow= 3, 
+g_post <- cowplot::plot_grid(post_check_list[[1]],post_check_list[[2]],post_check_list[[3]],post_check_list[[4]],post_check_list[[5]],post_check_list[[6]],post_check_list[[7]],post_check_list[[8]],post_check_list[[9]],post_check_list[[10]],
+    ncol = 3, 
     o = 'hv',
     #labels = 'AUTO',
     axis = 'bltr') 
 g_post
 
-ggsave('../figs/paper/post_check_9fg.pdf', width = 10, height = 10, dpi = 300, plot = g_post)
+ggsave('../figs/paper/post_check_10fg_wit_EN.pdf', width = 10, height = 10, dpi = 300, plot = g_post)
 
 
 ```
