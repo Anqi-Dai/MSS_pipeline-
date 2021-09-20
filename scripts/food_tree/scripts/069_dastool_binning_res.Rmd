@@ -384,5 +384,14 @@ ggg <- combined %>%
 ggg
 
 ggsave('../data/growth/sample_mean_irep.pdf', width = 10, height = 7)
+
+combined %>% 
+  distinct(sampleid)
+
+
+combined %>% 
+      filter(str_detect(best_species, 'Enterococcus')) %>% 
+      distinct(sampleid) 
+  
 ```
 

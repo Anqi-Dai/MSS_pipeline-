@@ -1,5 +1,5 @@
 ---
-title: "The model re-done with Bayesian"
+title: "The model re-done with Bayesian"  
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
 output:
@@ -105,6 +105,7 @@ priors <- c(# for the food group variables
             prior(normal(2, 0.1), class = 'Intercept'))
 
 # samples are drawn solely from the priors ignoring the likelihood
+# model_wo_EN  means the usual model that the EN is still a binary variable and not ann inndivicual group
 model_wo_EN <- brm( model_formular,  
               data = meta, 
               warmup = 1000, iter = 3000, 
@@ -376,7 +377,7 @@ both <- bind_rows(
   post_samples %>% 
     select(starts_with('b_fg')) %>% mutate(grp = 'post')
 )  %>% 
-  gather('item', 'coeff', b_fg_fruit:b_fg_veggie)
+  gather('item', 'coeff', b_fg_fruit:b_fg_veggie) 
 
 summ <- both %>% 
   group_by(grp, item) %>% 
@@ -385,7 +386,7 @@ summ <- both %>%
             q50 = quantile(coeff, 0.5)) %>% 
   arrange(grp, q50) 
 
-summ %>% 
+both_forest <- summ %>% 
   ggscatter(x = 'item', y = 'q50', 
             #color = 'grp',
             ylab = 'Regression coefficients',
@@ -396,8 +397,70 @@ summ %>%
   facet_grid(~ grp, scales = 'free') +
   scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
   coord_flip()
+both_forest
+
+ggsave('../figs/paper/prior_post_forest_coeff.pdf', width = 8, height = 6)
+```
 
 
+```{r}
+# try to make two histograms for each food group
+fg_order <- summ %>% 
+  filter(grp == 'post') %>% 
+  arrange(q50) %>% 
+  pull(item)
+
+both_ridge <- both %>%
+  mutate(itemFct = factor(item, levels = fg_order)) %>%
+  ggplot(aes(y = itemFct)) +
+  geom_density_ridges(
+    aes(x = coeff, fill = paste(grp)), 
+    alpha = .8, color = "white", scale = 1, from = -2.8, to = 2.8
+  ) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(
+    x = "Regression coefficients",
+    y = "High-level food categories\nFNDDS",
+    title = "Regression coefficients for prior and posterior"
+  ) +
+  
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_x_continuous(expand = c(0, 0))  +
+  coord_cartesian(clip = "off") +
+  theme_ridges(grid = FALSE) 
+
+both_ridge
+
+ggsave('../figs/paper/prior_post_ridge_coeff.pdf', width = 8, height = 10, plot = both_ridge)
+```
+```{r}
+library(dplyr)
+library(forcats)
+
+Catalan_elections %>%
+  mutate(YearFct = fct_rev(as.factor(Year))) %>%
+  ggplot(aes(y = YearFct)) +
+  geom_density_ridges(
+    aes(x = Percent, fill = paste(YearFct, Option)), 
+    alpha = .8, color = "white", from = 0, to = 100
+  ) +
+  labs(
+    x = "Vote (%)",
+    y = "Election Year",
+    title = "Indy vs Unionist vote in Catalan elections",
+    subtitle = "Analysis unit: municipalities (n = 949)",
+    caption = "Marc Belzunces (@marcbeldata) | Source: Idescat"
+  ) +
+  scale_y_discrete(expand = c(0, 0)) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_fill_cyclical(
+    breaks = c("1980 Indy", "1980 Unionist"),
+    labels = c(`1980 Indy` = "Indy", `1980 Unionist` = "Unionist"),
+    values = c("#ff0000", "#0000ff", "#ff8080", "#8080ff"),
+    name = "Option", guide = "legend"
+  ) +
+  coord_cartesian(clip = "off") +
+  theme_ridges(grid = FALSE)
 ```
 
 
