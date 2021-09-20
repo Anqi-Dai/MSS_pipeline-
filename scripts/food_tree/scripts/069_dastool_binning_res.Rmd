@@ -368,6 +368,7 @@ sig <- both %>%
 
 ```{r}
 # all taxa in a sample
+# with that outlier 
 ggg <- combined %>% 
   group_by(sampleid, fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie) %>% 
   summarise(ave_irep = mean(iRep)) %>% 
@@ -381,5 +382,7 @@ ggg <- combined %>%
                cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
       facet_wrap(grp ~ ., scales = 'free')
 ggg
+
+ggsave('../data/growth/sample_mean_irep.pdf', width = 10, height = 7)
 ```
 
