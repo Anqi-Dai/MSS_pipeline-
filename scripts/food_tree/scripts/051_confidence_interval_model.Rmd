@@ -46,7 +46,7 @@ res_fg <- res %>%
   left_join(nodes) %>% 
   mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
   mutate(fdesc = str_wrap(fdesc, width = 25, indent = 2, exdent = 0))
-res_fg
+
 ```
 
  

@@ -23,6 +23,8 @@ library(tidybayes)
 library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 theme_set(theme_tidybayes() + panel_border())
+
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv')
 ```
 
 ## Loading meta data table
@@ -372,7 +374,7 @@ all_diff <- maxs %>%
 
 ## the forest plot with prior and post 
 
-```{r}
+```{r both}
 both <- bind_rows(
   samples_prior %>% 
     select(starts_with('b_fg')) %>% mutate(grp = 'prior'),
@@ -388,87 +390,30 @@ summ <- both %>%
             q50 = quantile(coeff, 0.5)) %>% 
   arrange(grp, q50) 
 
-both_forest <- summ %>% 
-  ggscatter(x = 'item', y = 'q50', 
-            #color = 'grp',
-            ylab = 'Regression coefficients',
-            title = 'Change in log scale simposon reciprocal unit\nassociated with 100g food consumption',
-            xlab = 'High-level food categories\nFNDDS') +
-  geom_pointrange(aes( ymin  = q025,ymax  = q975), fatten = 5, col = 'maroon') +
-  geom_hline(yintercept = 0, col = "black", linetype = 'dashed') +
-  facet_grid(~ grp, scales = 'free') +
-  scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
-  coord_flip()
-
-
-
 fg_order <- summ %>%
   filter(grp == 'post') %>%
   arrange(-q50) %>%
   pull(item)
 ```
-```{r}
-library(dplyr)
-library(ggplot2)
-
-data(RankCorr_u_tau, package = "ggdist")
-
-RankCorr_u_tau %>%
-  ggplot(aes(y = factor(i), x = u_tau)) +
-  stat_pointinterval(.width = c(.66, .95))
-```
 
 
-```{r}
-
-pinterval <- both %>% 
+```{r pinterval}
+pinterval <- both %>%  
+  mutate(item = str_replace(item, 'b_','')) %>% 
+  left_join(key %>% 
+              select(item = fg1_name, fdesc)) %>% 
   mutate(item = factor(item, levels = fg_order)) %>% 
-  ggplot(aes(x = grp, y = coeff, color = grp)) +
-  #stat_halfeye() +
-  stat_pointintervalh(.width = c(.66, .95)) +
+  ggplot(aes(x = coeff, y = grp, color = grp)) +
+  stat_pointinterval(.width = c(.66, .95)) +
   scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_hline(yintercept = 0, col = 'gray', linetype = 'solid', width = 4) +
-  facet_wrap(item ~ .) +
-  coord_flip() +
-  ylim(-3,3)
-
-both %>% 
-  filter(grp == 'post') %>% 
-  ggplot(aes(y  = item, x = coeff))  +
-  stat_pointintervalh(.width = c(.66, .95)) 
+  geom_vline(xintercept = 0, col = 'gray', linetype = 'dashed') +
+  facet_wrap(fdesc ~ .) +
+  labs(x = 'Regression coefficients',
+       y = '') +
+  theme(legend.position = 'none')
  
-
 pinterval
-ggsave('../figs/paper/prior_post_halfeye_coeff.pdf', width = 10, height = 4)
-```
-
-```{r}
-# try to make two ridges for each food group
-# i don't know why in the ridges it actually crosses zero for the sweets group
-
-# 
-# both_ridge <- both %>%
-#   mutate(itemFct = factor(item, levels = fg_order)) %>%
-#   ggplot(aes(y = itemFct)) +
-#   geom_density_ridges(
-#     aes(x = coeff, fill = paste(grp)), 
-#     alpha = .8, color = "white", scale = 1, from = -2.8, to = 2.8
-#   ) +
-#   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-#   labs(
-#     x = "Regression coefficients",
-#     y = "High-level food categories\nFNDDS",
-#     title = "Regression coefficients for prior and posterior"
-#   ) +
-#   
-#   scale_y_discrete(expand = c(0, 0)) +
-#   scale_x_continuous(expand = c(0, 0))  +
-#   coord_cartesian(clip = "off") +
-#   theme_ridges(grid = FALSE) 
-# 
-# both_ridge
-# 
-# ggsave('../figs/paper/prior_post_ridge_coeff.pdf', width = 8, height = 10, plot = both_ridge)
+ggsave('../figs/paper/prior_post_pinterval_coeff.pdf', width = 10, height = 4)
 ```
 
 ## others
