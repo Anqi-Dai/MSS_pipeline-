@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(brms)
-library(ggpubr)
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ```
 
 Response: family level 
@@ -188,87 +188,135 @@ ave_each_fg %>%
 
 ave_each_fg %>% 
   count(prior_res >-5.7 & prior_res<0) %>% 
-  mutate(perc = n/4000*100)
+  mutate(perc = n/4000*100) %>% 
+  select(perc) %>% 
+  slice(2) %>% 
+  pull(perc) %>% 
+  round(1)
 ```
 
-## all family model run
-
-
 ```{r}
+# wannt to do the above for every family I'm going to run
+# so basically run every model and extract the priors later 
+
+## all family model run
 ret <- target_family %>% 
   set_names(target_family) %>% 
   map(function(fam) {
     mod =  brm( as.formula(str_glue('{fam}  ~ 
-               fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
+               1 +
+                fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
                 fg_egg+ 
                 fg_grain+
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               empirical +  
-               intensity + 
-                TPN +
-                EN +
+               inten_non + inten_ab + inten_re +
+               empiT +  empiF+
+                tpnT +tpnF+
+                enT +enF+
                (1 | mrn) +
                 (1 | timebin)')),  
-              data = All, 
+                data = All, 
               warmup = 1000, iter = 3000, 
-              cores = 8, chains = 2, 
-              seed = 123) 
-    
-    res = posterior_samples(mod) %>% 
-      select(starts_with('b')) %>% 
-      gather('item', 'value') %>% 
-        filter(str_detect(item, '_fg_')) %>% 
-      group_by(item) %>% 
-      summarise(meanperitem = mean(value),
-                q2.5 = quantile(value, probs = 0.025),
-                q97.5 = quantile(value, probs = 0.975))%>%
-      ungroup()
-    
-    return(res)
+              prior = priors,
+              cores = 16, 
+              chains = 2, 
+              control = list(adapt_delta = 0.99),
+              seed = 456, sample_prior = T) 
+
   })
+```
 
-retdf <- ret %>% 
-  bind_rows(.id = 'family') %>% 
+
+```{r}
+## look at the all family priors
+valid_interval_perc <- ret %>% 
+  imap(~ prior_draws(.x) %>% 
+            mutate(mean_fg = Intercept + 
+                     b_fg_fruit*mean_fg$fg_fruit +
+                     b_fg_meat*mean_fg$fg_meat + 
+                     b_fg_milk*mean_fg$fg_milk + 
+                     b_fg_oils*mean_fg$fg_oils + 
+                     b_fg_egg*mean_fg$fg_egg + 
+                     b_fg_grain*mean_fg$fg_grain +
+                     b_fg_sweets*mean_fg$fg_sweets +
+                     b_fg_legume*mean_fg$fg_legume +
+                     b_fg_veggie*mean_fg$fg_veggie +
+                     b_inten_re +
+                     b_empiF +
+                     b_tpnF +
+                     b_enF) %>% 
+            select(mean_fg) %>% 
+            mutate(grp = 'ave_each') %>% 
+            rename(prior_res = mean_fg) %>% 
+            select(grp, prior_res) %>% 
+            count(prior_res >-5.7 & prior_res<0) %>% 
+            mutate(perc = n/4000*100) %>% 
+            select(perc) %>% 
+            slice(2) %>% 
+            pull(perc) %>% 
+            round(1) ) %>% 
+  bind_rows(.id = .y) %>% 
+  gather('family','within_interval_perc')
+# good I'm happy with this prior  
+```
+
+## look at post coeff
+
+
+```{r}
+# grab the quantiles for the 95% and 75% confidence interval from the posterior samples
+post_res <- ret %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
+          select(starts_with('b_fg')) %>% 
+          gather('item','coeff') %>% 
+          mutate(family = .y)))  %>% 
+  bind_rows()  %>% 
+  group_by(family, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875)) %>% 
+  ungroup() %>% 
   mutate(sig = if_else(q97.5 < 0 | q2.5 > 0, T, F)) %>% 
-  mutate(item = str_replace(item, 'b_fg_','')) %>% 
   mutate(mark = if_else(sig == T, '*','')) %>% 
-  #filter(!item %in% c('egg','legume','oils')) %>% 
-  mutate(meanperitem = meanperitem*100) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(family = str_replace(family, '._Incertae_Sedis','')) %>% 
-  mutate(`mean coeff` =  case_when(
-    meanperitem > 0.4 ~ '> 0.1',
-    meanperitem < -0.4 ~ '< -0.1',
-    TRUE ~ '[-0.1,0.1]'
-  )) %>% 
-  mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) 
-
-range(retdf$meanperitem)
-
+  mutate(item = str_replace(item, 'b_fg_',''))
 
 ```
 
+## the heatmap
+
 ```{r}
-ggplot(retdf, aes(x = item, y = family)) +
-  geom_tile(aes(fill = `mean coeff`), alpha = 0.5, color='white', width=0.95, height=0.95) +
+col_key <- post_res %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key
+
+ggplot(post_res, aes(x = item, y = family)) +
+  geom_tile(aes(fill = color,  x = item,y =  family), alpha = 0.5, color='white', width=0.95, height=0.95) +
  # geom_text(aes(label = round(meanperitem, 3))) +
   geom_text(aes(label = mark, x = item,y =  family),
             nudge_y = -0.3, nudge_x = 0,size = 8) +
-  # As our values are continuous, we'll use scale_fill_continuous instead of scale_fill_manual
-  #scale_fill_continuous(low = "aquamarine", high = "orchid1") +
-  scale_fill_manual(values = c('white','steelblue','maroon')) +
-  theme_minimal() +
+  scale_fill_manual(values = col_key, labels = c('','75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         panel.grid.major = element_blank(), 
         #panel.grid.minor = element_blank(),
+        legend.position = 'bottom',
         legend.key = element_rect( colour = "gray50"),
-        panel.background = element_blank()) +
-  ggsave('../figs/heatmap_family_24_ggplot.pdf', width = 7, height = 5)
+        panel.background = element_blank()) 
+
+
+ggsave('../figs/paper/heatmap_family_24_ggplot.pdf', width = 7, height = 5)
 ```
 
 ```{r}
@@ -303,66 +351,4 @@ colGradient <- function( cols, length, cmax=255 )
 bwrPalette <- colGradient(c("blue","white","red"),length=11) # this is the scale of the score
 
 ```
-
-```{r}
-# look at how to choose the threshold best scenario is that only the sig appear to be blue and red and the others are white
-retdf %>% 
-  mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) %>% 
-  ggboxplot(x = 'item', y = 'meanperitem', add = 'jitter', ggtheme = theme_minimal()) 
-
-
-retdf %>% 
-  mutate(item = fct_reorder(item, meanperitem, .fun=mean, .desc = T)) %>% 
-  ggboxplot(x = 'sig', y = 'meanperitem', add = 'jitter', ggtheme = theme_minimal()) 
-
-retdf %>% 
-  group_by(sig) %>% 
-  summarise(med = median(meanperitem))
-
-retdf %>% 
-  filter(meanperitem < -0.5)
-
-```
-
-
-```{r}
-retdf_matrix_lbl <- retdf %>% 
-  mutate(meanperitem = round(meanperitem, 3)) %>% 
-  mutate(meanperitem = as.character(meanperitem)) %>% 
-  mutate(meanperitem = if_else(mark == '*', '*', meanperitem)) %>% 
-  select(family, item, meanperitem) %>% 
-  spread('family', 'meanperitem') %>% 
-  column_to_rownames('item') %>% 
-  as.matrix()
-
-retdf_matrix <- retdf %>% 
-  select(family, item, meanperitem) %>% 
-  spread('family', 'meanperitem') %>% 
-  column_to_rownames('item') %>% 
-  as.matrix()
-
-library(pheatmap)
-pheatmap(
-  retdf_matrix,
-  color=bwrPalette, 
-  clustering_distance_cols ='canberra',
-  clustering_distance_rows ='correlation',
-  #annotation_row = annot_class,
-  annotation_colors = list(class = class_cols),
-  show_rownames = TRUE,
-  show_colnames = TRUE,
-  filename = '../figs/heatmap_24_family.pdf',
-  number_color = "black",
-  fontsize_number = 5,
-  angle_col = 45,
-  fontsize = 13, 
-  height = 5,
-  width = 9,
-  display_numbers = retdf_matrix_lbl
-  #cluster_rows =F,
-  #cluster_cols=F
-)
-```
-
-
 
