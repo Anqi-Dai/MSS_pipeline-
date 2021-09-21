@@ -7,6 +7,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Response: 48 genera 
+
 ```{r}
 library(tidyverse)
 library(brms)
@@ -88,7 +90,7 @@ priors <- c(# for the food group variables
             prior(normal(-3, 0.4), class = 'Intercept'))
 
 
-model_prior <- brm( model_formular,  
+model_old <- brm( model_formular,  
               data = final, 
               warmup = 1000, iter = 3000, 
               prior = priors,
@@ -100,7 +102,7 @@ mean_fg <-  meta %>%
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean))
 
-samples_prior <- prior_samples(model_prior)
+samples_prior <- prior_samples(model_old)
 
 ave_each_fg <- samples_prior %>% 
   mutate(mean_fg = Intercept + 
@@ -144,6 +146,7 @@ max_sweets <- samples_prior %>%
 
 bind_rows(ave_each_fg, max_sweets) %>% 
   gghistogram(x = 'prior_res', fill = 'grp')
+
 ave_each_fg %>% 
   count(prior_res >-5 & prior_res<0) %>% 
   mutate(perc = n/4000*100)
@@ -263,7 +266,7 @@ ret <- target_genera %>%
                 (1 | timebin)')),  
               data = final, 
               warmup = 1000, iter = 3000, 
-              cores = 8, chains = 2, 
+              cores = 16, chains = 2, 
               seed = 123) 
     
     res = posterior_samples(mod) %>% 
