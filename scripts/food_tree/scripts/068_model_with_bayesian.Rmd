@@ -13,12 +13,16 @@ output:
 knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
+In this script, the max and the mean are from the EN-less records.
+
 ```{r}
 library(tidyverse)
 library(brms)  
 library(ggpubr)
 library(tidybayes)
+library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+theme_set(theme_tidybayes() + panel_border())
 ```
 
 ## Loading meta data table
@@ -268,8 +272,6 @@ posterior_model <- posterior_samples(model_wo_EN) %>%
   group_by(item) %>% 
   mutate(meanperitem = mean(value))%>%
   ungroup() 
-
-
 ```
 
 ### Extract the posterior samples 
@@ -345,7 +347,7 @@ diff_res <- maxs %>%
                      xlab = str_glue('diff between e({.y}) and e(mean_fg)'),
                      title = str_glue('{.y}')) +
          xlim(-10, 5) +
-         geom_vline(xintercept = 0, col = 'red', linetype = 'dashed'))
+         geom_vline(xintercept = 0, col = 'red', linetype = 'solid'))
 
 diff <- cowplot::plot_grid(diff_res[[1]],diff_res[[2]],diff_res[[3]],diff_res[[4]],diff_res[[5]],diff_res[[6]],diff_res[[7]],diff_res[[8]],diff_res[[9]],
     ncol = 3, nrow= 3, 
@@ -397,31 +399,47 @@ both_forest <- summ %>%
   facet_grid(~ grp, scales = 'free') +
   scale_y_continuous( breaks = c(-1, -0.5, 0, 0.5, 1 , 1.5, 2)) +
   coord_flip()
-both_forest
 
-ggsave('../figs/paper/prior_post_forest_coeff.pdf', width = 8, height = 6)
+
 
 fg_order <- summ %>%
   filter(grp == 'post') %>%
   arrange(-q50) %>%
   pull(item)
 ```
+```{r}
+library(dplyr)
+library(ggplot2)
+
+data(RankCorr_u_tau, package = "ggdist")
+
+RankCorr_u_tau %>%
+  ggplot(aes(y = factor(i), x = u_tau)) +
+  stat_pointinterval(.width = c(.66, .95))
+```
 
 
 ```{r}
-halfeye <- both %>% 
+
+pinterval <- both %>% 
   mutate(item = factor(item, levels = fg_order)) %>% 
   ggplot(aes(x = grp, y = coeff, color = grp)) +
-  stat_halfeye() +
+  #stat_halfeye() +
+  stat_pointintervalh(.width = c(.66, .95)) +
   scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_hline(yintercept = 0, col = 'black', linetype = 'solid') +
-  facet_grid(item ~ .) +
+  geom_hline(yintercept = 0, col = 'gray', linetype = 'solid', width = 4) +
+  facet_wrap(item ~ .) +
   coord_flip() +
-  theme_minimal() +
-  ylim(-3, 3)
+  ylim(-3,3)
 
-halfeye
-ggsave('../figs/paper/prior_post_halfeye_coeff.pdf', width = 4, height = 8)
+both %>% 
+  filter(grp == 'post') %>% 
+  ggplot(aes(y  = item, x = coeff))  +
+  stat_pointintervalh(.width = c(.66, .95)) 
+ 
+
+pinterval
+ggsave('../figs/paper/prior_post_halfeye_coeff.pdf', width = 10, height = 4)
 ```
 
 ```{r}
