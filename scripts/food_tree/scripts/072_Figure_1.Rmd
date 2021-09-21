@@ -12,6 +12,7 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(ggimage)
+library(grConvert)
 
 axis_text_size <- 10
 axis_title_size <- 10
@@ -60,7 +61,7 @@ stool_alpha <- meta %>%
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Microbiome \u03b1 diversity',
-            add = "loess", color = scatter_col, shape = 'square',
+            add = "loess", color = scatter_col, shape = 'triangle',
             add.params = list(color = loess_line_col, fill = "darkgray", size = 2), 
             conf.int = TRUE) +
   theme(axis.text=element_text(size=axis_text_size),
@@ -97,7 +98,7 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
 diet_alpha <- faith %>% 
   ggscatter('fdrt', 'faith_pd', 
              alpha = alpha_val,size = point_size, 
-            color = scatter_col, shape = 'triangle',
+            color = scatter_col, 
             ylab = "Diet \u03b1 diversity", 
             xlab = 'Day relative to HCT',
             #title = 'Nutritional alpha diversity',
@@ -118,12 +119,12 @@ bot <- plot_grid(stool_alpha, day_cal, diet_alpha,
           align = 'hv',
           #rel_widths =  c(1,1),
           #rel_heights = c(1,1),
-          #labels = "AUTO",
+          labels = c('E','F','G'),
           axis = 'tblr') 
   
 ggsave('../figs/paper/fig1_bottom.pdf',
          width = 180,
-         height = 80,
+         height = 60,
          units = c("mm"),
          dpi = 400,
        device = cairo_pdf, 
@@ -273,21 +274,76 @@ daym5 <- dm5 %>%
   facet_grid(~ fg1_name, space = "free", scales="free_x") +
   scale_fill_manual(values = color_key) +
   scale_y_continuous(expand = c(0, 0)) + 
-  geom_image(aes(x = item, y = -8, image = img),size = 0.14) +
   theme(strip.background = element_blank(),
         strip.text = element_blank(),
         panel.spacing.x = unit(0, "lines"),
         legend.position = 'none',
         axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
-        axis.text.x = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=1),
+        #axis.text.x = element_blank(),
         axis.ticks.x = element_blank())
 
 ggsave('../figs/paper/fig1_daym5.pdf', 
          width = 70,
          height = 50,
          units = c("mm"),
-         dpi = 400,
-         plot = daym5)
+         dpi = 400)
+
+daym5
 ```
+```{r tree}
+# import the tree from pdf to a ggplot kind of object
+grConvert::convertPicture( "../data/source/food_tree.pdf", "../data/source/food_tree.svg" )
+p <- grImport2::readPicture( "../data/source/food_tree.svg" )
+tree <- grImport2::pictureGrob( p )
+```
+
+```{r pick_3_stool}
+# to plot the picked pt three diagrams in the timeline
+pick_stool <- meta %>% 
+  filter(mrn == pick$mrn) %>% 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', 
+            ylab = 'Microbiome \u03b1 diversity',
+            size = 2.5, shape = 'triangle',
+            xlab = 'Day relative to HCT') +
+  geom_line(linetype = 'dashed')
+pick_stool
+```
+
+
+```{r pick_3_cal}
+# the food -- cal annd the diet alpha
+# the diet alpha
+pick_diet_al <- faith %>% 
+  filter(mrn == pick$mrn[1])
+
+pick_cal <- day_calori %>% 
+  filter(mrn == pick$mrn[1]) %>% 
+  ggscatter(x = 'fdrt', y = 'daycal', 
+            ylab = 'Daily caloric intake',
+            size = 2.5, 
+            xlab = 'Day relative to HCT') +
+  geom_line(linetype = 'dashed') + 
+  scale_y_continuous(
+    "Daily caloric intake", 
+    sec.axis = sec_axis(~ . * 0.5, name = "Diet \u03b1 diversity")
+  ) +
+  geom_point(pick_diet_al, mapping = aes(x = fdrt, y = faith_pd)) +
+  geom_line(pick_diet_al, mapping = aes(x = fdrt, y = faith_pd), linetype = 'dashed') 
+pick_cal
+
+
+
+```
+
+
+
+```{r assemble_all}
+top <- plot_grid(fig1_timeline, daym5, tree, fig1_umap,
+                 nrow = 2, ncol = 2, labels = c('A','B','C','D'),
+                 rel_heights = c(0.3, 0.7))
+top
+```
+
 

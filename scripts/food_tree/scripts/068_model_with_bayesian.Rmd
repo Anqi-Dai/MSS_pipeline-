@@ -400,69 +400,58 @@ both_forest <- summ %>%
 both_forest
 
 ggsave('../figs/paper/prior_post_forest_coeff.pdf', width = 8, height = 6)
-```
 
-
-```{r}
-# try to make two histograms for each food group
-fg_order <- summ %>% 
-  filter(grp == 'post') %>% 
-  arrange(q50) %>% 
+fg_order <- summ %>%
+  filter(grp == 'post') %>%
+  arrange(-q50) %>%
   pull(item)
-
-both_ridge <- both %>%
-  mutate(itemFct = factor(item, levels = fg_order)) %>%
-  ggplot(aes(y = itemFct)) +
-  geom_density_ridges(
-    aes(x = coeff, fill = paste(grp)), 
-    alpha = .8, color = "white", scale = 1, from = -2.8, to = 2.8
-  ) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(
-    x = "Regression coefficients",
-    y = "High-level food categories\nFNDDS",
-    title = "Regression coefficients for prior and posterior"
-  ) +
-  
-  scale_y_discrete(expand = c(0, 0)) +
-  scale_x_continuous(expand = c(0, 0))  +
-  coord_cartesian(clip = "off") +
-  theme_ridges(grid = FALSE) 
-
-both_ridge
-
-ggsave('../figs/paper/prior_post_ridge_coeff.pdf', width = 8, height = 10, plot = both_ridge)
 ```
+
+
 ```{r}
-library(dplyr)
-library(forcats)
+halfeye <- both %>% 
+  mutate(item = factor(item, levels = fg_order)) %>% 
+  ggplot(aes(x = grp, y = coeff, color = grp)) +
+  stat_halfeye() +
+  scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_hline(yintercept = 0, col = 'black', linetype = 'solid') +
+  facet_grid(item ~ .) +
+  coord_flip() +
+  theme_minimal() +
+  ylim(-3, 3)
 
-Catalan_elections %>%
-  mutate(YearFct = fct_rev(as.factor(Year))) %>%
-  ggplot(aes(y = YearFct)) +
-  geom_density_ridges(
-    aes(x = Percent, fill = paste(YearFct, Option)), 
-    alpha = .8, color = "white", from = 0, to = 100
-  ) +
-  labs(
-    x = "Vote (%)",
-    y = "Election Year",
-    title = "Indy vs Unionist vote in Catalan elections",
-    subtitle = "Analysis unit: municipalities (n = 949)",
-    caption = "Marc Belzunces (@marcbeldata) | Source: Idescat"
-  ) +
-  scale_y_discrete(expand = c(0, 0)) +
-  scale_x_continuous(expand = c(0, 0)) +
-  scale_fill_cyclical(
-    breaks = c("1980 Indy", "1980 Unionist"),
-    labels = c(`1980 Indy` = "Indy", `1980 Unionist` = "Unionist"),
-    values = c("#ff0000", "#0000ff", "#ff8080", "#8080ff"),
-    name = "Option", guide = "legend"
-  ) +
-  coord_cartesian(clip = "off") +
-  theme_ridges(grid = FALSE)
+halfeye
+ggsave('../figs/paper/prior_post_halfeye_coeff.pdf', width = 4, height = 8)
 ```
 
+```{r}
+# try to make two ridges for each food group
+# i don't know why in the ridges it actually crosses zero for the sweets group
+
+# 
+# both_ridge <- both %>%
+#   mutate(itemFct = factor(item, levels = fg_order)) %>%
+#   ggplot(aes(y = itemFct)) +
+#   geom_density_ridges(
+#     aes(x = coeff, fill = paste(grp)), 
+#     alpha = .8, color = "white", scale = 1, from = -2.8, to = 2.8
+#   ) +
+#   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+#   labs(
+#     x = "Regression coefficients",
+#     y = "High-level food categories\nFNDDS",
+#     title = "Regression coefficients for prior and posterior"
+#   ) +
+#   
+#   scale_y_discrete(expand = c(0, 0)) +
+#   scale_x_continuous(expand = c(0, 0))  +
+#   coord_cartesian(clip = "off") +
+#   theme_ridges(grid = FALSE) 
+# 
+# both_ridge
+# 
+# ggsave('../figs/paper/prior_post_ridge_coeff.pdf', width = 8, height = 10, plot = both_ridge)
+```
 
 ## others
 

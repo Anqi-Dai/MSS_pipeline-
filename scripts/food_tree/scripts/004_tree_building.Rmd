@@ -112,8 +112,9 @@ cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree.newick')
 
 ```{bash}
 # in terminal
-graphlan_annotate.py --annot annotation.base.txt output_food_tree_datatree.newick  guide_1.xml
-graphlan.py guide_1.xml food_tree.pdf --dpi 300 --size 3.5
+# in the source dir
+graphlan/graphlan_annotate.py --annot annotation.base.txt output_food_tree_datatree.newick  guide_1.xml
+graphlan/graphlan.py guide_1.xml food_tree.pdf --dpi 300 --size 3.5
 ```
 
 ```{r}
