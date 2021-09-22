@@ -1,0 +1,44 @@
+---
+title: "archaea perc"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+
+```{r}
+# to look at the currennt shotgun samples 
+cts <- read_tsv('../../shotgun_pipeline/data/chi/merged_metaphlan3_profile.txt', skip = 1)
+
+archaea <- cts %>% 
+  filter(str_detect(clade_name, 'k__Archaea')) %>% 
+  select(- NCBI_tax_id) %>% 
+  gather('fid','perc', names(.)[2]:names(.)[ncol(.)])
+
+karch <- archaea %>% 
+  filter(clade_name == 'k__Archaea') %>% 
+  filter(perc > 0)
+
+summary(karch$perc)
+
+send <- archaea %>% 
+  filter(fid %in% karch$fid) %>% 
+  mutate(fid = str_replace(fid, '_metaphlan3_profile','')) %>% 
+  inner_join(shotgun_lookup_ad %>% 
+               select(sampleid, fid)) %>% 
+  select(-fid)
+
+send %>% 
+  write_csv('../../shotgun_pipeline/data/shotgun_samples_archaea_perc.csv')
+
+karch %>% 
+  distinct(fid)
+```
+
+

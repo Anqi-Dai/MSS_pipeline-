@@ -1,0 +1,100 @@
+---
+title: "growth_rate_and_absoluate_abun"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+library(vdbR)
+connect_database('~/dbConfig.txt')
+list_table_from_database('qpcr')
+get_table_from_database('qpcr_16s_ag')
+library(tidyverse)
+```
+
+```{r}
+qpcr <- qpcr_16s_ag %>% 
+  filter(!str_detect(sample_id_unique, 'heat|ethanol')) %>% 
+  filter(!is.na(copies_16s_per_g))
+```
+
+```{r}
+# all the patients that have a entercoccus growth rate
+target <- combined %>%  
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  distinct(mrn) %>% 
+  pull(mrn) 
+
+entero <- combined %>%  
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid, mrn) %>% 
+  summarise(ave_irpe = mean(iRep)) %>% 
+  inner_join(meta %>% 
+               select(sampleid, sdrt))
+
+# all of these patients stool samples we have 
+get_table_from_database('samples_castori_ag')
+get_table_from_database('asv_annotation_blast_ag')
+sam <- samples_castori_ag %>% 
+  filter(mrn %in% target) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+samps <- samples_castori_ag %>% 
+  filter(mrn %in% target) %>% 
+  distinct(sampleid, mrn)
+
+# get the entercoccus relab of these samples
+cts <- get_counts_subset(sam)
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+cts_ <- cts %>% 
+  left_join(asv_annotation_blast_ag %>% 
+              select(asv_key, genus)) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>% 
+  filter(genus == 'Enterococcus')  %>% 
+  inner_join(qpcr %>% 
+               select(sampleid = sample_id, copies_16s_per_g)) %>% 
+  mutate(entero_copy = copies_16s_per_g*relab) %>% 
+  inner_join(samples_castori_ag %>% 
+               select(sampleid, datecollection)) %>% 
+  inner_join(samps) %>% 
+  inner_join(ptb %>% 
+               select(mrn, hct)) %>% 
+  mutate(sdrt = datecollection - hct) %>% 
+  filter(sdrt < 54)
+```
+```{r}
+entero %>% 
+  ggplot(aes(x = sdrt, y = ave_irpe )) +
+  geom_point() +
+  geom_point(data = cts_, aes(x = sdrt, y = entero_copy, col = 'red')) +
+  facet_wrap(~mrn)
+
+# the patients that have both the irep and qpcr results
+both <- intersect(cts_$mrn, entero$mrn)
+```
+```{r}
+both %>% 
+  set_names(both) %>% 
+  imap(function(.x, .y){
+    irep = entero %>% 
+      filter(mrn == .x) %>% 
+      ggplot(aes(x = sdrt, y = ave_irpe )) +
+      geom_point() +
+      labs(title = str_glue('{}'))
+    
+    copies = cts_ %>% 
+      filter(mrn == .x) %>% 
+      ggplot(aes(x = sdrt, y = entero_copy )) +
+      geom_point() 
+    
+    res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
+    ggsave(str_glue('../data/{.y}.pdf'), width = 5, height = 4)
+  })
+```
+

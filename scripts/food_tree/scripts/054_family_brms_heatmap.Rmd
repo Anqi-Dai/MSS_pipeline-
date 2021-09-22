@@ -195,7 +195,7 @@ ave_each_fg %>%
   round(1)
 ```
 
-```{r}
+```{r all_fam} 
 # wannt to do the above for every family I'm going to run
 # so basically run every model and extract the priors later 
 
@@ -263,6 +263,21 @@ valid_interval_perc <- ret %>%
   bind_rows(.id = .y) %>% 
   gather('family','within_interval_perc')
 # good I'm happy with this prior  
+
+
+# save the prior 
+prior_save <- ret %>% 
+  imap(~ (prior_draws(.x) %>% 
+          select(starts_with('b_'), Intercept) %>% 
+          gather('item','coeff') %>% 
+          mutate(family = .y)))  %>% 
+  bind_rows()
+
+prior_save %>% 
+  write_csv('../figs/paper/data/all_fam_prior_save.csv')
+
+prior_save %>% 
+  distinct(item)
 ```
 
 ## look at post coeff
@@ -289,6 +304,16 @@ post_res <- ret %>%
   mutate(family = str_replace(family, '._Incertae_Sedis','')) %>% 
   mutate(item = str_replace(item, 'b_fg_',''))
 
+# save the post
+post_save <- ret %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
+          select(starts_with('b_')) %>% 
+          gather('item','coeff') %>% 
+          mutate(family = .y)))  %>% 
+  bind_rows()
+
+post_save %>% 
+  write_csv('../figs/paper/data/all_fam_post_save.csv')
 ```
 
 ## the heatmap
@@ -305,11 +330,11 @@ ggplot(post_res, aes(x = item, y = family)) +
  # geom_text(aes(label = round(meanperitem, 3))) +
   geom_text(aes(label = mark, x = item,y =  family),
             nudge_y = -0.3, nudge_x = 0,size = 8) +
-  scale_fill_manual(values = col_key, labels = c('','75% CI < 0 negative','75% CI > 0 positive')) +
+  scale_fill_manual(values = col_key, labels = c('Effects too small','75% CI < 0 negative','75% CI > 0 positive')) +
   theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        panel.grid.major = element_blank(), 
+        #panel.grid.major = element_blank(), 
         #panel.grid.minor = element_blank(),
         legend.position = 'bottom',
         legend.key = element_rect( colour = "gray50"),
