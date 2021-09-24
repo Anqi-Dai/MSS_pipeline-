@@ -39,6 +39,19 @@ send %>%
 
 karch %>% 
   distinct(fid)
+
+# all of the taxa
+allsend <- cts %>% 
+  select(- NCBI_tax_id) %>% 
+  gather('fid','perc', names(.)[2]:names(.)[ncol(.)]) %>% 
+  mutate(fid = str_replace(fid, '_metaphlan3_profile','')) %>% 
+  inner_join(shotgun_lookup_ad %>% 
+               select(sampleid, fid)) %>% 
+  select(-fid)
+
+allsend %>% 
+  write_csv('../../shotgun_pipeline/data/shotgun_samples_all_perc.csv')
 ```
+
 
 
