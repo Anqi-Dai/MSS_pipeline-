@@ -9,6 +9,8 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(rethinking)
+
 ```
 
 ```{r}
@@ -16,14 +18,11 @@ dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn))
+```
 
 
-dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn)) %>% 
-  mutate(fg_EN = if_else(EN == 'TRUE', fg_sweets, 0),
-         fg_sweets = if_else(EN == 'TRUE', 0, fg_sweets))
+```{r}
+dat <- read_csv('../figs/paper/data/meta_fg10_bayes.csv') 
 
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% dat$sampleid) %>% 
@@ -31,13 +30,20 @@ cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>%
 
 entercts <- cts %>% 
   filter(genus == 'Enterococcus') %>% 
-  mutate(enterodom = if_else(relab > 0.3, T, F)) %>% 
+  mutate(enterodom = if_else(relab > 0.1, 1, 0)) %>% 
   rename(enterorelab = relab) %>% 
   select(-genus)
 
 All <- dat %>% 
   inner_join(entercts)
 
+All %>% 
+  count(enterodom) %>% 
+  mutate(perc = n/sum(n)*100)
+```
+
+
+```{r}
 model_formular <- enterodom ~ 1 +
                 fg_fruit+
                fg_meat+
@@ -54,15 +60,184 @@ model_formular <- enterodom ~ 1 +
                 EN+
                (1 | mrn) +
                 (1 | timebin)
+
+model_formular <- enterodom ~ 1 +
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_EN+ 
+               intensity +
+               empirical +
+                TPN+
+                #EN+
+               (1 | mrn) +
+                (1 | timebin)
 require(lme4)
 Model_Binary <- glmer(formula = model_formular,
                     family = binomial(link = "logit"),
+                    control=glmerControl(optimizer="bobyqa"),
                     data = All)
 
 summary(Model_Binary, corr=FALSE)
 ```
 
+## Bayesian
+
+```{r}
+rstan_options(auto_write = TRUE)
+mc.cores = parallel::detectCores()
+
+dat <- read_csv('../figs/paper/data/meta_fg10_bayes.csv') %>% 
+    mutate(fg_egg = as.numeric(scale(fg_egg)),
+         fg_fruit = as.numeric(scale(fg_fruit)),
+         fg_grain = as.numeric(scale(fg_grain)),
+         fg_legume = as.numeric(scale(fg_legume)),
+         fg_meat = as.numeric(scale(fg_meat)),
+         fg_milk = as.numeric(scale(fg_milk)),
+         fg_oils = as.numeric(scale(fg_oils)),
+         fg_sweets = as.numeric(scale(fg_sweets)),
+         fg_veggie = as.numeric(scale(fg_veggie)),
+         fg_EN = as.numeric(scale(fg_EN)))
+
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% dat$sampleid) %>% 
+  dplyr::select(sampleid, genus, relab) 
+
+entercts <- cts %>% 
+  filter(genus == 'Enterococcus') %>% 
+  mutate(enterodom = if_else(relab > 0.1, 1, 0)) %>% 
+  rename(enterorelab = relab) %>% 
+  select(-genus)
+
+All <- dat %>% 
+  inner_join(entercts)
+
+All %>% 
+  count(enterodom) %>% 
+  mutate(perc = n/sum(n)*100)
+
+model_formular <- enterodom ~ 1 +
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_EN+
+               inten_non + inten_ab + inten_re +
+               empiT +  empiF+
+                tpnT +tpnF+
+               (1 | mrn) +
+                (1 | timebin)
+  
+priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            prior(normal(0, 1), class = 'b', coef = "fg_EN"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "tpnF"),
+            prior(normal(0, 0.1), class = 'b', coef = "tpnT"),
+            # for the EN
+            # prior(normal(0, 0.1), class = 'b', coef = "enF"),
+            # prior(normal(0, 0.1), class = 'b', coef = "enT"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiF"),
+            prior(normal(0, 0.5), class = 'b', coef = "empiT"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            prior(normal(0, 1), class = 'Intercept'))
+
+model_fg10 <- brm( model_formular,  
+              data = All, 
+              warmup = 1000, iter = 3000, 
+              family = bernoulli(link = "logit"),
+              prior = priors,
+              cores = 16, 
+              control = list(adapt_delta = 0.99),
+              chains = 2, 
+              seed = 123, 
+              sample_prior = T) 
+
+summary(model_fg10)
 
 
+mcmc_plot(model_fg10, 
+         type = "trace")
+
+# coeff
+mcmc_plot(model_fg10, 
+         type = "areas",
+         pars = '^b_fg',
+         prob = 0.95)
+
+# to odds
+mcmc_plot(model_fg10, 
+         type = "areas",
+         pars = '^b_fg',
+         transformations = "exp",
+         prob = 0.95) +
+  geom_vline(xintercept = 1, color = "grey")
+
+# odds
+exp(fixef(model_fg10)[,-2])
+
+```
 
 
+```{r check_prior}
+ave_fg <- All %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean)) %>% 
+  gather
+
+mean_fg <-  All %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean))
+
+max_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(max))
+
+ave_each_fg <- prior_draws(model_fg10) %>% 
+  mutate(mean_fg = rethinking::inv_logit(Intercept + 
+           b_fg_fruit *mean_fg$fg_fruit+
+           b_fg_meat *mean_fg$fg_meat+ 
+           b_fg_milk *mean_fg$fg_milk+ 
+           b_fg_oils * mean_fg$fg_oils+ 
+           b_fg_egg * mean_fg$fg_egg+ 
+           b_fg_grain* mean_fg$fg_grain +
+           b_fg_sweets * mean_fg$fg_sweets+
+           b_fg_legume * mean_fg$fg_legume+
+           b_fg_veggie* mean_fg$fg_veggie +
+           b_fg_EN* mean_fg$fg_EN +
+           b_inten_re +
+           b_empiF +
+           b_tpnF)) %>% 
+  select(mean_fg) %>% 
+  mutate(grp = 'ave_each') %>% 
+  rename(prior_res = mean_fg) %>% 
+  select(grp, prior_res) 
+
+ave_each_fg %>% 
+  gghistogram(x = 'prior_res', bins = 30,  fill = 'darkblue', color = 'white') 
+
+summary(ave_each_fg$prior_res)
+```

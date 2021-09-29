@@ -1,0 +1,82 @@
+---
+title: "multilevel logistic regression with Enterococcus dominance"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+require(lme4)
+```
+
+
+```{r}
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn))
+
+dat <- read_csv('../figs/paper/data/meta_fg10_bayes.csv') 
+
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% dat$sampleid) %>% 
+  dplyr::select(sampleid, genus, relab) 
+
+entercts <- cts %>% 
+  filter(genus == 'Enterococcus') %>% 
+  mutate(enterodom = if_else(relab > 0.1, 1, 0)) %>% 
+  rename(enterorelab = relab) %>% 
+  select(-genus)
+
+All <- dat %>% 
+  inner_join(entercts)
+
+All %>% 
+  count(enterodom) %>% 
+  mutate(perc = n/sum(n)*100)
+
+model_formular <- enterodom ~ 1 +
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               intensity +
+               empirical +
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+
+model_formular <- enterodom ~ 1 +
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+                fg_EN+ 
+               intensity +
+               empirical +
+                TPN+
+                #EN+
+               (1 | mrn) +
+                (1 | timebin)
+
+Model_Binary <- glmer(formula = model_formular,
+                    family = binomial(link = "logit"),
+                    control=glmerControl(optimizer="bobyqa"),
+                    data = All)
+
+summary(Model_Binary, corr=FALSE)
+```

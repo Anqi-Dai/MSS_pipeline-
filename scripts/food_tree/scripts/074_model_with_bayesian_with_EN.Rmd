@@ -72,6 +72,24 @@ meta <- meta %>%
   mutate(fg_EN = if_else(fg_EN == that_value, 2.1525, fg_EN)) %>% 
   mutate(fg_sweets = if_else(fg_EN == 2.1525, 0.03932517, fg_sweets))
 
+meta %>% write_csv('../figs/paper/data/meta_fg10_bayes.csv')
+```
+```{r}
+
+# the EN patients
+en <- meta %>% 
+  filter(fg_EN >0)
+
+
+en %>% 
+  select(mrn, sdrt, enteral_nutrition_intake = fg_EN, simpson_reciprocal) %>% 
+  mutate(mrn = str_glue('Patient{as.numeric(factor(mrn))}')) %>% 
+  mutate(enteral_nutrition_intake = enteral_nutrition_intake*100) %>% 
+  gather('type', 'value' ,enteral_nutrition_intake: simpson_reciprocal) %>% 
+  ggscatter(x = 'sdrt', y = 'value',  color = 'type', xlab = 'day relative to transplant') +
+  facet_grid(type ~ mrn, scales = 'free_y') +
+  theme_light()
+  
 ```
 
 ## Priors 
