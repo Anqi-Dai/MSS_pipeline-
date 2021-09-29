@@ -1,98 +1,37 @@
 ---
 title: "Enterococcus domination"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
+Use Enterococcus domination (> 10%) (binary) as outcome, using the previous model but with 10 food groups (splitting EN out) (fg intake scaled). To see the correlation between Enterococcus domination and fg intake. 
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
 library(tidyverse)
 library(rethinking)
-
-```
-
-```{r}
-dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn))
+library(brms)
+library(ggpubr)
 ```
 
 
-```{r}
-dat <- read_csv('../figs/paper/data/meta_fg10_bayes.csv') 
+## Bayesian modeling
 
-cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
-  filter(sampleid %in% dat$sampleid) %>% 
-  dplyr::select(sampleid, genus, relab) 
-
-entercts <- cts %>% 
-  filter(genus == 'Enterococcus') %>% 
-  mutate(enterodom = if_else(relab > 0.1, 1, 0)) %>% 
-  rename(enterorelab = relab) %>% 
-  select(-genus)
-
-All <- dat %>% 
-  inner_join(entercts)
-
-All %>% 
-  count(enterodom) %>% 
-  mutate(perc = n/sum(n)*100)
-```
-
-
-```{r}
-model_formular <- enterodom ~ 1 +
-                fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
-                fg_grain+
-                fg_sweets+  
-                fg_legume+
-                fg_veggie+
-               intensity +
-               empirical +
-                TPN+
-                EN+
-               (1 | mrn) +
-                (1 | timebin)
-
-model_formular <- enterodom ~ 1 +
-                fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
-                fg_grain+
-                fg_sweets+  
-                fg_legume+
-                fg_veggie+
-                fg_EN+ 
-               intensity +
-               empirical +
-                TPN+
-                #EN+
-               (1 | mrn) +
-                (1 | timebin)
-require(lme4)
-Model_Binary <- glmer(formula = model_formular,
-                    family = binomial(link = "logit"),
-                    control=glmerControl(optimizer="bobyqa"),
-                    data = All)
-
-summary(Model_Binary, corr=FALSE)
-```
-
-## Bayesian
+### input data
 
 ```{r}
 rstan_options(auto_write = TRUE)
 mc.cores = parallel::detectCores()
 
+# food intake is scaled 
 dat <- read_csv('../figs/paper/data/meta_fg10_bayes.csv') %>% 
     mutate(fg_egg = as.numeric(scale(fg_egg)),
          fg_fruit = as.numeric(scale(fg_fruit)),
@@ -109,6 +48,7 @@ cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>%
   filter(sampleid %in% dat$sampleid) %>% 
   dplyr::select(sampleid, genus, relab) 
 
+# Enterococcus genus relab > 10% to be considered dominant.
 entercts <- cts %>% 
   filter(genus == 'Enterococcus') %>% 
   mutate(enterodom = if_else(relab > 0.1, 1, 0)) %>% 
@@ -118,10 +58,15 @@ entercts <- cts %>%
 All <- dat %>% 
   inner_join(entercts)
 
+# the number and perc of dominant samples 
 All %>% 
   count(enterodom) %>% 
   mutate(perc = n/sum(n)*100)
+```
 
+### the model and priors
+
+```{r}
 model_formular <- enterodom ~ 1 +
                 fg_fruit+
                fg_meat+
@@ -163,7 +108,7 @@ priors <- c(# for the food group variables
             prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
-            prior(normal(0, 1), class = 'Intercept'))
+            prior(normal(0, 1.5), class = 'Intercept'))
 
 model_fg10 <- brm( model_formular,  
               data = All, 
@@ -174,33 +119,36 @@ model_fg10 <- brm( model_formular,
               control = list(adapt_delta = 0.99),
               chains = 2, 
               seed = 123, 
-              sample_prior = T) 
+              sample_prior = T)
+```
 
-summary(model_fg10)
+### results
 
+```{r}
+#summary(model_fg10)
+# the results at odds ratio scale
+exp(fixef(model_fg10)[,-2])
 
+# the trace plot, chains are well mixed
 mcmc_plot(model_fg10, 
          type = "trace")
 
-# coeff
+# coeff 95% CI
 mcmc_plot(model_fg10, 
          type = "areas",
          pars = '^b_fg',
          prob = 0.95)
 
-# to odds
+# to odds ratio
 mcmc_plot(model_fg10, 
          type = "areas",
          pars = '^b_fg',
          transformations = "exp",
          prob = 0.95) +
   geom_vline(xintercept = 1, color = "grey")
-
-# odds
-exp(fixef(model_fg10)[,-2])
-
 ```
 
+### prior predictive check
 
 ```{r check_prior}
 ave_fg <- All %>% 
@@ -212,7 +160,7 @@ mean_fg <-  All %>%
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean))
 
-max_fg <- meta %>% 
+max_fg <- All %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(max))
 
@@ -237,7 +185,8 @@ ave_each_fg <- prior_draws(model_fg10) %>%
   select(grp, prior_res) 
 
 ave_each_fg %>% 
-  gghistogram(x = 'prior_res', bins = 30,  fill = 'darkblue', color = 'white') 
+  gghistogram(x = 'prior_res', bins = 30,  fill = 'darkblue', color = 'white',
+              title = 'Prior predicted probability of having dominance with ave food intake') 
 
-summary(ave_each_fg$prior_res)
+
 ```
