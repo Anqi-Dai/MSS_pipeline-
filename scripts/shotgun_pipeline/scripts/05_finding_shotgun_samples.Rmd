@@ -37,6 +37,9 @@ setdiff(samp, samps$sampleid)
 
 need <- bind_rows(pts, samps)
 
-need
+need %>% 
+  arrange(directory) %>% 
+  select(directory) %>% 
+  write_csv('../data/yale_need.csv')
 ```
 

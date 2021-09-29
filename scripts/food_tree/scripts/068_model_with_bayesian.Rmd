@@ -17,7 +17,7 @@ In this script, the max and the mean are from the EN-less records.
 
 ```{r}
 library(tidyverse)
-library(brms)  
+library(brms)   
 library(ggpubr)
 library(tidybayes)
 library(cowplot)
@@ -136,22 +136,13 @@ ave_fg <- meta %>%
 mean_fg <-  meta %>% 
   filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
-  summarise_all(funs(mean))%>% 
-  gather() %>% 
-  mutate(value = value *100)
+  summarise_all(funs(mean))
 
 max_fg <- meta %>% 
   filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
-  summarise_all(funs(max)) %>% 
-  gather() %>% 
-  mutate(value = value *100)
+  summarise_all(funs(max)) 
 
-
-min_fg <- meta %>% 
-  filter(EN == 'FALSE') %>% 
-  select(starts_with('fg')) %>% 
-  summarise_all(funs(min))
 
 max_log_div <- max(log(meta$simpson_reciprocal)) 
 range(log(meta$simpson_reciprocal))
@@ -247,39 +238,11 @@ fg_cha <- meta %>%
   select(starts_with('fg')) %>% 
   colnames()
 
-prior_check_list <- fg_cha %>% 
-  set_names(fg_cha) %>% 
-  map(function(char){
-    prior_all %>% 
-      filter(str_detect(grp, str_glue('ave_each'))) %>% 
-      gghistogram(x = 'prior_res', fill = 'grp', color = 'white', palette = 'lancet', xlab = 'diversity',
-                  #add_density = TRUE, 
-                  bins = 30,
-                  title = str_glue('Prior check {char}'))
-    })
 
-g <- cowplot::plot_grid(prior_check_list[[1]],prior_check_list[[2]],prior_check_list[[3]],prior_check_list[[4]],prior_check_list[[5]],prior_check_list[[6]],prior_check_list[[7]],prior_check_list[[8]],prior_check_list[[9]],
-    ncol = 3, nrow= 3, 
-    o = 'hv',
-    #labels = 'AUTO',
-    axis = 'bltr') 
-g
-ggsave('../figs/paper/prior_check_9fg.pdf', width = 10, height = 10, dpi = 300, plot = g)
 
 ```
 
 ## Posterior
-
-```{r}
-# extract the coefficients table
-posterior_model <- posterior_samples(model_wo_EN) %>% 
-  select(starts_with('b')) %>% 
-  #select(-b_Intercept) %>% 
-  gather('item', 'value') %>% 
-  group_by(item) %>% 
-  mutate(meanperitem = mean(value))%>%
-  ungroup() 
-```
 
 ### Extract the posterior samples 
 
@@ -289,8 +252,9 @@ post_samples  <- posterior_samples(model_wo_EN, '^b_')
 
 # when the food intake is average mean
 
+###THE RESULTS IS THE LOG TRANSFORMED DIVERSITY !!!!##
 ave_each_fg_post <- post_samples %>% 
-  mutate(mean_fg = exp(b_Intercept + 
+  mutate(mean_fg = b_Intercept + 
            b_fg_fruit*mean_fg$fg_fruit +
            b_fg_meat*mean_fg$fg_meat + 
            b_fg_milk*mean_fg$fg_milk + 
@@ -303,7 +267,7 @@ ave_each_fg_post <- post_samples %>%
            b_inten_re +
            b_empiF +
            b_tpnF +
-           b_enF)) %>% 
+           b_enF) %>% 
   select(mean_fg) %>% 
   mutate(grp = 'ave_each') %>% 
   rename(post_res = mean_fg) %>% 
@@ -318,7 +282,7 @@ post_coeffs <- post_samples %>%
 max_each_fg_post <- vals  %>% 
   set_names(vals) %>% 
   map(function(val) {
-    res = exp(post_coeffs$b_empiF$post_coeff  +
+    res = post_coeffs$b_empiF$post_coeff  +
    post_coeffs$b_enF$post_coeff  +
    post_coeffs$b_fg_egg$post_coeff * values %>% pluck(val) %>% pluck('b_fg_egg') +
    post_coeffs$b_fg_fruit$post_coeff * values %>% pluck(val) %>% pluck('b_fg_fruit') +
@@ -331,7 +295,7 @@ max_each_fg_post <- vals  %>%
    post_coeffs$b_fg_veggie$post_coeff * values %>% pluck(val) %>% pluck('b_fg_veggie') +
    post_coeffs$b_inten_re$post_coeff  +
    post_coeffs$b_tpnF$post_coeff +
-   post_coeffs$b_Intercept$post_coeff) 
+   post_coeffs$b_Intercept$post_coeff 
   }) %>% 
   bind_rows(.id = 'grp')
 ```
@@ -341,7 +305,7 @@ max_each_fg_post <- vals  %>%
 maxs <- max_each_fg_post %>% 
   as.list()
 
-diff_res <- maxs %>% 
+diff_value_lt0 <-  maxs %>% 
   map(function(vec) {
     tibble(
       max_=vec,
@@ -349,31 +313,38 @@ diff_res <- maxs %>%
     ) %>% 
       mutate(post_diff_ = max_ - ave)
   }) %>% 
-  imap(~ gghistogram(data = .x, x = 'post_diff_', 
-                     fill = 'forestgreen', color = 'white', bins = 50,
-                     xlab = str_glue('diff between e({.y}) and e(mean_fg)'),
-                     title = str_glue('{.y}')) +
-         xlim(-10, 5) +
-         geom_vline(xintercept = 0, col = 'red', linetype = 'solid'))
-
-diff <- cowplot::plot_grid(diff_res[[1]],diff_res[[2]],diff_res[[3]],diff_res[[4]],diff_res[[5]],diff_res[[6]],diff_res[[7]],diff_res[[8]],diff_res[[9]],
-    ncol = 3, nrow= 3, 
-    o = 'hv',
-    #labels = 'AUTO',
-    axis = 'bltr') 
-diff
-ggsave('../figs/paper/post_check_9fg_diff.pdf', width = 15, height = 10, dpi = 300, plot = diff)
+  map( ~ count(x = ., post_diff_ < 0) %>% 
+          mutate(perc = n/sum(n) * 100) %>% 
+          slice(2) %>% 
+          select(perc)) %>% 
+  bind_rows(.id = 'term')
 
 
-all_diff <- maxs %>% 
+theme_set(theme_tidybayes() + cowplot::panel_border())
+post_diff_df <- maxs %>% 
   map(function(vec) {
     tibble(
       max_=vec,
       ave=ave_each_fg_post$post_res
     ) %>% 
-      mutate(post_diff_ = ave - max_)
+      mutate(post_diff_original_scale = exp(max_) - exp(ave))
   }) %>% 
-  bind_rows(.id = 'grp')
+  bind_rows(.id = 'term') %>% 
+  mutate(term = fct_reorder(term, post_diff_original_scale, .fun=median, .desc = F)) %>% 
+  ggplot(aes(y = term, x = post_diff_original_scale, fill = stat(x < 0))) +
+  stat_halfeye() +
+  scale_fill_manual(values = c("gray80", "skyblue")) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  labs(x = 'The diff in simpson reciprocal diversity if one food group is consumed\nat max amount than the average',
+       y = '',
+       title = '') +
+  theme(legend.position = 'top') +
+  scale_x_continuous(breaks = seq(-10, 20, 2))
+
+ggsave('../figs/paper/fg9_post_diff.png', width = 7, height = 6)
+
+
+post_diff_df  
 
 ```
 
