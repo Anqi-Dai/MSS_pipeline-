@@ -21,6 +21,10 @@ library(rethinking)
 library(brms)
 library(ggpubr)
 ```
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  distinct(description)
+```
 
 
 ## Bayesian modeling

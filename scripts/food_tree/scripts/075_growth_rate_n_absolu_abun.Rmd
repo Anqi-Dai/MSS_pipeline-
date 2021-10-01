@@ -79,22 +79,43 @@ entero %>%
 both <- intersect(cts_$mrn, entero$mrn)
 ```
 ```{r}
-both %>% 
+absl <- both %>% 
   set_names(both) %>% 
   imap(function(.x, .y){
+    # set the min and max in the x axis to be the min and max of the global values
+    xmax = max(max(entero %>% 
+      filter(mrn == .x) %>% pull(sdrt)), max(cts_ %>% 
+      filter(mrn == .x) %>% pull(sdrt))) + 2
+    
+    xmin = min(min(entero %>% 
+      filter(mrn == .x) %>% pull(sdrt)), min(cts_ %>% 
+      filter(mrn == .x) %>% pull(sdrt))) -2
+    
     irep = entero %>% 
       filter(mrn == .x) %>% 
       ggplot(aes(x = sdrt, y = ave_irpe )) +
       geom_point() +
-      labs(title = str_glue('{}'))
+      labs(title = str_glue('{}')) +
+      xlim(xmin, xmax) +
+      labs(x = '',
+           y = 'Enterococcus copy\nnumbers')
+      
     
     copies = cts_ %>% 
       filter(mrn == .x) %>% 
       ggplot(aes(x = sdrt, y = entero_copy )) +
-      geom_point() 
+      geom_point() +
+      xlim(xmin, xmax) +
+      labs(x = 'day relative to transplant',
+           y = 'average irep values')
     
     res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
-    ggsave(str_glue('../data/{.y}.pdf'), width = 5, height = 4)
+    #ggsave(str_glue('../data/{.y}.pdf'), width = 5, height = 4)
   })
+
+seq(1, length(absl)) %>% 
+  set_names(seq(1, length(absl))) %>% 
+  imap(~ ggsave(str_glue('../data/Patient{.y}.pdf'), width = 5, height = 4, plot = absl[[.x]]))
 ```
+
 
