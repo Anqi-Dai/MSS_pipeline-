@@ -43,3 +43,11 @@ need %>%
   write_csv('../data/yale_need.csv')
 ```
 
+
+```{r}
+# the one that oriana wants
+want <- read_csv('../data/shotgun_lookup_bile_pts.csv')
+running <- read_csv('../data/all01_yale.csv', col_names = F)
+length(intersect(want$sampleid, running$X1))
+```
+
