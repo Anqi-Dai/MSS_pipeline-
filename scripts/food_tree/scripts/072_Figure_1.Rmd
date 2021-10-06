@@ -12,7 +12,7 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(ggimage)
-library(grConvert)
+#library(grConvert)
 
 axis_text_size <- 10
 axis_title_size <- 10
@@ -60,10 +60,9 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 stool_alpha <- meta %>% 
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
-            ylab = 'Microbiome \u03b1 diversity',
-            add = "loess", color = scatter_col, shape = 'triangle',
-            add.params = list(color = loess_line_col, fill = "darkgray", size = 2), 
-            conf.int = TRUE) +
+            ylab = 'Microbiome \u03b1 diversity') +
+  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = 2) +
+  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = 1, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
@@ -79,10 +78,9 @@ day_cal <- day_calori %>%
   ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
-            color = scatter_col,
-            add = "loess", 
-            add.params = list(color = loess_line_col, fill = "darkgray", size = 2), 
-            conf.int = TRUE) +
+            color = scatter_col,) +  
+  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = 'red', size = 2) +
+  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = 1, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
@@ -100,11 +98,9 @@ diet_alpha <- faith %>%
              alpha = alpha_val,size = point_size, 
             color = scatter_col, 
             ylab = "Diet \u03b1 diversity", 
-            xlab = 'Day relative to HCT',
-            #title = 'Nutritional alpha diversity',
-            add = "loess", 
-            add.params = list(color = loess_line_col, fill = "darkgray", size = 2), 
-            conf.int = TRUE) +
+            xlab = 'Day relative to HCT') +
+  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = 'red', size = 2) +
+  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = 1, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
@@ -123,7 +119,6 @@ bot <- plot_grid(day_cal, diet_alpha,stool_alpha,
           axis = 'tblr') 
 
 bot
-
 ```
 
 # fig1 top 3
