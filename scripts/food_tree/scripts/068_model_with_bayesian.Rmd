@@ -13,7 +13,7 @@ output:
 knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
-In this script, the max and the mean are from the EN-less records.
+In this script, the max and the mean are from the EN-less records. 9 food groups.
 
 ```{r}
 library(tidyverse)
@@ -23,7 +23,7 @@ library(tidybayes)
 library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 theme_set(theme_tidybayes() + panel_border())
-
+ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv')
 ```
 
@@ -115,12 +115,12 @@ model_wo_EN <- brm( model_formular,
               data = meta, 
               warmup = 1000, iter = 3000, 
               prior = priors,
-              cores = 16, 
+              cores = ncores, 
               chains = 2, 
               seed = 123, sample_prior = T) 
 
 # actually draw samples from the priors 
-samples_prior <- prior_samples(model_wo_EN)
+samples_prior <- prior_draws(model_wo_EN)
 
 ```
 
@@ -236,9 +236,6 @@ grps <- prior_all %>%
 fg_cha <- meta %>% 
   select(starts_with('fg')) %>% 
   colnames()
-
-
-
 ```
 
 ## Posterior
@@ -249,6 +246,91 @@ fg_cha <- meta %>%
 # extract posterior samples for the coeff
 post_samples  <- posterior_samples(model_wo_EN, '^b_')
 
+# save it out for the forest plot of the coeff
+post_fg_coeff <- post_samples %>% 
+  select(starts_with('b_fg')) %>% 
+  gather('item', 'value')
+
+post_fg_coeff_mean <- post_fg_coeff  %>% 
+  group_by(item) %>% 
+  summarise(meanperitem = mean(value))
+
+out <- post_fg_coeff %>% 
+  left_join(post_fg_coeff_mean, by = "item")
+
+out %>% write_csv('../data/brms_model_var_res_updated.csv')
+```
+
+```{r post_coeff_forest}
+# make the forest plot of the post coeff 
+# like the one on the ash abstract
+nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description) 
+
+post_coeff <- post_samples %>% 
+  select(starts_with('b_fg')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(nodes) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 35, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
+  mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) 
+```
+```{r}
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = fdesc)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'High-level food categories\n(FNDDS)') +
+  theme(legend.position = 'none')
+```
+```{r post_coeff_binary}
+coeff_bi <- post_samples %>% 
+  select(!starts_with('b_fg')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiT' ~ 'Empirical abx exposure',
+    item == 'b_empiF' ~ 'No empirical abx exposure',
+    item == 'b_tpnT' ~ 'TPN exposure',
+    item == 'b_tpnF' ~ 'No TPN exposure',
+    item ==  'b_enT' ~ 'EN exposure', 
+    item ==  'b_enF' ~ 'No EN exposure'
+  )) %>% 
+  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
+  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+
+coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Binary variables') +
+  theme(legend.position = 'none')
+```
+ 
+
+```{r post_sample_food_ave}
 # when the food intake is average mean
 
 ###THE RESULTS IS THE LOG TRANSFORMED DIVERSITY !!!!##
@@ -330,10 +412,10 @@ post_diff_df <- maxs %>%
   }) %>% 
   bind_rows(.id = 'term') %>% 
   mutate(term = fct_reorder(term, post_diff_original_scale, .fun=median, .desc = F)) %>% 
-  ggplot(aes(y = term, x = post_diff_original_scale, fill = stat(x < 0))) +
+  ggplot(aes(y = term, x = post_diff_original_scale)) +
   stat_halfeye() +
-  scale_fill_manual(values = c("gray80", "skyblue")) +
-  geom_vline(xintercept = 0, linetype = "dashed") +
+  #scale_fill_manual(values = c("gray80", "skyblue")) +
+  geom_vline(xintercept = 0, linetype = "dashed", col = 'red') +
   labs(x = 'The diff in simpson reciprocal diversity if one food group is consumed\nat max amount than the average',
        y = '',
        title = '') +

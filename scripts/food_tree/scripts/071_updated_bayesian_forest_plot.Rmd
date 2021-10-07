@@ -65,7 +65,7 @@ pt_perc <- dtb %>%
   select(mrn, Food_code) %>% 
   mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
   distinct(mrn, fgrp1) %>% 
-  count(fgrp1) %>% 
+  dplyr::count(fgrp1) %>% 
   mutate(fg1_name = case_when(
     fgrp1 == '1' ~ 'fg_milk',
     fgrp1 == '2' ~ 'fg_meat',
@@ -147,19 +147,22 @@ bottom_ <- res %>%
   
 
 bottom_
+
+ggsave('../figs/updated_forest_coeff.pdf', width = 9,  height = 4.5, plot = bottom_)
 ```
+
 
 
 ```{r}
 # assemble to make the full panel 
 top <- read_rds('../figs/abstract_top_diversity.rds')
 
-bottom <-  plot_grid(bottom_,
+bottom <-  cowplot::plot_grid(bottom_,
           nrow = 1, 
           labels = "C",
           axis = 'brlt')
 
-whole <-  plot_grid(top, bottom,
+whole <-  cowplot::plot_grid(top, bottom,
           nrow = 2, 
           align = 'hv',
           #rel_heights = c(1,1),
