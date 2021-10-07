@@ -28,7 +28,7 @@
 #    13.13 : Duke only
 #   13.2 : (PREPARING DATA)
 
-source('~/MSK/work/microbiome_db/SQL/scripts/db_connect.R'); #Initialize connection.
+source('db_connect.R'); #Initialize connection.
 library("data.table"); #I downloaded this to compute cummulative count; 
 #https://stackoverflow.com/questions/18925600/r-cumulative-sum-by-condition
 
@@ -39,7 +39,7 @@ get_data_from_query_OTU_resource <- function() {
   if(exists("IS_DBCONNECTED")){
     rm(IS_DBCONNECTED, pos = ".GlobalEnv");
   }
-  source('~/MSK/work/microbiome_db/SQL/scripts/db_connect.R'); #Initialize connection.
+  source('db_connect.R'); #Initialize connection.
 }
 
 
@@ -72,7 +72,6 @@ get_data_from_query_OTU = function(query_id, ...) {
   if(query_id==0.2){
     #get maximum `key` value from a table;
     table_name = args[1];
-    
     query= sprintf("select max(key) from %s",table_name);
   }
   

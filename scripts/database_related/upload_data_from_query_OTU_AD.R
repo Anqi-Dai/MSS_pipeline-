@@ -29,6 +29,7 @@ library(stringr); #For string replace.
 #library(stringi); #For string replace.
 #library(caroline); #for `dbWriteTable2`; #https://stackoverflow.com/questions/30276108/how-to-use-dbwritetable2-properly
 library("biomformat");
+library(tidyverse)
 #library("xlsx"); #For read.xlsx function;
 
 if(file.exists('~/projects/general/library/antoniostats/intervalcluster2.R')){
@@ -40,6 +41,9 @@ if(file.exists('~/projects/general/library/antoniostats/intervalcluster2.R')){
 source('/Users/daia1/pipeline/scripts/database_related/get_data_from_query_OTU.R')
 source('/Users/daia1/pipeline/scripts/database_related/db_connect.R'); #Start a connection here; The connection variable is `con`.
 
+# temp for when I'm using Marissa's laptop
+source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/get_data_from_query_OTU.R')
+source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/db_connect.R');
 #warning("TO DO: ADD a step to get last `id` from database.")
 
 my_dbWriteTable <- function(con, table_name, d_set_to_upload_reordered){
@@ -124,7 +128,8 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   #     4. Remove temporary table.
   #     5. Return only novel data to be uploaded;
   
-  
+  table_name <- 'samples_castori_ag'
+  d_set_to_upload <- d_set
   #Clean temp_table
   temp_table="temp_updating";
   query_check_temp = sprintf("SELECT EXISTS (SELECT 1 FROM   information_schema.tables WHERE table_name = '%s')", 
@@ -283,6 +288,52 @@ upload_data_from_query_OTU <- function(query_number, ...){
     
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
+  
+  if(query_number==6){
+    table_name = "samples_castori_ag";
+    input_data_file = '~/Downloads/MSK/MSS_pipeline-/scripts/dada2_pipeline/data/tblSamples.csv'
+    Samples_castori_center_file = input_data_file;
+    
+    castori_downloaded_date = '2021-10-07'
+    #castori_data = read.table(Samples_castori_center_file,sep=",", quote = "", comment.char = "", header = T);
+    castori_data = read_csv(Samples_castori_center_file)
+    mrn_integer = as.character(castori_data$MRN);
+    mrn_integer = suppressWarnings( as.numeric(mrn_integer) );
+    mrn_integer[is.na(mrn_integer)]=-1;
+    mrn_string = as.character(castori_data$MRN);
+    mrn_string[mrn_integer!=-1]=NA;
+    uploaded_date = format(Sys.time(),"%m-%d-%Y");
+    d_set = data.frame(#id = 1:length(castori_data$Sample_ID),
+      sampleid = castori_data$Sample_ID,
+      mrn = mrn_integer,
+      mrn_str = mrn_string,
+      datecollection = lubridate::mdy_hms(castori_data$DateCollection),
+      sampletype = castori_data$SampleType,
+      consistency = castori_data$Consistency,
+      datereceived = as.Date(castori_data$DateReceived,"%d-%b-%y"),
+      datealiquot = as.Date(castori_data$DateAliquot,"%d-%b-%y"),
+      boxrawstool = castori_data$BoxRawStool,
+      numberaliquots = castori_data$NumberAliquots,
+      numberstartingaliquots = castori_data$NumberStartingAliquots,
+      comment = castori_data$Comment,
+      timecollected = castori_data$TimeCollected,
+      dropofftime = castori_data$DropOffTime,
+      castori_downloaded_date =  lubridate::ymd(castori_downloaded_date),
+      #uploaded_date = uploaded_date,
+      stringsAsFactors = F);
+    
+    no_date_str = as.Date("5/5/5555", "%m/%d/%Y");
+    col_names = colnames(d_set);
+    is_date_type = is.element(col_names, c( "DateCollection", "DateReceived", "DateAliquot", "castori_downloaded_date"));
+    ind_date_type = which(is_date_type);
+    d_set[,is_date_type][is.na(d_set[,is_date_type])] = no_date_str;
+    d_set[,ind_date_type]=format(d_set[,ind_date_type],"%m-%d-%Y")
+    #d_set[,ind_date_type]= as.character(format(d_set[,ind_date_type],"%m-%d-%Y"));
+    
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set); 
+  }
+  
 }
 
 

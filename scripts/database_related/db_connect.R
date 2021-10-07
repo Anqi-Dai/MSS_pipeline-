@@ -8,7 +8,7 @@
 #I solved it by forcing to terminate all connection:
 #SELECT *, pg_terminate_backend(pid) FROM pg_stat_activity;
 #
-setwd('~/MSK/work/microbiome_db/SQL/scripts/')
+#setwd('~/MSK/work/microbiome_db/SQL/scripts/')
 library(RPostgreSQL);
 
 if(!exists("IS_DBCONNECTED")) {
@@ -18,7 +18,7 @@ if(!exists("IS_DBCONNECTED")) {
   if(exists("drv")) {
   	for (con in dbListConnections(drv)) { dbDisconnect(con)};
   }
-  pFile <- read.table("../config/dbConfig.txt", header = TRUE, sep = ",", colClasses = "character")
+  pFile <- read.table("~/dbConfig.txt", header = TRUE, sep = ",", colClasses = "character")
   
   # loads the PostgreSQL driver
   # creates a connection to the postgres database
