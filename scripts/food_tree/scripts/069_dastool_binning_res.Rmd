@@ -369,11 +369,10 @@ sig <- both %>%
 ```{r}
 # all taxa in a sample
 # with that outlier 
-ggg <- combined %>% 
+combined %>% 
   group_by(sampleid, fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie) %>% 
   summarise(ave_irep = mean(iRep)) %>% 
   gather('grp', 'gram', fg_egg:fg_veggie) %>% 
-  left_join(combined %>% select(sampleid, iRep)) %>% 
   ggscatter(x = 'gram', y = 'ave_irep', title = '',
               add = "reg.line",  # Add regressin line
                add.params = list(color = "blue", fill = "lightgray"), # Customize line
@@ -381,7 +380,7 @@ ggg <- combined %>%
                cor.coef = TRUE, # Add correlation coefficient.
                cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
       facet_wrap(grp ~ ., scales = 'free')
-ggg
+
 
 ggsave('../data/growth/sample_mean_irep.pdf', width = 10, height = 7)
 
@@ -393,5 +392,28 @@ combined %>%
       filter(str_detect(best_species, 'Enterococcus')) %>% 
       distinct(sampleid) 
   
+```
+
+```{r}
+# ok you can do this, you can get this sh*t done
+# add error bars with min and max for each dot 
+combined_mean <- combined %>% 
+  group_by(sampleid, fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie) %>% 
+  summarise(ave_irep = mean(iRep),
+            min_val = min(iRep),
+            max_val = max(iRep)) %>% 
+  gather('grp', 'gram', fg_egg:fg_veggie) 
+
+combined_mean %>% 
+  ggscatter(x = 'gram', y = 'ave_irep', title = '',
+              add = "reg.line",  # Add regressin line
+               add.params = list(color = "blue", fill = "lightgray"), # Customize line
+               conf.int = TRUE, # Add confidence interval
+               cor.coef = TRUE, # Add correlation coefficient.
+               cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
+  geom_pointrange(aes(ymin  = min_val, ymax  = max_val), fatten = 2, col = 'red')  +
+   facet_wrap(grp ~ ., scales = 'free')     
+
+ggsave('../data/growth/sample_mean_irep_with_sample_min_and_max.pdf', width = 10, height = 7)
 ```
 
