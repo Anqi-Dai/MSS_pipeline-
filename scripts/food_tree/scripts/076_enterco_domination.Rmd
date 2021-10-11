@@ -9,7 +9,7 @@ output:
     toc_depth: 3
 ---
 
-Use Enterococcus domination (> 10%) (binary) as outcome, using the previous model but with 10 food groups (splitting EN out) (fg intake scaled). To see the correlation between Enterococcus domination and fg intake. 
+Use Enterococcus domination (> 10%) (binary) as outcome, using the previous model but with 9 food groups (fg intake scaled). To see the correlation between Enterococcus domination and fg intake. 
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, message = F)
@@ -36,7 +36,21 @@ rstan_options(auto_write = TRUE)
 mc.cores = parallel::detectCores()
 
 # food intake is scaled 
-dat <- read_csv('../figs/paper/data/meta_fg10_bayes.csv') %>% 
+dat <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
+         inten_ab = if_else(intensity == 'ablative', 1, 0),
+         inten_re = if_else(intensity == 'reduced', 1, 0)) %>% 
     mutate(fg_egg = as.numeric(scale(fg_egg)),
          fg_fruit = as.numeric(scale(fg_fruit)),
          fg_grain = as.numeric(scale(fg_grain)),
@@ -45,8 +59,7 @@ dat <- read_csv('../figs/paper/data/meta_fg10_bayes.csv') %>%
          fg_milk = as.numeric(scale(fg_milk)),
          fg_oils = as.numeric(scale(fg_oils)),
          fg_sweets = as.numeric(scale(fg_sweets)),
-         fg_veggie = as.numeric(scale(fg_veggie)),
-         fg_EN = as.numeric(scale(fg_EN)))
+         fg_veggie = as.numeric(scale(fg_veggie)))
 
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% dat$sampleid) %>% 
@@ -81,10 +94,10 @@ model_formular <- enterodom ~ 1 +
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_EN+
                inten_non + inten_ab + inten_re +
-               empiT +  empiF+
-                tpnT +tpnF+
+               empirical+
+                TPN+
+                EN +
                (1 | mrn) +
                 (1 | timebin)
   
@@ -98,16 +111,12 @@ priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_oils"),
             prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
             prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
-            prior(normal(0, 1), class = 'b', coef = "fg_EN"),
             # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "tpnF"),
-            prior(normal(0, 0.1), class = 'b', coef = "tpnT"),
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
-            # prior(normal(0, 0.1), class = 'b', coef = "enF"),
-            # prior(normal(0, 0.1), class = 'b', coef = "enT"),
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
             # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiF"),
-            prior(normal(0, 0.5), class = 'b', coef = "empiT"),
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
             prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
@@ -119,11 +128,12 @@ model_fg10 <- brm( model_formular,
               warmup = 1000, iter = 3000, 
               family = bernoulli(link = "logit"),
               prior = priors,
-              cores = 16, 
+              cores = 4, 
               control = list(adapt_delta = 0.99),
               chains = 2, 
               seed = 123, 
               sample_prior = T)
+
 ```
 
 ### results
