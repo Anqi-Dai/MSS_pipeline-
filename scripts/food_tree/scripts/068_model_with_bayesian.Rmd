@@ -65,8 +65,8 @@ model_formular <- log(simpson_reciprocal)~ 1 +
                 fg_legume+
                 fg_veggie+
                inten_non + inten_ab + inten_re +
-               empiT +  empiF+
-                tpnT +tpnF+
+               empirical+
+                TPN+
                 EN+
                (1 | mrn) +
                 (1 | timebin)
@@ -89,14 +89,11 @@ priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
             prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
             # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "tpnF"),
-            prior(normal(0, 0.1), class = 'b', coef = "tpnT"),
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "enF"),
-            prior(normal(0, 0.1), class = 'b', coef = "enT"),
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
             # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiF"),
-            prior(normal(0, 0.5), class = 'b', coef = "empiT"),
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
             prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
@@ -303,12 +300,9 @@ coeff_bi <- post_samples %>%
     item ==  'b_inten_non' ~ 'Intensity: nonablative',
     item == 'b_inten_ab' ~ 'Intensity: ablative',
     item ==  'b_inten_re' ~ 'Intensity: reduced',
-    item ==  'b_empiT' ~ 'Empirical abx exposure',
-    item == 'b_empiF' ~ 'No empirical abx exposure',
-    item == 'b_tpnT' ~ 'TPN exposure',
-    item == 'b_tpnF' ~ 'No TPN exposure',
-    item ==  'b_enT' ~ 'EN exposure', 
-    item ==  'b_enF' ~ 'No EN exposure'
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
   )) %>% 
   mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
   mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
@@ -323,7 +317,6 @@ coeff_bi %>%
   theme(legend.position = 'none')
 ```
  
-
 ```{r post_sample_food_ave}
 # when the food intake is average mean
 
@@ -339,10 +332,7 @@ ave_each_fg_post <- post_samples %>%
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
            b_fg_veggie*mean_fg$fg_veggie +
-           b_inten_re +
-           b_empiF +
-           b_tpnF +
-           b_enF) %>% 
+           b_inten_re ) %>% 
   select(mean_fg) %>% 
   mutate(grp = 'ave_each') %>% 
   rename(post_res = mean_fg) %>% 
@@ -350,15 +340,14 @@ ave_each_fg_post <- post_samples %>%
 
 # when the intake is max
 post_coeffs <- post_samples %>% 
-  select(b_Intercept, b_inten_re, b_empiF, b_tpnF, b_enF, starts_with('b_fg')) %>% 
+  select(b_Intercept, b_inten_re,  starts_with('b_fg')) %>% 
   gather('term','post_coeff') %>% 
   split(.$term) 
 
 max_each_fg_post <- vals  %>% 
   set_names(vals) %>% 
   map(function(val) {
-    res = post_coeffs$b_empiF$post_coeff  +
-   post_coeffs$b_enF$post_coeff  +
+    res =
    post_coeffs$b_fg_egg$post_coeff * values %>% pluck(val) %>% pluck('b_fg_egg') +
    post_coeffs$b_fg_fruit$post_coeff * values %>% pluck(val) %>% pluck('b_fg_fruit') +
    post_coeffs$b_fg_grain$post_coeff * values %>% pluck(val) %>% pluck('b_fg_grain') +
@@ -369,11 +358,11 @@ max_each_fg_post <- vals  %>%
    post_coeffs$b_fg_sweets$post_coeff * values %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values %>% pluck(val) %>% pluck('b_fg_veggie') +
    post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_tpnF$post_coeff +
    post_coeffs$b_Intercept$post_coeff 
   }) %>% 
   bind_rows(.id = 'grp')
 ```
+
 ```{r post_diff}
 # calculate the absolute difference between the max in each fg and the mean 
 # note the mean is from EN-free records.
