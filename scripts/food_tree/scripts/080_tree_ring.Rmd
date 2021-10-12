@@ -12,7 +12,6 @@ library(phytools)
 library(tidyverse)
 ```
 
-
 ```{r}
 tre <- read.newick('../data/cleaned_tree/output_food_tree_datatree.newick')
 leaves <- tibble(
@@ -35,8 +34,8 @@ all.equal(food_code_sum_$Food_code , leaves$fcode)  #I'm fine with 3 mismatches.
 
 ```{r}
 # the newick string for the nodes
-newick <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv', col_types = cols(.default = col_character())) %>% 
-  select(FoodID,newickstring )
+tree_df <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv', col_types = cols(.default = col_character())) %>% 
+  select(FoodID, Main.food.description)
 ```
 
 
@@ -87,31 +86,30 @@ ggsave('../figs/paper/tree_ring_sum_wt.pdf', height = 5, width = 7)
 Need to make the annotation file to specify how the tree ring looks like
 
 ```{r}
-# current annotation file
-# the clades have 3 columns
-clades <- read_tsv('../data/source/annotation.base.txt', col_names = c('name','option','value'), skip = 10)
-
 ring <- bars_ %>% 
   select(Food_code, ring_height = log2gram, ring_color = color) %>% 
   mutate(ring_height = round(ring_height, 1)/10,
          Food_code = as.character(Food_code)) %>% 
-  full_join(newick %>% rename(Food_code = FoodID)) %>% 
-  select(newickstring, ring_height:ring_color) %>% 
+  full_join(tree_df %>% select(Food_code = FoodID, Main.food.description)) %>% 
+  select(Main.food.description, ring_height:ring_color) %>% 
   gather('key','value', ring_height:ring_color) %>% 
   mutate(ring_level = 1) %>% 
-  select(newickstring, key, ring_level, value) %>% 
-  mutate(newickstring = str_replace_all(newickstring, '/','\\.'))
+  select(Main.food.description, key, ring_level, value) 
+  
 ring
 ring %>% 
   write_tsv('../data/source/ring_annot.txt', col_names = F)
 ```
 
 ```{bash}
-cat ../data/source/annotation.base.txt ../data/source/ring_annot.txt > ../data/source/Annot_tree.txt
+cat ../data/source/annotation.base.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree.txt
 ```
 
 ```{bash}
-graphlan_annotate.py --annot Annot_tree.txt output_food_tree_datatree.newick  guide_1_new.xml
-graphlan.py guide_1_new.xml food_tree_ring.pdf --dpi 300 --size 3.5 --avoid_reordering 
+# this runs in the source folder 
+# the key is that the tree and the annot file has to have the string of food name as leaves 
+graphlan_annotate.py --annot ../cleaned_tree/Annot_tree.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
+graphlan.py guide_1_new.xml food_tree_ring.pdf --dpi 300 --size 3.5 
 ```
 
+Succeeded!!!!!!!!!!!!! Now I have the ring added using graphlan!!! Perfectly aligned and the colors match!!!!!!!!
