@@ -101,15 +101,48 @@ ring %>%
   write_tsv('../data/source/ring_annot.txt', col_names = F)
 ```
 
+```{r}
+# add the annotation marker for the example daily meal for that patient 
+dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>% 
+  inner_join(tree_df %>% mutate(Food_code = as.numeric(FoodID))) %>% 
+  mutate(log2wt = log2(dehydrated_weight))
+
+clade_markder <- dm5 %>% 
+  select(Main.food.description, clade_marker_color = color) %>% 
+  mutate(clade_marker_shape = '*',
+         clade_marker_size = 100,
+         clade_marker_edge_color = 'white') %>% 
+  gather('key','value', clade_marker_color:clade_marker_edge_color)
+
+clade_markder %>% 
+  write_tsv('../data/source/clade_annot_marker.txt', col_names = F)
+```
+
+```{r}
+# add the day meal log2 wt for the food code to the second ring
+ring2 <- dm5 %>% 
+  mutate(ring_height = log2wt/2) %>% 
+  select(Main.food.description, ring_color = color, ring_height) %>% 
+  gather('key','value', ring_color:ring_height) %>% 
+  mutate(ring_level = 2) %>% 
+  select(Main.food.description, key, ring_level, value) 
+
+ring2 %>% write_tsv('../data/source/ring2.txt', col_names = F)
+```
+
+
 ```{bash}
 cat ../data/source/annotation.base.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree.txt
+cat ../data/cleaned_tree/Annot_tree.txt ../data/source/clade_annot_marker.txt > ../data/cleaned_tree/Annot_tree2.txt
+cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring2.txt > ../data/cleaned_tree/Annot_tree3.txt
 ```
 
 ```{bash}
 # this runs in the source folder 
 # the key is that the tree and the annot file has to have the string of food name as leaves 
-graphlan_annotate.py --annot ../cleaned_tree/Annot_tree.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
-graphlan.py guide_1_new.xml food_tree_ring.pdf --dpi 300 --size 3.5 
+graphlan_annotate.py --annot ../cleaned_tree/Annot_tree3.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
+graphlan.py guide_1_new.xml ../cleaned_tree/food_tree_ring.pdf --dpi 300 --size 7 --pad 0
+graphlan.py guide_1_new.xml ../cleaned_tree/food_tree_ring.png --dpi 300 --size 7 --pad 0
 ```
 
 Succeeded!!!!!!!!!!!!! Now I have the ring added using graphlan!!! Perfectly aligned and the colors match!!!!!!!!
