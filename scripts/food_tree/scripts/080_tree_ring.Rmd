@@ -1,0 +1,74 @@
+---
+title: "Tree ring"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(phytools)
+library(tidyverse)
+```
+
+
+```{r}
+tre <- read.newick('../data/cleaned_tree/output_food_tree_datatree.newick')
+leaves <- tibble(
+  fcode = tre$tip.label
+)
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+matching <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
+
+food_code_sum <- dtb %>% 
+  group_by(Food_code) %>% 
+  summarise(fc_sum = sum(dehydrated_weight)) %>% 
+  mutate(Food_code = as.character(Food_code))  %>% 
+  filter(Food_code %in% leaves$fcode)
+
+food_code_sum_ <- food_code_sum[order(leaves$fcode),]
+
+all.equal(food_code_sum_$Food_code , leaves$fcode)  #I'm fine with 3 mismatches. they are very close anyway
+```
+```{r}
+# make the circular bar plot
+bars <- food_code_sum_ %>% 
+  mutate(log2gram = log2(fc_sum + 1)) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  left_join(matching, by = "fgrp1") %>% 
+  mutate(fg1_name = factor(fg1_name, levels = c('fg_egg', 'fg_oils', 'fg_legume', 'fg_fruit', 'fg_sweets', 'fg_milk','fg_meat', 'fg_veggie', 'fg_grain' ))) %>% 
+  arrange(fg1_name)
+
+food_code_level <- bars %>% pull(Food_code)
+
+bars_ <- bars %>% 
+  mutate(Food_code = factor(Food_code, levels = food_code_level))
+
+fill_val <- bars %>% 
+  distinct(fg1_name, color) %>% 
+  deframe()
+```
+```{r}
+
+
+p <- ggplot(bars_, aes(x=Food_code, y=log2gram, fill = fg1_name)) +  
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = fill_val) +
+  ylim(-30,15) +# this adjust the image to be like a ring
+  theme_minimal() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(),
+    legend.position = 'none'
+    #plot.margin = unit(rep(-2,4), "cm")    
+  ) +
+  coord_polar(start = 90)
+
+p
+ggsave('../figs/paper/tree_ring_sum_wt.pdf', height = 5, width = 7)
+  
+```
+
