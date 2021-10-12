@@ -99,6 +99,12 @@ final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F)
   mutate(newickstring = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{FoodID}'))
 ```
 
+```{r}
+final.table %>% 
+  write_csv('../data/source/final_table_for_writing_out_to_newick.csv')
+```
+
+
 # make the tree in newick
 
 ```{r}
