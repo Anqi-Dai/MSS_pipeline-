@@ -15,6 +15,7 @@ library(tidyverse)
 ```{r}
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
   select(sampleid, mrn, sdrt, intensity, EN:TPN)
+
 combined <- read_csv('../data/growth/irep_combined_res.csv', show_col_types = FALSE) %>% 
   left_join(meta, by = c("sampleid", "mrn")) %>% 
   arrange(mrn, sdrt) %>% 
@@ -25,21 +26,16 @@ combined <- read_csv('../data/growth/irep_combined_res.csv', show_col_types = FA
 ```{r}
 # visualize the distribution of irep in every sample 
 combined %>% 
-  split(.$mrn) %>% 
-  imap(function(.x, .y){
-    .x %>% 
-      ggboxplot(x= 'sampleid', y = 'iRep', add = 'jitter', color = 'best_species')  +
-        theme(axis.text.x = element_text(angle=45, hjust=1))
+  arrange(mrn, sdrt) %>% 
+  ggboxplot(x= 'sampleid', y = 'iRep', add = 'jitter')  +
+  facet_wrap(~mrn, scales = 'free') +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
     
-    ggsave(str_glue('../data/growth/combined_per_sample_dist_{.y}.pdf'), width = 8, height = 6)
-  })
+ggsave('../data/growth/combined_per_sample_dist.pdf', width = 18, height = 10)
+
   
-
-
-
-
-combined %>% 
-  count(sampleid, sort = T)
+best_spp <- combined %>% 
+  count(mrn, best_species, sort = T)
 ```
 
 ```{r}
@@ -75,7 +71,6 @@ r1461 <- look_max_irep %>%
 # Rothia is not growing during day 27-31 despite a high irep because of vancomycin
 ```
 
-
 ```{r}
 # what about same patient but Streptococcus salivarius between day 37 and 41
 # but I don't have the pqcr results yet
@@ -89,4 +84,70 @@ strep <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>
 strep_df <- look_max_irep %>% 
   inner_join(strep, by = "sampleid") %>% 
   relocate(copies, .after = iRep)
+
+
+
+pt1461_Lactobacillus <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(genus == 'Lactobacillus')  %>% 
+  inner_join(qpcr_16s_ag %>% 
+               select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
+  mutate(copies = round(copies_16s_per_g * relab))
+
+pt1461_Lactobacillus_df <- combined %>% 
+  filter(str_detect(sampleid, "^1461")) %>% 
+  filter(str_detect(best_species, 'Lactobacillus fermentum')) %>% 
+  inner_join(pt1461_Lactobacillus, by = "sampleid") %>% 
+  relocate(copies, .after = iRep)
+ 
 ```
+
+```{r}
+# look another patient that has most entries for Enterococcus faecium T110
+en <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(genus == 'Enterococcus')  %>% 
+  inner_join(qpcr_16s_ag %>% 
+               select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
+  mutate(copies = round(copies_16s_per_g * relab))
+
+en10 <- combined %>% 
+  filter(str_detect(sampleid, "^1546")) %>% 
+  filter(str_detect(best_species, 'Enterococcus faecium')) %>% 
+  inner_join(en, by = "sampleid") %>% 
+  relocate(copies, .after = iRep)
+  
+#G and F sample were sent out for qpcr
+```
+
+```{r}
+Klebsiella <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(genus == 'Klebsiella')  %>% 
+  inner_join(qpcr_16s_ag %>% 
+               select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
+  mutate(copies = round(copies_16s_per_g * relab))
+
+Klebsiella_df <- combined %>% 
+  filter(str_detect(sampleid, "^1574")) %>% 
+  filter(str_detect(best_species, 'Klebsiella pneumoniae')) %>% 
+  inner_join(Klebsiella, by = "sampleid") %>% 
+  relocate(copies, .after = iRep)
+```
+
+```{r}
+pt1574_enter <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(genus == 'Enterococcus')  %>% 
+  inner_join(qpcr_16s_ag %>% 
+               select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
+  mutate(copies = round(copies_16s_per_g * relab))
+
+pt1574_enter_df <- combined %>% 
+  filter(str_detect(sampleid, "^1574")) %>% 
+  filter(str_detect(best_species, 'Enterococcus faecium')) %>% 
+  inner_join(pt1574_enter, by = "sampleid") %>% 
+  relocate(copies, .after = iRep)
+```
+```{r}
+pt1521_ecoli_df <-combined %>% 
+  filter(str_detect(sampleid, "^1521")) %>% 
+  filter(str_detect(best_species, 'Escherichia'))
+```
+
