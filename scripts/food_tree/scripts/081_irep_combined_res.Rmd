@@ -1,0 +1,92 @@
+---
+title: "the irep combined result analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggpubr)
+library(tidyverse)
+```
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  select(sampleid, mrn, sdrt, intensity, EN:TPN)
+combined <- read_csv('../data/growth/irep_combined_res.csv', show_col_types = FALSE) %>% 
+  left_join(meta, by = c("sampleid", "mrn")) %>% 
+  arrange(mrn, sdrt) %>% 
+  relocate(sdrt, .after = sampleid) %>% 
+  relocate(mrn, .after = sdrt)
+```
+
+```{r}
+# visualize the distribution of irep in every sample 
+combined %>% 
+  split(.$mrn) %>% 
+  imap(function(.x, .y){
+    .x %>% 
+      ggboxplot(x= 'sampleid', y = 'iRep', add = 'jitter', color = 'best_species')  +
+        theme(axis.text.x = element_text(angle=45, hjust=1))
+    
+    ggsave(str_glue('../data/growth/combined_per_sample_dist_{.y}.pdf'), width = 8, height = 6)
+  })
+  
+
+
+
+
+combined %>% 
+  count(sampleid, sort = T)
+```
+
+```{r}
+# want to look at the patient that starts sampleid with 1461
+look <- combined %>% 
+  filter(str_detect(sampleid, "^1461"))
+
+look_max_irep <- look %>% 
+  group_by(sampleid) %>% 
+  arrange(-iRep, .by_group = T) %>% 
+  slice(1) %>% 
+  arrange(sdrt)
+```
+
+```{r}
+# the serveral high irep of rothia is interesting
+library(vdbR)
+connect_database('~/dbConfig.txt')
+list_table_from_database('qpcr')
+get_table_from_database('qpcr_16s_ag')
+pt1461 <- qpcr_16s_ag %>% 
+  filter(str_detect(sample_id, '^1461')) 
+
+genus <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(genus == 'Rothia') %>% 
+  inner_join(pt1461 %>% 
+               select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
+  mutate(rothia_copies = round(copies_16s_per_g * relab))
+
+r1461 <- look_max_irep %>% 
+  inner_join(genus, by = "sampleid") %>% 
+  relocate(rothia_copies, .after = iRep)
+# Rothia is not growing during day 27-31 despite a high irep because of vancomycin
+```
+
+
+```{r}
+# what about same patient but Streptococcus salivarius between day 37 and 41
+# but I don't have the pqcr results yet
+
+strep <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(genus == 'Streptococcus')  %>% 
+  inner_join(pt1461 %>% 
+               select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
+  mutate(copies = round(copies_16s_per_g * relab))
+
+strep_df <- look_max_irep %>% 
+  inner_join(strep, by = "sampleid") %>% 
+  relocate(copies, .after = iRep)
+```
