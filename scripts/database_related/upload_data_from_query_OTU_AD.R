@@ -40,7 +40,7 @@ if(file.exists('~/projects/general/library/antoniostats/intervalcluster2.R')){
 
 source('/Users/daia1/pipeline/scripts/database_related/get_data_from_query_OTU.R')
 source('/Users/daia1/pipeline/scripts/database_related/db_connect.R'); #Start a connection here; The connection variable is `con`.
-
+getwd()
 # temp for when I'm using Marissa's laptop
 source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/get_data_from_query_OTU.R')
 source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/db_connect.R');
@@ -128,7 +128,7 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   #     4. Remove temporary table.
   #     5. Return only novel data to be uploaded;
   
-  table_name <- 'samples_castori_ag'
+  table_name <- table_name
   d_set_to_upload <- d_set
   #Clean temp_table
   temp_table="temp_updating";
@@ -213,10 +213,10 @@ upload_data_from_query_OTU <- function(query_number, ...){
   if(query_number==1){
     table_name = "shotgun_lookup_ad";
     
-    d_set_input = fread("~/projects/Catalog/data/new_20210420.csv")
+    d_set_input = fread("~/Downloads/MSK/Catalog/data/new_20211014.csv")
     
     d_set=data.frame(directory=d_set_input$directory,
-                     projectid=d_set_input$projectID,
+                     projectid=d_set_input$projectid,
                      sampleid=d_set_input$sampleid,
                      fid=d_set_input$fid);
     
