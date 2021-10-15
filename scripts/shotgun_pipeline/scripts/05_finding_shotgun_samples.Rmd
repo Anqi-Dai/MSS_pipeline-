@@ -77,6 +77,24 @@ todo <- tibble(fid = setdiff(want$fid, intersect(want$fid, rest$X1)))
 todo %>% 
   write_csv('../data/todo350.csv', col_names = F)
 
-length(intersect(todo$fid, need$fid)) 
+length(intersect(want$fid, need$fid)) 
+
+# the 73 that I need to preprocess again  
+the73 <- want %>% 
+  filter(! fid %in% todo$fid)
+
+length(intersect(the73$fid, need$fid)) 
+
+# final fid will be 
+the10 <- want %>% 
+  filter( fid %in% need$fid)
+
+the33 <- need %>% 
+  filter(!fid %in% the10$fid) 
+
+fid106 <- bind_rows(the33 %>% select(fid), the73 %>% select(fid))
+
+fid106 %>% 
+  write_csv('../data/fid106.csv')
 ```
 

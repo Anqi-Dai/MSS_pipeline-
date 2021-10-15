@@ -115,11 +115,12 @@ clade_markder %>%
 
 
 ring_itself <- tibble(
-  ring_level = c(1),
-  ring_internal_separator_thickness = 2.5,
-  #ring_external_separator_thickness = 2.5,
-  ring_label = 'X',
-  ring_separator_color = 'k'
+  ring_level = c(1, 2),
+  ring_internal_separator_thickness = 0.1,
+  ring_external_separator_thickness = 0.1,
+  ring_label = c('All patients total','one patient one day'),
+  ring_label_font_size = 5,
+  ring_separator_color = 'black'
 ) %>% 
   gather('key', 'value', ring_internal_separator_thickness:ring_separator_color) %>% 
   select(key, ring_level, value) %>% 
