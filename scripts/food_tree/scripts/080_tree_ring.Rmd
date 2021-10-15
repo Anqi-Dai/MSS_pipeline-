@@ -44,7 +44,7 @@ tree_df <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv', 
 ```{r}
 # make the circular bar plot
 bars <- food_code_sum_ %>% 
-  mutate(log2gram = log2(fc_sum + 1)) %>% 
+  mutate(log10gram = log10(fc_sum + 1)) %>% 
   mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
   left_join(matching, by = "fgrp1") %>% 
   mutate(fg1_name = factor(fg1_name, levels = c('fg_egg', 'fg_oils', 'fg_legume', 'fg_fruit', 'fg_sweets', 'fg_milk','fg_meat', 'fg_veggie', 'fg_grain' ))) %>% 
@@ -60,9 +60,7 @@ fill_val <- bars %>%
   deframe()
 ```
 ```{r}
-
-
-p <- ggplot(bars_, aes(x=Food_code, y=log2gram, fill = fg1_name)) +  
+p <- ggplot(bars_, aes(x=Food_code, y=log10gram, fill = fg1_name)) +  
   geom_bar(stat="identity") +
   scale_fill_manual(values = fill_val) +
   ylim(-50,15) +# this adjust the image to be like a ring
@@ -76,8 +74,6 @@ p <- ggplot(bars_, aes(x=Food_code, y=log2gram, fill = fg1_name)) +
   ) +
   coord_polar(start = 90)
 
-p
-ggsave('../figs/paper/tree_ring_sum_wt.pdf', height = 5, width = 7)
   
 ```
 
@@ -87,25 +83,25 @@ Need to make the annotation file to specify how the tree ring looks like
 
 ```{r}
 ring <- bars_ %>% 
-  select(Food_code, ring_height = log2gram, ring_color = color) %>% 
-  mutate(ring_height = round(ring_height, 1)/10,
+  select(Food_code, ring_height = log10gram, ring_color = color) %>% 
+  mutate(#ring_height = round(ring_height, 1)/10,
          Food_code = as.character(Food_code)) %>% 
   full_join(tree_df %>% select(Food_code = FoodID, Main.food.description)) %>% 
   select(Main.food.description, ring_height:ring_color) %>% 
-  gather('key','value', ring_height:ring_color) %>% 
+  mutate(ring_width = 0.5) %>% 
+  gather('key','value', ring_height:ring_width) %>% 
   mutate(ring_level = 1) %>% 
   select(Main.food.description, key, ring_level, value) 
   
-ring
 ring %>% 
   write_tsv('../data/source/ring_annot.txt', col_names = F)
 ```
 
-```{r}
+```{r one_day}
 # add the annotation marker for the example daily meal for that patient 
 dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>% 
   inner_join(tree_df %>% mutate(Food_code = as.numeric(FoodID))) %>% 
-  mutate(log2wt = log2(dehydrated_weight))
+  mutate(log10wt = log10(dehydrated_weight))
 
 clade_markder <- dm5 %>% 
   select(Main.food.description, clade_marker_color = color) %>% 
@@ -116,33 +112,48 @@ clade_markder <- dm5 %>%
 
 clade_markder %>% 
   write_tsv('../data/source/clade_annot_marker.txt', col_names = F)
+
+
+ring_itself <- tibble(
+  ring_level = c(1),
+  ring_internal_separator_thickness = 2.5,
+  #ring_external_separator_thickness = 2.5,
+  ring_label = 'X',
+  ring_separator_color = 'k'
+) %>% 
+  gather('key', 'value', ring_internal_separator_thickness:ring_separator_color) %>% 
+  select(key, ring_level, value) %>% 
+  write_tsv('../data/source/ring_annot_marker.txt', col_names = F)
 ```
 
 ```{r}
 # add the day meal log2 wt for the food code to the second ring
 ring2 <- dm5 %>% 
-  mutate(ring_height = log2wt/2) %>% 
+  mutate(ring_height = log10wt) %>% 
   select(Main.food.description, ring_color = color, ring_height) %>% 
-  gather('key','value', ring_color:ring_height) %>% 
+  mutate(ring_alpha = 0.5,
+         ring_width = 1) %>% 
+  gather('key','value', ring_color:ring_width) %>% 
   mutate(ring_level = 2) %>% 
   select(Main.food.description, key, ring_level, value) 
 
 ring2 %>% write_tsv('../data/source/ring2.txt', col_names = F)
 ```
 
-
+    
 ```{bash}
-cat ../data/source/annotation.base.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree.txt
+cat ../data/source/annotation.base.txt ../data/source/ring_annot_marker.txt > ../data/cleaned_tree/Annot_tree.txt
 cat ../data/cleaned_tree/Annot_tree.txt ../data/source/clade_annot_marker.txt > ../data/cleaned_tree/Annot_tree2.txt
 cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring2.txt > ../data/cleaned_tree/Annot_tree3.txt
+cat ../data/cleaned_tree/Annot_tree3.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree4.txt 
 ```
 
 ```{bash}
 # this runs in the source folder 
 # the key is that the tree and the annot file has to have the string of food name as leaves 
-graphlan_annotate.py --annot ../cleaned_tree/Annot_tree3.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
-graphlan.py guide_1_new.xml ../cleaned_tree/food_tree_ring.pdf --dpi 300 --size 7 --pad 0
-graphlan.py guide_1_new.xml ../cleaned_tree/food_tree_ring.png --dpi 300 --size 7 --pad 0
+graphlan_annotate.py --annot ../cleaned_tree/Annot_tree4.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
+graphlan.py guide_1_new.xml ../cleaned_tree/food_tree_ring.pdf --dpi 300 --size 4 --pad 0
+graphlan.py guide_1_new.xml ../cleaned_tree/food_tree_ring.png --dpi 300 --size 4 --pad 0
 ```
 
 Succeeded!!!!!!!!!!!!! Now I have the ring added using graphlan!!! Perfectly aligned and the colors match!!!!!!!!
