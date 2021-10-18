@@ -20,6 +20,8 @@ alpha_val <- 0.3
 point_size <- 1.2
 loess_line_col <- 'lightblue4'
 scatter_col <- 'gray14'
+pick_point_size <- 1
+pick_line_size <- 0.5
 ```
 
 
@@ -39,7 +41,6 @@ fpalette <- tribble(
   'fg_sweets' , '#db2589' , '9'
 ) 
 
-pie(rep(1, 9), col=fpalette$color)
 fpalette %>% 
   write_csv('../data/cleaned_diet_data/food_group_color_key.csv')
 
@@ -54,15 +55,24 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 ```
 
+```{r}
+# picked patient
+pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
+
+pick_stool <- meta %>% 
+  filter(mrn == pick$mrn)
+```
 
 
 ```{r stool_alpha}
 stool_alpha <- meta %>% 
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
-            ylab = 'Microbiome \u03b1 diversity') +
-  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = 2) +
-  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = 1, col = 'red') +
+            ylab = 'Microbiome \u03b1 diversity',
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = "black", fill = "darkblue", size = 1)) +
+  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = pick_point_size) +
+  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
@@ -74,13 +84,18 @@ day_calori <- dtb %>%
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal))
 
+pick_cal <- day_calori %>% 
+  filter(mrn == pick$mrn[1]) 
+
 day_cal <- day_calori %>% 
   ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
-            color = scatter_col,) +  
-  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = 'red', size = 2) +
-  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = 1, col = 'red') +
+            color = scatter_col,
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = "black", fill = "darkblue", size = 1)) +  
+  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = 'red', size = pick_point_size) +
+  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
@@ -93,14 +108,19 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
   separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
   mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
 
+pick_faith <- faith %>% 
+  filter(mrn == pick$mrn[1])
+
 diet_alpha <- faith %>% 
   ggscatter('fdrt', 'faith_pd', 
              alpha = alpha_val,size = point_size, 
             color = scatter_col, 
             ylab = "Diet \u03b1 diversity", 
-            xlab = 'Day relative to HCT') +
-  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = 'red', size = 2) +
-  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = 1, col = 'red') +
+            xlab = 'Day relative to HCT',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = "black", fill = "darkblue", size = 1)) +
+  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = 'red', size = pick_point_size) +
+  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
@@ -115,10 +135,17 @@ bot <- plot_grid(day_cal, diet_alpha,stool_alpha,
           align = 'hv',
           #rel_widths =  c(1,1),
           #rel_heights = c(1,1),
-          labels = c('G','H','I'),
+          labels = c('C','D','E'),
           axis = 'tblr') 
 
 bot
+
+ggsave('../figs/paper/bot_fig1.pdf',
+       width = 160,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
 ```
 
 # fig1 top 3
@@ -276,59 +303,6 @@ p <- grImport2::readPicture( "../data/source/food_tree.svg" )
 tree <- grImport2::pictureGrob( p )
 ```
 
-```{r pick_3_stool}
-# to plot the picked pt three diagrams in the timeline
-pick_stool <- meta %>% 
-  filter(mrn == pick$mrn) %>% 
-  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', 
-            ylab = 'Microbiome \u03b1 diversity',
-            size = point_size, shape = 'triangle',
-            xlab = 'Day relative to HCT') +
-  geom_line(linetype = 'dashed')+
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),aspect.ratio=1
-        )
-pick_stool
-```
-
-
-```{r pick_3_cal}
-# the food -- cal annd the diet alpha
-# the diet alpha
-pick_cal <- day_calori %>% 
-  filter(mrn == pick$mrn[1]) %>% 
-  ggscatter(x = 'fdrt', y = 'daycal', 
-            ylab = 'Daily caloric intake',
-            size = point_size, 
-            xlab = 'Day relative to HCT') +
-  geom_line(linetype = 'dashed')  +
-  scale_x_continuous(breaks = seq(-5, 20, 5)) +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
-  
-pick_cal
-```
-```{r pick_3_faith}
-pick_faith <- faith %>% 
-  filter(mrn == pick$mrn[1]) %>% 
-  ggscatter(x = 'fdrt', y = 'faith_pd', 
-            ylab = 'Diet \u03b1 diversity',
-            size = point_size, 
-            xlab = 'Day relative to HCT') +
-  geom_line(linetype = 'dashed')+
-  scale_x_continuous(breaks = seq(-5, 20, 5))+
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
-pick_faith
-```
-
-```{r make_top}
-top <- plot_grid(pick_cal, pick_faith, pick_stool,
-                 nrow = 1,  labels = c('A','B','C'), axis = 'tblr', align = 'hv')
-top
-```
 ```{r midright}
 # middle right
 midright <- plot_grid( daym5,  fig1_umap,
@@ -343,12 +317,12 @@ f1 <-  plot_grid(top,  middle, bot,
                  rel_heights = c(1,2,1),
                  nrow = 3)
 
-ggsave('../figs/paper/all_fig1.pdf',
+ggsave('../figs/paper/bot_fig1.pdf',
        width = 160,
-       height = 240,
+       height = 80,
          #height = 60,
          units = c("mm"),
          dpi = 400,
-       device = cairo_pdf )
+       device = cairo_pdf , plot = bot)
 ```
 
