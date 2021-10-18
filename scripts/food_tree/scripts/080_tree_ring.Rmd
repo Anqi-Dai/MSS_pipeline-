@@ -10,6 +10,12 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(phytools)
 library(tidyverse)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('asv_counts_ag')
+get_table_from_database('asv_alpha_diversity_ag')
+find <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(oligos_id, 'pool1094.1095'))
 ```
 
 ```{r}
