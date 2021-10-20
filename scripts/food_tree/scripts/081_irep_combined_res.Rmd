@@ -48,6 +48,13 @@ look_max_irep <- look %>%
   arrange(-iRep, .by_group = T) %>% 
   slice(1) %>% 
   arrange(sdrt)
+
+p1546_max <-  combined %>% 
+  filter(str_detect(sampleid, "^1546")) %>% 
+  group_by(sampleid) %>% 
+  arrange(-iRep, .by_group = T) %>% 
+  slice(1) %>% 
+  arrange(sdrt)
 ```
 
 ```{r}
@@ -69,6 +76,14 @@ r1461 <- look_max_irep %>%
   inner_join(genus, by = "sampleid") %>% 
   relocate(rothia_copies, .after = iRep)
 # Rothia is not growing during day 27-31 despite a high irep because of vancomycin
+
+r1461 %>% 
+  filter(str_detect(best_species, 'Rothia')) %>% 
+  select(sdrt, iRep, rothia_copies) %>% 
+  gather('grp', 'value', iRep:rothia_copies) %>% 
+  ggdotchart(x = 'sdrt', y = 'value', sorting = 'none',
+             title = 'Rothia irep and abs copy') +
+  facet_grid(grp~ ., scales = 'free')
 ```
 
 ```{r}
@@ -81,12 +96,25 @@ strep <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>
                select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
   mutate(copies = round(copies_16s_per_g * relab))
 
-strep_df <- look_max_irep %>% 
+strep_df <- combined %>% 
+  filter(str_detect(sampleid, '^1461')) %>% 
+  filter(str_detect(best_species, 'Streptococcus'))  %>%   
+  group_by(sampleid, sdrt) %>% 
+  summarise(ave_irep =  mean(iRep)) %>% 
   inner_join(strep, by = "sampleid") %>% 
-  relocate(copies, .after = iRep)
+  relocate(copies, .after = ave_irep)
 
 
+strep_df %>% 
+  select(sdrt, ave_irep, copies) %>% 
+  gather('grp', 'value', ave_irep:copies) %>% 
+  ggdotchart(x = 'sdrt', y = 'value', sorting = 'none',
+             title = 'Strep irep and abs copy') +
+  facet_grid(grp~ ., scales = 'free')
+```
 
+
+```{r}
 pt1461_Lactobacillus <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(genus == 'Lactobacillus')  %>% 
   inner_join(qpcr_16s_ag %>% 
@@ -99,6 +127,13 @@ pt1461_Lactobacillus_df <- combined %>%
   inner_join(pt1461_Lactobacillus, by = "sampleid") %>% 
   relocate(copies, .after = iRep)
  
+
+pt1461_Lactobacillus_df %>% 
+  select(sdrt, iRep, copies) %>% 
+  gather('grp', 'value', iRep:copies) %>% 
+  ggdotchart(x = 'sdrt', y = 'value', sorting = 'none',
+             title = 'Lactobacillus irep and abs copy') +
+  facet_grid(grp~ ., scales = 'free') 
 ```
 
 ```{r}
@@ -114,7 +149,14 @@ en10 <- combined %>%
   filter(str_detect(best_species, 'Enterococcus faecium')) %>% 
   inner_join(en, by = "sampleid") %>% 
   relocate(copies, .after = iRep)
-  
+
+
+en10 %>% 
+  select(sdrt, iRep, copies) %>% 
+  gather('grp', 'value', iRep:copies) %>% 
+  ggdotchart(x = 'sdrt', y = 'value', sorting = 'none',
+             title = 'Enterococcus irep and abs copy') +
+  facet_grid(grp~ ., scales = 'free')   
 #G and F sample were sent out for qpcr
 ```
 
@@ -130,6 +172,13 @@ Klebsiella_df <- combined %>%
   filter(str_detect(best_species, 'Klebsiella pneumoniae')) %>% 
   inner_join(Klebsiella, by = "sampleid") %>% 
   relocate(copies, .after = iRep)
+
+Klebsiella_df %>% 
+  select(sdrt, iRep, copies) %>% 
+  gather('grp', 'value', iRep:copies) %>% 
+  ggdotchart(x = 'sdrt', y = 'value', sorting = 'none',
+             title = 'Klebsiella irep and abs copy') +
+  facet_grid(grp~ ., scales = 'free') 
 ```
 
 ```{r}
@@ -144,6 +193,13 @@ pt1574_enter_df <- combined %>%
   filter(str_detect(best_species, 'Enterococcus faecium')) %>% 
   inner_join(pt1574_enter, by = "sampleid") %>% 
   relocate(copies, .after = iRep)
+
+pt1574_enter_df %>% 
+  select(sdrt, iRep, copies) %>% 
+  gather('grp', 'value', iRep:copies) %>% 
+  ggdotchart(x = 'sdrt', y = 'value', sorting = 'none',
+             title = 'Enterococcus irep and abs copy') +
+  facet_grid(grp~ ., scales = 'free') 
 ```
 ```{r}
 pt1521_ecoli_df <-combined %>% 

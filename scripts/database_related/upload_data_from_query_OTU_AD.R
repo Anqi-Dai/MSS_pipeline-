@@ -43,6 +43,8 @@ source('/Users/daia1/pipeline/scripts/database_related/db_connect.R'); #Start a 
 getwd()
 # temp for when I'm using Marissa's laptop
 source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/get_data_from_query_OTU.R')
+# if there is a sourcing problem of the above script then go to that script and run directly , the key is to
+# have the get_data_from_query_otu function
 source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/db_connect.R');
 #warning("TO DO: ADD a step to get last `id` from database.")
 
@@ -278,7 +280,7 @@ upload_data_from_query_OTU <- function(query_number, ...){
   if(query_number==5){
     table_name = "qpcr_16s_ag";
     
-    d_set_input = fread("~/projects/Catalog/data/Emily_16s_qpcr_0514_cleaned.csv")
+    d_set_input = fread("~/Downloads/MSK/Catalog/data/qpcr_20211020.csv")
     
     d_set=data.frame(sample_id=d_set_input$sample_id,
                      copy_number_16s=d_set_input$copy_number_16s,

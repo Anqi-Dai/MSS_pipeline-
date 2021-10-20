@@ -325,19 +325,5 @@ ggsave('../figs/paper/bot_fig1.pdf',
          dpi = 400,
        device = cairo_pdf , plot = bot)
 ```
-```{r}
-library(vdbR)
-connect_database('~/dbConfig.txt')
-get_table_from_database('asv_counts_ag')
-get_table_from_database('asv_alpha_diversity_ag')
-
-p1099 <- asv_counts_ag %>% 
-  filter(str_detect(oligos_id, 'pool1099')) %>% 
-  filter(str_detect(sampleid, 'FMT'))
-
-asv_alpha_diversity_ag %>% 
-   filter(str_detect(oligos_id, 'pool1099'))  %>% 
-  select(sampleid) %>% 
-  write_csv('../data/pool1099_sampleid.csv')
-``` 
+ 
 

@@ -397,7 +397,9 @@ combined %>%
 ```{r}
 # ok you can do this, you can get this sh*t done
 # add error bars with min and max for each dot 
+combined <- read_csv('../data/growth/irep_combined_res.csv')
 combined_mean <- combined %>% 
+  filter(iRep < 4) %>% # what if I filter out that very high value
   group_by(sampleid, fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie) %>% 
   summarise(ave_irep = mean(iRep),
             min_val = min(iRep),
@@ -414,6 +416,25 @@ combined_mean %>%
   geom_pointrange(aes(ymin  = min_val, ymax  = max_val), fatten = 2, col = 'red')  +
    facet_wrap(grp ~ ., scales = 'free')     
 
-ggsave('../data/growth/sample_mean_irep_with_sample_min_and_max.pdf', width = 10, height = 7)
+ggsave('../data/growth/sample_mean_irep_with_sample_min_and_max_no_outlier.pdf', width = 10, height = 7)
+```
+
+```{r}
+# only look at milk and fruit for now since there is a sig p value
+combined_mean %>% 
+  filter(grp %in% c('fg_milk','fg_fruit')) %>% 
+  split(.$grp) %>% 
+  imap(function(.x, .y){
+    ggscatter( data = .x ,x = 'gram', y = 'ave_irep', title = .y, label = 'sampleid', 
+              add = "reg.line",  # Add regressin line
+               add.params = list(color = "blue", fill = "lightgray"), # Customize line
+               conf.int = TRUE, # Add confidence interval
+               cor.coef = TRUE, # Add correlation coefficient.
+               cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
+    geom_pointrange(aes(ymin  = min_val, ymax  = max_val), fatten = 2, col = 'red')
+    
+    ggsave(str_glue('../data/growth/combined_irep_{.y}.pdf'), width = 10)
+  })
+c
 ```
 
