@@ -43,12 +43,8 @@ need %>%
   write_csv('../data/yale_need.csv')
 
 need %>% 
-  mutate(fn1 = str_glue('/home/daia1/my_workdir/samples/whole/preprocessing/01_processing/05_sync/{fid}__concat_1.fq.gz'),
-         fn2 = str_glue('/home/daia1/my_workdir/samples/whole/preprocessing/01_processing/05_sync/{fid}__concat_2.fq.gz')) %>% 
-  select(fn1, fn2) %>% 
-  gather() %>% 
-  select(value)  %>% 
-  mutate(cmd = str_glue('cp {value} yale/')) %>% 
+  mutate(fn1 = str_glue('/home/daia1/my_workdir/samples/whole/preprocessing/01_processing/05_sync/{fid}__concat_orphans.fq.gz')) %>% 
+  mutate(cmd = str_glue('cp {fn1} yale/')) %>% 
   select(cmd) %>% 
   write_csv('../data/cp_cmd.sh', col_names = F)
 ```

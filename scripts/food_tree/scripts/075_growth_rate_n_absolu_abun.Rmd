@@ -8,7 +8,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-
 library(vdbR)
 connect_database('~/dbConfig.txt')
 list_table_from_database('qpcr')
@@ -24,6 +23,8 @@ qpcr <- qpcr_16s_ag %>%
 
 ```{r}
 # all the patients that have a entercoccus growth rate
+combined <- read_csv('../data/growth/irep_combined_res.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 target <- combined %>%  
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   distinct(mrn) %>% 
@@ -98,16 +99,18 @@ absl <- both %>%
       labs(title = str_glue('{}')) +
       xlim(xmin, xmax) +
       labs(x = '',
-           y = 'Enterococcus copy\nnumbers')
+           y = 'average irep values')
       
     
     copies = cts_ %>% 
       filter(mrn == .x) %>% 
       ggplot(aes(x = sdrt, y = entero_copy )) +
       geom_point() +
+     # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
+      #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
       xlim(xmin, xmax) +
       labs(x = 'day relative to transplant',
-           y = 'average irep values')
+           y = 'Enterococcus copy\nnumbers')
     
     res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
     #ggsave(str_glue('../data/{.y}.pdf'), width = 5, height = 4)
@@ -118,4 +121,38 @@ seq(1, length(absl)) %>%
   imap(~ ggsave(str_glue('../data/Patient{.y}.pdf'), width = 5, height = 4, plot = absl[[.x]]))
 ```
 
+```{r}
+# customize patient 12
+p12 <- names(absl)[12]
+xmax = 15
+
+xmin = -5
+
+irep = entero %>% 
+  filter(sdrt %in% -5:15) %>% 
+  filter(mrn == p12) %>% 
+  ggplot(aes(x = sdrt, y = ave_irpe )) +
+  geom_point() +
+  labs(title = str_glue('{}')) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Replication rate')+
+  theme_light()
+  
+
+copies = cts_ %>% 
+  filter(sdrt %in% -5:15) %>% 
+  filter(mrn == p12) %>% 
+  ggplot(aes(x = sdrt, y = entero_copy )) +
+  geom_point() +
+ # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
+  #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  xlim(xmin, xmax) +
+  labs(x = 'day relative to transplant',
+       y = 'Enterococcus copy\nnumbers') +
+  theme_light()
+
+res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
+res
+```
 
