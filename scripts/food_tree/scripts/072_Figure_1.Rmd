@@ -18,7 +18,7 @@ axis_text_size <- 10
 axis_title_size <- 10
 alpha_val <- 0.3
 point_size <- 1.2
-loess_line_col <- 'lightblue4'
+loess_line_col <- 'gray'
 scatter_col <- 'gray14'
 pick_point_size <- 1
 pick_line_size <- 0.5
@@ -55,6 +55,52 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 ```
 
+
+```{r}
+# the macronutrients scatter plot
+m_all <- dtb %>%  
+  select(mrn, fdrt,Protein_g:Sodium_g ) %>% 
+  gather('grp','gram', Protein_g:Sodium_g) %>% 
+  group_by(mrn, fdrt, grp) %>% 
+  summarise(eachsum = sum(gram)) 
+
+m_pick <- m_all %>% 
+  filter(mrn == pick$mrn[1])  %>% 
+  split(.$grp)
+
+
+macro_list <- m_all %>% 
+  split(.$grp) %>% 
+  imap(function(.x, .y) {
+      ggscatter(data = .x ,x = 'fdrt', y = 'eachsum', alpha = alpha_val, size = point_size, 
+            xlab = 'Day relative to HCT',
+            ylab = str_glue('{.y}'),
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = loess_line_col, fill = "darkblue", size = 1))  +
+  geom_point(data = m_pick[[.y]], aes(x = fdrt, y = eachsum), col = 'red', size = pick_point_size) +
+  geom_line(data = m_pick[[.y]], aes(x = fdrt, y =eachsum), linetype = 'solid', size = pick_line_size, col = 'red') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+  })
+
+macro <- plot_grid(macro_list[[1]],macro_list[[2]],macro_list[[3]],macro_list[[4]],macro_list[[5]],macro_list[[6]],
+          nrow = 2, 
+          align = 'hv',
+          #rel_widths =  c(1,1),
+          #rel_heights = c(1,1),
+          #labels = c('C','D','E'),
+          axis = 'tblr') 
+
+ggsave('../figs/paper/macro_fig1.pdf',
+       width = 160,
+       height = 120,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
+```
+
+
 ```{r}
 # picked patient
 pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
@@ -70,7 +116,7 @@ stool_alpha <- meta %>%
             xlab = 'Day relative to HCT',
             ylab = 'Microbiome \u03b1 diversity',
             add = "loess", conf.int = TRUE, 
-            add.params = list(color = "black", fill = "darkblue", size = 1)) +
+            add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +
   geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = pick_point_size) +
   geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
@@ -93,7 +139,7 @@ day_cal <- day_calori %>%
             ylab = 'Daily caloric intake',
             color = scatter_col,
              add = "loess", conf.int = TRUE, 
-            add.params = list(color = "black", fill = "darkblue", size = 1)) +  
+            add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +  
   geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = 'red', size = pick_point_size) +
   geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
@@ -118,7 +164,7 @@ diet_alpha <- faith %>%
             ylab = "Diet \u03b1 diversity", 
             xlab = 'Day relative to HCT',
              add = "loess", conf.int = TRUE, 
-            add.params = list(color = "black", fill = "darkblue", size = 1)) +
+            add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +
   geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = 'red', size = pick_point_size) +
   geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),

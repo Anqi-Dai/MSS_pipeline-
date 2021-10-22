@@ -435,6 +435,6 @@ combined_mean %>%
     
     ggsave(str_glue('../data/growth/combined_irep_{.y}.pdf'), width = 10)
   })
-c
+
 ```
 

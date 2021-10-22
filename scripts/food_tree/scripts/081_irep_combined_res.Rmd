@@ -33,7 +33,32 @@ combined %>%
     
 ggsave('../data/growth/combined_per_sample_dist.pdf', width = 18, height = 10)
 
-  
+
+# only the Enterococcus related ones
+combined %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  arrange(mrn, sdrt) %>% 
+  ggboxplot(x= 'sampleid', y = 'iRep', add = 'jitter')  +
+  facet_wrap(~mrn, scales = 'free') +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+    
+ggsave('../data/growth/combined_per_sample_dist_Enterococcus.pdf', width = 18, height = 10)
+
+
+
+# only the e coli related ones
+combined %>% 
+  filter(str_detect(best_species, 'Escherichia')) %>% 
+  arrange(mrn, sdrt) %>% 
+  ggboxplot(x= 'sampleid', y = 'iRep', add = 'jitter')  +
+  facet_wrap(~mrn, scales = 'free') +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+    
+ggsave('../data/growth/combined_per_sample_dist_Escherichia.pdf', width = 18, height = 10)
+```
+
+
+```{r}
 best_spp <- combined %>% 
   dplyr::count(mrn, best_species, sort = T)
 ```
@@ -202,8 +227,24 @@ pt1574_enter_df %>%
   facet_grid(grp~ ., scales = 'free') 
 ```
 ```{r}
+
+pt1521_ecoli <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(genus == 'Escherichia')  %>% 
+  inner_join(qpcr_16s_ag %>% 
+               select(sampleid = sample_id, copies_16s_per_g), by = "sampleid") %>% 
+  mutate(copies = round(copies_16s_per_g * relab))
+
 pt1521_ecoli_df <-combined %>% 
   filter(str_detect(sampleid, "^1521")) %>% 
-  filter(str_detect(best_species, 'Escherichia'))
+  filter(str_detect(best_species, 'Escherichia')) %>% 
+  inner_join(pt1521_ecoli, by = "sampleid") %>% 
+  relocate(copies, .after = iRep)
+
+pt1521_ecoli_df %>% 
+  select(sdrt, iRep, copies) %>% 
+  gather('grp', 'value', iRep:copies) %>% 
+  ggdotchart(x = 'sdrt', y = 'value', sorting = 'none',
+             title = 'Escherichia coli irep and abs copy') +
+  facet_grid(grp~ ., scales = 'free') 
 ```
 
