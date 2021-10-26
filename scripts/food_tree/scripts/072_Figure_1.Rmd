@@ -113,10 +113,10 @@ pick_stool <- meta %>%
 ```{r stool_alpha}
 stool_alpha <- meta %>% 
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
-            xlab = 'Day relative to HCT',
+            xlab = 'Day relative to HCT', shape = 'triangle',
             ylab = 'Microbiome \u03b1 diversity',
             add = "loess", conf.int = TRUE, 
-            add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +
+            add.params = list(color = 'darkgoldenrod2', fill = "darkblue", size = 1)) +
   geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = pick_point_size) +
   geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
@@ -186,12 +186,12 @@ bot <- plot_grid(day_cal, diet_alpha,stool_alpha,
 
 bot
 
-ggsave('../figs/paper/bot_fig1.pdf',
+ggsave('../figs/paper/bot_fig1.tiff',
        width = 160,
        height = 80,
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'pdf')
+         dpi = 400, device = 'tiff')
 ```
 
 # fig1 top 3
