@@ -25,18 +25,12 @@ library(ggpubr)
 ## load the data
 
 ```{r}
-# source('~/db_connect_simple.R')
-# connect_database(config_file = '~/dbConfig.txt')
-# 
-# list_table_from_database('nutrition')
-# get_table_from_database('nutrition_ag')
-
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized_UPDATED11.csv', col_types = cols(.default = col_guess(), Food_code = col_character())) 
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv', col_types = cols(.default = col_guess(), Food_code = col_character())) 
 
 # genus level counts 
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')
 
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg11.csv') %>% 
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) 
 ```
@@ -76,7 +70,7 @@ mean_p2d_df_cal <- pmap(stb_pair, function(mrn, p1d, p2d){
 
 # find the relab of the blautia genus
 blautia <- cts %>% 
-  filter(str_detect(taxa_genus, 'g__Blautia')) %>% 
+  filter(str_detect(genus, 'Blautia')) %>% 
   filter(sampleid %in% meta$sampleid) %>% 
   mutate(relablog = log10(relab + 2*10^-6)) %>% 
   select(sampleid,
@@ -88,7 +82,7 @@ meta_blautia <- meta %>%
 
 # find the relab of the Enterococcus genus
 Enterococcus <- cts %>% 
-  filter(str_detect(taxa_genus, 'g__Enterococcus')) %>% 
+  filter(str_detect(genus, 'Enterococcus')) %>% 
   filter(sampleid %in% meta$sampleid) %>% 
   mutate(relablog = log10(relab + 2*10^-6)) %>% 
   dplyr::select(sampleid,
@@ -136,7 +130,7 @@ meta_blautia %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n", label.y = -5)) 
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.y = -5)) 
   
 meta_blautia %>% 
   distinct(mrn)
@@ -172,26 +166,26 @@ plot(model_brm)
 No it doesn't look like there is an association
 
 ```{r}
-meta_blautia %>% 
-  filter(empirical == 'FALSE') %>% 
-  ggscatter(x = 'ave_cal', y = 'simpson_reciprocal',
-            alpha = 0.7,
-            xlab = 'Average of total daily caloric intake during previous two days',
-            ylab = 'Simpson reciprocal on log10 scale',
-            #facet.by = 'empirical',
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n",  label.x = 2500) ) +
-  scale_y_log10()  
-
-# how many stool samples and how many patients 
-no_empirical <- meta_blautia %>% 
-  filter(empirical == 'FALSE')
-
-no_empirical %>% 
-  distinct(mrn)
+# meta_blautia %>%   
+#   filter(empirical == 'FALSE') %>% 
+#   ggscatter(x = 'ave_cal', y = 'simpson_reciprocal',
+#             alpha = 0.7,
+#             xlab = 'Average of total daily caloric intake during previous two days',
+#             ylab = 'Simpson reciprocal on log10 scale',
+#             #facet.by = 'empirical',
+#              add = "reg.line",  # Add regressin line
+#            add.params = list(color = "blue", fill = "lightgray"), # Customize line
+#            conf.int = TRUE, # Add confidence interval
+#            cor.coef = TRUE, # Add correlation coefficient.
+#            cor.coeff.args = list(method = "pearson",  label.sep = "\n",  label.x = 2500) ) +
+#   scale_y_log10()  
+# 
+# # how many stool samples and how many patients 
+# no_empirical <- meta_blautia %>% 
+#   filter(empirical == 'FALSE')
+# 
+# no_empirical %>% 
+#   distinct(mrn)
 ```
 oh wait, the scatter plot is doing a simple correlation and it looks like the correlation holds up but the model doesn't say so after adjusting other factors.
 
@@ -259,7 +253,7 @@ meta_blautia_fiber %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.y = -5, label.sep = "\n")) 
+           cor.coeff.args = list(method = "spearman",  label.y = -5, label.sep = "\n")) 
 
 meta_blautia_fiber %>% 
   distinct(mrn)
@@ -269,34 +263,41 @@ meta_blautia_fiber %>%
 
 ```{r}
 combined <- meta_blautia_fiber %>% 
-  full_join(Enterococcus)
+  full_join(Enterococcus)%>% 
+  mutate(kcal = ave_cal/1000) %>% 
+  mutate(ave_fiber_log = log10(ave_fiber + 0.01),
+         simpson_reciprocal_log = log10(simpson_reciprocal))
 ```
 
 ## plotting 
 
 ```{r}
-combined %>% 
-  mutate(ave_fiber_log = log10(ave_fiber + 0.01),
-         simpson_reciprocal_log = log10(simpson_reciprocal)) %>% 
-  dplyr::select(simpson_reciprocal_log, blautia_relab_log, Enterococcus_relab_log, ave_fiber_log, ave_cal) %>% 
+combined  %>% 
+  dplyr::select(simpson_reciprocal_log, blautia_relab_log, Enterococcus_relab_log, ave_fiber_log, kcal) %>% 
   gather('yaxis', 'value', simpson_reciprocal_log:Enterococcus_relab_log) %>% 
   mutate(yaxis = factor(yaxis, levels = c('simpson_reciprocal_log','blautia_relab_log','Enterococcus_relab_log'))) %>% 
-  gather('xaxis', 'number', ave_cal:ave_fiber_log) %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.3,xlab = '', ylab = '',
+  gather('xaxis', 'number', kcal:ave_fiber_log) %>% 
+  mutate(xaxis = factor(xaxis, levels = c('kcal','ave_fiber_log'))) %>% 
+  ggscatter(x = 'number', y = 'value', alpha = 0.2,xlab = '', ylab = '',
              add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson", 
+           cor.coeff.args = list(method = "spearman", 
                                  label.sep = "\n", 
                                  label.x.npc = "left", 
                                  label.y.npc = "top",
-                                 color = 'red')) +
+                                 size = 8,
+                                 color = 'black')) +
   facet_grid(yaxis ~ xaxis, scales = 'free') + 
-  theme_bw(base_size = 16) +
+  theme_bw(base_size = 11) +
   theme(aspect.ratio = 1,
         panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()) +
-  ggsave('../figs/marcel_figures.pdf', width = 6, height = 8)
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.grid.minor = element_blank()
+       ) 
+
+ggsave('../figs/marcel_figures.pdf', width = 3, height = 4)  
 ```
 

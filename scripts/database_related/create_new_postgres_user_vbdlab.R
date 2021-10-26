@@ -18,8 +18,10 @@
 
 # (run this script and look down below to check who changed and who didn't  )
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-source('~/MSK/work/microbiome_db/SQL/scripts/create_new_postgres_user.R');
+library(DBI)
+source('create_new_postgres_user.R');
+library(vdbR)
+connect_database('~/dbConfig.txt')
  
 vdb_users <- c("peledj",
                "burgosdm",
@@ -50,6 +52,7 @@ vdb_users <- c("peledj",
                "crossj",
                'funnellt',
                "watersn",
+               "maclachlan",
                "rajs");
 #               "gomesa_cluster");
 
