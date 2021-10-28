@@ -19,3 +19,4 @@
 *.ipynb_checkpoints
 /scripts/*/softwares/*
 scripts/dada2_pipeline/16S-dada2/*
+.Rproj.user

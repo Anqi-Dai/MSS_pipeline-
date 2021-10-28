@@ -26,8 +26,8 @@ library(readxl)
 
 
 # uniq_food is a table with the food_nsc and food code and description
-uniq_food <- read_csv('../data/cleaned_diet_data/all_food_nsc_with_code.csv') %>% 
-  select(-Food_NSC) %>% 
+uniq_food <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  select(Food_code, description) %>% 
   distinct()  
 
 
@@ -41,12 +41,11 @@ current_all <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_
 length(intersect(uniq_food$Food.Code, current_all))
 
 food_database <- uniq_food %>% 
-  filter(Food.Code %in% current_all) %>% 
-  distinct(Food.Code, .keep_all = T)  %>%  
-  rename(FoodID = Food.Code,
-         Main.food.description = FNDDS.Main.Food.Description) %>% 
-  mutate(Main.food.description = str_replace_all(Main.food.description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 
-  mutate(Main.food.description = str_replace_all(Main.food.description,"'",""))  
+  filter(Food_code %in% current_all) %>% 
+  distinct(Food_code, .keep_all = T)  %>%  
+  rename(FoodID = Food_code) %>% 
+  mutate(description = str_replace_all(description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 
+  mutate(description = str_replace_all(description,"'",""))  
 ```
 
 
@@ -64,7 +63,7 @@ num.levels <- 7
 fdata <- food_database
 nodes <- read.table(nodes_fn, header = TRUE, sep="\t", fill = TRUE , colClasses="character")
 
-main <- fdata[,c("FoodID", "Main.food.description")]
+main <- fdata[,c("FoodID", "description")]
 
 
 # if there happen to be duplicate FoodIDs in main, remove them
@@ -87,7 +86,7 @@ main.cast[is.na(main.cast)] <- ""
 main.cast[,colnames(main.cast)[-1]] <- sapply(colnames(main.cast)[-1], function(colname) paste(colname, main.cast[,colname], sep="_"))
 
 # merge back with original table to grab Food Description
-main.join <- merge(main.cast, main[,c("FoodID","Main.food.description")], by="FoodID")
+main.join <- merge(main.cast, main[,c("FoodID","description")], by="FoodID")
 
 # create a proper newick string for the tree
 newickstring <- paste("foodtreeroot", apply(main.join, 1, function(xx) paste(xx[-1], collapse="/")), sep="/")

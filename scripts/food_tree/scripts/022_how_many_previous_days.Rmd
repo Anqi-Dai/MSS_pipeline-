@@ -216,7 +216,7 @@ for (i in 1:length(scts)){
 ```
 
 
-
+After running in snakemake:
 
 ```{r}
 # get the results from the snakemake pipeline that used the qiime2 methods 
@@ -231,8 +231,10 @@ fns_both <- tibble(
          ID = str_replace(ID, '../data/finalized/paired/pNday//allstool_','')) %>% 
   mutate(sfn = str_glue('{sfolder}/ordination.txt'),
          dfn = str_glue('{dfolder}/ordination.txt'))
- 
+```
 
+
+```{r}
 # a function to do the procrustes as a pair
 protest_Nday <- map2(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
@@ -292,12 +294,30 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
 }) %>% 
   gather(key = 'pNd', value = 'ss') %>% 
   mutate(pNd = fns_both$ID)
+```
 
-  
+
+```{r sum_of_squares}
+# make the figure
+axis_text_size <- 6
+axis_title_size <- 6
+
 procrustes_Nday %>% 
-  ggboxplot(y =  'ss', add = 'dotplot', label = 'pNd', repel = T,
-            xlab = '', ylab = 'Sum of squares',
-            title = 'procrustes ss (all qualified stool samples)')
+  mutate(pNd = str_extract(pNd, '\\d')) %>% 
+  ggdotchart(x = 'pNd', y = 'ss', sorting = 'none', ylab = 'Sum of squares',
+             xlab = 'Number of previous days\nof dietary intake', size = 1.3) +
+  geom_line(aes(x = pNd, y = ss), group = 1, linetype = 'dashed', size = 0.3) +
+  theme(aspect.ratio=1,
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        axis.text.x = element_text(angle=0, hjust=0.5)) 
+
+ggsave('../figs/paper/fig2_procrustes.tiff',
+       width = 80,
+       height = 40,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'tiff')
 ```
 
 ```{r}
@@ -309,4 +329,6 @@ procrustes_Nday %>%
   theme(axis.text.x = element_blank()) +
   ggsave('../figs/procrustes_Nday_SS.pdf', width = 4.5, height = 4.5) 
 ```
+
+
 

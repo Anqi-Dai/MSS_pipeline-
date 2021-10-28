@@ -20,8 +20,8 @@
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 library(DBI)
 source('create_new_postgres_user.R');
-library(vdbR)
-connect_database('~/dbConfig.txt')
+
+
  
 vdb_users <- c("peledj",
                "burgosdm",

@@ -82,8 +82,7 @@ block_user_who_did_not_change_password <- function(user, temp_password){
     print(sprintf("User %s has changed her/his password!",user));
     remove_user_expiration_query = sprintf("alter user %s VALID UNTIL 'infinity'",
                                            user);
-    #dbSendQuery(con,remove_user_expiration_query);
-    dbSendQuery(psql_con,remove_user_expiration_query);
+    dbSendQuery(con,remove_user_expiration_query);
     return(0);
   }else{
     print(sprintf("User %s did not change her/his password!",user));
