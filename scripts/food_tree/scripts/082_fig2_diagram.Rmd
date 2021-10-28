@@ -1,0 +1,62 @@
+---
+title: "Food stool diagram"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggpubr)
+library(tidyverse, quietly = T)
+```
+
+```{r}
+# use the example patient's day -5 diet to make a pie chart
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
+
+pick <- read_csv('../figs/paper/data/patient_pick_all_diet.csv') %>% 
+  filter(fdrt == -5) %>% 
+  select( mrn, fdrt, Food_code, description, dehydrated_weight ) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  left_join(key, by = "fgrp1") %>% 
+  group_by(fgrp1, fg1_name, color) %>% 
+  summarise(total_g = sum(dehydrated_weight)) %>%
+  ungroup()   # it was missing this line that was causing the problem!!!!!!!!!!!!
+```
+
+
+```{r pie}
+# this one has label
+# pick %>%  
+#   ggpie(x = 'total_g',
+#         #label = 'fg1_name',
+#         lab.font = c(22, "bold", "black"),
+#         color = 'white',   
+#         size = 1,
+#         alpha = 0.5,
+#         fill = pick$color) 
+```
+
+
+```{r pie}
+color_key <- pick %>% 
+  select(fg1_name, color) %>% 
+  deframe()
+
+ggplot(pick, aes(x="", y=total_g, fill=fg1_name)) +
+  geom_bar(stat="identity", width=1, col = 'white') +
+  coord_polar("y", start=0)+
+  theme_void() + 
+  theme(legend.position="none") +
+  #geom_text(aes(y = ypos, label = group), color = "white", size=6) +
+  scale_fill_manual(values = color_key)
+  
+ggsave('../figs/paper/fig2_diagram_pie.tiff', width = 10,
+       height = 10,
+         units = c("mm"),
+         dpi = 400, device = 'tiff')
+```
+
+
