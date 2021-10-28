@@ -18,11 +18,9 @@ library(vegan)
 ## load the data and the database access
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_enteralTPN.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 
-## !!!! here we look at the stool samples affected by prophylactic only
-stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
-  filter(abx == 'prophylactic')
+stb <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') 
 ```
 
 ## sort fdrt for each patient
@@ -68,7 +66,7 @@ stb_loop_sum <- stb %>%
             p5d = sdrt-5) 
 ```
 
-# sum of previous 1,2,3,4,5 days of diet --- pairing with each stool sample
+# average of previous 1,2,3,4,5 days of diet --- pairing with each stool sample
 
 ```{r}
 p1d <- apply(stb_loop_sum, 1, function(Row){
@@ -76,11 +74,11 @@ p1d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight))
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)
 
 p1d <- p1d[, colSums(p1d != 0) > 0]
  
@@ -89,11 +87,11 @@ p2d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/2)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)
 
 p2d <- p2d[, colSums(p2d != 0) > 0]
 
@@ -102,11 +100,11 @@ p3d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/3)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)
 
 p3d <- p3d[, colSums(p3d != 0) > 0]
 
@@ -116,11 +114,11 @@ p4d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/4)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0) 
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0) 
 
 p4d <- p4d[, colSums(p4d != 0) > 0]
 
@@ -129,19 +127,19 @@ p5d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']], Row[['p5d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/5)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)  
-
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)  
+ 
 p5d <- p5d[, colSums(p5d != 0) > 0]
 ```
 
 
 ```{r}
 # the species counts data would be :
-cts_long <- read_csv('../data/cleaned_stool/prophylactic_only_stool_samples_species_counts.csv') %>% 
+cts_long <- read_csv('../data/cleaned_stool/ALL_stool_samples_species_counts.csv') %>% 
   filter(sampleid %in% p5d_samples) %>% 
   select(sampleid, taxa_species, relab) 
  

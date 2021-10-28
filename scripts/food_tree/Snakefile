@@ -1,7 +1,7 @@
 '''
 This Snakefile carries out diet project work with qiime2 **LOCALLTY**
 
-To run, source activate qiime2-2020.2
+To run, conda activate qiime2-2021.8
 '''
 from glob import glob
 
@@ -673,7 +673,7 @@ rule export_food_pcoa:
     input:
         'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
     output:
-        'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa'
+        directory('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa')
     shell:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 
@@ -729,7 +729,7 @@ rule export_stool_microbe_pcoa:
     input:
         'data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa.qza'
     output:
-        'data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa'
+        directory('data/finalized/paired/pNday/{time}_stool_relab_species_braycurtis_pcoa')
     shell:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 

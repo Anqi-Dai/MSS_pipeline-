@@ -278,7 +278,7 @@ combined  %>%
   mutate(yaxis = factor(yaxis, levels = c('simpson_reciprocal_log','blautia_relab_log','Enterococcus_relab_log'))) %>% 
   gather('xaxis', 'number', kcal:ave_fiber_log) %>% 
   mutate(xaxis = factor(xaxis, levels = c('kcal','ave_fiber_log'))) %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.2,xlab = '', ylab = '',
+  ggscatter(x = 'number', y = 'value', alpha = 0.2,xlab = '', ylab = '',size = 1.2, 
              add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
@@ -286,8 +286,8 @@ combined  %>%
            cor.coeff.args = list(method = "spearman", 
                                  label.sep = "\n", 
                                  label.x.npc = "left", 
-                                 label.y.npc = "top",
-                                 size = 8,
+                                 label.y.npc = "bottom",
+                                 size = 2.5,
                                  color = 'black')) +
   facet_grid(yaxis ~ xaxis, scales = 'free') + 
   theme_bw(base_size = 11) +

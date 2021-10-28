@@ -70,11 +70,11 @@ p1d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight))
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)
 
 p1d <- p1d[, colSums(p1d != 0) > 0]
  
@@ -83,11 +83,11 @@ p2d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/2)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)
 
 p2d <- p2d[, colSums(p2d != 0) > 0]
 
@@ -96,11 +96,11 @@ p3d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/3)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)
 
 p3d <- p3d[, colSums(p3d != 0) > 0]
 
@@ -110,11 +110,11 @@ p4d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/4)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0) 
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0) 
 
 p4d <- p4d[, colSums(p4d != 0) > 0]
 
@@ -123,11 +123,11 @@ p5d <- apply(stb_loop_sum, 1, function(Row){
         filter(mrn == Row[['mrn']]) %>% 
         filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']], Row[['p5d']])) %>% 
         group_by(Food_code) %>% 
-        summarise(sum_dewt = sum(dehydrated_weight))
+        summarise(ave_dewt = sum(dehydrated_weight)/5)
 }) %>% 
   set_names(stb_loop_sum %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
-  spread(key = 'sampleid', value = 'sum_dewt', fill = 0)  
+  spread(key = 'sampleid', value = 'ave_dewt', fill = 0)  
 
 p5d <- p5d[, colSums(p5d != 0) > 0]
 ```
@@ -159,7 +159,7 @@ cts_genus %>%
 
 
 ```{r}
-# the species counts data would be :
+# the genus counts data would be :
 cts_long <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% p5d_samples) 
  
@@ -275,7 +275,7 @@ allstool_res %>%
 
 ```
 
-```{r}
+```{r sum_of_squares}
 procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
     filter(! X1 %in% c('Biplot','Site constraints')) %>% 
