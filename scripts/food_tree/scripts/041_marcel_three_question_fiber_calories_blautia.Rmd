@@ -301,3 +301,8 @@ combined  %>%
 ggsave('../figs/marcel_figures.pdf', width = 3, height = 4)  
 ```
 
+```{r}
+combined %>% 
+  distinct(mrn)
+```
+

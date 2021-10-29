@@ -46,11 +46,10 @@ color_key <- pick %>%
   deframe()
 
 ggplot(pick, aes(x="", y=total_g, fill=fg1_name)) +
-  geom_bar(stat="identity", width=1, col = 'white') +
+  geom_bar(stat="identity", width=0.1, col = 'white') +
   coord_polar("y", start=0)+
   theme_void() + 
   theme(legend.position="none") +
-  #geom_text(aes(y = ypos, label = group), color = "white", size=6) +
   scale_fill_manual(values = color_key)
   
 ggsave('../figs/paper/fig2_diagram_pie.tiff', width = 10,
