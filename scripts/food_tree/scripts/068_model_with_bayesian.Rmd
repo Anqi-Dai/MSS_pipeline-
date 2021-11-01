@@ -25,6 +25,8 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
+axis_text_size <- 7
+axis_title_size <- 10
 ```
 
 ## Loading meta data table
@@ -277,7 +279,7 @@ post_coeff <- post_samples %>%
   ))  %>% 
   left_join(nodes) %>% 
   mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
-  mutate(fdesc = str_wrap(fdesc, width = 35, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
   mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
   mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) %>% 
   left_join(key %>% select(fgrp1, color)) 
@@ -288,14 +290,23 @@ fg_colors <- post_coeff %>%
   deframe()
 
 post_coeff %>% 
-  ggplot(aes(x = coeff, y = fdesc)) +
+  ggplot(aes(x = coeff, y = fdesc, col = fdesc)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'High-level food categories\n(FNDDS)') +
   theme(legend.position = 'none') +
-  scale_color_manual(fg_colors)
+  scale_color_manual(values = fg_colors) +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+ggsave('../figs/paper/fig2_model_coeff_forest.eps',  width = 100,
+       height = 100,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
 ```
 
 ```{r post_coeff_binary}

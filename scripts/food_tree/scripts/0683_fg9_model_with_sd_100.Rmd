@@ -123,6 +123,33 @@ max_fg <- meta %>%
 
 ```
 
+```{r}
+max_ <- ave_fg %>% 
+  rename(mean_ = value) %>% 
+  mutate(max_fg_egg = if_else(key == 'fg_egg', max_fg$fg_egg, mean_),
+         max_fg_fruit = if_else(key == 'fg_fruit', max_fg$fg_fruit, mean_),
+         max_fg_grain = if_else(key == 'fg_grain', max_fg$fg_grain, mean_),
+         max_fg_legume = if_else(key == 'fg_legume', max_fg$fg_legume, mean_),
+         max_fg_meat = if_else(key == 'fg_meat', max_fg$fg_meat, mean_),
+         max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
+         max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
+         max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
+         max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>% 
+  select(-mean_) %>% 
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>% 
+  arrange(key)
+
+  
+values <- max_ %>% 
+  select(-key) %>% 
+  as.list()
+
+values <- values %>% 
+  map(~ set_names(x = ., max_$key))
+# calculate the resulted prior log div 
+vals <- names(values)
+```
+
 
 ## Posterior
 
@@ -167,7 +194,7 @@ post_coeff <- post_samples %>%
   ))  %>% 
   left_join(nodes) %>% 
   mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
-  mutate(fdesc = str_wrap(fdesc, width = 35, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
   mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
   mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) %>% 
   left_join(key %>% select(fgrp1, color)) 
@@ -319,14 +346,32 @@ both <- bind_rows(
     select(starts_with('b_fg')) %>% mutate(grp = 'post')
 )  %>% 
   gather('item', 'coeff', b_fg_fruit:b_fg_veggie) 
+
 summ <- both %>% 
   group_by(grp, item) %>% 
   summarise(q025 = quantile(coeff, 0.025),
             q975 = quantile(coeff, 0.975),
             q50 = quantile(coeff, 0.5)) %>% 
   arrange(grp, q50) 
+
 fg_order <- summ %>%
   filter(grp == 'post') %>%
   arrange(-q50) %>%
   pull(item)
+
+pinterval <- both %>%  
+  #mutate(item = str_replace(item, 'b_','')) %>% 
+  left_join(key %>% 
+              select(item = fg1_name)) %>% 
+  mutate(item = factor(item, levels = fg_order)) %>% 
+  ggplot(aes(x = coeff, y = grp, color = grp)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'gray', linetype = 'dashed') +
+  facet_wrap(item ~ .) +
+  labs(x = 'Regression coefficients',
+       y = '') +
+  theme(legend.position = 'none')
+
+pinterval
 ```
