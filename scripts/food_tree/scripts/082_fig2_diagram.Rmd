@@ -52,10 +52,10 @@ ggplot(pick, aes(x="", y=total_g, fill=fg1_name)) +
   theme(legend.position="none") +
   scale_fill_manual(values = color_key)
   
-ggsave('../figs/paper/fig2_diagram_pie.tiff', width = 10,
+ggsave('../figs/paper/fig2_diagram_pie.eps', width = 10,
        height = 10,
          units = c("mm"),
-         dpi = 400, device = 'tiff')
+         dpi = 400, device = 'eps')
 ```
 
 

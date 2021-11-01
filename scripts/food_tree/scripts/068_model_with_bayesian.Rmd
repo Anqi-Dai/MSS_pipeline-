@@ -24,7 +24,7 @@ library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
 ```
 
 ## Loading meta data table
@@ -142,91 +142,91 @@ range(log(meta$simpson_reciprocal))
 ```{r}
 # create a df with max and min and ave in 9 groups
 # create a df with the corresponding value that the samples prior coeff can multiply
-max_ <- ave_fg %>% 
-  rename(mean_ = value) %>% 
-  mutate(max_fg_egg = if_else(key == 'fg_egg', max_fg$fg_egg, mean_),
-         max_fg_fruit = if_else(key == 'fg_fruit', max_fg$fg_fruit, mean_),
-         max_fg_grain = if_else(key == 'fg_grain', max_fg$fg_grain, mean_),
-         max_fg_legume = if_else(key == 'fg_legume', max_fg$fg_legume, mean_),
-         max_fg_meat = if_else(key == 'fg_meat', max_fg$fg_meat, mean_),
-         max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
-         max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
-         max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
-         max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>% 
-  select(-mean_) %>% 
-  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>% 
-  arrange(key)
-
-prior_coeffs <- samples_prior %>% 
-  select(Intercept, b_inten_re, b_empiF, b_tpnF, b_enF, starts_with('b_fg')) %>% 
-  gather('term','prior_coeff') %>% 
-  split(.$term)
-  
-values <- max_ %>% 
-  select(-key) %>% 
-  as.list()
-
-values <- values %>% 
-  map(~ set_names(x = ., max_$key))
-
-# calculate the resulted prior log div 
-vals <- names(values)
-
-max_each_fg <- vals  %>% 
-  set_names(vals) %>% 
-  map(function(val) {
-    res = prior_coeffs$b_empiF$prior_coeff  +
-   prior_coeffs$b_enF$prior_coeff  +
-   prior_coeffs$b_fg_egg$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_egg') +
-   prior_coeffs$b_fg_fruit$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_fruit') +
-   prior_coeffs$b_fg_grain$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_grain') +
-   prior_coeffs$b_fg_legume$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_legume') +
-   prior_coeffs$b_fg_meat$prior_coeff * values %>% pluck(val) %>% pluck('b_fg_meat') +
-   prior_coeffs$b_fg_milk$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_milk') +
-   prior_coeffs$b_fg_oils$prior_coeff * values %>% pluck(val) %>% pluck('b_fg_oils') +
-   prior_coeffs$b_fg_sweets$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_sweets') +
-   prior_coeffs$b_fg_veggie$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_veggie') +
-   prior_coeffs$b_inten_re$prior_coeff  +
-   prior_coeffs$b_tpnF$prior_coeff +
-   prior_coeffs$Intercept$prior_coeff 
-  }) %>% 
-  bind_rows(.id = 'grp') %>% 
-  gather('grp', 'prior_res')
+# max_ <- ave_fg %>% 
+#   rename(mean_ = value) %>% 
+#   mutate(max_fg_egg = if_else(key == 'fg_egg', max_fg$fg_egg, mean_),
+#          max_fg_fruit = if_else(key == 'fg_fruit', max_fg$fg_fruit, mean_),
+#          max_fg_grain = if_else(key == 'fg_grain', max_fg$fg_grain, mean_),
+#          max_fg_legume = if_else(key == 'fg_legume', max_fg$fg_legume, mean_),
+#          max_fg_meat = if_else(key == 'fg_meat', max_fg$fg_meat, mean_),
+#          max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
+#          max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
+#          max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
+#          max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>% 
+#   select(-mean_) %>% 
+#   mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>% 
+#   arrange(key)
+# 
+# prior_coeffs <- samples_prior %>% 
+#   select(Intercept, b_inten_re, b_empiF, b_tpnF, b_enF, starts_with('b_fg')) %>% 
+#   gather('term','prior_coeff') %>% 
+#   split(.$term)
+#   
+# values <- max_ %>% 
+#   select(-key) %>% 
+#   as.list()
+# 
+# values <- values %>% 
+#   map(~ set_names(x = ., max_$key))
+# 
+# # calculate the resulted prior log div 
+# vals <- names(values)
+# 
+# max_each_fg <- vals  %>% 
+#   set_names(vals) %>% 
+#   map(function(val) {
+#     res = prior_coeffs$b_empiF$prior_coeff  +
+#    prior_coeffs$b_enF$prior_coeff  +
+#    prior_coeffs$b_fg_egg$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_egg') +
+#    prior_coeffs$b_fg_fruit$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_fruit') +
+#    prior_coeffs$b_fg_grain$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_grain') +
+#    prior_coeffs$b_fg_legume$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_legume') +
+#    prior_coeffs$b_fg_meat$prior_coeff * values %>% pluck(val) %>% pluck('b_fg_meat') +
+#    prior_coeffs$b_fg_milk$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_milk') +
+#    prior_coeffs$b_fg_oils$prior_coeff * values %>% pluck(val) %>% pluck('b_fg_oils') +
+#    prior_coeffs$b_fg_sweets$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_sweets') +
+#    prior_coeffs$b_fg_veggie$prior_coeff  * values %>% pluck(val) %>% pluck('b_fg_veggie') +
+#    prior_coeffs$b_inten_re$prior_coeff  +
+#    prior_coeffs$b_tpnF$prior_coeff +
+#    prior_coeffs$Intercept$prior_coeff 
+#   }) %>% 
+#   bind_rows(.id = 'grp') %>% 
+#   gather('grp', 'prior_res')
 ```
 
 
 ```{r plot_prior}
 # combine the max and min and ave together and plot
-ave_each_fg <- samples_prior %>% 
-  mutate(mean_fg = Intercept + 
-          b_fg_fruit *mean_fg$fg_fruit+
-           b_fg_meat *mean_fg$fg_meat+ 
-           b_fg_milk *mean_fg$fg_milk+ 
-           b_fg_oils * mean_fg$fg_oils+ 
-           b_fg_egg * mean_fg$fg_egg+ 
-           b_fg_grain* mean_fg$fg_grain +
-           b_fg_sweets * mean_fg$fg_sweets+
-           b_fg_legume * mean_fg$fg_legume+
-           b_fg_veggie* mean_fg$fg_veggie +
-           b_inten_re +
-           b_empiF +
-           b_tpnF +
-           b_enF) %>% 
-  select(mean_fg) %>% 
-  mutate(grp = 'ave_each') %>% 
-  rename(prior_res = mean_fg) %>% 
-  select(grp, prior_res)
-
-prior_all <- bind_rows(ave_each_fg, max_each_fg) 
-
-prior_all %>%  write_csv('../figs/paper/data/prior_ave_max_min_res_68.csv')
-
-grps <- prior_all %>% 
-  distinct(grp)
-
-fg_cha <- meta %>% 
-  select(starts_with('fg')) %>% 
-  colnames()
+# ave_each_fg <- samples_prior %>% 
+#   mutate(mean_fg = Intercept + 
+#           b_fg_fruit *mean_fg$fg_fruit+
+#            b_fg_meat *mean_fg$fg_meat+ 
+#            b_fg_milk *mean_fg$fg_milk+ 
+#            b_fg_oils * mean_fg$fg_oils+ 
+#            b_fg_egg * mean_fg$fg_egg+ 
+#            b_fg_grain* mean_fg$fg_grain +
+#            b_fg_sweets * mean_fg$fg_sweets+
+#            b_fg_legume * mean_fg$fg_legume+
+#            b_fg_veggie* mean_fg$fg_veggie +
+#            b_inten_re +
+#            b_empiF +
+#            b_tpnF +
+#            b_enF) %>% 
+#   select(mean_fg) %>% 
+#   mutate(grp = 'ave_each') %>% 
+#   rename(prior_res = mean_fg) %>% 
+#   select(grp, prior_res)
+# 
+# prior_all <- bind_rows(ave_each_fg, max_each_fg) 
+# 
+# prior_all %>%  write_csv('../figs/paper/data/prior_ave_max_min_res_68.csv')
+# 
+# grps <- prior_all %>% 
+#   distinct(grp)
+# 
+# fg_cha <- meta %>% 
+#   select(starts_with('fg')) %>% 
+#   colnames()
 ```
 
 ## Posterior
@@ -249,7 +249,7 @@ post_fg_coeff_mean <- post_fg_coeff  %>%
 out <- post_fg_coeff %>% 
   left_join(post_fg_coeff_mean, by = "item")
 
-out %>% write_csv('../data/brms_model_var_res_updated.csv')
+out %>% write_csv('../data/brms_model_var_res_updated.csv') 
 ```
 
 ```{r post_coeff_forest}
@@ -279,9 +279,14 @@ post_coeff <- post_samples %>%
   mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
   mutate(fdesc = str_wrap(fdesc, width = 35, indent = 2, exdent = 0)) %>% 
   mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
-  mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) 
+  mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) %>% 
+  left_join(key %>% select(fgrp1, color)) 
 ```
 ```{r}
+fg_colors <- post_coeff %>% 
+  distinct(fdesc, color) %>% 
+  deframe()
+
 post_coeff %>% 
   ggplot(aes(x = coeff, y = fdesc)) +
   stat_pointinterval(.width = c(.66, .95)) +
@@ -289,8 +294,10 @@ post_coeff %>%
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'High-level food categories\n(FNDDS)') +
-  theme(legend.position = 'none')
+  theme(legend.position = 'none') +
+  scale_color_manual(fg_colors)
 ```
+
 ```{r post_coeff_binary}
 coeff_bi <- post_samples %>% 
   select(!starts_with('b_fg')) %>% 
