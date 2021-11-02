@@ -144,35 +144,32 @@ range(log(meta$simpson_reciprocal))
 ```{r}
 # create a df with max and min and ave in 9 groups
 # create a df with the corresponding value that the samples prior coeff can multiply
-# max_ <- ave_fg %>% 
-#   rename(mean_ = value) %>% 
-#   mutate(max_fg_egg = if_else(key == 'fg_egg', max_fg$fg_egg, mean_),
-#          max_fg_fruit = if_else(key == 'fg_fruit', max_fg$fg_fruit, mean_),
-#          max_fg_grain = if_else(key == 'fg_grain', max_fg$fg_grain, mean_),
-#          max_fg_legume = if_else(key == 'fg_legume', max_fg$fg_legume, mean_),
-#          max_fg_meat = if_else(key == 'fg_meat', max_fg$fg_meat, mean_),
-#          max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
-#          max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
-#          max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
-#          max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>% 
-#   select(-mean_) %>% 
-#   mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>% 
-#   arrange(key)
-# 
-# prior_coeffs <- samples_prior %>% 
-#   select(Intercept, b_inten_re, b_empiF, b_tpnF, b_enF, starts_with('b_fg')) %>% 
-#   gather('term','prior_coeff') %>% 
-#   split(.$term)
-#   
-# values <- max_ %>% 
-#   select(-key) %>% 
-#   as.list()
-# 
-# values <- values %>% 
-#   map(~ set_names(x = ., max_$key))
-# 
-# # calculate the resulted prior log div 
-# vals <- names(values)
+max_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(max_fg_egg = if_else(key == 'fg_egg', max_fg$fg_egg, mean_),
+         max_fg_fruit = if_else(key == 'fg_fruit', max_fg$fg_fruit, mean_),
+         max_fg_grain = if_else(key == 'fg_grain', max_fg$fg_grain, mean_),
+         max_fg_legume = if_else(key == 'fg_legume', max_fg$fg_legume, mean_),
+         max_fg_meat = if_else(key == 'fg_meat', max_fg$fg_meat, mean_),
+         max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
+         max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
+         max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
+         max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+
+
+
+values <- max_ %>%
+  select(-key) %>%
+  as.list()
+
+values <- values %>%
+  map(~ set_names(x = ., max_$key))
+
+# calculate the resulted prior log div
+vals <- names(values)
 # 
 # max_each_fg <- vals  %>% 
 #   set_names(vals) %>% 
@@ -412,21 +409,35 @@ post_diff_df <- maxs %>%
       mutate(post_diff_original_scale = exp(max_) - exp(ave))
   }) %>% 
   bind_rows(.id = 'term') %>% 
-  mutate(term = fct_reorder(term, post_diff_original_scale, .fun=median, .desc = F)) %>% 
-  ggplot(aes(y = term, x = post_diff_original_scale)) +
+  mutate(term = str_replace(term, 'max_','')) %>% 
+  left_join(key %>% 
+              select(term = fg1_name, color)) %>% 
+  mutate(term = fct_reorder(term, post_diff_original_scale, .fun=median, .desc = F))
+```
+
+
+```{r post_diff}
+post_diff_df %>% 
+  ggplot(aes(y = term, x = post_diff_original_scale, col = term)) +
   stat_halfeye() +
   #scale_fill_manual(values = c("gray80", "skyblue")) +
   geom_vline(xintercept = 0, linetype = "dashed", col = 'red') +
-  labs(x = 'The diff in simpson reciprocal diversity if one food group is consumed\nat max amount than the average',
+  labs(x = "Difference in Simpson's reciprocal diversity",
        y = '',
-       title = '') +
-  theme(legend.position = 'top') +
-  scale_x_continuous(breaks = seq(-10, 20, 2))
+       title = 'The diff in simpson reciprocal diversity if one food group is consumed\nat max amount than the average') +
+  theme(legend.position = 'none') +
+  scale_x_continuous(breaks = seq(-10, 20, 2)) +
+  scale_color_manual(values = key %>% 
+                       select(fg1_name, color) %>% deframe()) +
+  xlim(-4.1, 12)
 
-ggsave('../figs/paper/fg9_post_diff.png', width = 7, height = 6)
+ggsave('../figs/paper/fig2_fg9_post_diff.eps',  width = 100,
+       height = 100,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
 
 
-post_diff_df  
 
 ```
 
@@ -457,15 +468,15 @@ fg_order <- summ %>%
 
 ```{r pinterval}
 pinterval <- both %>%  
-  mutate(item = str_replace(item, 'b_','')) %>% 
+  #mutate(item = str_replace(item, 'b_','')) %>% 
   left_join(key %>% 
-              select(item = fg1_name, fdesc)) %>% 
+              select(item = fg1_name)) %>% 
   mutate(item = factor(item, levels = fg_order)) %>% 
   ggplot(aes(x = coeff, y = grp, color = grp)) +
   stat_pointinterval(.width = c(.66, .95)) +
   scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'gray', linetype = 'dashed') +
-  facet_wrap(fdesc ~ .) +
+  facet_wrap(item ~ .) +
   labs(x = 'Regression coefficients',
        y = '') +
   theme(legend.position = 'none')
@@ -477,29 +488,29 @@ ggsave('../figs/paper/prior_post_pinterval_coeff.pdf', width = 10, height = 4)
 ## others
 
 ```{r post_mean_max}
-post_all <- bind_rows(ave_each_fg_post, max_each_fg_post) %>% 
-  mutate(div = exp(post_res))
-post_all %>%  write_csv('../figs/paper/data/post_ave_max_min_res_68.csv')
-
-post_check_list <- fg_cha %>% 
-  set_names(fg_cha) %>% 
-  map(function(char){
-    post_all %>% 
-      filter(str_detect(grp, str_glue('ave_each|{char}'))) %>% 
-      gghistogram(x = 'div', fill = 'grp', color = 'white', palette = 'lancet', xlab = 'logdiversity',
-                  #add_density = TRUE, 
-                  bins = 30,
-                  title = str_glue('Post check {char}'))
-    })
-
-g_post <- cowplot::plot_grid(post_check_list[[1]],post_check_list[[2]],post_check_list[[3]],post_check_list[[4]],post_check_list[[5]],post_check_list[[6]],post_check_list[[7]],post_check_list[[8]],post_check_list[[9]],
-    ncol = 3, nrow= 3, 
-    o = 'hv',
-    #labels = 'AUTO',
-    axis = 'bltr') 
-g_post
-
-ggsave('../figs/paper/post_check_9fg.pdf', width = 10, height = 10, dpi = 300, plot = g_post)
+# post_all <- bind_rows(ave_each_fg_post, max_each_fg_post) %>% 
+#   mutate(div = exp(post_res))
+# post_all %>%  write_csv('../figs/paper/data/post_ave_max_min_res_68.csv')
+# 
+# post_check_list <- fg_cha %>% 
+#   set_names(fg_cha) %>% 
+#   map(function(char){
+#     post_all %>% 
+#       filter(str_detect(grp, str_glue('ave_each|{char}'))) %>% 
+#       gghistogram(x = 'div', fill = 'grp', color = 'white', palette = 'lancet', xlab = 'logdiversity',
+#                   #add_density = TRUE, 
+#                   bins = 30,
+#                   title = str_glue('Post check {char}'))
+#     })
+# 
+# g_post <- cowplot::plot_grid(post_check_list[[1]],post_check_list[[2]],post_check_list[[3]],post_check_list[[4]],post_check_list[[5]],post_check_list[[6]],post_check_list[[7]],post_check_list[[8]],post_check_list[[9]],
+#     ncol = 3, nrow= 3, 
+#     o = 'hv',
+#     #labels = 'AUTO',
+#     axis = 'bltr') 
+# g_post
+# 
+# ggsave('../figs/paper/post_check_9fg.pdf', width = 10, height = 10, dpi = 300, plot = g_post)
 ```
 
 ## Post_top_patients
@@ -581,6 +592,3 @@ plot(topdietsdiversity_posterior) // prior
 #                   xlab = 'Predicted log diversity', ylab = 'Probability density') +
 #   ggsave('../figs/predicted_logdiversi_top_tybottom_5.pdf', width = 7, height = 5)
 ```
-
-
-

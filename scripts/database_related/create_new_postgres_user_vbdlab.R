@@ -20,8 +20,6 @@
 #++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 library(DBI)
 source('create_new_postgres_user.R');
-
-
  
 vdb_users <- c("peledj",
                "burgosdm",
@@ -42,7 +40,7 @@ vdb_users <- c("peledj",
                "clurmana",
                "smithm4",
                #"test_user"
-               "adintorp",
+               "adintorp", 
                "ngb",
                "chens8",
                "elkriefa",

@@ -12,26 +12,9 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-```{r}
-# after the dastool, do the drep to de-replicate
-drep <- read_delim('../data/growth/bhatpipeline/all_derepliated_genomes.txt', col_names = F, delim = ' ') %>% 
-  select(X9) %>% 
-  separate(X9, into = c('Sample','bin'), remove = F, sep = '__concat__')
-
-all <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
-  rename_all(~ gsub("\\.", "_", .)) %>% 
-  mutate(genome = str_glue('{Sample}__concat__{Bin}.fa')) 
-
-df <- all %>% 
-  count(Sample) %>% 
-  mutate(Sample = str_replace(Sample, '__concat','')) %>% 
-  left_join(drep %>% count(Sample) %>% rename(drepn = n))
-
-
-```
-
 
 ```{r}
+# all the irep values I got
 fns <- list.files('../data/growth/irep/bhatirep/', full.names = T, pattern = '.tsv')
 
 irep <- fns %>% 
@@ -44,19 +27,23 @@ irep <- fns %>%
   mutate(iRep = as.numeric(iRep)) %>% 
   mutate(samplebin = str_replace(samplebin, '_irep_dastool.tsv','')) %>% 
   mutate(sbid = str_glue('{sampleid}__{samplebin}'))
+```
 
+
+```{r}
 tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
   rename_all(~ gsub("\\.", "_", .)) %>% 
   filter(bin_quality_call %in% c('2) medium quality','3) high quality Nayfach','4) high quality Bowers'))  %>% 
+  filter(Completeness >= 75) %>% 
   mutate(Sample = str_replace(Sample, '__concat',''),
          sbid = str_glue('{Sample}__{Bin}')) %>% 
   inner_join(irep, by  = 'sbid') %>% 
   distinct(Sample, best_species, .keep_all = T)
   
-combined %>% 
-  mutate(gt15 = if_else(iRep > 1.5, T, F)) %>% 
-  count(gt15) %>% 
-  mutate(perc = n/sum(n)*100)
+# combined %>% 
+#   mutate(gt15 = if_else(iRep > 1.5, T, F)) %>% 
+#   count(gt15) %>% 
+#   mutate(perc = n/sum(n)*100)
 ```
 
 ```{r}
@@ -137,9 +124,30 @@ combined %>%
   distinct(sampleid) %>% 
   nrow()
 
+# save this table , very important 
 combined %>% 
-  select(-mrn) %>% 
-  write_csv('../data/growth/irep_with_diet_for_jonas.csv')
+  write_csv('../data/growth/irep_combined_res.csv') 
+
+combined <- read_csv('../data/growth/irep_combined_res.csv')
+```
+
+```{r coverage}
+# check the coverage of these bins
+fns <- list.files('../data/growth/irep/coverage_from_sam/', pattern = 'txt', full.names = T)
+covs <- fns %>% 
+  set_names(fns) %>% 
+  imap(~ read_tsv(.x) %>% 
+  summarise(median_depth = median(meandepth)))
+
+covs_df <- covs %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '../data/growth/irep/coverage_from_sam//',''),
+         fn = str_replace(fn, '__concat__dastools_align',''),
+         fn = str_replace(fn, '_coverage.txt',''))  %>% 
+  rename(sbid = fn)  %>% 
+  inner_join(combined, by = "sbid")
+
+# basically all but one have cov greater than 5. 
 ```
 
 
@@ -400,7 +408,7 @@ combined %>%
 ```{r}
 # ok you can do this, you can get this sh*t done
 # add error bars with min and max for each dot 
-combined <- read_csv('../data/growth/irep_combined_res.csv')
+
 combined_mean <- combined %>% 
   filter(iRep < 4) %>% # what if I filter out that very high value
   group_by(sampleid, fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie) %>% 
