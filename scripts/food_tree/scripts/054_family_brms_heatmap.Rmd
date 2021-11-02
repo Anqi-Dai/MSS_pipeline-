@@ -139,8 +139,8 @@ model_old <- brm( model_formular,
               data = All, 
               warmup = 1000, iter = 3000, 
               prior = priors,
-              cores = 16, 
-              chains = 2, 
+              cores = 4, 
+              chains = 1, 
               control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T ) 
 
@@ -214,8 +214,8 @@ ret <- target_family %>%
                 data = All, 
               warmup = 1000, iter = 3000, 
               prior = priors,
-              cores = 16, 
-              chains = 2, 
+              cores = 2, 
+              chains = 1, 
               control = list(adapt_delta = 0.99),
               seed = 456, sample_prior = T) 
 

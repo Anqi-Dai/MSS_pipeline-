@@ -148,6 +148,12 @@ covs_df <- covs %>%
   inner_join(combined, by = "sbid")
 
 # basically all but one have cov greater than 5. 
+
+final_combined <- covs_df %>% 
+  filter(median_depth > 5)
+
+final_combined %>% 
+  write_csv('../data/growth/finalized_irep_combined_res.csv')
 ```
 
 
