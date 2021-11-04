@@ -15,14 +15,14 @@ library(ggpubr)
 
 ```{r}
 # all the irep values I got
-fns <- list.files('../data/growth/irep/bhatirep/', full.names = T, pattern = '.tsv')
+fns <- list.files('../data/growth/irep/updated_irep/', full.names = T, pattern = '.tsv')
 
 irep <- fns %>% 
   set_names(fns) %>% 
   purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
   bind_rows(.id = 'fn') %>% 
   mutate(fn = str_replace(fn, '_irep.tsv$',''),
-         fn = str_replace(fn, '../data/growth/irep/bhatirep//','')) %>% 
+         fn = str_replace(fn, '../data/growth/irep/updated_irep//','')) %>% 
   separate(fn, into = c('sampleid','samplebin'), sep = '__concat__', remove = T) %>% 
   mutate(iRep = as.numeric(iRep)) %>% 
   mutate(samplebin = str_replace(samplebin, '_irep_dastool.tsv','')) %>% 
@@ -31,15 +31,28 @@ irep <- fns %>%
 
 
 ```{r}
+full <- read_tsv('../data/growth/bhatpipeline/binning_table_all_full.tsv')
+
 tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
   rename_all(~ gsub("\\.", "_", .)) %>% 
-  filter(bin_quality_call %in% c('2) medium quality','3) high quality Nayfach','4) high quality Bowers'))  %>% 
-  filter(Completeness >= 75) %>% 
+  mutate(fpmbp = `# contigs (>= 0 bp)`/Size_Mb) %>% 
+  filter(Completeness >= 75 & fpmbp <= 175 & Contamination <= 2) %>% 
   mutate(Sample = str_replace(Sample, '__concat',''),
          sbid = str_glue('{Sample}__{Bin}')) %>% 
   inner_join(irep, by  = 'sbid') %>% 
-  distinct(Sample, best_species, .keep_all = T)
-  
+  relocate(iRep, .after = 'Bin') %>% 
+  relocate(best_species, .after = 'iRep') %>% 
+  filter(!is.na(iRep)) %>% 
+  arrange(Sample,Bin,  best_species) %>% 
+  # if there are multiple get the average
+  group_by(Sample, best_species) %>% 
+  summarise(aveirep = mean(iRep)) %>% 
+  filter(best_species != 'Unclassified')
+
+
+# check the one best species that have multiple irep
+tb %>% 
+  count(Sample, best_species, sort = T)
 # combined %>% 
 #   mutate(gt15 = if_else(iRep > 1.5, T, F)) %>% 
 #   count(gt15) %>% 
@@ -79,7 +92,7 @@ tb %>%
 
 # ignore the NA irep values for now
 dat <- tb %>% 
-  filter(!is.na(iRep))
+  filter(!is.na(aveirep))
 
 dat %>% 
   gghistogram(x = 'iRep')
@@ -115,9 +128,9 @@ Entero %>%
 ```{r}
 # join with the meta table 
 # there are p2d and d0 diet data
-combined <- dat %>% 
-  inner_join(meta , by = "sampleid") %>% 
-  select(sampleid, iRep, sbid, mrn, best_level, best_species, starts_with('fg'), simpson_reciprocal, empirical)
+combined <- tb %>% 
+  rename(sampleid = Sample) %>% 
+  inner_join(meta , by = "sampleid") 
 
 # some samples don't have diet data 
 combined %>% 
@@ -462,10 +475,9 @@ combined_mean %>%
 combined %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
-  summarise(ave_irep = mean(iRep)) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
   inner_join(meta) %>% 
-  filter(ave_irep < 4) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'no outlier for Enterococcus only',
+  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Enterococcus only',
           add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
@@ -474,35 +486,17 @@ combined %>%
   theme_light() +
   theme(aspect.ratio = 1)
 
-ggsave('../figs/fruit_enterococcus_no_outlier.jpg', width = 5)
+ggsave('../figs/paper/fruit_enterococcus.jpg', width = 5)
 ```
 
 
-```{r}
-combined %>% 
-  filter(str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(iRep)) %>% 
-  inner_join(meta) %>% 
-  #filter(ave_irep < 4) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'yes outlier for Enterococcus only',
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))   +
-  theme_light() +
-  theme(aspect.ratio = 1)
-
-ggsave('../figs/fruit_enterococcus_yes_outlier.jpg', width = 5)
-```
 
 ```{r}
 # the average but excluding the enterococcus
 combined %>% 
   filter(!str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
-  summarise(ave_irep = mean(iRep)) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
   inner_join(meta) %>% 
   ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Average of all taxa excluding Enterococcus',
           add = "reg.line",  # Add regressin line
@@ -513,65 +507,6 @@ combined %>%
   theme_light() +
   theme(aspect.ratio = 1)
 
-ggsave('../figs/fruit_no_enterococcus_ave.jpg', width = 5)
+ggsave('../figs/paper/fruit_no_enterococcus_ave.jpg', width = 5)
 ```
-
-### pearson cor
-
-```{r}
-combined %>% 
-  filter(str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(iRep)) %>% 
-  inner_join(meta) %>% 
-  filter(ave_irep < 4) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'no outlier for Enterococcus only (Pearson)',
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))   +
-  theme_light() +
-  theme(aspect.ratio = 1)
-
-ggsave('../figs/fruit_enterococcus_no_outlier_Pearson.jpg', width = 5)
-
-
-
-
-combined %>% 
-  filter(str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(iRep)) %>% 
-  inner_join(meta) %>% 
-  #filter(ave_irep < 4) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'yes outlier for Enterococcus only (Pearson)',
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))   +
-  theme_light() +
-  theme(aspect.ratio = 1)
-
-ggsave('../figs/fruit_enterococcus_yes_outlier_pearson.jpg', width = 5)
-
-combined %>% 
-  filter(!str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(iRep)) %>% 
-  inner_join(meta) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Average of all taxa excluding Enterococcus (pearson)',
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))   +
-  theme_light() +
-  theme(aspect.ratio = 1)
-
-ggsave('../figs/fruit_no_enterococcus_ave_pearson.jpg', width = 5)
-```
-
-
 
