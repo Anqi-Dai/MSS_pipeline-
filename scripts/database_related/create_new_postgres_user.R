@@ -26,7 +26,8 @@ source('get_data_from_query_OTU.R');
 create_new_postgres_user <- function(user_name, temp_pass){
   
   user_exist = dbGetQuery(con, sprintf("SELECT 1 FROM pg_roles WHERE rolname='%s'",user_name))
-  if(length(user_exist)==1){
+  if(length(user_exist$`?column?`) == 1){
+    # if(length(user_exist)==1){
     print(sprintf("user %s already exists", user_name));
     return();
   }
@@ -65,7 +66,8 @@ create_new_postgres_user <- function(user_name, temp_pass){
 
 block_user_who_did_not_change_password <- function(user, temp_password){
   #If user uses temp_password, the user is assigned a new random password (which will lock their account);
-  
+  user = 'daia1'
+  temp_password = 'test123456'
   a=as.numeric(Sys.time())
   set.seed(a)
   

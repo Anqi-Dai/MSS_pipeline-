@@ -51,6 +51,7 @@ vdb_users <- c("peledj",
                'funnellt',
                "watersn",
                "maclachlan",
+               "feit1",
                "rajs");
 #               "gomesa_cluster");
 
@@ -72,7 +73,7 @@ for(i in 1:length(vdb_and_collaborator_users)){
 }
 cat("\n\n")
 #create_new_postgres_user(vdb_users[length(vdb_users)],temporary_pw);
-
+#dbDisconnect(con)
 if(1){
   #Run this part to remove passwords!
   for(i in 1:length(vdb_and_collaborator_users)){

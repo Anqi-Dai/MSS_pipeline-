@@ -10,6 +10,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(brms)
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+ncores <- parallel::detectCores()
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ```
 
@@ -139,8 +142,8 @@ model_old <- brm( model_formular,
               data = All, 
               warmup = 1000, iter = 3000, 
               prior = priors,
-              cores = 4, 
-              chains = 1, 
+              cores = ncores, 
+              chains = 2, 
               control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T ) 
 
@@ -193,7 +196,7 @@ model_old <- brm( model_formular,
 ## all family model run
 ret <- target_family %>% 
   set_names(target_family) %>% 
-  map(function(fam) {
+  purrr::map(function(fam) {
     mod =  brm( as.formula(str_glue('{fam}  ~ 
                1 +
                 fg_fruit+
@@ -214,12 +217,29 @@ ret <- target_family %>%
                 data = All, 
               warmup = 1000, iter = 3000, 
               prior = priors,
-              cores = 2, 
-              chains = 1, 
+              cores = ncores, 
+              chains = 2, 
               control = list(adapt_delta = 0.99),
               seed = 456, sample_prior = T) 
 
   })
+
+
+# save the data
+prior_df <- ret %>% 
+  imap(~ prior_draws(.x) ) %>% 
+  bind_rows(.id = 'family')
+
+prior_df %>% 
+  write_csv('../data/054_family_model_prior.csv')
+
+post_df <- ret %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
+            select(-starts_with('r_'))))  %>% 
+  bind_rows(.id = 'family')  
+
+post_df %>% 
+  write_csv('../data/054_family_model_post.csv')
 ```
 
 
@@ -272,36 +292,30 @@ prior_save %>%
 
 
 ```{r}
-# grab the quantiles for the 95% and 75% confidence interval from the posterior samples
-post_res <- ret %>% 
-  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
-          select(starts_with('b_fg')) %>% 
-          gather('item','coeff') %>% 
-          mutate(family = .y)))  %>% 
-  bind_rows()  %>% 
+# grab the quantiles for the 95% (star) and 75% (color) confidence interval from the posterior samples
+# two stars for 97.5% and three stars for 99%
+post_df <- read_csv('../data/054_family_model_post.csv')
+ 
+post_res <- post_df %>% 
+  select(family, starts_with('b_fg')) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   group_by(family, item) %>% 
   summarise(q50 = median(coeff),
             q2.5 = quantile(coeff, probs = 0.025),
             q97.5 = quantile(coeff, probs = 0.975),
             q12.5 = quantile(coeff, probs = 0.125),
-            q87.5 = quantile(coeff, probs = 0.875)) %>% 
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
   ungroup() %>% 
-  mutate(sig = if_else(q97.5 < 0 | q2.5 > 0, T, F)) %>% 
-  mutate(mark = if_else(sig == T, '*','')) %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
   mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(family = str_replace(family, '._Incertae_Sedis','')) %>% 
   mutate(item = str_replace(item, 'b_fg_',''))
 
-# save the post
-post_save <- ret %>% 
-  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
-          select(starts_with('b_')) %>% 
-          gather('item','coeff') %>% 
-          mutate(family = .y)))  %>% 
-  bind_rows()
-
-post_save %>% 
-  write_csv('../figs/paper/data/all_fam_post_save.csv')
 ```
 
 ## the heatmap
