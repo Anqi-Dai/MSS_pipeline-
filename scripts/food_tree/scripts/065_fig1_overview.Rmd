@@ -74,6 +74,4 @@ menus <- dm_tb %>%
   distinct(menu)
 ```
 
-# How many days of dietary data to pair up with microbiome data?
-
 

@@ -293,17 +293,16 @@ df %>%
 
 ```{r}
 target <- c('Blautia','Enterococcus','Lactobacillus','Rothia','Klebsiella')
-# if including the outlier
+
 withoutlier <- target %>% 
   set_names(target) %>% 
   imap(function(.x, .y){
     combined %>% 
       filter(str_detect(best_species, .x)) %>% 
       group_by(sampleid) %>% 
-      summarise(ave_irep = mean(iRep)) %>% 
+      summarise(ave_irep = mean(aveirep)) %>% 
       inner_join(meta) %>% 
       gather('grp', 'gram', fg_egg:fg_veggie) %>% 
-      #filter(iRep < 4) %>% 
       ggscatter(x = 'gram', y = 'ave_irep', title = .x,
               add = "reg.line",  # Add regressin line
                add.params = list(color = "blue", fill = "lightgray"), # Customize line
@@ -314,31 +313,9 @@ withoutlier <- target %>%
   }) 
 
 withoutlier_list <- ggarrange(plotlist = withoutlier, nrow = length(target)) 
-ggsave('../figs/mean_irep_5_genus_scatter_with_outlier.pdf', width = 9, height = 28, plot = withoutlier_list)
+ggsave('../figs/mean_irep_5_genus.pdf', width = 9, height = 28, plot = withoutlier_list)
 
-# if not including the outlier
-no_outlier <- target %>% 
-  set_names(target) %>% 
-  imap(function(.x, .y){
-    combined %>% 
-      filter(str_detect(best_species, .x)) %>% 
-      group_by(sampleid) %>% 
-      summarise(ave_irep = mean(iRep)) %>% 
-      inner_join(meta) %>% 
-      gather('grp', 'gram', fg_egg:fg_veggie) %>% 
-      filter(ave_irep < 4) %>% 
-      ggscatter(x = 'gram', y = 'ave_irep', title = .x,
-              add = "reg.line",  # Add regressin line
-               add.params = list(color = "blue", fill = "lightgray"), # Customize line
-               conf.int = TRUE, # Add confidence interval
-               cor.coef = TRUE, # Add correlation coefficient.
-               cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red')) +
-      facet_wrap(grp ~ ., scales = 'free')
-  }) 
 
-no_outlier_list <- ggarrange(plotlist = no_outlier, nrow = length(target)) 
-ggsave('../figs/mean_irep_5_genus_scatter_No_outlier.pdf', width = 9, height = 28, plot = no_outlier_list)
- 
 ```
 
 ```{r}
@@ -508,5 +485,40 @@ combined %>%
   theme(aspect.ratio = 1)
 
 ggsave('../figs/paper/fruit_no_enterococcus_ave.jpg', width = 5)
+```
+
+```{r}
+combined %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta) %>% 
+  ggscatter(x = 'fg_sweets', y = 'ave_irep', title = 'Enterococcus only',
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))   +
+  theme_light() +
+  theme(aspect.ratio = 1)
+
+ggsave('../figs/paper/sweets_enterococcus.jpg', width = 5)
+```
+```{r}
+combined %>% 
+  filter(!str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta) %>% 
+  ggscatter(x = 'fg_sweets', y = 'ave_irep', title = 'Average of all taxa excluding Enterococcus',
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))   +
+  theme_light() +
+  theme(aspect.ratio = 1)
+
+ggsave('../figs/paper/sweets_no_enterococcus_ave.jpg', width = 5)
 ```
 
