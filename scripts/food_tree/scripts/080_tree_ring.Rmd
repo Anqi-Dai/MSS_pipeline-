@@ -12,10 +12,7 @@ library(phytools)
 library(tidyverse)
 library(vdbR)
 connect_database('~/dbConfig.txt')
-get_table_from_database('asv_counts_ag')
-get_table_from_database('asv_alpha_diversity_ag')
-find <- asv_alpha_diversity_ag %>% 
-  filter(str_detect(oligos_id, 'pool1094.1095'))
+
 ```
 
 ```{r}
@@ -41,7 +38,7 @@ all.equal(food_code_sum_$Food_code , leaves$fcode)  #I'm fine with 3 mismatches.
 ```{r}
 # the newick string for the nodes
 tree_df <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv', col_types = cols(.default = col_character())) %>% 
-  select(FoodID, Main.food.description)
+  select(FoodID, description)
 ```
 
 
@@ -92,12 +89,12 @@ ring <- bars_ %>%
   select(Food_code, ring_height = log10gram, ring_color = color) %>% 
   mutate(#ring_height = round(ring_height, 1)/10,
          Food_code = as.character(Food_code)) %>% 
-  full_join(tree_df %>% select(Food_code = FoodID, Main.food.description)) %>% 
-  select(Main.food.description, ring_height:ring_color) %>% 
+  full_join(tree_df %>% select(Food_code = FoodID, description)) %>% 
+  select(description, ring_height:ring_color) %>% 
   mutate(ring_width = 0.5) %>% 
   gather('key','value', ring_height:ring_width) %>% 
   mutate(ring_level = 1) %>% 
-  select(Main.food.description, key, ring_level, value) 
+  select(description, key, ring_level, value) 
   
 ring %>% 
   write_tsv('../data/source/ring_annot.txt', col_names = F)
@@ -110,8 +107,8 @@ dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>%
   mutate(log10wt = log10(dehydrated_weight))
 
 clade_markder <- dm5 %>% 
-  select(Main.food.description, clade_marker_color = color) %>% 
-  mutate(clade_marker_shape = '*',
+  select(description, clade_marker_color = color) %>% 
+  mutate(clade_marker_shape = '.',
          clade_marker_size = 100,
          clade_marker_edge_color = 'white') %>% 
   gather('key','value', clade_marker_color:clade_marker_edge_color)
@@ -124,7 +121,6 @@ ring_itself <- tibble(
   ring_level = c(1, 2),
   ring_internal_separator_thickness = 0.1,
   ring_external_separator_thickness = 0.1,
-  ring_label = c('All patients total','one patient one day'),
   ring_label_font_size = 5,
   ring_separator_color = 'black'
 ) %>% 
@@ -137,12 +133,12 @@ ring_itself <- tibble(
 # add the day meal log2 wt for the food code to the second ring
 ring2 <- dm5 %>% 
   mutate(ring_height = log10wt) %>% 
-  select(Main.food.description, ring_color = color, ring_height) %>% 
+  select(description, ring_color = color, ring_height) %>% 
   mutate(ring_alpha = 0.5,
          ring_width = 1) %>% 
   gather('key','value', ring_color:ring_width) %>% 
   mutate(ring_level = 2) %>% 
-  select(Main.food.description, key, ring_level, value) 
+  select(description, key, ring_level, value) 
 
 ring2 %>% write_tsv('../data/source/ring2.txt', col_names = F)
 ```

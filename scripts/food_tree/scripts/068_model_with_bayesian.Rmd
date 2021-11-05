@@ -38,7 +38,7 @@ top3grp <- dtb %>%
   summarise(total_per_code = sum(dehydrated_weight)) %>% 
   group_by(fgrp1) %>% 
   arrange(desc(total_per_code), .by_group = T)  %>% 
-  top_n(10) %>% 
+  top_n(5) %>% 
   left_join(key) %>% 
   ungroup() %>% 
   mutate(log10gram = log10(total_per_code)) %>% 
@@ -47,12 +47,12 @@ top3grp <- dtb %>%
     fgrp1 == '7' ~ 'Vegetables',
     fgrp1 == '9' ~ 'Sugars, Sweets & Beverages'
   )) %>% 
-  mutate(fg1_full_name = factor(fg1_full_name, levels = c('Fruits','Vegetables','Sugars, Sweets & Beverages')))
+  mutate(fg1_full_name = factor(fg1_full_name, levels = c('Fruits','Sugars, Sweets & Beverages', 'Vegetables')))
 
 ggdotchart(top3grp, x = "description", y = "log10gram",
            xlab = 'Food item description', ylab = 'Total consumed in dehydrated weight\nlog10 transformed',
    group = "fg1_full_name", color = "fg1_full_name",
-   palette = c('#7D3C98','#229954','#db2589'),
+   palette = c('#7D3C98','#db2589', '#229954'),
    rotate = TRUE,
    sorting = "descending", 
    ggtheme = theme_bw(),
@@ -60,8 +60,8 @@ ggdotchart(top3grp, x = "description", y = "log10gram",
   theme(legend.position = 'top',
         legend.title = element_blank())
 
-ggsave('../figs/paper/068_top10_eaten_foods_of_679.pdf', width = 7, height = 6)
-ggsave('../figs/paper/068_top10_eaten_foods_of_679.jpg', width = 7, height = 6)
+ggsave('../figs/paper/068_top5_eaten_foods_of_679.pdf', width = 5, height = 4)
+ggsave('../figs/paper/068_top5_eaten_foods_of_679.jpg', width = 7, height = 6)
 ``` 
 
 

@@ -14,6 +14,7 @@ options(mc.cores = parallel::detectCores())
 rstan_options(auto_write = TRUE)
 ncores <- parallel::detectCores()
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
 ```
 
 Response: family level 
@@ -315,7 +316,34 @@ post_res <- post_df %>%
   mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(family = str_replace(family, '._Incertae_Sedis','')) %>% 
   mutate(item = str_replace(item, 'b_fg_',''))
+```
 
+
+```{r}
+# trying to order the rows and the columns by similarity in euclidean distances
+# make it a numerical matrix and then calculate the distance
+dat <- post_res %>% 
+  select(family:q50) %>% 
+  spread('item', 'q50') %>% 
+  column_to_rownames('family')
+
+hc <- hclust(dist(dat))
+dend <- as.dendrogram(hc)
+family_order <- labels(dend)
+
+# the fg order
+dat <- post_res %>% 
+  select(family:q50) %>% 
+  spread('family', 'q50') %>% 
+  column_to_rownames('item')
+
+hc <- hclust(dist(dat))
+dend <- as.dendrogram(hc)
+fg_order <- labels(dend)
+
+post_res_ordered <- post_res %>% 
+  mutate(family = factor(family, levels = family_order),
+         item = factor(item, levels = fg_order))
 ```
 
 ## the heatmap
@@ -325,25 +353,33 @@ col_key <- post_res %>%
   ungroup() %>% 
   distinct(color) %>% 
   pull(color)
+
 names(col_key) <- col_key
 
-ggplot(post_res, aes(x = item, y = family)) +
-  geom_tile(aes(fill = color,  x = item,y =  family), alpha = 0.5, color='white', width=0.95, height=0.95) +
+
+axis_text_size <- 10
+axis_title_size <- 10
+
+ggplot(post_res_ordered, aes(x = family, y = item)) +
+  geom_tile(aes(fill = color,  x = family, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
  # geom_text(aes(label = round(meanperitem, 3))) +
-  geom_text(aes(label = mark, x = item,y =  family),
-            nudge_y = -0.3, nudge_x = 0,size = 8) +
+  geom_text(aes(label = mark, x = family,y =  item),
+            nudge_y = -0.1, nudge_x = 0,size = 5) +
   scale_fill_manual(values = col_key, labels = c('Effects too small','75% CI < 0 negative','75% CI > 0 positive')) +
   theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=30, hjust=1),
+        axis.text.y=element_text(size=12),
+        axis.title=element_text(size=axis_title_size),
         #panel.grid.major = element_blank(), 
         #panel.grid.minor = element_blank(),
-        legend.position = 'bottom',
+        legend.position = 'top',
         legend.key = element_rect( colour = "gray50"),
         panel.background = element_blank()) 
 
 
-ggsave('../figs/paper/heatmap_family_24_ggplot.pdf', width = 7, height = 5)
+ggsave('../figs/paper/054_heatmap_family_24_ggplot.pdf', width = 8, height = 4)
 ```
 
 ```{r}
@@ -378,4 +414,5 @@ colGradient <- function( cols, length, cmax=255 )
 bwrPalette <- colGradient(c("blue","white","red"),length=11) # this is the scale of the score
 
 ```
+
 

@@ -33,7 +33,7 @@ target <- combined %>%
 entero <- combined %>%  
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid, mrn) %>% 
-  summarise(ave_irpe = mean(iRep)) %>% 
+  summarise(ave_irpe = mean(aveirep)) %>% 
   inner_join(meta %>% 
                select(sampleid, sdrt))
 

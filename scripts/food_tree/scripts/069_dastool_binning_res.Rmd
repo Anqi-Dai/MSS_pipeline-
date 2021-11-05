@@ -459,11 +459,12 @@ combined %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))   +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red',
+                                 label.x.npc = "center", label.y.npc = "bottom"))   +
   theme_light() +
   theme(aspect.ratio = 1)
 
-ggsave('../figs/paper/fruit_enterococcus.jpg', width = 5)
+ggsave('../figs/paper/fruit_enterococcus.jpg', width = 3)
 ```
 
 
