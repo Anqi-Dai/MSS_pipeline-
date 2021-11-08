@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(brms)
 options(mc.cores = parallel::detectCores())
-rstan_options(auto_write = TRUE)
+rstan::rstan_options(auto_write = TRUE)
 ncores <- parallel::detectCores()
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 
