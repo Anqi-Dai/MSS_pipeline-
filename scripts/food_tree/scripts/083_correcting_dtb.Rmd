@@ -1,0 +1,69 @@
+---
+title: "Updating the dtb"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+```
+
+```{r}
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+en <- readxl::read_excel('../data/cleaned_diet_data/NutritionSupport_DietPatients.xlsx') %>% 
+  filter(Food.Code != 'NA') %>% 
+  mutate(meal = 'EN',
+         Por_eaten = 1,
+         Unit = 'EN unit') %>% 
+  select(mrn = MRN, 
+         Date = `Date Nutrition Support`,
+         Meal = meal,
+         Food_NSC = `EN formula`,
+         Por_eaten,
+         Calories_kcal = `EN calories`,
+         Protein_g = `EN PRO`,
+         Fat_g = `EN fat`,
+         Carbohydrates_g = `EN CHO`,
+         Fibers_g = `EN Fiber`,
+         Sugars_g = `EN Sugar`,
+         Sodium_g = `EN Sodium`,
+         Food_code = Food.Code,
+         description = FNDDS.Main.Food.Description,
+         dehydrated_weight = `EN volume_weight_g`,
+         Unit
+         )  %>% 
+  mutate_at(c('Date', 'Calories_kcal', 'Protein_g', 'Fat_g', 'Carbohydrates_g', 'Fibers_g', 'Sugars_g', 'Sodium_g', 'dehydrated_weight', 'Food_code'), as.double) %>% 
+  mutate(Date = as.Date(Date, origin = "1899-12-30"), 
+         Sodium_g = Sodium_g/1000) %>% 
+  left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
+  mutate(fdrt = Date - hct,
+         fdrt = as.numeric(fdrt))%>% 
+  select(colnames(dtb))
+```
+
+```{r}
+# in the current dtb how many entries are EN?
+# replace the current dehydrated_weight with corrected ones
+current <- dtb %>% 
+  filter(Unit == 'EN unit') %>% 
+  select(-dehydrated_weight) %>% 
+  inner_join(en %>% 
+               select(mrn, fdrt, dehydrated_weight), by = c("mrn","fdrt")) 
+
+```
+
+```{r}
+# merge into the whole table
+final <- bind_rows(current, dtb %>% 
+  filter(Unit != 'EN unit') )
+
+final %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+```
+
