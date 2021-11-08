@@ -335,7 +335,7 @@ post_coeff %>%
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 
-ggsave('../figs/paper/fig2_model_coeff_forest.eps',  width = 100,
+ggsave('../figs/paper/068_fig2_model_coeff_forest.eps',  width = 100,
        height = 100,
          #height = 60,
          units = c("mm"),
@@ -366,7 +366,14 @@ coeff_bi %>%
   labs(x = 'Regression coefficients',
        y = 'Binary variables') +
   theme(legend.position = 'none')
+
+ggsave('../figs/paper/068_fig2_model_coeff_forest_binary.eps',  width = 100,
+       height = 100,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
 ```
+
  
 ```{r post_sample_food_ave}
 # when the food intake is average mean
@@ -467,14 +474,11 @@ post_diff_df %>%
                        select(fg1_name, color) %>% deframe()) +
   xlim(-4.1, 12)
 
-ggsave('../figs/paper/fig2_fg9_post_diff.eps',  width = 100,
+ggsave('../figs/paper/068_fig2_fg9_post_diff.eps',  width = 100,
        height = 100,
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'eps')
-
-
-
 ```
 
 ## the forest plot with prior and post 
