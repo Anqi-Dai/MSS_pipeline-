@@ -14,9 +14,10 @@ library(cowplot)
 library(ggimage)
 #library(grConvert)
 
+
 axis_text_size <- 10
 axis_title_size <- 10
-alpha_val <- 0.3
+alpha_val <- 0.1
 point_size <- 1.2
 loess_line_col <- 'gray'
 scatter_col <- 'gray14'
@@ -115,12 +116,14 @@ stool_alpha <- meta %>%
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT', shape = 'triangle',
             ylab = 'Microbiome \u03b1 diversity',
+            title = 'Microbiome \u03b1 diversity',
             add = "loess", conf.int = TRUE, 
             add.params = list(color = 'darkgoldenrod2', fill = "darkblue", size = 1)) +
-  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = pick_point_size) +
-  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = pick_line_size, col = 'red') +
+  #geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = pick_point_size, shape = 'triangle') +
+  #geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         aspect.ratio=1)
 stool_alpha
 ```
@@ -137,13 +140,15 @@ day_cal <- day_calori %>%
   ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
+            title = 'Daily caloric intake',
             color = scatter_col,
              add = "loess", conf.int = TRUE, 
             add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +  
-  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = 'red', size = pick_point_size) +
-  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = pick_line_size, col = 'red') +
+  #geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = 'red', size = pick_point_size) +
+  #geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         aspect.ratio=1)
 day_cal
 ```
@@ -163,12 +168,14 @@ diet_alpha <- faith %>%
             color = scatter_col, 
             ylab = "Diet \u03b1 diversity", 
             xlab = 'Day relative to HCT',
+            title = 'Diet \u03b1 diversity',
              add = "loess", conf.int = TRUE, 
             add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +
-  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = 'red', size = pick_point_size) +
-  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pick_line_size, col = 'red') +
+  #geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = 'red', size = pick_point_size) +
+  #geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pick_line_size, col = 'red') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
         ) + 
   theme(aspect.ratio=1)
@@ -176,7 +183,7 @@ diet_alpha
 ```
 
 ```{r combine_bot3}
-bot <- plot_grid(day_cal, diet_alpha,stool_alpha,
+bot <- plot_grid(day_cal, diet_alpha, stool_alpha,
           nrow = 1, 
           align = 'hv',
           #rel_widths =  c(1,1),
@@ -192,6 +199,13 @@ ggsave('../figs/paper/bot_fig1.tiff',
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'tiff')
+
+ggsave('../figs/paper/bot_fig1_stool_alpha.tiff',
+       width = 60,
+       height = 60,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'tiff', plot = stool_alpha)
 ```
 
 # fig1 top 3

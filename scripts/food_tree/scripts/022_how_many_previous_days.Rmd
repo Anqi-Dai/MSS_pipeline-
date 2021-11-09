@@ -299,8 +299,8 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
 
 ```{r sum_of_squares}
 # make the figure
-axis_text_size <- 6
-axis_title_size <- 6
+axis_text_size <- 10
+axis_title_size <- 10
 
 procrustes_Nday %>% 
   mutate(pNd = str_extract(pNd, '\\d')) %>% 
@@ -312,9 +312,9 @@ procrustes_Nday %>%
         axis.title=element_text(size=axis_title_size),
         axis.text.x = element_text(angle=0, hjust=0.5)) 
 
-ggsave('../figs/paper/fig2_procrustes.eps',
-       width = 80,
-       height = 40,
+ggsave('../figs/paper/022_fig2_procrustes.eps',
+       width = 100,
+       height = 50,
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'eps')

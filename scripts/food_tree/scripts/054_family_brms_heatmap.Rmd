@@ -45,6 +45,9 @@ cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>%
   mutate(taxa_family = str_extract(taxa_family, 'f__.+$')) %>% 
   mutate(taxa_family = str_replace(taxa_family, 'f__','')) %>% 
   filter(taxa_family != 'NA')
+
+meta %>% 
+  distinct(mrn)
 ```
 ```{r}
 thre <- seq(0.0001, 0.003, 0.0001)
@@ -357,7 +360,7 @@ col_key <- post_res %>%
 names(col_key) <- col_key
 
 
-axis_text_size <- 10
+axis_text_size <- 13
 axis_title_size <- 10
 
 ggplot(post_res_ordered, aes(x = family, y = item)) +
@@ -369,7 +372,7 @@ ggplot(post_res_ordered, aes(x = family, y = item)) +
   theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text.x = element_text(angle=30, hjust=1),
+        axis.text.x = element_text(angle=45, hjust=1, size=13),
         axis.text.y=element_text(size=12),
         axis.title=element_text(size=axis_title_size),
         #panel.grid.major = element_blank(), 
@@ -379,7 +382,7 @@ ggplot(post_res_ordered, aes(x = family, y = item)) +
         panel.background = element_blank()) 
 
 
-ggsave('../figs/paper/054_heatmap_family_24_ggplot.pdf', width = 8, height = 4)
+ggsave('../figs/paper/054_heatmap_family_24_ggplot.pdf', width = 10, height = 4)
 ```
 
 ```{r}
