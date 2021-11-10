@@ -66,7 +66,7 @@ create_new_postgres_user <- function(user_name, temp_pass){
 
 block_user_who_did_not_change_password <- function(user, temp_password){
   #If user uses temp_password, the user is assigned a new random password (which will lock their account);
-  user = 'daia1'
+
   temp_password = 'test123456'
   a=as.numeric(Sys.time())
   set.seed(a)
