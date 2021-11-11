@@ -27,10 +27,7 @@ irep <- fns %>%
   mutate(iRep = as.numeric(iRep)) %>% 
   mutate(samplebin = str_replace(samplebin, '_irep_dastool.tsv','')) %>% 
   mutate(sbid = str_glue('{sampleid}__{samplebin}'))
-```
 
-
-```{r}
 full <- read_tsv('../data/growth/bhatpipeline/binning_table_all_full.tsv')
 
 tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
@@ -49,6 +46,19 @@ tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>%
   summarise(aveirep = mean(iRep)) %>% 
   filter(best_species != 'Unclassified')
 
+# save a copy of the high quality bins from the growth samples
+bins <-  read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
+  rename_all(~ gsub("\\.", "_", .)) %>% 
+  mutate(fpmbp = `# contigs (>= 0 bp)`/Size_Mb) %>% 
+  filter(Completeness >= 75 & fpmbp <= 175 & Contamination <= 2) %>% 
+  mutate(Sample = str_replace(Sample, '__concat',''),
+         sbid = str_glue('{Sample}__{Bin}')) %>% 
+  filter(best_species != 'Unclassified') %>% 
+  arrange(Sample,Bin,  best_species) %>% 
+  relocate(best_species, .after = 'Bin')
+
+bins %>% 
+  distinct(Sample,  best_species)
 
 # check the one best species that have multiple irep
 tb %>% 

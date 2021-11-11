@@ -25,7 +25,7 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
-axis_text_size <- 7
+axis_text_size <- 10
 axis_title_size <- 10
 ```
 
@@ -365,9 +365,11 @@ coeff_bi %>%
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'Binary variables') +
-  theme(legend.position = 'none')
+  theme(legend.position = 'none',
+        aspect.ratio=1)
 
-ggsave('../figs/paper/068_fig2_model_coeff_forest_binary.eps',  width = 100,
+ggsave('../figs/paper/068_fig2_model_coeff_forest_binary.eps',  
+       width = 100,
        height = 100,
          #height = 60,
          units = c("mm"),
@@ -456,6 +458,34 @@ post_diff_df <- maxs %>%
   left_join(key %>% 
               select(term = fg1_name, color)) %>% 
   mutate(term = fct_reorder(term, post_diff_original_scale, .fun=median, .desc = F))
+```
+```{r post_diff_2}
+# only plot the post diff forest in fruits and sweets
+only2 <- post_diff_df %>% 
+  filter(term %in% c('fg_fruit','fg_sweets')) 
+
+only2 %>% 
+  ggplot(aes(y = term, x = post_diff_original_scale, col = term)) +
+  stat_halfeye() +
+  #scale_fill_manual(values = c("gray80", "skyblue")) +
+  geom_vline(xintercept = 0, linetype = "dashed", col = 'red') +
+  labs(x = "Expected change in\nSimpson's reciprocal diversity",
+       y = '',
+       title = '') +
+  theme(legend.position = 'none') +
+  scale_x_continuous(breaks = seq(-10, 20, 2)) +
+  scale_color_manual(values = key %>% 
+                       select(fg1_name, color) %>% deframe()) +
+  xlim(-6, 3) +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+ggsave('../figs/paper/068_fig2_fg2_post_diff.eps',  width = 80,
+       height = 80,
+         #height = 60, 
+         units = c("mm"),
+         dpi = 400, device = 'eps')
 ```
 
 
