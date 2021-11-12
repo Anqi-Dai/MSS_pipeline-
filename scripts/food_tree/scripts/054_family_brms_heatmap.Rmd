@@ -386,6 +386,57 @@ ggsave('../figs/paper/054_heatmap_family_24_ggplot.pdf', width = 10, height = 4)
 ```
 
 ```{r}
+# the heatmap about the binary variables
+post_bi_res <- post_df %>% 
+  select(family, starts_with('b_')) %>% 
+  select(-starts_with('b_fg'), -b_Intercept) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
+  group_by(family, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(family = str_replace(family, '._Incertae_Sedis','')) 
+
+ggplot(post_bi_res, aes(x = family, y = item_name)) +
+  geom_tile(aes(fill = color,  x = family, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = family,y =  item_name),
+            nudge_y = -0.1, nudge_x = 0,size = 5) +
+  scale_fill_manual(values = col_key, labels = c('Effects too small','75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_light() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=1, size=13),
+        axis.text.y=element_text(size=12),
+        axis.title=element_text(size=axis_title_size),
+        #panel.grid.major = element_blank(), 
+        #panel.grid.minor = element_blank(),
+        legend.position = 'top',
+        legend.key = element_rect( colour = "gray50"),
+        panel.background = element_blank()) 
+
+ggsave('../figs/paper/054_heatmap_binaries_family_24_ggplot.pdf', width = 10, height = 4)
+```
+
+
+```{r}
 # Add a family annotation at the class level 
 source('~/db_connect_simple.R')
 connect_database(config_file = '~/dbConfig.txt')

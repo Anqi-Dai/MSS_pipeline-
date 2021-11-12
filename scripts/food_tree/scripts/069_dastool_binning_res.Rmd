@@ -468,12 +468,16 @@ combined %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", color = 'red',
-                                 label.x.npc = "center", label.y.npc = "bottom"))   +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", 
+                                 label.x.npc = "center", label.y.npc = "bottom", size = 2))   +
   theme_light() +
   theme(aspect.ratio = 1)
 
-ggsave('../figs/paper/fruit_enterococcus.jpg', width = 3)
+ggsave('../figs/paper/069_fruit_enterococcus.tiff',
+       width = 55,
+       height = 55,
+         units = c("mm"),
+         dpi = 400, device = 'tiff')
 ```
 
 
@@ -490,11 +494,15 @@ combined %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n"))   +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2))   +
   theme_light() +
   theme(aspect.ratio = 1)
 
-ggsave('../figs/paper/fruit_no_enterococcus_ave.jpg', width = 5)
+ggsave('../figs/paper/069_fruit_no_enterococcus_ave.tiff', 
+       width = 55,
+       height = 55,
+         units = c("mm"),
+         dpi = 400, device = 'tiff')
 ```
 
 ```{r}

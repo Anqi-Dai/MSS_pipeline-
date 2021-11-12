@@ -1,0 +1,28 @@
+---
+title: "Narcotic"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+dat <- read_rds('/Volumes/vandenBrinkLab/deep_sequencing/Clinical Annotation/Abx_data_TsoniIDB_pull_2020_07-06/allo_tasks_2020-07-10.rds')
+```
+
+```{r}
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+this <- dat %>% 
+  mutate(mrn = as.numeric(MRN)) %>% 
+  filter(mrn %in% ptb$mrn) %>% 
+  filter(start_date %within% ymd('2017-01-01'))
+
+
+```
+

@@ -23,7 +23,7 @@ qpcr <- qpcr_16s_ag %>%
 
 ```{r}
 # all the patients that have a entercoccus growth rate
-combined <- read_csv('../data/growth/irep_combined_res.csv')
+combined <- read_csv('../data/growth/069_irep_combined_res.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 target <- combined %>%  
   filter(str_detect(best_species, 'Enterococcus')) %>% 
@@ -120,30 +120,48 @@ seq(1, length(absl)) %>%
   set_names(seq(1, length(absl))) %>% 
   imap(~ ggsave(str_glue('../data/Patient{.y}.pdf'), width = 5, height = 4, plot = absl[[.x]]))
 ```
+## customize patient 11 for show
 
 ```{r}
-# customize patient 12
-p12 <- names(absl)[12]
+# customize patient 11
+# use the global highest irep value for the highest in the y axis.
+irep_highest <- max(entero$ave_irpe) + 0.05
+irep_q25 <- quantile(x = entero$ave_irpe, 0.25)
+irep_q50 <- quantile(x = entero$ave_irpe, 0.5)
+irep_q75 <- quantile(x = entero$ave_irpe, 0.75)
+
+p11 <- names(absl)[11]
 xmax = 15
 
 xmin = -5
 
+quantile_annot_df <- tibble(
+  quant = c('25%','50%','75%'),
+  height = c(irep_q25, irep_q50, irep_q75)
+)
+
 irep = entero %>% 
   filter(sdrt %in% -5:15) %>% 
-  filter(mrn == p12) %>% 
+  filter(mrn == p11) %>% 
   ggplot(aes(x = sdrt, y = ave_irpe )) +
   geom_point() +
   labs(title = str_glue('{}')) +
+  geom_hline(yintercept = irep_q25, linetype = 'dashed') +
+  geom_text(data = quantile_annot_df, mapping = aes(x = 14, y = height, label = quant), nudge_y = 0.02, size = 2.5) +
+  geom_hline(yintercept = irep_q50, linetype = 'dashed') +
+  geom_hline(yintercept = irep_q75, linetype = 'dashed') +
   xlim(xmin, xmax) +
+  ylim(1, irep_highest) +
   labs(x = '',
-       y = 'Replication rate')+
-  theme_light()+
-  theme(aspect.ratio=1)
+       y = 'Average replication rate')+
+  theme_classic()+
+  theme(aspect.ratio=1,
+        panel.grid.major.x = element_line(color = "grey85")) 
   
 
 copies = cts_ %>% 
   filter(sdrt %in% -5:15) %>% 
-  filter(mrn == p12) %>% 
+  filter(mrn == p11) %>% 
   ggplot(aes(x = sdrt, y = entero_copy )) +
   geom_point() +
  # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
@@ -151,15 +169,20 @@ copies = cts_ %>%
   xlim(xmin, xmax) +
   labs(x = 'Day relative to transplant',
        y = 'Enterococcus copy\nnumbers') +
-  theme_light() +
-  theme(aspect.ratio=1)
+  theme_classic() +
+  theme(aspect.ratio=1,
+        panel.grid.major.x = element_line(colour = "grey85"))+
+  scale_y_log10("Enterococcus copy\nnumbers",
+        breaks = scales::trans_breaks("log10", function(x) 10^x),
+        labels = scales::trans_format("log10", scales::math_format(10^.x)))
 
 res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
 res
-ggsave('../figs/paper/p12_irep_copy.pdf',  
+ggsave('../figs/paper/075_p11_irep_copy.pdf',  
        width = 120,
        height = 120,
          units = c("mm"),
          dpi = 400, device = 'pdf')
 ```
+
 
