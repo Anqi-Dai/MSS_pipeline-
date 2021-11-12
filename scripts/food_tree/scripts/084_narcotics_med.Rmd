@@ -14,9 +14,7 @@ library(lubridate)
 
 ```{r}
 dat <- read_rds('/Volumes/vandenbrinklab/deep_sequencing/Clinical Annotation/Abx_data_TsoniIDB_pull_2020_07-06/allo_srx.rds')
-```
 
-```{r}
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
 narcotic <- dat %>% 
@@ -55,6 +53,45 @@ narcotic_stop_dates <- narcotic %>%
   select(-start_date)
 
 nar_dates <- narcotic_early_dates %>% 
-  full_join(narcotic_stop_dates)
+  full_join(narcotic_stop_dates) %>% 
+  inner_join(ptb %>% 
+               select(mrn, hct)) %>% 
+  mutate(start_drt = start_date - hct,
+         stop_drt = stop_date - hct) %>% 
+  mutate(start_drt = as.numeric(start_drt),
+         stop_drt = as.numeric(stop_drt)) %>% 
+  # filter out certain periods that are not close to the current cohort transplant date
+  filter(start_drt > -46 & start_drt < 82)
+
+# the diet data is -10:49
+
+# look closely at several patients that have very future stop dates, possibly another transplant or disease
+change_stop <- nar_dates %>% 
+  filter(stop_drt > 100) %>% 
+  pull(mrn)
+
+change_stop_date <- c('2019-08-21','2018-05-05','2017-10-13','2017-11-06','2019-07-26')
+
+change <- tibble(
+  mrn = change_stop,
+  stop_date = change_stop_date
+)
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+
+nar_correct <- nar_dates %>% 
+  filter(mrn %in% change_stop) %>% 
+  select(mrn, start_date, hct, start_drt) %>% 
+  full_join(change) %>% 
+  mutate(stop_date = ymd(stop_date),
+         stop_drt = stop_date - hct,
+         stop_drt = as.numeric(stop_drt))  %>% 
+  select(colnames(nar_dates))
+  
+nar_all <- bind_rows(
+  nar_dates %>% 
+    filter(!mrn %in% change_stop) ,
+  nar_correct
+)
 ```
 
