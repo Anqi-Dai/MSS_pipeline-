@@ -243,7 +243,7 @@ ggsave('../figs/paper/054_fig2_model_Enterococcaceae_coeff_forest_binary.eps',
        height = 100,
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'eps')
+         dpi = 400, device = 'eps') 
 ```
 
 

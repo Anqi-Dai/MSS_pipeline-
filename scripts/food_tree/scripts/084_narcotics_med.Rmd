@@ -9,19 +9,52 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(lubridate)
 ```
 
 ```{r}
-dat <- read_rds('/Volumes/vandenBrinkLab/deep_sequencing/Clinical Annotation/Abx_data_TsoniIDB_pull_2020_07-06/allo_tasks_2020-07-10.rds')
+dat <- read_rds('/Volumes/vandenbrinklab/deep_sequencing/Clinical Annotation/Abx_data_TsoniIDB_pull_2020_07-06/allo_srx.rds')
 ```
 
 ```{r}
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
-this <- dat %>% 
+narcotic <- dat %>% 
+  filter(is_narcotic == "Y") %>% 
+  filter(grepl("PCA", med_name)) %>% 
   mutate(mrn = as.numeric(MRN)) %>% 
-  filter(mrn %in% ptb$mrn)
+  filter(mrn %in% ptb$mrn) %>% 
+  select(mrn, start_date, stop_date)
 
+colnames(dat)
 
+narcotic %>% 
+  count(mrn, sort = T)
+
+# there is one patient in our cohort that had narcotics in a previous tranplant but not relavant to us right now.
+rm_pt <- narcotic %>% 
+  mutate(start_year = year(start_date)) %>% 
+  filter(start_year == 2016) %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+narcotic_early_dates <- narcotic %>% 
+  filter(mrn != rm_pt) %>% 
+  group_by(mrn) %>% 
+  arrange(start_date, .by_group = T) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  select(-stop_date)
+
+narcotic_stop_dates <- narcotic %>% 
+  filter(mrn != rm_pt) %>% 
+  group_by(mrn) %>% 
+  arrange(desc(stop_date), .by_group = T) %>% 
+  slice(1) %>% 
+  ungroup() %>% 
+  select(-start_date)
+
+nar_dates <- narcotic_early_dates %>% 
+  full_join(narcotic_stop_dates)
 ```
 
