@@ -456,6 +456,8 @@ combined_mean %>%
 
 ## for paper figure
 
+### fruit
+
 ```{r}
 # the fruits and enterococcus irep alone
 combined %>% 
@@ -463,14 +465,14 @@ combined %>%
   group_by(sampleid) %>% 
   summarise(ave_irep = mean(aveirep)) %>% 
   inner_join(meta) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Enterococcus only',
+  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Enterococcus only',alpha = 0.7, 
           add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n", 
                                  label.x.npc = "center", label.y.npc = "bottom", size = 2))   +
-  theme_light() +
+  theme_classic() +
   theme(aspect.ratio = 1)
 
 ggsave('../figs/paper/069_fruit_enterococcus.tiff',
@@ -480,8 +482,6 @@ ggsave('../figs/paper/069_fruit_enterococcus.tiff',
          dpi = 400, device = 'tiff')
 ```
 
-
-
 ```{r}
 # the average but excluding the enterococcus
 combined %>% 
@@ -490,12 +490,13 @@ combined %>%
   summarise(ave_irep = mean(aveirep)) %>% 
   inner_join(meta) %>% 
   ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Average of all taxa excluding Enterococcus',
+            alpha = 0.7, 
           add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2))   +
-  theme_light() +
+  theme_classic() +
   theme(aspect.ratio = 1)
 
 ggsave('../figs/paper/069_fruit_no_enterococcus_ave.tiff', 
@@ -505,8 +506,13 @@ ggsave('../figs/paper/069_fruit_no_enterococcus_ave.tiff',
          dpi = 400, device = 'tiff')
 ```
 
+### sweets
+
+If excluding the empirical abx samples 
+
 ```{r}
 combined %>% 
+  filter(empirical == 'FALSE') %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
   summarise(ave_irep = mean(aveirep)) %>% 
@@ -520,10 +526,11 @@ combined %>%
   theme_light() +
   theme(aspect.ratio = 1)
 
-ggsave('../figs/paper/sweets_enterococcus.jpg', width = 5)
+ggsave('../figs/paper/069_sweets_enterococcus.jpg', width = 5)
 ```
 ```{r}
 combined %>% 
+  filter(empirical == 'FALSE') %>% 
   filter(!str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
   summarise(ave_irep = mean(aveirep)) %>% 
@@ -537,6 +544,6 @@ combined %>%
   theme_light() +
   theme(aspect.ratio = 1)
 
-ggsave('../figs/paper/sweets_no_enterococcus_ave.jpg', width = 5)
+ggsave('../figs/paper/069_sweets_no_enterococcus_ave.jpg', width = 5)
 ```
 

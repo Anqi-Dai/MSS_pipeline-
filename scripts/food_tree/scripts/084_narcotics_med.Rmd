@@ -20,8 +20,7 @@ ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 
 this <- dat %>% 
   mutate(mrn = as.numeric(MRN)) %>% 
-  filter(mrn %in% ptb$mrn) %>% 
-  filter(start_date %within% ymd('2017-01-01'))
+  filter(mrn %in% ptb$mrn)
 
 
 ```
