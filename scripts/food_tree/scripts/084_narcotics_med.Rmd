@@ -10,6 +10,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(lubridate)
+library(brms)   
+library(ggpubr)
+library(tidybayes)
+ncores <- parallel::detectCores()
 ```
 
 ```{r}
@@ -92,6 +96,172 @@ nar_all <- bind_rows(
   nar_dates %>% 
     filter(!mrn %in% change_stop) ,
   nar_correct
-)
+)  %>% 
+  mutate(nar_int = interval(start_date, stop_date))
+```
+
+## decide if a patient was exposed to narcotics painkiller in the two days prior to a stool sample collection
+
+```{r}
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('samples_castori_ag')
+
+# find if two intervals overlap
+stb_samp <- samples_castori_ag %>% 
+  filter(sampleid %in% meta$sampleid) %>% 
+  select(sampleid, datecollection, mrn) %>% 
+  mutate(p1d = datecollection -1,
+         p2d = datecollection -2) %>% 
+  mutate(p2d_int = interval(p2d, p1d)) %>% 
+  inner_join(nar_all %>% 
+               select(mrn, nar_int) ) %>% 
+  mutate(use_nar = int_overlaps(p2d_int, nar_int))
+
+use_nar_samp <- stb_samp %>% 
+  filter(use_nar == 'TRUE')
+
+meta_new <- meta %>% 
+  mutate(narcotics = if_else(sampleid %in% use_nar_samp$sampleid, T, F))  %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
+         inten_ab = if_else(intensity == 'ablative', 1, 0),
+         inten_re = if_else(intensity == 'reduced', 1, 0)) 
+
+model_nar <- log(simpson_reciprocal)~ 1 +
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               inten_non + inten_ab + inten_re +
+               empirical+
+                TPN+
+                EN+
+                narcotics +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for narcotics
+            prior(normal(0, 0.1), class = 'b', coef = "narcoticsTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            prior(normal(2, 0.1), class = 'Intercept'))
+
+model_narcotics <- brm( model_nar,  
+              data = meta_new, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = ncores, 
+              chains = 2, 
+              seed = 123, sample_prior = T) 
+
+post_samples  <- posterior_samples(model_narcotics, '^b_')
+```
+```{r}
+nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description) 
+
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
+
+
+post_coeff <- post_samples %>% 
+  select(starts_with('b_fg')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(nodes) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
+  mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) %>% 
+  left_join(key %>% select(fgrp1, color)) 
+
+fg_colors <- post_coeff %>% 
+  distinct(fdesc, color) %>% 
+  deframe()
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = fdesc, col = fdesc)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'High-level food categories\n(FNDDS)') +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = fg_colors) +
+  theme(axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        aspect.ratio=1) 
+```
+
+```{r}
+coeff_bi <- post_samples %>% 
+  select(!starts_with('b_fg')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure',
+    item == 'b_narcoticsTRUE' ~ 'narcotics exposure'
+  )) %>% 
+  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Binary variables') +
+  theme(legend.position = 'none',
+        aspect.ratio=1)
 ```
 
