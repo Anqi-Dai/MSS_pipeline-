@@ -23,6 +23,7 @@ loess_line_col <- 'gray'
 scatter_col <- 'gray14'
 pick_point_size <- 1
 pick_line_size <- 0.5
+example_pt_line_size <- 0.3
 ```
 
 
@@ -119,8 +120,8 @@ stool_alpha <- meta %>%
             title = 'Microbiome \u03b1 diversity',
             add = "loess", conf.int = TRUE, 
             add.params = list(color = 'darkgoldenrod2', fill = "darkblue", size = 1)) +
-  #geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'red', size = pick_point_size, shape = 'triangle') +
-  #geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = pick_line_size, col = 'red') +
+  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'darkgoldenrod2', size = example_pt_line_size, shape = 'triangle') +
+  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = example_pt_line_size, col = 'darkgoldenrod2') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
@@ -144,8 +145,8 @@ day_cal <- day_calori %>%
             color = scatter_col,
              add = "loess", conf.int = TRUE, 
             add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +  
-  #geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = 'red', size = pick_point_size) +
-  #geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = pick_line_size, col = 'red') +
+  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = loess_line_col, size = example_pt_line_size) +
+  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = example_pt_line_size, col = loess_line_col) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
@@ -171,8 +172,8 @@ diet_alpha <- faith %>%
             title = 'Diet \u03b1 diversity',
              add = "loess", conf.int = TRUE, 
             add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +
-  #geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = 'red', size = pick_point_size) +
-  #geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pick_line_size, col = 'red') +
+  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = loess_line_col, size = example_pt_line_size) +
+  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = example_pt_line_size, col = loess_line_col) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
@@ -193,19 +194,14 @@ bot <- plot_grid(day_cal, diet_alpha, stool_alpha,
 
 bot
 
-ggsave('../figs/paper/bot_fig1.tiff',
-       width = 160,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'tiff')
-
-ggsave('../figs/paper/bot_fig1_stool_alpha.tiff',
-       width = 60,
+ggsave('../figs/paper/072_bot_fig1.tiff',
+       width = 180,
        height = 60,
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'tiff', plot = stool_alpha)
+         dpi = 400, device = 'tiff', plot = bot)
+
+
 ```
 
 # fig1 top 3
@@ -306,7 +302,12 @@ fig1_umap <- df %>%
 
 fig1_umap
 
-
+ggsave('../figs/paper/072_fig1_umap.pdf',
+       width = 52,
+       height = 52,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf', plot = fig1_umap)
 ```
 ```{r diet_composition_histogram}
 # examine that patient's dit pick the day that's most diverse
@@ -356,10 +357,10 @@ daym5 <- dm5 %>%
 
 daym5
 ```
+
 ```{r tree}
 # import the tree from pdf to a ggplot kind of object
-grConvert::convertPicture( "../data/source/food_tree.pdf", "../data/source/food_tree.svg" )
-p <- grImport2::readPicture( "../data/source/food_tree.svg" )
+p <- grImport2::readPicture( "../figs/paper/080_food_tree_ring.svg" )
 tree <- grImport2::pictureGrob( p )
 ```
 
@@ -386,4 +387,42 @@ ggsave('../figs/paper/bot_fig1.pdf',
        device = cairo_pdf , plot = bot)
 ```
  
+```{r}
+# wanna create a figure legend with the full food group names and a color palette
+nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description) 
+
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
+```
+  
+
+```{r}
+palette_fg <- nodes %>% 
+  full_join(key) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  #mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_replace(fdesc, 'and','&'))
+palette_fg
+```
+
+
+```{r}
+fg_colors <- palette_fg %>% 
+  select(fdesc, color) %>% 
+  deframe()
+
+dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1 ,1)) %>% 
+  group_by(fgrp1) %>% 
+  summarise(total = sum(dehydrated_weight)) %>% 
+  full_join(palette_fg) %>% 
+  ggbarplot(x = 'fdesc', y = 'total', 
+            color = 'fdesc', fil = 'fdesc' ) +
+  scale_color_manual(values = fg_colors)  +
+  scale_fill_manual(values = fg_colors) 
+
+ggsave('../figs/paper/072_fg_color_palette.pdf', dpi = 400, width = 15)
+```
 
