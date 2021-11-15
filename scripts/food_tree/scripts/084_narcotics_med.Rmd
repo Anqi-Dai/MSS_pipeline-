@@ -98,6 +98,9 @@ nar_all <- bind_rows(
   nar_correct
 )  %>% 
   mutate(nar_int = interval(start_date, stop_date))
+
+nar_all %>% 
+  distinct(mrn)
 ```
 
 ## decide if a patient was exposed to narcotics painkiller in the two days prior to a stool sample collection
@@ -237,6 +240,8 @@ post_coeff %>%
   theme(axis.text=element_text(size=11),
         axis.title=element_text(size=11),
         aspect.ratio=1) 
+
+ggsave('../figs/paper/084_narcotics_model_fg_coeff.jpg', width = 5)
 ```
 
 ```{r}
@@ -263,5 +268,7 @@ coeff_bi %>%
        y = 'Binary variables') +
   theme(legend.position = 'none',
         aspect.ratio=1)
+
+ggsave('../figs/paper/084_narcotics_model_binary.jpg', width = 5)
 ```
 

@@ -63,19 +63,19 @@ fill_val <- bars %>%
   deframe()
 ```
 ```{r}
-p <- ggplot(bars_, aes(x=Food_code, y=log10gram, fill = fg1_name)) +  
-  geom_bar(stat="identity") +
-  scale_fill_manual(values = fill_val) +
-  ylim(-50,15) +# this adjust the image to be like a ring
-  theme_minimal() +
-  theme(
-    axis.text = element_blank(),
-    axis.title = element_blank(),
-    panel.grid = element_blank(),
-    legend.position = 'none'
-    #plot.margin = unit(rep(-2,4), "cm")    
-  ) +
-  coord_polar(start = 90)
+# p <- ggplot(bars_, aes(x=Food_code, y=log10gram, fill = fg1_name)) +  
+#   geom_bar(stat="identity") +
+#   scale_fill_manual(values = fill_val) +
+#   ylim(-50,15) +# this adjust the image to be like a ring
+#   theme_minimal() +
+#   theme(
+#     axis.text = element_blank(),
+#     axis.title = element_blank(),
+#     panel.grid = element_blank(),
+#     legend.position = 'none'
+#     #plot.margin = unit(rep(-2,4), "cm")    
+#   ) +
+#   coord_polar(start = 90)
 
   
 ```
@@ -103,7 +103,8 @@ ring %>%
 ```{r one_day}
 # add the annotation marker for the example daily meal for that patient 
 dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>% 
-  inner_join(tree_df %>% mutate(Food_code = as.numeric(FoodID))) %>% 
+  rename(food_desc = description) %>% 
+  inner_join(tree_df %>% mutate(Food_code = as.numeric(FoodID)), by = "Food_code") %>% 
   mutate(log10wt = log10(dehydrated_weight))
 
 clade_markder <- dm5 %>% 
@@ -130,7 +131,7 @@ ring_itself <- tibble(
 ```
 
 ```{r}
-# add the day meal log2 wt for the food code to the second ring
+# add the day meal log10 wt for the food code to the second ring
 ring2 <- dm5 %>% 
   mutate(ring_height = log10wt) %>% 
   select(description, ring_color = color, ring_height) %>% 

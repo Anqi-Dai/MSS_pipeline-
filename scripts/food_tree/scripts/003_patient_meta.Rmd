@@ -264,7 +264,9 @@ final %>%
     type = list(all_integer() ~ "continuous"), 
     statistic = list(all_continuous() ~ "{mean} ({sd})")
   ) %>%
-  bold_labels()
+  bold_labels() %>% 
+  as_gt() %>%
+  gt::gtsave(filename = "../data/cleaned_diet_data/003_table_1_patient_summary.pdf")
 
 ```
 

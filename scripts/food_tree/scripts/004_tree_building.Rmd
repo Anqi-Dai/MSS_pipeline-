@@ -119,7 +119,7 @@ cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree.newick')
 final.table <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv')
 
 final_table_name <- final.table%>% 
-  mutate(newickstring_name = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{Main.food.description}'))
+  mutate(newickstring_name = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{description}'))
 
 #### Make and export the tree ####
 foodTree <- as.Node(final_table_name, pathName = "newickstring_name")
