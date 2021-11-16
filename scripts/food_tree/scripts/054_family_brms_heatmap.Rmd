@@ -151,7 +151,13 @@ Enterococcaceae_model <- brm( Enterococcaceae_mod,
               chains = 2, 
               control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T )
+
+post_enterco <- suppressWarnings(posterior_samples(Enterococcaceae_model)) %>% 
+            select(-starts_with('r_'))
+
+post_enterco %>%  write_csv('../data/054_Enterococcaceae_model_post.csv')
 ```
+
 
 
 ```{r Enterococcaceae}
@@ -162,7 +168,7 @@ nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %
   rename(fgrp1 = Level.code, 
          fdesc = Main.food.description) 
 
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc') 
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccccc') 
 
 post_coeff <- post_samples %>% 
   select(starts_with('b_fg')) %>% 
@@ -179,7 +185,7 @@ post_coeff <- post_samples %>%
     item ==  'oils' ~ '8', 
     item ==  'sweets' ~ '9'
   ))  %>% 
-  left_join(nodes) %>% 
+  left_join(key) %>% 
   mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
   mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
   mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
@@ -235,6 +241,7 @@ coeff_bi %>%
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'Binary variables') +
+  theme_classic() +
   theme(legend.position = 'none',
         aspect.ratio=1)
 
@@ -413,7 +420,8 @@ post_res <- post_df %>%
   mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
   mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(family = str_replace(family, '._Incertae_Sedis','')) %>% 
-  mutate(item = str_replace(item, 'b_fg_',''))
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+  mutate(item = str_to_title(item))
 ```
 
 
@@ -463,12 +471,12 @@ ggplot(post_res_ordered, aes(x = family, y = item)) +
  # geom_text(aes(label = round(meanperitem, 3))) +
   geom_text(aes(label = mark, x = family,y =  item),
             nudge_y = -0.1, nudge_x = 0,size = 5) +
-  scale_fill_manual(values = col_key, labels = c('Effects too small','75% CI < 0 negative','75% CI > 0 positive')) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI < 0 negative','75% CI > 0 positive')) +
   theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text.x = element_text(angle=45, hjust=1, size=13),
-        axis.text.y=element_text(size=12),
+        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.y=element_text(size=11),
         axis.title=element_text(size=axis_title_size),
         #panel.grid.major = element_blank(), 
         #panel.grid.minor = element_blank(),
@@ -477,7 +485,7 @@ ggplot(post_res_ordered, aes(x = family, y = item)) +
         panel.background = element_blank()) 
 
 
-ggsave('../figs/paper/054_heatmap_family_24_ggplot.pdf', width = 10, height = 4)
+ggsave('../figs/paper/054_heatmap_family_24_ggplot.pdf', width = 8, height = 5)
 ```
 
 ```{r}
@@ -514,12 +522,12 @@ ggplot(post_bi_res, aes(x = family, y = item_name)) +
   geom_tile(aes(fill = color,  x = family, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
   geom_text(aes(label = mark, x = family,y =  item_name),
             nudge_y = -0.1, nudge_x = 0,size = 5) +
-  scale_fill_manual(values = col_key, labels = c('Effects too small','75% CI < 0 negative','75% CI > 0 positive')) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI < 0 negative','75% CI > 0 positive')) +
   theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text.x = element_text(angle=45, hjust=1, size=13),
-        axis.text.y=element_text(size=12),
+        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.y=element_text(size=11),
         axis.title=element_text(size=axis_title_size),
         #panel.grid.major = element_blank(), 
         #panel.grid.minor = element_blank(),

@@ -13,7 +13,6 @@ output:
 knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
-In this script, the max and the mean are from the EN-less records. 9 food groups.
 
 ```{r}
 library(tidyverse)
@@ -24,13 +23,18 @@ library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccccc')
 axis_text_size <- 10
 axis_title_size <- 10
 ```
 
 ```{r}
 # the top 10 most consumed in fruits , sweets and veggie item 
+# total number of meals 
+n_meal <- dtb %>% 
+  count(mrn, fdrt, Meal) %>% 
+  nrow()
+  
 top3grp <- dtb %>% 
   mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
   filter(fgrp1 %in% c('9','6','7')) %>% 
@@ -38,10 +42,10 @@ top3grp <- dtb %>%
   summarise(total_per_code = sum(dehydrated_weight)) %>% 
   group_by(fgrp1) %>% 
   arrange(desc(total_per_code), .by_group = T)  %>% 
-  top_n(5) %>% 
+  top_n(10) %>% 
   left_join(key) %>% 
   ungroup() %>% 
-  mutate(log10gram = log10(total_per_code)) %>% 
+  mutate(gram_per_meal = total_per_code/n_meal) %>% 
   mutate(fg1_full_name = case_when(
     fgrp1 == '6' ~ 'Fruits',
     fgrp1 == '7' ~ 'Vegetables',
@@ -49,19 +53,19 @@ top3grp <- dtb %>%
   )) %>% 
   mutate(fg1_full_name = factor(fg1_full_name, levels = c('Fruits','Sugars, Sweets & Beverages', 'Vegetables')))
 
-ggdotchart(top3grp, x = "description", y = "log10gram",
-           xlab = 'Food item description', ylab = 'Total consumed in dehydrated weight\nlog10 transformed',
+ggdotchart(top3grp, x = "description", y = "gram_per_meal",
+           xlab = 'Food item names', 
+           ylab = 'Per meal average consumption (gram)',
    group = "fg1_full_name", color = "fg1_full_name",
    palette = c('#7D3C98','#db2589', '#229954'),
    rotate = TRUE,
    sorting = "descending", 
    ggtheme = theme_bw(),
    y.text.col = TRUE ) +
-  theme(legend.position = 'top',
+  theme(legend.position = 'right',
         legend.title = element_blank())
 
-ggsave('../figs/paper/068_top5_eaten_foods_of_679.pdf', width = 5, height = 4)
-ggsave('../figs/paper/068_top5_eaten_foods_of_679.jpg', width = 7, height = 6)
+ggsave('../figs/paper/068_top10_eaten_foods_of_679.pdf', width = 8, height = 5)
 ``` 
 
 
@@ -290,10 +294,6 @@ out %>% write_csv('../data/brms_model_var_res_updated.csv')
 ```{r post_coeff_forest}
 # make the forest plot of the post coeff 
 # like the one on the ash abstract
-nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
-  filter(nchar(Level.code) == 1) %>% 
-  rename(fgrp1 = Level.code, 
-         fdesc = Main.food.description) 
 
 post_coeff <- post_samples %>% 
   select(starts_with('b_fg')) %>% 
@@ -310,37 +310,39 @@ post_coeff <- post_samples %>%
     item ==  'oils' ~ '8', 
     item ==  'sweets' ~ '9'
   ))  %>% 
-  left_join(nodes) %>% 
-  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
-  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
-  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
-  mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) %>% 
-  left_join(key %>% select(fgrp1, color)) 
+  left_join(key %>% select(fgrp1, color, shortname))  %>% 
+  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
 ```
 ```{r}
 fg_colors <- post_coeff %>% 
-  distinct(fdesc, color) %>% 
+  distinct(shortname, color) %>% 
+  select(shortname, color) %>% 
   deframe()
 
+title1 <- bquote(Outcome: log[e]~(Simpsons~reciprocal))
+
 post_coeff %>% 
-  ggplot(aes(x = coeff, y = fdesc, col = fdesc)) +
+  ggplot(aes(x = coeff, y = shortname, col = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'High-level food categories\n(FNDDS)') +
+  theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = fg_colors) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 
-ggsave('../figs/paper/068_fig2_model_coeff_forest.eps',  width = 100,
-       height = 100,
+ggsave('../figs/paper/068_fig2_model_coeff_forest.eps',  
+       width = 80,
+       height = 80,
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'eps')
 ```
+
 
 ```{r post_coeff_binary}
 coeff_bi <- post_samples %>% 
@@ -365,6 +367,7 @@ coeff_bi %>%
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'Binary variables') +
+  theme_classic() +
   theme(legend.position = 'none',
         aspect.ratio=1)
 
@@ -456,32 +459,33 @@ post_diff_df <- maxs %>%
   bind_rows(.id = 'term') %>% 
   mutate(term = str_replace(term, 'max_','')) %>% 
   left_join(key %>% 
-              select(term = fg1_name, color)) %>% 
-  mutate(term = fct_reorder(term, post_diff_original_scale, .fun=median, .desc = F))
+              select(term = fg1_name, color, shortname)) %>% 
+  mutate(shortname = fct_reorder(shortname, post_diff_original_scale, .fun=median, .desc = F))
 ```
-```{r post_diff_2}
+```{r post_diff_3}
 # only plot the post diff forest in fruits and sweets
-only2 <- post_diff_df %>% 
-  filter(term %in% c('fg_fruit','fg_sweets')) 
+only3 <- post_diff_df %>% 
+  filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) 
 
-only2 %>% 
-  ggplot(aes(y = term, x = post_diff_original_scale, col = term)) +
+only3 %>% 
+  ggplot(aes(y = shortname, x = post_diff_original_scale, col = term)) +
   stat_halfeye() +
   #scale_fill_manual(values = c("gray80", "skyblue")) +
   geom_vline(xintercept = 0, linetype = "dashed", col = 'red') +
   labs(x = "Expected change in\nSimpson's reciprocal diversity",
        y = '',
        title = '') +
-  theme(legend.position = 'none') +
+  theme_classic() +
   scale_x_continuous(breaks = seq(-10, 20, 2)) +
   scale_color_manual(values = key %>% 
                        select(fg1_name, color) %>% deframe()) +
-  xlim(-6, 3) +
+  xlim(-6, 4.5) +
   theme(axis.text=element_text(size=axis_text_size),
+        legend.position = 'none',
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 
-ggsave('../figs/paper/068_fig2_fg2_post_diff.eps',  width = 80,
+ggsave('../figs/paper/068_fig2_fg3_post_diff.eps',  width = 80,
        height = 80,
          #height = 60, 
          units = c("mm"),

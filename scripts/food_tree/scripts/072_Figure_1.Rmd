@@ -63,6 +63,7 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 m_all <- dtb %>%  
   select(mrn, fdrt,Protein_g:Sodium_g ) %>% 
   gather('grp','gram', Protein_g:Sodium_g) %>% 
+  mutate(grp = str_replace(grp, '_g$','')) %>% 
   group_by(mrn, fdrt, grp) %>% 
   summarise(eachsum = sum(gram)) 
 
@@ -76,11 +77,12 @@ macro_list <- m_all %>%
   imap(function(.x, .y) {
       ggscatter(data = .x ,x = 'fdrt', y = 'eachsum', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
-            ylab = str_glue('{.y}'),
+            ylab = 'Grams',
+            title = str_glue('{.y}'),
             add = "loess", conf.int = TRUE, 
             add.params = list(color = loess_line_col, fill = "darkblue", size = 1))  +
-  geom_point(data = m_pick[[.y]], aes(x = fdrt, y = eachsum), col = 'red', size = pick_point_size) +
-  geom_line(data = m_pick[[.y]], aes(x = fdrt, y =eachsum), linetype = 'solid', size = pick_line_size, col = 'red') +
+  geom_point(data = m_pick[[.y]], aes(x = fdrt, y = eachsum), col = loess_line_col, size = example_pt_line_size) +
+  geom_line(data = m_pick[[.y]], aes(x = fdrt, y =eachsum), linetype = 'solid', size = example_pt_line_size, col = loess_line_col) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
@@ -91,10 +93,10 @@ macro <- plot_grid(macro_list[[1]],macro_list[[2]],macro_list[[3]],macro_list[[4
           align = 'hv',
           #rel_widths =  c(1,1),
           #rel_heights = c(1,1),
-          #labels = c('C','D','E'),
+          labels = c('A','B','C', 'D','E','F'),
           axis = 'tblr') 
 
-ggsave('../figs/paper/macro_fig1.pdf',
+ggsave('../figs/paper/072_macro_fig1_supp.pdf',
        width = 160,
        height = 120,
          #height = 60,
@@ -403,8 +405,11 @@ palette_fg <- nodes %>%
   full_join(key) %>% 
   mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
   #mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
-  mutate(fdesc = str_replace(fdesc, 'and','&'))
-palette_fg
+  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
+  mutate(shortname = str_replace(fg1_name, 'fg_','')) %>% 
+  mutate(shortname = str_to_title(shortname))
+palette_fg %>% 
+  write_csv('../data/cleaned_diet_data/food_group_color_key.csv')
 ```
 
 
