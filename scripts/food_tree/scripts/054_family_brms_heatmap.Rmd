@@ -535,7 +535,7 @@ ggplot(post_bi_res, aes(x = family, y = item_name)) +
         legend.key = element_rect( colour = "gray50"),
         panel.background = element_blank()) 
 
-ggsave('../figs/paper/054_heatmap_binaries_family_24_ggplot.pdf', width = 10, height = 4)
+ggsave('../figs/paper/054_heatmap_binaries_family_24_ggplot.pdf', width = 9, height = 4)
 ```
 
 

@@ -17,13 +17,14 @@ library(ggimage)
 
 axis_text_size <- 10
 axis_title_size <- 10
-alpha_val <- 0.1
+alpha_val <- 0.05
 point_size <- 1.2
 loess_line_col <- 'gray'
 scatter_col <- 'gray14'
 pick_point_size <- 1
 pick_line_size <- 0.5
 example_pt_line_size <- 0.3
+diet_line_color <- 'darkolivegreen2'
 ```
 
 
@@ -121,14 +122,14 @@ stool_alpha <- meta %>%
             ylab = 'Microbiome \u03b1 diversity',
             title = 'Microbiome \u03b1 diversity',
             add = "loess", conf.int = TRUE, 
-            add.params = list(color = 'darkgoldenrod2', fill = "darkblue", size = 1)) +
-  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'darkgoldenrod2', size = example_pt_line_size, shape = 'triangle') +
-  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = example_pt_line_size, col = 'darkgoldenrod2') +
+            add.params = list(color = 'khaki2', fill = "darkblue", size = 1)) +
+  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'khaki2', size = example_pt_line_size, shape = 'triangle') +
+  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = example_pt_line_size, col = 'khaki2') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         aspect.ratio=1)
-stool_alpha
+
 ```
 
 ```{r caloric_intake}
@@ -146,14 +147,14 @@ day_cal <- day_calori %>%
             title = 'Daily caloric intake',
             color = scatter_col,
              add = "loess", conf.int = TRUE, 
-            add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +  
-  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = loess_line_col, size = example_pt_line_size) +
-  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = example_pt_line_size, col = loess_line_col) +
+            add.params = list(color = diet_line_color, fill = "darkblue", size = 1)) +  
+  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = diet_line_color, size = example_pt_line_size) +
+  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = example_pt_line_size, col = diet_line_color) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         aspect.ratio=1)
-day_cal
+
 ```
 
 ```{r nutrition_alpha}
@@ -173,16 +174,16 @@ diet_alpha <- faith %>%
             xlab = 'Day relative to HCT',
             title = 'Diet \u03b1 diversity',
              add = "loess", conf.int = TRUE, 
-            add.params = list(color = loess_line_col, fill = "darkblue", size = 1)) +
-  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = loess_line_col, size = example_pt_line_size) +
-  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = example_pt_line_size, col = loess_line_col) +
+            add.params = list(color = diet_line_color, fill = "darkblue", size = 1)) +
+  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = diet_line_color, size = example_pt_line_size) +
+  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = example_pt_line_size, col = diet_line_color) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
         ) + 
   theme(aspect.ratio=1)
-diet_alpha
+
 ```
 
 ```{r combine_bot3}

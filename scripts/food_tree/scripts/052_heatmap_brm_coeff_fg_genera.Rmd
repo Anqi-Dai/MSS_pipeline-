@@ -13,6 +13,7 @@ Response: 48 genera
 library(tidyverse)
 library(brms)
 library(ggpubr)
+ncores <- parallel::detectCores()
 ```
 
 ## load tables
@@ -31,73 +32,124 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
          fg_veggie = fg_veggie/100) %>% 
-  mutate(empiT = if_else(empirical == 'TRUE', 1, 0),
-         empiF = if_else(empirical == 'FALSE', 1, 0),
-         tpnT = if_else(TPN == 'TRUE', 1, 0),
-         tpnF = if_else(TPN == 'FALSE', 1, 0),
-         enT = if_else(TPN == 'TRUE', 1, 0),
-         enF = if_else(TPN == 'FALSE', 1, 0),
-         inten_non = if_else(intensity == 'nonablative', 1, 0),
+  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
          inten_ab = if_else(intensity == 'ablative', 1, 0),
          inten_re = if_else(intensity == 'reduced', 1, 0))
 
+meta %>% 
+  summary()
+```
+
+
+```{r}
 cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) %>% 
   dplyr::select(sampleid, genus, relab) 
 
 
-model_formular <- Enterococcus ~ 1 +
+blautia_mod <- Blautia ~ 1 +
                 fg_fruit+
-               fg_meat+
-               fg_milk+
-               #fg_oils+
-                #fg_egg+ 
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+ 
                 fg_grain+
                 fg_sweets+  
-                #fg_legume+
+                fg_legume+
                 fg_veggie+
                inten_non + inten_ab + inten_re +
-               empiT +  empiF+
-                tpnT +tpnF+
-                enT +enF+
+                empirical+
+                TPN+
+                EN+ 
                (1 | mrn) +
                 (1 | timebin)
 
 
 priors <- c(# for the food group variables
-            #prior(normal(0, 3), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_egg"),
             prior(normal(0, 1.2), class = 'b', coef = "fg_fruit"),
             prior(normal(0, 1.2), class = 'b', coef = "fg_grain"),
-            #prior(normal(0, 3), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_legume"),
             prior(normal(0, 1.2), class = 'b', coef = "fg_meat"),
             prior(normal(0, 1.2), class = 'b', coef = "fg_milk"),
-            #prior(normal(0, 3), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_oils"),
             prior(normal(0, 1.2), class = 'b', coef = "fg_sweets"),
             prior(normal(0, 1.2), class = 'b', coef = "fg_veggie"),
             # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "tpnF"),
-            prior(normal(0, 0.1), class = 'b', coef = "tpnT"),
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "enF"),
-            prior(normal(0, 0.1), class = 'b', coef = "enT"),
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
             # for the empirical 
-            prior(normal(0, 0.6), class = 'b', coef = "empiF"),
-            prior(normal(0, 0.6), class = 'b', coef = "empiT"),
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
             prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
             prior(normal(-3, 0.4), class = 'Intercept'))
 
+blautia_cts <-  cts %>% 
+  filter(genus %in% c('Blautia')) %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  dplyr::select(-relab) %>% 
+  spread(key = 'genus', value = 'relablog') 
+All <- blautia_cts %>% 
+  inner_join(meta)
 
-model_old <- brm( model_formular,  
-              data = final, 
+
+model_blautia <- brm( blautia_mod,  
+              data = All, 
               warmup = 1000, iter = 3000, 
               prior = priors,
-              cores = 16, 
+              cores = ncores, 
               chains = 2, 
               seed = 123, sample_prior = T) 
 
+summary(model_blautia)
+post_samples  <- posterior_samples(model_blautia, '^b_')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccccc') 
+post_coeff <- post_samples %>% 
+  select(starts_with('b_fg')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(key) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
+  left_join(key %>% select(fgrp1, color, shortname))  %>% 
+  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
+
+fg_colors <- post_coeff %>% 
+  distinct(shortname, color) %>% 
+  select(shortname, color) %>% 
+  deframe()
+# plotting the forest
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = shortname, col = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = fg_colors) +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10),
+        aspect.ratio=1)       
+```
+
+
+```{r}
 mean_fg <-  meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean))

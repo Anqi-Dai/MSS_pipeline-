@@ -144,7 +144,7 @@ priors <- c(# for the food group variables
 
 # samples are drawn solely from the priors ignoring the likelihood
 # model_wo_EN  means the usual model that the EN is still a binary variable and not ann inndivicual group
-model_wo_EN <- brm( model_formular,  
+model_div <- brm( model_formular,  
               data = meta, 
               warmup = 1000, iter = 3000, 
               prior = priors,
@@ -153,31 +153,26 @@ model_wo_EN <- brm( model_formular,
               seed = 123, sample_prior = T) 
 
 # actually draw samples from the priors 
-samples_prior <- prior_draws(model_wo_EN)
+samples_prior <- prior_draws(model_div)
 
 ```
 
 ```{r }
 # the mean food group intake from our data 
 ave_fg <- meta %>% 
-  filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean)) %>% 
   gather
 
 mean_fg <-  meta %>% 
-  filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean))
 
 max_fg <- meta %>% 
-  filter(EN == 'FALSE') %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(max)) 
 
 
-max_log_div <- max(log(meta$simpson_reciprocal)) 
-range(log(meta$simpson_reciprocal))
 ```
 
 
@@ -274,7 +269,7 @@ vals <- names(values)
 
 ```{r post_sample}
 # extract posterior samples for the coeff
-post_samples  <- posterior_samples(model_wo_EN, '^b_')
+post_samples  <- posterior_samples(model_div, '^b_')
 
 # save it out for the forest plot of the coeff
 post_fg_coeff <- post_samples %>% 
@@ -489,7 +484,7 @@ ggsave('../figs/paper/068_fig2_fg3_post_diff.eps',  width = 80,
        height = 80,
          #height = 60, 
          units = c("mm"),
-         dpi = 400, device = 'eps')
+         dpi = 400, device = 'eps')  
 ```
 
 
