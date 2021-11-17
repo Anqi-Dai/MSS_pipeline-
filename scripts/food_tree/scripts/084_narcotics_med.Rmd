@@ -193,14 +193,15 @@ model_narcotics <- brm( model_nar,
               seed = 123, sample_prior = T) 
 
 post_samples  <- posterior_samples(model_narcotics, '^b_')
-```
-```{r}
-nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
-  filter(nchar(Level.code) == 1) %>% 
-  rename(fgrp1 = Level.code, 
-         fdesc = Main.food.description) 
 
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
+post_pca <- suppressWarnings(posterior_samples(model_narcotics)) %>% 
+            select(-starts_with('r_'))
+
+post_pca %>%  write_csv('../data/084_narcotics_PCA_model_post.csv')
+```
+
+```{r}
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccccc')
 
 
 post_coeff <- post_samples %>% 
@@ -218,23 +219,23 @@ post_coeff <- post_samples %>%
     item ==  'oils' ~ '8', 
     item ==  'sweets' ~ '9'
   ))  %>% 
-  left_join(nodes) %>% 
-  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
-  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
-  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
-  mutate(fdesc = fct_reorder(fdesc, coeff, .fun=median, .desc = F)) %>% 
-  left_join(key %>% select(fgrp1, color)) 
+  left_join(key) %>% 
+  left_join(key %>% select(fgrp1, color, shortname))  %>% 
+  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
 
-fg_colors <- post_coeff %>% 
-  distinct(fdesc, color) %>% 
+fg_colors <- key %>% 
+  select(shortname, color) %>% 
   deframe()
-post_coeff %>% 
-  ggplot(aes(x = coeff, y = fdesc, col = fdesc)) +
+
+pca_fg <- post_coeff %>% 
+  ggplot(aes(x = coeff, y = shortname, col = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'High-level food categories\n(FNDDS)') +
+       y = 'High-level food categories\n(FNDDS)',
+       title = expression(paste('Outcome:', log[e], '(alpha diversity)'))) +
+  theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = fg_colors) +
   theme(axis.text=element_text(size=11),
@@ -259,16 +260,44 @@ coeff_bi <- post_samples %>%
     item == 'b_narcoticsTRUE' ~ 'narcotics exposure'
   )) %>% 
   mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
-coeff_bi %>% 
+
+pca_bi <- coeff_bi %>% 
   ggplot(aes(x = coeff, y = item_name)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'Binary variables') +
+       y = 'Binary variables',
+       title = expression(paste('Outcome:', log[e], '(alpha diversity)'))) +
+  theme_classic() +
   theme(legend.position = 'none',
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
         aspect.ratio=1)
 
 ggsave('../figs/paper/084_narcotics_model_binary.jpg', width = 5)
+```
+```{r}
+# combine them together to make one supplementary figure
+pca <- cowplot::plot_grid(pca_fg, pca_bi, 
+          nrow = 1, 
+          align = 'hv',
+          #rel_widths =  c(1,1),
+          #rel_heights = c(1,1),
+          labels = c('A','B'),
+          axis = 'tblr') 
+
+ggsave('../figs/paper/084_narcotics_PCA_model_coeff_forest.eps',  
+       width = 190,
+       height = 70,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+ggsave('../figs/paper/084_narcotics_PCA_model_coeff_forest.jpg',  
+       width = 190,
+       height = 70,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'jpg')
 ```
 
