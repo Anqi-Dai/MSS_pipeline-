@@ -199,8 +199,6 @@ ggsave('../figs/paper/072_bot_fig1.tiff',
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'tiff', plot = bot)
-
-
 ```
 
 # fig1 top 3

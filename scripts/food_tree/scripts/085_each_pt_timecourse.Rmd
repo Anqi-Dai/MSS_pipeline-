@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE) 
 ```
 
 Make a figure with panels with each patient's timecourse in daily caloric intake, diet and stool alpha diversity as a supplementary figure.
@@ -12,6 +12,68 @@ Make a figure with panels with each patient's timecourse in daily caloric intake
 ```{r}
 library(ggpubr)
 library(tidyverse)
+pt_line_size <- 1
+alpha_val <- 1
+point_size <- 2
+diet_line_color <- 'darkolivegreen2'
+axis_text_size <- 11
+axis_title_size <- 11
+stool_line_color <- 'yellow4'
 ```
 
+
+```{r}
+# the three datasets split to each patient
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+stool <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')%>% 
+  split(.$mrn)
+
+day_calori <- dtb %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(daycal = sum(Calories_kcal))%>% 
+  split(.$mrn)
+
+faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
+  separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) %>% 
+  split(.$mrn)
+
+mrns <- names(faith)
+```
+
+```{r}
+# to put the stool data in the same dimension as the diet data use a scaling factor to bring them to same level when plotting the y but then show on the  y axis scale that they are different
+scale_factor <- 50
+
+every_pt_list <-  mrns %>% 
+  set_names(mrns) %>% 
+  map(function(.x) {
+      ggscatter(data =  day_calori[[.x]], x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, 
+                color = diet_line_color,
+            xlab = 'Day relative to HCT',
+            #title = str_glue('{.x}'),
+            ylab = ''
+            )  +
+      geom_line(data = day_calori[[.x]], aes(x = fdrt, y = daycal), linetype = 'solid', size = pt_line_size, col = diet_line_color) +
+      # the diet faith 
+      geom_point(data = faith[[.x]], aes(x = fdrt, y = faith_pd), col = diet_line_color, size = point_size) +
+      geom_line(data = faith[[.x]], aes(x = fdrt, y = faith_pd), linetype = 'dashed', size = pt_line_size, col = diet_line_color) +
+      # the stool data
+      geom_point(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal*scale_factor), col = stool_line_color, size = point_size, shape = 'triangle') +
+      geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal*scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
+    scale_y_continuous(name = "Diet daily caloric intake/faith diversity", 
+    sec.axis = sec_axis(~./scale_factor, name = "Microbiome alpha diversity")) +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        axis.title.y = element_text(color = diet_line_color),
+        axis.title.y.right = element_text(color = stool_line_color),
+        aspect.ratio=1)
+  })
+
+```
+```{r}
+# arrange the above into a facet-wrap
+```
 
