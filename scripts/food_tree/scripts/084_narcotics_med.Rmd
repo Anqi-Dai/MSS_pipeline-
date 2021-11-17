@@ -123,7 +123,13 @@ stb_samp <- samples_castori_ag %>%
 
 use_nar_samp <- stb_samp %>% 
   filter(use_nar == 'TRUE')
+# how many samples from how many patients
+use_nar_samp %>% 
+  count(mrn)
+```
 
+
+```{r}
 meta_new <- meta %>% 
   mutate(narcotics = if_else(sampleid %in% use_nar_samp$sampleid, T, F))  %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 

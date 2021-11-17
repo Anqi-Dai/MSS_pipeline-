@@ -1,0 +1,17 @@
+---
+title: "The full panel of the three lines for every patient"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Make a figure with panels with each patient's timecourse in daily caloric intake, diet and stool alpha diversity as a supplementary figure.
+
+```{r}
+library(ggpubr)
+library(tidyverse)
+```
+
+

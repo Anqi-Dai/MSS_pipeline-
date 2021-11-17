@@ -15,16 +15,16 @@ library(ggimage)
 #library(grConvert)
 
 
-axis_text_size <- 10
-axis_title_size <- 10
+axis_text_size <- 11
+axis_title_size <- 11
 alpha_val <- 0.05
 point_size <- 1.2
-loess_line_col <- 'gray'
 scatter_col <- 'gray14'
 pick_point_size <- 1
 pick_line_size <- 0.5
 example_pt_line_size <- 0.3
 diet_line_color <- 'darkolivegreen2'
+stool_line_color <- 'yellow4'
 ```
 
 
@@ -76,16 +76,15 @@ m_pick <- m_all %>%
 macro_list <- m_all %>% 
   split(.$grp) %>% 
   imap(function(.x, .y) {
-      ggscatter(data = .x ,x = 'fdrt', y = 'eachsum', alpha = alpha_val, size = point_size, 
+      ggscatter(data = .x ,x = 'fdrt', y = 'eachsum', alpha = 0.02, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Grams',
             title = str_glue('{.y}'),
             add = "loess", conf.int = TRUE, 
-            add.params = list(color = loess_line_col, fill = "darkblue", size = 1))  +
-  geom_point(data = m_pick[[.y]], aes(x = fdrt, y = eachsum), col = loess_line_col, size = example_pt_line_size) +
-  geom_line(data = m_pick[[.y]], aes(x = fdrt, y =eachsum), linetype = 'solid', size = example_pt_line_size, col = loess_line_col) +
+            add.params = list(color = diet_line_color, fill = "darkblue", size = 1))  +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         aspect.ratio=1)
   })
 
@@ -106,25 +105,22 @@ ggsave('../figs/paper/072_macro_fig1_supp.pdf',
 ```
 
 
-```{r}
+```{r stool_alpha}
 # picked patient
 pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
 
 pick_stool <- meta %>% 
   filter(mrn == pick$mrn)
-```
 
-
-```{r stool_alpha}
 stool_alpha <- meta %>% 
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT', shape = 'triangle',
-            ylab = 'Microbiome \u03b1 diversity',
-            title = 'Microbiome \u03b1 diversity',
+            ylab = expression(Microbiome~alpha~diversity),
+            title = expression(Microbiome~alpha~diversity),
             add = "loess", conf.int = TRUE, 
-            add.params = list(color = 'khaki2', fill = "darkblue", size = 1)) +
-  geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = 'khaki2', size = example_pt_line_size, shape = 'triangle') +
-  geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = example_pt_line_size, col = 'khaki2') +
+            add.params = list(color = stool_line_color, fill = "darkblue", size = 1)) +
+  #geom_point(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), col = stool_line_color, size = example_pt_line_size, shape = 'triangle') +
+  #geom_line(data = pick_stool, aes(x = sdrt, y = simpson_reciprocal), linetype = 'solid', size = example_pt_line_size, col = stool_line_color) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
@@ -148,8 +144,8 @@ day_cal <- day_calori %>%
             color = scatter_col,
              add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "darkblue", size = 1)) +  
-  geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = diet_line_color, size = example_pt_line_size) +
-  geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = example_pt_line_size, col = diet_line_color) +
+  #geom_point(data = pick_cal, aes(x = fdrt, y = daycal), col = diet_line_color, size = example_pt_line_size) +
+  #geom_line(data = pick_cal, aes(x = fdrt, y = daycal), linetype = 'solid', size = example_pt_line_size, col = diet_line_color) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
@@ -170,13 +166,13 @@ diet_alpha <- faith %>%
   ggscatter('fdrt', 'faith_pd', 
              alpha = alpha_val,size = point_size, 
             color = scatter_col, 
-            ylab = "Diet \u03b1 diversity", 
+            ylab = expression(Diet~alpha~diversity), 
             xlab = 'Day relative to HCT',
-            title = 'Diet \u03b1 diversity',
+            title = expression(Diet~alpha~diversity),
              add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "darkblue", size = 1)) +
-  geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = diet_line_color, size = example_pt_line_size) +
-  geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = example_pt_line_size, col = diet_line_color) +
+  #geom_point(data = pick_faith, aes(x = fdrt, y = faith_pd), col = diet_line_color, size = example_pt_line_size) +
+  #geom_line(data = pick_faith, aes(x = fdrt, y = faith_pd), linetype = 'solid', size = example_pt_line_size, col = diet_line_color) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
