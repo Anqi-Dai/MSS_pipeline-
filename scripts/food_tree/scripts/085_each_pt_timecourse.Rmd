@@ -39,7 +39,10 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
   mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) %>% 
   split(.$mrn)
 
-mrns <- names(faith)
+
+
+# keep the patients that have stool data
+mrns <- names(meta)
 ```
 
 ```{r}
@@ -72,8 +75,14 @@ every_pt_list <-  mrns %>%
         aspect.ratio=1)
   })
 
+
+
 ```
 ```{r}
 # arrange the above into a facet-wrap
+library(gridExtra)
+n <- length(every_pt_list)
+nCol <- floor(sqrt(n))
+do.call("grid.arrange", c(every_pt_list, ncol=nCol))
 ```
 
