@@ -1,0 +1,45 @@
+---
+title: "The clinical table"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+
+```{r}
+ptb <- read_csv('/Volumes/vandenBrinkLab/PICI/PICI_microbiome_analysis_project/PICI0025_clinical_2021-10-07/AMADEUS_ClinicalData_20211007.csv')
+stb <- readxl::read_excel('/Volumes/vandenBrinkLab/PICI/PICI_microbiome_analysis_project/PICI0025_PICI0033_microbiome_samples_shipped.xlsx')
+# the metrics from the pipeline
+metric <- read_tsv('../data/input/readcounts.tsv')
+```
+```{r}
+# visualize the read depth of the shotgun data
+# what proportions of the reads left after all each preprocessing steps
+metric %>% 
+  select(ends_with('_frac')) %>% 
+  select(-orphan_frac) %>% 
+  gather('Group', 'Fraction') %>% 
+  ggboxplot( x = 'Group', y = 'Fraction', add = 'jitter') +
+  theme_cleveland()
+
+
+# visualize the surviving read depth
+our <- read_tsv('../data/input/2021-11-10-knead_stats.tab')
+both <- bind_rows(
+  tibble(center = 'MSK', depth = our$filt_readsr),
+  tibble(center = 'PICI', depth = metric$host_removed_reads)
+)
+
+both %>% 
+  ggboxplot(x = 'center', y = 'depth', add = 'jitter' , 
+            title = 'Read counts after preprocessing')  +
+  geom_hline(yintercept = 3e7, linetype = 'dashed') 
+```
+
