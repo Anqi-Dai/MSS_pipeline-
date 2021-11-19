@@ -14,6 +14,8 @@ library(vegan)
 ```
 
 ```{r}
+meta_amadeus <- read_csv('../data/01_meta_amadeus.csv')
+
 cts <- read_tsv('../data/input/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
   filter(str_detect(clade_name, 's__')) %>% 
   rename_all(~ gsub("_metaphlan3_profile", " ", .)) %>% 

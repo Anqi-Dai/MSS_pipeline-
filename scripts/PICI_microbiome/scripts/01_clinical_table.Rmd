@@ -56,6 +56,7 @@ meta_amadeus <- stb %>%
 meta_amadeus %>% 
   write_csv('../data/01_meta_amadeus.csv')
 
+
 cohortA <- read_csv('../data/input/PICI0033_CohortA_clinical_2021-02-16/PorterA_ClinicalData_20210216.csv')
 
 library(ggvenn)
