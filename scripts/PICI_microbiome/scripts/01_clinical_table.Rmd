@@ -11,14 +11,63 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 ```
+AMADEUS has 41 patients. 
+
+```{r}
+ptb <- read_csv('../data/input/PICI0025_clinical_2021-10-07/AMADEUS_ClinicalData_20211007.csv')
+
+patient <- ptb %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  select(pid = Subject, Manual_Tumor_Buckets, Notes_for_Informatics, Arm:CD8_Conversion_Hot_to_Cold)
+
+patient %>% write_csv('../data/01_patient_table_long.csv')
+
+
+patient %>% 
+  select(pid:Study_Day_of_Crossover, Best_Overall_Response:CD8_Conversion_Hot_to_Cold) %>% 
+  write_csv('../data/01_patient_table_short.csv')
+
+ptbs <- patient %>% 
+  select(pid:Study_Day_of_Crossover, Best_Overall_Response:CD8_Conversion_Hot_to_Cold)
+```
 
 
 ```{r}
-ptb <- read_csv('/Volumes/vandenBrinkLab/PICI/PICI_microbiome_analysis_project/PICI0025_clinical_2021-10-07/AMADEUS_ClinicalData_20211007.csv')
-stb <- readxl::read_excel('/Volumes/vandenBrinkLab/PICI/PICI_microbiome_analysis_project/PICI0025_PICI0033_microbiome_samples_shipped.xlsx')
+stb <- readxl::read_excel('/Volumes/vandenBrinkLab/PICI/PICI_microbiome_analysis_project/PICI0025_PICI0033_microbiome_samples_shipped.xlsx') %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  select(sampleid = Sample_ID,
+         Participant_ID,
+         Visit, 
+         Study_Day) %>% 
+  mutate(pid = str_extract(Participant_ID, '-1.+$')) %>% 
+  mutate(pid = str_replace(pid, '^-','')) %>% 
+  select(-Participant_ID)
+
+stb %>% write_csv('../data/01_sample_table.csv')
 # the metrics from the pipeline
 metric <- read_tsv('../data/input/readcounts.tsv')
 ```
+
+```{r}
+# the meta table that has both ptb and stb info
+meta_amadeus <- stb %>% 
+  inner_join(ptbs, by = "pid")
+
+meta_amadeus %>% 
+  write_csv('../data/01_meta_amadeus.csv')
+
+cohortA <- read_csv('../data/input/PICI0033_CohortA_clinical_2021-02-16/PorterA_ClinicalData_20210216.csv')
+
+library(ggvenn)
+two_list <- list(amadeus_pt = ptbs$pid, allsamps_pt = stb$pid)
+two_list <- list(amadeus_pt = ptbs$pid, allsamps_pt = stb$pid, porterA_pt = cohortA$Subject)
+ggvenn(two_list, show_percentage = F)
+ggsave('../figs/01_samples_venn.png', width = 4, height = 4)
+
+# do we have all the patients 
+```
+
+
 ```{r}
 # visualize the read depth of the shotgun data
 # what proportions of the reads left after all each preprocessing steps
@@ -40,6 +89,6 @@ both <- bind_rows(
 both %>% 
   ggboxplot(x = 'center', y = 'depth', add = 'jitter' , 
             title = 'Read counts after preprocessing')  +
-  geom_hline(yintercept = 3e7, linetype = 'dashed') 
+  geom_hline(yintercept = 3e7, linetype = 'dashed')  
 ```
 

@@ -1,0 +1,30 @@
+---
+title: "The metaphlan results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+```
+
+```{r}
+cts <- read_tsv('../data/input/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
+  filter(str_detect(clade_name, 's__')) %>% 
+  rename_all(~ gsub("_metaphlan3_profile", " ", .)) %>% 
+  select(-NCBI_tax_id)
+
+cts_all <- cts %>% 
+  gather('sampleid', 'perc', names(.)[2]:names(.)[ncol(.)]) %>% 
+  spread(key = 'clade_name', value = 'perc', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+invsimp <- diversity(cts_all, index = 'inv') %>% 
+  enframe(name = 'sampleid', value = 'inv') %>% full_join(dat)
+```
+
