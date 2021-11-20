@@ -1,14 +1,20 @@
 ---
 title: "beta diversity"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
 library(vegan)
+library(ggpubr)
 library(tidyverse)
 ```
 
@@ -40,7 +46,7 @@ cts_fil <- spp %>%
 
 
 dist_ <- vegdist(cts_fil, method = 'bray')
-eigen <- pcoa(dist_)$values$Eigenvalues
+eigen <- ape::pcoa(dist_)$values$Eigenvalues
 percent_var <- signif(eigen/sum(eigen), 3)*100
 bc <- cmdscale(dist_, k = 2)
 
@@ -48,10 +54,14 @@ beta_meta_amadeus <- bc %>%
   as.data.frame() %>%
   rownames_to_column('sampleid')  %>% 
   full_join(meta_amadeus)
-  
+```
+
+# PCOA
+
+```{r}
 # color by response status
 beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'ORR_Responder') +
+  ggscatter(x = 'V1', y = 'V2', color =  'ORR_Responder', shape = 'CD8_Conversion_Hot_to_Cold') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
@@ -59,11 +69,20 @@ beta_meta_amadeus %>%
 
 # color by visit
 beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'Visit') +
+  ggscatter(x = 'V1', y = 'V2', color =  'Visit', shape = 'CD8_Conversion_Hot_to_Cold') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme(aspect.ratio=1)
+
+# color by study day
+beta_meta_amadeus %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'Study_Day', shape = 'CD8_Conversion_Hot_to_Cold') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1) + 
+  viridis::scale_color_viridis()
 
 # color by pt
 library(randomcoloR)
@@ -82,14 +101,169 @@ paired_palette <- distinctColorPalette(length(paired_pt))
 pal <- c(paired_palette, rep('black', length(single_pt)))
 names(pal) <- c(paired_pt, single_pt)
 
-
-
 beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'pid') +
+  ggscatter(x = 'V1', y = 'V2', color =  'pid', shape = 'CD8_Conversion_Hot_to_Cold') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme(aspect.ratio=1) +
-  scale_color_manual(values = pal) 
+  scale_color_manual(values = pal)  
+
+# color by alpha diversity
+beta_meta_amadeus %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'inv', shape = 'CD8_Conversion_Hot_to_Cold') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1) +
+  viridis::scale_color_viridis()
+
+# color by tumor type
+beta_meta_amadeus %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'Manual_Tumor_Buckets', shape = 'CD8_Conversion_Hot_to_Cold') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1) +
+  scale_color_brewer(palette = 'Set1')
+
+# color by Best_Overall_Response
+beta_meta_amadeus %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'Best_Overall_Response', palette = 'jco', shape = 'CD8_Conversion_Hot_to_Cold') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1) 
+```
+
+# bar plot 
+
+```{r}
+spp %>% 
+  write_csv('../data/03_amadeus_species_perc.csv')
+# plotting at the genus level
+genera <- spp %>% 
+  mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(perc))
+
+genera %>% 
+  write_csv('../data/03_amadeus_genus_perc.csv')
+
+genera %>% 
+  ungroup() %>% 
+  distinct(genus)
+
+family <- spp %>% 
+  mutate(family = str_replace(clade_name, '\\|g__.+$','')) %>% 
+  group_by(sampleid, family) %>% 
+  summarise(relab = sum(perc)) %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) 
+
+family %>% 
+  write_csv('../data/03_amadeus_family_perc.csv')
+
+family %>% 
+  ungroup() %>% 
+  distinct(family)
+
+colnames(meta_amadeus)
+```
+```{r}
+#compute hierarchical cluster
+hc <- hclust(dist_, method = 'complete')
+dend <- as.dendrogram(hc)
+sample_dendogram_order <- labels(dend)
+```
+
+```{r}
+# split by visit
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  mutate(sampleid = factor(sampleid, levels = sample_dendogram_order)) %>% 
+  ggplot(aes(x = sampleid, y = relab, fill = fam) ) +
+  geom_bar( stat = 'identity') +
+  facet_wrap(~ Visit, scales = 'free') +
+  theme( axis.text.x = element_text(angle=45, hjust=1)) 
+
+ggsave('../figs/03_family_bar_visit.pdf', width = 15, height = 5)
+
+
+
+# split by visit
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  mutate(sampleid = factor(sampleid, levels = sample_dendogram_order)) %>% 
+  ggplot(aes(x = sampleid, y = relab, fill = fam) ) +
+  geom_bar( stat = 'identity') +
+  facet_wrap(~ ORR_Responder, scales = 'free') +
+  theme( axis.text.x = element_text(angle=45, hjust=1)) 
+
+ggsave('../figs/03_family_bar_ORR_Responder.pdf', width = 15, height = 5)
+
+
+# split by conversion
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  mutate(sampleid = factor(sampleid, levels = sample_dendogram_order)) %>% 
+  ggplot(aes(x = sampleid, y = relab, fill = fam) ) +
+  geom_bar( stat = 'identity') +
+  facet_wrap(~ CD8_Conversion_Hot_to_Cold, scales = 'free') +
+  theme( axis.text.x = element_text(angle=45, hjust=1)) 
+
+ggsave('../figs/03_family_bar_CD8_Conversion_Hot_to_Cold.pdf', width = 15, height = 5)
+
+# split by patients
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  mutate(sid = str_glue('{pid}__{Visit}')) %>% 
+  ggplot(aes(x = sid, y = relab, fill = fam) ) +
+  geom_bar( stat = 'identity') +
+  facet_wrap(~ pid, scales = 'free') +
+  theme( axis.text.x = element_text(angle=45, hjust=1)) 
+
+ggsave('../figs/03_family_bar_pid.pdf', width = 15, height = 15)
+```
+
+
+```{r}
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  mutate(sid = str_glue('{pid}__{Visit}'),
+         sid = factor(sid)) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'fam', color = 'white' ) +
+  #geom_bar( stat = 'identity') +
+  facet_wrap(~ pid, scales = 'free') +
+  theme( axis.text.x = element_text(angle=45, hjust=1),
+         legend.position = 'right') 
+
+ggsave('../figs/03_family_bar_pid.pdf', width = 15, height = 15)
+
+```
+
+```{r}
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  mutate(sid = str_glue('{pid}__{Visit}'),
+         sid = factor(sid)) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'fam', color = 'white' ) +
+  #geom_bar( stat = 'identity') +
+  facet_wrap(~ CD8_Conversion_Hot_to_Cold, scales = 'free') +
+  theme( axis.text.x = element_text(angle=45, hjust=1),
+         legend.position = 'right') 
+
+ggsave('../figs/03_family_bar_CD8_Conversion_Hot_to_Cold.pdf', width = 15, height = 5)
 ```
 
