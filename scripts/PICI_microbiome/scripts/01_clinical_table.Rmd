@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 ```
+
 AMADEUS has 41 patients. 
 
 ```{r}
@@ -18,17 +19,17 @@ ptb <- read_csv('../data/input/PICI0025_clinical_2021-10-07/AMADEUS_ClinicalData
 
 patient <- ptb %>% 
   rename_all(~ gsub(" ", "_", .)) %>% 
-  select(pid = Subject, Manual_Tumor_Buckets, Notes_for_Informatics, Arm:CD8_Conversion_Hot_to_Cold)
+  select(pid = Subject, Manual_Tumor_Buckets, Notes_for_Informatics, Arm:DCR_Responder)
 
 patient %>% write_csv('../data/01_patient_table_long.csv')
 
 
 patient %>% 
-  select(pid:Study_Day_of_Crossover, Best_Overall_Response:CD8_Conversion_Hot_to_Cold) %>% 
+  select(pid:Study_Day_of_Crossover, Best_Overall_Response:DCR_Responder) %>% 
   write_csv('../data/01_patient_table_short.csv')
 
 ptbs <- patient %>% 
-  select(pid:Study_Day_of_Crossover, Best_Overall_Response:CD8_Conversion_Hot_to_Cold)
+  select(pid:Study_Day_of_Crossover, Best_Overall_Response:DCR_Responder)
 ```
 
 
@@ -41,7 +42,8 @@ stb <- readxl::read_excel('/Volumes/vandenBrinkLab/PICI/PICI_microbiome_analysis
          Study_Day) %>% 
   mutate(pid = str_extract(Participant_ID, '-1.+$')) %>% 
   mutate(pid = str_replace(pid, '^-','')) %>% 
-  select(-Participant_ID)
+  select(-Participant_ID) %>% 
+  mutate(Visit = str_replace(Visit, ' ','_'))
 
 stb %>% write_csv('../data/01_sample_table.csv')
 # the metrics from the pipeline

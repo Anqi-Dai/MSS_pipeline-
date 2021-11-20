@@ -56,36 +56,3 @@ nb %>%
   write_csv('../data/upload_O.sh', col_names = F)
 ```
 
-
-```{r}
-# 2021-10-18
-# check the second batch of Florida samples
-library(tidyverse)
-library(vdbR)
-connect_database('~/dbConfig.txt')
-get_table_from_database('asv_alpha_diversity_ag')
-list_table_from_database('blast')
-get_table_from_database('asv_annotation_blast_ag')
-could <- asv_alpha_diversity_ag %>% 
-  filter(uploaded_date == '2021-09-28' | uploaded_date == '2021-10-04') %>% 
-  filter(! str_detect(sampleid, "KM")) %>% 
-  filter(str_detect(oligos_id, 'pool1094.1095')) 
-
-samp <- could %>% 
-  pull(sampleid)
-
-cts <- get_counts_subset(samp) %>% 
-  left_join(asv_annotation_blast_ag %>% 
-              select(asv_key:species)) %>% 
-  select(-key, -uploaded_date)
-
-div <- could %>% 
-  select(sampleid, simpson_reciprocal:shannon)  
-
-div %>% 
-  write_csv('../data/Florida_batch2_diversity.csv')
-
-cts %>% 
-  write_csv('../data/Florida_batch2_asv_counts_and_blast_annotation.csv')
-```
-

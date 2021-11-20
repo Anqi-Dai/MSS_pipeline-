@@ -14,9 +14,11 @@ library(vegan)
 ```
 
 ```{r}
+amadeus <- read_csv('../data/01_meta_amadeus.csv')
+
 cts <- read_tsv('../data/input/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
   filter(str_detect(clade_name, 's__')) %>% 
-  rename_all(~ gsub("_metaphlan3_profile", " ", .)) %>% 
+  rename_all(~ gsub("_metaphlan3_profile", "", .)) %>% 
   select(-NCBI_tax_id)
 
 cts_all <- cts %>% 
@@ -24,7 +26,45 @@ cts_all <- cts %>%
   spread(key = 'clade_name', value = 'perc', fill = 0) %>% 
   column_to_rownames('sampleid')
 
-invsimp <- diversity(cts_all, index = 'inv') %>% 
-  enframe(name = 'sampleid', value = 'inv') %>% full_join(dat)
+cts %>% 
+  gather('sampleid', 'perc', names(.)[2]:names(.)[ncol(.)]) %>% 
+  write_csv('../data/02_all_shotgun_metaphlan_spp.csv')
+
+meta_amadeus <- diversity(cts_all, index = 'inv') %>% 
+  enframe(name = 'sampleid', value = 'inv') %>% 
+  inner_join(amadeus)  %>% 
+  mutate_if(is.character, as.factor)
+
+meta_amadeus %>% write_csv('../data/01_meta_amadeus_full.csv')
+# there is one sample that we have the clinical data just not the sequencing data
+meta_amadeus %>% summary
+
+
+# how many patients had both BL and ontreatment samples
+both_pt <- meta_amadeus %>% 
+  count(pid, sort = T) %>% 
+  filter(n == 2) %>% 
+  pull(pid)
+# 10 patients had both , 9 patients had only one sample
 ```
 
+# the alpha diversity
+
+```{r}
+meta_amadeus %>% 
+  ggboxplot(x = 'ORR_Responder', y = 'inv', facet.by = 'Visit', add = 'jitter') +
+  stat_compare_means(comparisons= list(c('Non-responder', 'Responder')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+
+# see the alpha diversity change in patients that we have both bl and treatment samples
+meta_amadeus %>% 
+  filter(pid %in% both_pt) %>% 
+  select(pid, Visit, inv) %>% 
+  spread('Visit', 'inv' ) %>% 
+  ggpaired(cond1 = "BL", cond2 = "On_Treatment",
+           ylab = "Simpson's reciprocal diversity",
+           title = 'Patients with both bl and treatment samples',
+     line.color = "maroon", line.size = 0.4)
+```
