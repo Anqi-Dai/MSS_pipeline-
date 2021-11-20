@@ -14,7 +14,11 @@ library(vegan)
 ```
 
 ```{r}
+<<<<<<< HEAD
 amadeus <- read_csv('../data/01_meta_amadeus.csv')
+=======
+meta_amadeus <- read_csv('../data/01_meta_amadeus.csv')
+>>>>>>> d3c4eabe965a70b634de24b16b67ade245bc445f
 
 cts <- read_tsv('../data/input/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
   filter(str_detect(clade_name, 's__')) %>% 
