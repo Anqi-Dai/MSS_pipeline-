@@ -4,7 +4,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
@@ -14,11 +14,11 @@ library(vegan)
 ```
 
 ```{r}
-<<<<<<< HEAD
+
 amadeus <- read_csv('../data/01_meta_amadeus.csv')
-=======
+
 meta_amadeus <- read_csv('../data/01_meta_amadeus.csv')
->>>>>>> d3c4eabe965a70b634de24b16b67ade245bc445f
+
 
 cts <- read_tsv('../data/input/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
   filter(str_detect(clade_name, 's__')) %>% 
@@ -50,25 +50,50 @@ both_pt <- meta_amadeus %>%
   filter(n == 2) %>% 
   pull(pid)
 # 10 patients had both , 9 patients had only one sample
+
+
+# how many patients had conversion from cold to hot
+meta_amadeus %>% 
+  filter(CD8_Conversion_Hot_to_Cold == 'Y') %>% 
+  distinct(pid) %>% 
+  nrow
 ```
 
 # the alpha diversity
 
 ```{r}
 meta_amadeus %>% 
-  ggboxplot(x = 'ORR_Responder', y = 'inv', facet.by = 'Visit', add = 'jitter') +
+  ggboxplot(x = 'ORR_Responder', y = 'inv', facet.by = 'Visit', add = 'jitter',
+            ylab = 'Simpson reciprocal diversity', xlab = '') +
   stat_compare_means(comparisons= list(c('Non-responder', 'Responder')),
             label= "p.format",
             method= 'wilcox.test',
 						correct=FALSE)
+ggsave('../figs/02_alpha_visit_respond.pdf', width = 6, height = 4)
 
+# if only looking at the visit
+meta_amadeus %>% 
+  ggboxplot(x = 'Visit', y = 'inv',  add = 'jitter',
+            ylab = 'Simpson reciprocal diversity', xlab = '') +
+  stat_compare_means(comparisons= list(c('BL', 'On_Treatment')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+ggsave('../figs/02_alpha_visit.pdf', width = 6, height = 4)
+```
+
+
+```{r}
 # see the alpha diversity change in patients that we have both bl and treatment samples
 meta_amadeus %>% 
   filter(pid %in% both_pt) %>% 
   select(pid, Visit, inv) %>% 
   spread('Visit', 'inv' ) %>% 
   ggpaired(cond1 = "BL", cond2 = "On_Treatment",
-           ylab = "Simpson's reciprocal diversity",
-           title = 'Patients with both bl and treatment samples',
-     line.color = "maroon", line.size = 0.4)
+           ylab = "Simpson's reciprocal diversity",xlab = '',
+           title = 'Patients with both bl and Rx samples',
+     line.color = "maroon", line.size = 0.4) +
+  stat_compare_means(paired = TRUE)
+
+ggsave('../figs/02_paired_pt_alpha.pdf', width = 6, height = 4)
 ```

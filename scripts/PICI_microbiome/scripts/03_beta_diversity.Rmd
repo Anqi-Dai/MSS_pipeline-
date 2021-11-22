@@ -19,8 +19,17 @@ library(tidyverse)
 ```
 
 ```{r}
-meta_amadeus <- read_csv('../data/01_meta_amadeus_full.csv')
+# clean some columns variables
+meta_amadeus <- read_csv('../data/01_meta_amadeus_full.csv')  %>% 
+  mutate(Visit = if_else(Visit == 'On_Treatment', 'Rx', Visit)) %>% 
+  mutate(ORR_Responder = if_else(ORR_Responder == 'Non-responder', 'N_responder', 'Y_responder')) %>% 
+  mutate(CD8_Conversion_Hot_to_Cold = if_else(CD8_Conversion_Hot_to_Cold == 'No on-treatment biopsy', 'no_Rx_biopsy',CD8_Conversion_Hot_to_Cold)) %>% 
+  mutate(sid = str_glue('{pid}__{Visit}')) %>% 
+  arrange(sid)
+```
 
+
+```{r}
 # Only look at the spp in the current samples (29)
 spp <- read_csv('../data/02_all_shotgun_metaphlan_spp.csv') %>% 
   filter(sampleid %in% meta_amadeus$sampleid)
@@ -167,15 +176,90 @@ family %>%
   ungroup() %>% 
   distinct(family)
 
-colnames(meta_amadeus)
+# assign colors to the families
+library(RColorBrewer)
+pal <- family %>% 
+  ungroup() %>% 
+  distinct(family, fam) %>% 
+  arrange(family) %>% 
+  mutate(color = c(rep(brewer.pal(9, 'Set1'), 6), brewer.pal(4, 'Set1')))
+
+pal_vec <- pal %>% 
+  select(fam, color) %>% 
+  deframe()
+
 ```
 ```{r}
-#compute hierarchical cluster
+# compute hierarchical cluster
 hc <- hclust(dist_, method = 'complete')
 dend <- as.dendrogram(hc)
 sample_dendogram_order <- labels(dend)
 ```
 
+```{r}
+
+
+
+
+
+
+
+library(randomcoloR)
+n <- 58
+palette <- distinctColorPalette(n)
+pie(rep(1, n), col=palette)
+
+```
+
+
+```{r}
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  arrange(sid) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'fam', color = 'white' ) +
+  #geom_bar( stat = 'identity') +
+  facet_wrap(~ pid, scales = 'free') +
+  scale_fill_manual(values = palette) +
+  theme( axis.text.x = element_text(angle=45, hjust=1),
+         legend.position = 'right') 
+
+ggsave('../figs/03_family_bar_pid.pdf', width = 15, height = 15)
+
+```
+
+```{r}
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  arrange(sid) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'fam', color = 'white' ) +
+  #geom_bar( stat = 'identity') +
+  facet_wrap(pid ~ CD8_Conversion_Hot_to_Cold, scales = 'free') +
+  scale_fill_manual(values = palette) +
+  theme( axis.text.x = element_text(angle=45, hjust=1),
+         legend.position = 'right') 
+
+ggsave('../figs/03_family_bar_CD8_Conversion_Hot_to_Cold.pdf', width = 20, height = 15)
+```
+
+```{r}
+# split by visit
+family %>% 
+  mutate(fam = str_extract(family, 'f__.+$')) %>% 
+  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
+  left_join(meta_amadeus, by = "sampleid") %>% 
+  mutate(sampleid = factor(sampleid, levels = sample_dendogram_order)) %>% 
+  ggplot(aes(x = sid, y = relab, fill = fam) ) +
+  geom_bar( stat = 'identity') +
+  facet_wrap(~ Best_Overall_Response, scales = 'free') +
+  scale_fill_manual(values = palette) +
+  theme( axis.text.x = element_text(angle=45, hjust=1)) 
+
+ggsave('../figs/03_family_bar_Best_Overall_Response.pdf', width = 15, height = 5)
+```
 ```{r}
 # split by visit
 family %>% 
@@ -186,84 +270,10 @@ family %>%
   ggplot(aes(x = sampleid, y = relab, fill = fam) ) +
   geom_bar( stat = 'identity') +
   facet_wrap(~ Visit, scales = 'free') +
+  scale_fill_manual(values = palette) +
   theme( axis.text.x = element_text(angle=45, hjust=1)) 
 
 ggsave('../figs/03_family_bar_visit.pdf', width = 15, height = 5)
-
-
-
-# split by visit
-family %>% 
-  mutate(fam = str_extract(family, 'f__.+$')) %>% 
-  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
-  left_join(meta_amadeus, by = "sampleid") %>% 
-  mutate(sampleid = factor(sampleid, levels = sample_dendogram_order)) %>% 
-  ggplot(aes(x = sampleid, y = relab, fill = fam) ) +
-  geom_bar( stat = 'identity') +
-  facet_wrap(~ ORR_Responder, scales = 'free') +
-  theme( axis.text.x = element_text(angle=45, hjust=1)) 
-
-ggsave('../figs/03_family_bar_ORR_Responder.pdf', width = 15, height = 5)
-
-
-# split by conversion
-family %>% 
-  mutate(fam = str_extract(family, 'f__.+$')) %>% 
-  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
-  left_join(meta_amadeus, by = "sampleid") %>% 
-  mutate(sampleid = factor(sampleid, levels = sample_dendogram_order)) %>% 
-  ggplot(aes(x = sampleid, y = relab, fill = fam) ) +
-  geom_bar( stat = 'identity') +
-  facet_wrap(~ CD8_Conversion_Hot_to_Cold, scales = 'free') +
-  theme( axis.text.x = element_text(angle=45, hjust=1)) 
-
-ggsave('../figs/03_family_bar_CD8_Conversion_Hot_to_Cold.pdf', width = 15, height = 5)
-
-# split by patients
-family %>% 
-  mutate(fam = str_extract(family, 'f__.+$')) %>% 
-  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
-  left_join(meta_amadeus, by = "sampleid") %>% 
-  mutate(sid = str_glue('{pid}__{Visit}')) %>% 
-  ggplot(aes(x = sid, y = relab, fill = fam) ) +
-  geom_bar( stat = 'identity') +
-  facet_wrap(~ pid, scales = 'free') +
-  theme( axis.text.x = element_text(angle=45, hjust=1)) 
-
-ggsave('../figs/03_family_bar_pid.pdf', width = 15, height = 15)
 ```
 
-
-```{r}
-family %>% 
-  mutate(fam = str_extract(family, 'f__.+$')) %>% 
-  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
-  left_join(meta_amadeus, by = "sampleid") %>% 
-  mutate(sid = str_glue('{pid}__{Visit}'),
-         sid = factor(sid)) %>% 
-  ggbarplot(x = 'sid', y = 'relab', fill = 'fam', color = 'white' ) +
-  #geom_bar( stat = 'identity') +
-  facet_wrap(~ pid, scales = 'free') +
-  theme( axis.text.x = element_text(angle=45, hjust=1),
-         legend.position = 'right') 
-
-ggsave('../figs/03_family_bar_pid.pdf', width = 15, height = 15)
-
-```
-
-```{r}
-family %>% 
-  mutate(fam = str_extract(family, 'f__.+$')) %>% 
-  mutate(fam = fct_reorder(fam, family,  .desc = F)) %>%
-  left_join(meta_amadeus, by = "sampleid") %>% 
-  mutate(sid = str_glue('{pid}__{Visit}'),
-         sid = factor(sid)) %>% 
-  ggbarplot(x = 'sid', y = 'relab', fill = 'fam', color = 'white' ) +
-  #geom_bar( stat = 'identity') +
-  facet_wrap(~ CD8_Conversion_Hot_to_Cold, scales = 'free') +
-  theme( axis.text.x = element_text(angle=45, hjust=1),
-         legend.position = 'right') 
-
-ggsave('../figs/03_family_bar_CD8_Conversion_Hot_to_Cold.pdf', width = 15, height = 5)
-```
 
