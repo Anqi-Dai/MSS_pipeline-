@@ -62,7 +62,7 @@ meta_amadeus %>%
 cohortA <- read_csv('../data/input/PICI0033_CohortA_clinical_2021-02-16/PorterA_ClinicalData_20210216.csv')
 
 library(ggvenn)
-two_list <- list(amadeus_pt = ptbs$pid, allsamps_pt = stb$pid)
+
 two_list <- list(amadeus_pt = ptbs$pid, allsamps_pt = stb$pid, porterA_pt = cohortA$Subject)
 ggvenn(two_list, show_percentage = F)
 ggsave('../figs/01_samples_venn.png', width = 4, height = 4)

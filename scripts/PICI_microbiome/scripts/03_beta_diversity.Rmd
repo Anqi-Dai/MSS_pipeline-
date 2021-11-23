@@ -74,12 +74,11 @@ beta_meta_amadeus <- bc %>%
 ```{r}
 # color by response status
 pcoa_ORR_Responder <- beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'ORR_Responder', shape = 'CD8_Conversion_Hot_to_Cold', palette = 'lancet') +
+  ggscatter(x = 'V1', y = 'V2', color =  'ORR_Responder', palette = 'lancet') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
-  theme(aspect.ratio=1, legend.position = 'right') + 
-  guides(shape='none')
+  theme(aspect.ratio=1, legend.position = 'right') 
 
 cts_meta <- spp %>% 
   filter(clade_name %in% keepspp) %>% 
@@ -139,6 +138,7 @@ beta_meta_amadeus_bl %>%
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme(aspect.ratio=1, legend.position = 'right')
 
+ggsave('../figs/03_bl_pcoa_res.pdf', width = 5, height = 4)
 ```
  
 ```{r}
@@ -175,22 +175,20 @@ beta_meta_amadeus_Rx %>%
 ```{r}
 # color by visit
 pcoa_visit <- beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'Visit', shape = 'CD8_Conversion_Hot_to_Cold', palette = 'jama') +
+  ggscatter(x = 'V1', y = 'V2', color =  'Visit',  palette = 'jama') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
-  theme(aspect.ratio=1, legend.position = 'right') + 
-  guides(shape='none')
+  theme(aspect.ratio=1, legend.position = 'right') 
 
 # color by study day
 pcoa_day <- beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'Study_Day', shape = 'CD8_Conversion_Hot_to_Cold') +
+  ggscatter(x = 'V1', y = 'V2', color =  'Study_Day') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme(aspect.ratio=1, legend.position = 'right') + 
-  viridis::scale_color_viridis() + 
-  guides(shape='none')
+  viridis::scale_color_viridis() 
 
 # color by pt
 library(randomcoloR)
@@ -210,41 +208,37 @@ pal <- c(paired_palette, rep('black', length(single_pt)))
 names(pal) <- c(paired_pt, single_pt)
 
 pcoa_pid <- beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'pid', shape = 'CD8_Conversion_Hot_to_Cold') +
+  ggscatter(x = 'V1', y = 'V2', color =  'pid') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme(aspect.ratio=1, legend.position = 'right') +
-  scale_color_manual(values = pal)   + 
-  guides(shape='none')
+  scale_color_manual(values = pal)  
 
 # color by alpha diversity
 pcoa_alpha <- beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'inv', shape = 'CD8_Conversion_Hot_to_Cold') +
+  ggscatter(x = 'V1', y = 'V2', color =  'inv') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme(aspect.ratio=1, legend.position = 'right') +
-  viridis::scale_color_viridis() + 
-  guides(shape='none')
+  viridis::scale_color_viridis() 
 
 # color by tumor type
 pcoa_Tumor <- beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'Manual_Tumor_Buckets', shape = 'CD8_Conversion_Hot_to_Cold') +
+  ggscatter(x = 'V1', y = 'V2', color =  'Manual_Tumor_Buckets') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
-  theme(aspect.ratio=1, legend.position = 'right') +
-  guides(shape='none')
+  theme(aspect.ratio=1, legend.position = 'right') 
 
 # color by Best_Overall_Response
 pcoa_Best_Overall_Response <-beta_meta_amadeus %>% 
-  ggscatter(x = 'V1', y = 'V2', color =  'Best_Overall_Response', palette = 'jco', shape = 'CD8_Conversion_Hot_to_Cold') +
+  ggscatter(x = 'V1', y = 'V2', color =  'Best_Overall_Response', palette = 'jco') +
   labs(title = '') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
-  theme(aspect.ratio=1, legend.position = 'right')  + 
-  guides(shape='none')
+  theme(aspect.ratio=1, legend.position = 'right')  
 ```
 
 ```{r}
@@ -405,7 +399,7 @@ fam_df <- fam_joined %>%
   ungroup() %>% 
   select(f__Acidaminococcaceae: f__Victivallaceae)
 
-pmv_test <- adonis(fam_df ~ CD8_Conversion_Hot_to_Cold + Manual_Tumor_Buckets + Visit + pid, data=fam_joined, permutations=999, method = 'bray')
+pmv_test <- adonis(fam_df ~ ORR_Responder + Manual_Tumor_Buckets + Visit + pid, data=fam_joined, permutations=999, method = 'bray')
 pmv_test
 # ORR_Responder CD8_Conversion_Hot_to_Cold
 ```
