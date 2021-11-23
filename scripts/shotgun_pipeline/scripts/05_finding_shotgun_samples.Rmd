@@ -43,3 +43,12 @@ need %>%
   write_csv('../data/yale_need.csv')
 ```
 
+```{r}
+# marina
+sid <- read_csv('../data/marina_archaea_sampleid.csv', col_names = 'sampleid') %>% 
+  inner_join(shotgun_lookup_ad) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  select(fid) %>% 
+  write_csv('../data/marina_archaea_fid.csv')
+```
+
