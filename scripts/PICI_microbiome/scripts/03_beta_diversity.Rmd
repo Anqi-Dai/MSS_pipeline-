@@ -268,7 +268,7 @@ family %>%
 ggsave('../figs/03_family_bar_visit.pdf', width = 10, height = 5)
 ```
 
-```{r}
+```{r legend22}
 # create a small legend with only the major fams 
 major_fam <- dat %>% 
   ungroup() %>% 
@@ -296,3 +296,21 @@ family %>%
 
 ggsave('../figs/03_family_legend22.pdf', width = 10, height = 8)
 ```
+
+# PERMANOVA test
+
+```{r}
+fam_joined <- family %>% 
+  select(sampleid, fam, relab) %>% 
+  spread('fam', 'relab') %>% 
+  full_join(meta_amadeus, by = "sampleid")
+
+fam_df <- fam_joined %>% 
+  ungroup() %>% 
+  select(f__Acidaminococcaceae: f__Victivallaceae)
+
+pmv_test <- adonis(fam_df ~ Manual_Tumor_Buckets + Visit + pid, data=fam_joined, permutations=999, method = 'bray')
+pmv_test
+
+```
+
