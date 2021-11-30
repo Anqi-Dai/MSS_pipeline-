@@ -17,7 +17,6 @@ knitr::opts_chunk$set(echo = TRUE, message = F)
 
 ```{r}
 library(tidyverse)
-library(rethinking)
 library(brms)
 library(ggpubr)
 ```
@@ -32,7 +31,6 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 ### input data
 
 ```{r}
-rstan_options(auto_write = TRUE)
 mc.cores = parallel::detectCores()
 
 # food intake is scaled 
@@ -189,10 +187,7 @@ ave_each_fg <- prior_draws(model_fg10) %>%
            b_fg_sweets * mean_fg$fg_sweets+
            b_fg_legume * mean_fg$fg_legume+
            b_fg_veggie* mean_fg$fg_veggie +
-           b_fg_EN* mean_fg$fg_EN +
-           b_inten_re +
-           b_empiF +
-           b_tpnF)) %>% 
+           b_inten_re )) %>% 
   select(mean_fg) %>% 
   mutate(grp = 'ave_each') %>% 
   rename(prior_res = mean_fg) %>% 

@@ -209,6 +209,9 @@ full <- meta %>%
 
 full %>% 
   write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
+
+full <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
+summary(full)
 ```
 
 ## modeling part 
@@ -225,7 +228,7 @@ alpha_cal <- log(simpson_reciprocal) ~ 1 +
                (1 | mrn) +
                 (1 | timebin)
 
-priors_alpha_cal <- c(# for the food group variables
+priors_alpha_cal <- c(
             prior(normal(0, 1.5), class = 'b', coef = "ave_cal"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
@@ -259,5 +262,73 @@ mean_ave_cal_prior <- prior_draws(model_alpha_cal) %>%
   mutate(grp = 'mean_ave_cal') %>% 
   rename(prior_res = mean_ave_cal_div) %>% 
   select(grp, prior_res)
+
+```
+
+### simpson reciprocal ~ ave_fiber + ave_fat + ave_Protein + ave_Sugars + ave_carb + empirical + intensity + TPN + EN + ...
+
+```{r}
+alpha_macro <- log(simpson_reciprocal) ~ 1 +
+                ave_fiber +
+                ave_fat +
+                ave_Protein +
+                ave_Sugars +
+                ave_carb +
+               inten_non + inten_ab + inten_re +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_alpha_macro <- c(
+            # for the macro nutrients
+            prior(normal(0, 0.5), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_fat"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_Sugars"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_carb"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(2, 0.1), class = 'Intercept'))
+
+# vet the prior 
+model_alpha_macro  <- brm( alpha_macro,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_macro,
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T)
+
+mean_macro <-  full %>% 
+  select(starts_with('ave_')) %>% 
+  summarise_all(funs(mean))
+
+mean_ave_macro_prior <- prior_draws(model_alpha_macro) %>% 
+  mutate(mean_div = Intercept + 
+          b_ave_fiber * mean_macro$ave_fiber+
+           b_ave_fat * mean_macro$ave_fat+
+           b_ave_Protein * mean_macro$ave_Protein+
+           b_ave_Sugars * mean_macro$ave_Sugars+
+           b_ave_carb * mean_macro$ave_carb+
+           b_inten_re ) %>% 
+  select(mean_div) %>% 
+  mutate(grp = 'mean_macro') %>% 
+  rename(prior_res = mean_div) %>% 
+  select(grp, prior_res)
+```
+
+```{r}
+colnames(full)
 ```
 
