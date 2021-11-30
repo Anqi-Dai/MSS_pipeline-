@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 library(vdbR)
+library(tidybayes)
 connect_database('~/dbConfig.txt')
 list_table_from_database('nutri')
 get_table_from_database('samples_castori_ag')
@@ -19,6 +20,8 @@ library(rstan)
 options(mc.cores = parallel::detectCores())
 ncores = parallel::detectCores()
 rstan_options(auto_write = TRUE)
+axis_text_size <- 10
+axis_title_size <- 10
 ```
 
 ```{r}
@@ -283,11 +286,11 @@ alpha_macro <- log(simpson_reciprocal) ~ 1 +
 
 priors_alpha_macro <- c(
             # for the macro nutrients
-            prior(normal(0, 0.5), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.5), class = 'b', coef = "ave_fat"),
-            prior(normal(0, 0.5), class = 'b', coef = "ave_Protein"),
-            prior(normal(0, 0.5), class = 'b', coef = "ave_Sugars"),
-            prior(normal(0, 0.5), class = 'b', coef = "ave_carb"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_carb"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -326,9 +329,86 @@ mean_ave_macro_prior <- prior_draws(model_alpha_macro) %>%
   mutate(grp = 'mean_macro') %>% 
   rename(prior_res = mean_div) %>% 
   select(grp, prior_res)
+
+
+# the posterior
+model_alpha_macro
+colnames(full)
 ```
 
 ```{r}
-colnames(full)
+# plot the above model post coeff
+post_coeff <- posterior_samples(model_alpha_macro, '^b_') %>% 
+  select(starts_with('b_ave')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+   mutate(item = case_when(
+    item ==  'fiber' ~ 'Fibers',
+    item == 'fat' ~ 'Fat',
+    item ==  'carb' ~ 'Carbohydrates',
+    TRUE ~ item
+  ))  %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Macronutrients') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+ggsave('../figs/paper/078_macronutrients_alpha_model_coeff_forest.eps',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+```
+
+```{r}
+# the binary vars
+coeff_bi <- posterior_samples(model_alpha_macro, '^b_')  %>% 
+  select(!starts_with('b_ave')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
+  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+
+coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Factor variables') +
+  theme_classic() +
+  theme(legend.position = 'none',
+        aspect.ratio=1)
+
+ggsave('../figs/paper/078_macronutrients_alpha_model_coeff_forest_binary.eps',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+```
+
+
+```{r}
+# The outcome being each of the genus
+
 ```
 
