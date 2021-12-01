@@ -25,6 +25,7 @@ set.seed(123)
 ```{r}
 # clean some columns variables
 meta_amadeus <- read_csv('../data/01_meta_amadeus_full.csv')  %>% 
+  filter(sampleid != "BK13087ST01_A1") %>% 
   mutate(Visit = if_else(Visit == 'On_Treatment', 'Rx', Visit)) %>% 
   mutate(ORR_Responder = if_else(ORR_Responder == 'Non-responder', 'N_responder', 'Y_responder')) %>% 
   mutate(CD8_Conversion_Hot_to_Cold = if_else(CD8_Conversion_Hot_to_Cold == 'No on-treatment biopsy', 'no_Rx_biopsy',CD8_Conversion_Hot_to_Cold)) %>% 
@@ -404,4 +405,18 @@ pmv_test
 # ORR_Responder CD8_Conversion_Hot_to_Cold
 ```
 
+```{r}
+# boxplot
+beta_meta_amadeus %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'ORR_Responder', palette = 'lancet') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  facet_wrap(~ Visit) +
+  theme_bw() +
+  theme(aspect.ratio=1, legend.position = 'right') 
+
+beta_meta_amadeus %>% 
+  distinct(pid)
+```
 

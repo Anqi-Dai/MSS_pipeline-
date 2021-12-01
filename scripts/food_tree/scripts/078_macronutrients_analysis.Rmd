@@ -14,7 +14,7 @@ library(vdbR)
 library(tidybayes)
 connect_database('~/dbConfig.txt')
 list_table_from_database('nutri')
-
+get_table_from_database('asv_counts_ag')
 library(brms)
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -22,11 +22,12 @@ ncores = parallel::detectCores()
 rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
+asv_counts_ag %>% distinct(sampleid) %>% nrow
 ```
 
 ```{r}
 # the % needs met data
-
+2000 * 3.5G + 648
 ```
 
 ```{r}
@@ -387,6 +388,54 @@ post_df %>%
   write_csv('../data/078_genus_cal_model_post.csv')
 ```
 
+```{r}
+# look at the post
+post_res_genera <- post_df %>% 
+  select(genus, starts_with('b_ave')) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
+  group_by(genus, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+  mutate(item = str_to_title(item))
+
+col_key <- post_res_genera %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key
+ 
+ggplot(post_res_genera, aes(x = genus, y = item)) +
+  geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  item),
+            nudge_y = -0.1, nudge_x = 0,size = 5) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI < 0 negative', '75% CI > 0 positive')) +
+  theme_light() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.y=element_text(size=11),
+        axis.title=element_text(size=axis_title_size),
+        #panel.grid.major = element_blank(), 
+        #panel.grid.minor = element_blank(),
+        legend.position = 'top',
+        legend.key = element_rect( colour = "gray50"),
+        panel.background = element_blank()) 
+
+ggsave('../figs/paper/078_heatmap_genus_36_cal_ggplot.pdf', width = 8, height = 3)
+```
+
 
 ### simpson reciprocal ~ ave_fiber + ave_fat + ave_Protein + ave_Sugars + ave_carb + empirical + intensity + TPN + EN + ...
 
@@ -661,6 +710,7 @@ post_df <- ret_genus_macro %>%
   imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
             select(-starts_with('r_'))))  %>% 
   bind_rows(.id = 'genus')  
+
 post_df %>% 
   write_csv('../data/078_genus_macro_model_post.csv')
 ```
@@ -692,6 +742,8 @@ valid_interval_perc <- ret_genus_macro %>%
 ```
 
 ```{r}
+post_df <- read_csv('../data/078_genus_macro_model_post.csv')
+  
 post_res_genera <- post_df %>% 
   select(genus, starts_with('b_ave')) %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
