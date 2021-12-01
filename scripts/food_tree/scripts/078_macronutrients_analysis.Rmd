@@ -13,8 +13,7 @@ library(ggpubr)
 library(vdbR)
 library(tidybayes)
 connect_database('~/dbConfig.txt')
-list_table_from_database('nutri')
-get_table_from_database('asv_counts_ag')
+
 library(brms)
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -22,12 +21,12 @@ ncores = parallel::detectCores()
 rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
-asv_counts_ag %>% distinct(sampleid) %>% nrow
+
 ```
 
 ```{r}
 # the % needs met data
-2000 * 3.5G + 648
+
 ```
 
 ```{r}
@@ -293,6 +292,20 @@ post_coeff %>%
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 
+ggsave('../figs/paper/078_cal_alpha_model_coeff_forest.eps',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps') 
+
+ggsave('../figs/paper/078_cal_alpha_model_coeff_forest.jpg',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'jpg') 
+
 ```
 
 ### genus ~ p2d_cal + empirical + intensity + TPN + EN + ...
@@ -390,6 +403,8 @@ post_df %>%
 
 ```{r}
 # look at the post
+post_df <- read_csv('../data/078_genus_cal_model_post.csv') 
+
 post_res_genera <- post_df %>% 
   select(genus, starts_with('b_ave')) %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
@@ -434,6 +449,7 @@ ggplot(post_res_genera, aes(x = genus, y = item)) +
         panel.background = element_blank()) 
 
 ggsave('../figs/paper/078_heatmap_genus_36_cal_ggplot.pdf', width = 8, height = 3)
+ggsave('../figs/paper/078_heatmap_genus_36_cal_ggplot.jpg', width = 8, height = 3)
 ```
 
 
@@ -816,5 +832,6 @@ ggplot(post_res_ordered, aes(x = genus, y = item)) +
         panel.background = element_blank()) 
 
 ggsave('../figs/paper/078_heatmap_genus_36_macro_ggplot.pdf', width = 8, height = 3)
+ggsave('../figs/paper/078_heatmap_genus_36_macro_ggplot.jpg', width = 8, height = 3)
 ```
 
