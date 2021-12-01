@@ -14,7 +14,7 @@ library(vdbR)
 library(tidybayes)
 connect_database('~/dbConfig.txt')
 list_table_from_database('nutri')
-get_table_from_database('samples_castori_ag')
+
 library(brms)
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -205,6 +205,7 @@ full <- meta %>%
          ave_Protein = ave_Protein/100,
          ave_Sugars = ave_Sugars/100,
          ave_carb = ave_carb/100,
+         ave_cal = ave_cal/1000
          ) %>% 
   mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
          inten_ab = if_else(intensity == 'ablative', 1, 0),
@@ -232,7 +233,7 @@ alpha_cal <- log(simpson_reciprocal) ~ 1 +
                 (1 | timebin)
 
 priors_alpha_cal <- c(
-            prior(normal(0, 1.5), class = 'b', coef = "ave_cal"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_cal"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -266,7 +267,126 @@ mean_ave_cal_prior <- prior_draws(model_alpha_cal) %>%
   rename(prior_res = mean_ave_cal_div) %>% 
   select(grp, prior_res)
 
+mean_ave_cal_prior %>% 
+  count(prior_res >= min(full$simpson_reciprocal) & prior_res <= max(full$simpson_reciprocal)) %>% 
+  mutate(fraction = round(n /sum(n), 2))  %>% 
+  slice(2) %>% 
+  pull(fraction)
+
+# look at the post
+post_coeff <- posterior_samples(model_alpha_cal, '^b_') %>% 
+  select(starts_with('b_ave')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Calories') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
 ```
+
+### genus ~ p2d_cal + empirical + intensity + TPN + EN + ...
+
+```{r}
+Enterococcus_cal <- Enterococcus ~ 1 +
+                ave_cal +
+               inten_non + inten_ab + inten_re +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_genus_cal <- c(
+            prior(normal(0, 0.5), class = 'b', coef = "ave_cal"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.6), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(-3, 1), class = 'Intercept'))
+
+# vet the prior 
+model_Enterococcus_cal  <- brm( Enterococcus_cal,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_genus_cal,
+              cores = ncores,
+              control = list(adapt_delta = 0.99),
+              chains = 2, 
+              seed = 123, sample_prior = T)
+
+mean_ave_cal <- mean(full$ave_cal)
+
+mean_Enterococcus_cal_prior <- prior_draws(model_Enterococcus_cal) %>% 
+  mutate(mean_ave_Enterococcus_div = Intercept + 
+          b_ave_cal * mean_ave_cal+
+           b_inten_re ) %>% 
+  select(mean_ave_Enterococcus_div) %>% 
+  mutate(grp = 'mean_ave_genus') %>% 
+  rename(prior_res = mean_ave_Enterococcus_div) %>% 
+  select(grp, prior_res)
+
+mean_Enterococcus_cal_prior %>% 
+  count(prior_res >= min(full$Enterococcus) & prior_res <= max(full$Enterococcus)) %>% 
+  mutate(fraction = round(n /sum(n), 2))  %>% 
+  slice(2) %>% 
+  pull(fraction)
+```
+
+```{r}
+# doing it on all the genera
+ret_genus_cal <- target_genera %>% 
+  set_names(target_genera) %>% 
+  purrr::map(function(genus) {
+    mod =  brm( as.formula(str_glue('{genus}  ~ 
+                1 +
+                ave_cal +
+                inten_non + inten_ab + inten_re +
+                empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)')),  
+                data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_genus_cal,
+              cores = ncores, 
+              chains = 2, 
+              control = list(adapt_delta = 0.99),
+              seed = 456, sample_prior = T) 
+  })
+
+# save the data
+prior_df <- ret_genus_cal %>% 
+  imap(~ prior_draws(.x) ) %>% 
+  bind_rows(.id = 'genus')
+prior_df %>% 
+  write_csv('../data/078_genus_cal_model_prior.csv')
+
+post_df <- ret_genus_cal %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
+            select(-starts_with('r_'))))  %>% 
+  bind_rows(.id = 'genus')  
+post_df %>% 
+  write_csv('../data/078_genus_cal_model_post.csv')
+```
+
 
 ### simpson reciprocal ~ ave_fiber + ave_fat + ave_Protein + ave_Sugars + ave_carb + empirical + intensity + TPN + EN + ...
 
