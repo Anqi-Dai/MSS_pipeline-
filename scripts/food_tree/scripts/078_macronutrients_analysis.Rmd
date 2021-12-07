@@ -13,7 +13,8 @@ library(ggpubr)
 library(vdbR)
 library(tidybayes)
 connect_database('~/dbConfig.txt')
-
+get_table_from_database('asv_alpha_diversity_ag')
+t <- get_counts_subset(c('10A.RT.D11'))
 library(brms)
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -21,7 +22,7 @@ ncores = parallel::detectCores()
 rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
-
+get_table_from_database('asv_sequences_ag')
 ```
 
 ```{r}
