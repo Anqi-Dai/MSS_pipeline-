@@ -551,10 +551,10 @@ alpha_macro <- log(simpson_reciprocal) ~ 1 +
 
 priors_alpha_macro <- c(
             # for the macro nutrients
-            prior(normal(0, 0.5), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.5), class = 'b', coef = "ave_fat"),
-            prior(normal(0, 0.5), class = 'b', coef = "ave_Protein"),
-            prior(normal(0, 0.5), class = 'b', coef = "ave_Sugars"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -566,7 +566,7 @@ priors_alpha_macro <- c(
             prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
             # for the intercept
-            prior(normal(2, 0.1), class = 'Intercept'))
+            prior(normal(2, 0.5), class = 'Intercept'))
 
 # vet the prior 
 model_alpha_macro  <- brm( alpha_macro,  
