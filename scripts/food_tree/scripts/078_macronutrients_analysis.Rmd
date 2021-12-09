@@ -13,8 +13,6 @@ library(ggpubr)
 library(vdbR)
 library(tidybayes)
 connect_database('~/dbConfig.txt')
-get_table_from_database('asv_alpha_diversity_ag')
-t <- get_counts_subset(c('10A.RT.D11'))
 library(brms)
 library(rstan)
 options(mc.cores = parallel::detectCores())
@@ -22,12 +20,10 @@ ncores = parallel::detectCores()
 rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
-get_table_from_database('asv_sequences_ag')
 ```
 
 ```{r}
 # the % needs met data
-
 ```
 
 ```{r}
@@ -453,8 +449,92 @@ ggsave('../figs/paper/078_heatmap_genus_36_cal_ggplot.pdf', width = 8, height = 
 ggsave('../figs/paper/078_heatmap_genus_36_cal_ggplot.jpg', width = 8, height = 3)
 ```
 
+### simpson reciprocal ~ ave_fiber + empirical + intensity + TPN + EN + ...
 
-### simpson reciprocal ~ ave_fiber + ave_fat + ave_Protein + ave_Sugars + ave_carb + empirical + intensity + TPN + EN + ...
+```{r}
+alpha_fiber <- log(simpson_reciprocal) ~ 1 +
+                ave_fiber +
+               inten_non + inten_ab + inten_re +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_alpha_fiber <- c(
+            # for the macro nutrients
+            prior(normal(0, 1), class = 'b', coef = "ave_fiber"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(2, 0.5), class = 'Intercept'))
+
+# vet the prior 
+model_alpha_fiber  <- brm( alpha_fiber,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_fiber,
+               control = list(adapt_delta = 0.99),
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T)
+
+mean_macro <-  full %>% 
+  select(starts_with('ave_')) %>% 
+  summarise_all(funs(mean))
+
+mean_ave_fiber_prior <- prior_draws(model_alpha_fiber) %>% 
+  mutate(mean_div = Intercept + 
+          b_ave_fiber * mean_macro$ave_fiber+
+           b_inten_re ) %>% 
+  select(mean_div) %>% 
+  mutate(grp = 'mean_macro') %>% 
+  rename(prior_res = mean_div) %>% 
+  select(grp, prior_res)
+```
+
+```{r}
+# plot the above model post coeff
+post_coeff <- posterior_samples(model_alpha_fiber, '^b_') %>% 
+  select(starts_with('b_ave')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+   mutate(item = case_when(
+    item ==  'fiber' ~ 'Fibers',
+    TRUE ~ item
+  ))  %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Macronutrients') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+ggsave('../figs/paper/078_fiber_alpha_model_coeff_forest.eps',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+```
+
+
+### simpson reciprocal ~ ave_fiber + ave_fat + ave_Protein + ave_Sugars + empirical + intensity + TPN + EN + ...
 
 ```{r}
 alpha_macro <- log(simpson_reciprocal) ~ 1 +
@@ -462,7 +542,6 @@ alpha_macro <- log(simpson_reciprocal) ~ 1 +
                 ave_fat +
                 ave_Protein +
                 ave_Sugars +
-                ave_carb +
                inten_non + inten_ab + inten_re +
                EN +
                 TPN +
@@ -472,11 +551,10 @@ alpha_macro <- log(simpson_reciprocal) ~ 1 +
 
 priors_alpha_macro <- c(
             # for the macro nutrients
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_carb"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_fat"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.5), class = 'b', coef = "ave_Sugars"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -495,6 +573,7 @@ model_alpha_macro  <- brm( alpha_macro,
               data = full, 
               warmup = 1000, iter = 3000, 
               prior = priors_alpha_macro,
+               control = list(adapt_delta = 0.99),
               cores = ncores,
               chains = 2, 
               seed = 123, sample_prior = T)
@@ -509,7 +588,6 @@ mean_ave_macro_prior <- prior_draws(model_alpha_macro) %>%
            b_ave_fat * mean_macro$ave_fat+
            b_ave_Protein * mean_macro$ave_Protein+
            b_ave_Sugars * mean_macro$ave_Sugars+
-           b_ave_carb * mean_macro$ave_carb+
            b_inten_re ) %>% 
   select(mean_div) %>% 
   mutate(grp = 'mean_macro') %>% 
@@ -531,7 +609,6 @@ post_coeff <- posterior_samples(model_alpha_macro, '^b_') %>%
    mutate(item = case_when(
     item ==  'fiber' ~ 'Fibers',
     item == 'fat' ~ 'Fat',
-    item ==  'carb' ~ 'Carbohydrates',
     TRUE ~ item
   ))  %>% 
   mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
