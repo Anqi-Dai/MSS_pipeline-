@@ -232,7 +232,8 @@ final <- PTB %>%
   select(age, sex, Disease = disease.simple, source,  intensity) %>% 
   mutate(Disease = case_when(
     Disease == 'NHL' ~ "Non-Hodgkin's lymphoma",
-    Disease == 'MDS/MPN' ~ 'Myelodysplastic/myeloproliferative neoplasms',
+    # Myelodysplastic/myeloproliferative neoplasms
+    Disease == 'MDS/MPN' ~ 'MDS/MPN',
     Disease == 'AML' ~ 'Acute myeloid leukemia',
     Disease == 'ALL' ~ 'Acute lymphoid leukemia',
     Disease == 'CLL' ~ 'Chronic lymphocytic leukemia',
@@ -266,9 +267,11 @@ final %>%
   ) %>%
   bold_labels() %>% 
   as_gt() %>%
-  gt::gtsave(filename = "../data/cleaned_diet_data/003_table_1_patient_summary.pdf")
+  #gt::tab_footnote(footnote = "MDS/MPN = Myelodysplastic/myeloproliferative neoplasms") %>% 
+  gt::gtsave(filename = "../figs/paper/003_table_1_patient_summary.pdf")
 
 ```
+
 
 
 ## for Tsoni's survival analysis I need to send the data
@@ -305,8 +308,5 @@ donor<- patient_allo_ag %>%
   mutate(donor_clean = if_else(str_detect(donor, 'Unrelated'), 'Unrelated', 'Related')) %>% 
   count(donor_clean) %>% 
   mutate(perc = round(n/sum(n)*100))
-
-
-
 ```
 

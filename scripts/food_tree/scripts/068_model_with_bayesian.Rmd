@@ -307,6 +307,8 @@ post_coeff <- post_samples %>%
   ))  %>% 
   left_join(key %>% select(fgrp1, color, shortname))  %>% 
   mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
+
+fg_labels <- levels(post_coeff$shortname)
 ```
 ```{r}
 fg_colors <- post_coeff %>% 

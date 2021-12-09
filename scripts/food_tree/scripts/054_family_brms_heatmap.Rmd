@@ -190,7 +190,8 @@ post_coeff <- post_samples %>%
   mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
   mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
   left_join(key %>% select(fgrp1, color, shortname))  %>% 
-  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
+  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F))  %>% 
+  mutate(shortname = factor(shortname, levels = c("Fruits"  , "Sweets"  ,  "Vegetables", "Grains"    , "Milk"   ,    "Meat"    ,   "Eggs"      , "Legumes" ,   "Oils" )))
 
 fg_colors <- post_coeff %>% 
   distinct(shortname, color) %>% 
