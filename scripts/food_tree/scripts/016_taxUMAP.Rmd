@@ -12,11 +12,28 @@ library(tidyverse)
 library(viridis)
 ```
 
-**Updated 2021-9-8 the new source files for the phylo-umap**
+**Updated 2021-12-9 the new source files for the phylo-umap (after the enteral nutrition correction)** 
+
+```{r}
+# make the food code counts matrix
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+matri <- dtb %>% 
+  select(mrn, fdrt, Food_code, dehydrated_weight) %>% 
+  mutate(fid = str_glue('{mrn}d{fdrt}')) %>% 
+  select(fid, Food_code, dehydrated_weight) %>%
+  group_by(fid, Food_code) %>% 
+  summarise(total = sum(dehydrated_weight)) %>% 
+  spread('fid', 'total', fill = 0)
+
+matri %>% 
+  write_csv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.csv')
+
+```
+
 
 ```{r}
 # formatting the counts table to have samples in the rows
-cts <- read_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix_UPDATED.tsv') %>% 
+cts <- matri %>% 
   gather('fid', 'gram', names(.)[2]:names(.)[ncol(.)])
 
 fid_sum <- cts %>% 
@@ -76,6 +93,8 @@ cts_all %>%
 
 ```{r}
 # format the food taxa table 
+# go to script 004
+
 ftaxa <- read_csv('../data/cleaned_diet_data/taxUMAP_foodID_taxa.csv') 
 
 ftaxa %>% 

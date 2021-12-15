@@ -146,7 +146,7 @@ radialNetwork( useRtreeList)
 # output the foodID taxanomy into a table that could be used in taxUMAP
 
 ```{r}
-actual_foodids <- read_tsv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.tsv') %>% 
+actual_foodids <- read_csv('../data/cleaned_diet_data/FINAL_97_food_code_counts_matrix.csv') %>% 
   pull(Food_code)
 
 food_taxa <- final.table %>% 
