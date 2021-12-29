@@ -1,0 +1,78 @@
+---
+title: "IR paper samples upload"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+```{r}
+already <- read_csv('~/Downloads/tblASVsamples.csv')
+
+need <- read_rds('/Volumes/vandenbrinklab/IR_project/rds_final_files/periengr_samples.rds') %>% 
+  filter(!sampleid %in% already$SampleID) %>% 
+  left_join(asv_alpha_diversity_ag %>% 
+              select(sampleid, oligos_id, path_pool)) %>% 
+  mutate(R1 = str_glue('scp daia1@lilac.mskcc.org:{path_pool}/{oligos_id}_R1.fastq.gz /Users/daia1/Work/projects/MSS_pipeline-/scripts/upload_sample_NCBI/data/IR_16s')) %>% 
+  mutate(R2 = str_replace(R1, '_R1.fastq.gz','_R2.fastq.gz')) %>% 
+  select(R1, R2) %>% 
+  gather() %>% 
+  select(value)
+
+need %>% 
+  write_csv('../scripts/download_IR_16s.sh', col_names = F)
+
+# download 
+```
+
+```{r}
+chen <- read_delim('~/Downloads/ids.txt') %>% 
+  rename(sampleid = `Sample ID`) %>% 
+  inner_join(asv_alpha_diversity_ag %>% 
+              select(sampleid, oligos_id, path_pool)) %>% 
+   mutate(R1 = str_glue('rsync --progress --partial -avz daia1@lilac.mskcc.org:{path_pool}/{oligos_id}_R1.fastq.gz /Users/daia1/Work/projects/MSS_pipeline-/scripts/upload_sample_NCBI/data/chen')) %>% 
+  mutate(R2 = str_replace(R1, '_R1.fastq.gz','_R2.fastq.gz')) %>% 
+  select(R1, R2) %>% 
+  gather() %>% 
+  select(value)
+
+chen %>% 
+  write_csv('../scripts/download_chen_16s.sh', col_names = F)
+```
+```{r}
+O <- read_rds('/Volumes/vandenbrinklab/IR_project/rds_final_files/periengr_samples.rds') %>% 
+  filter(!sampleid %in% already$SampleID) %>% 
+  inner_join(samples_castori_ag %>% 
+               select(sampleid, datecollection)) %>% 
+  mutate(patient_id = str_replace(sampleid, '[:alpha:]$',''))
+  
+
+get_table_from_database('samples_castori_ag')
+
+
+att <- read_tsv('../data/tables/Metagenome.environmental.1.0.tsv', comment = '#')  %>% 
+  select(starts_with('*'))
+  
+colnames(att)
+
+ir_att <- tibble(
+  sample_name = O$sampleid,
+  organism = 'human gut metagenome',
+  collection_date = 'not applicable',
+  geo_loc_name = 'MSK',
+  lat_lon = '40.7641 N 73.9568 W',
+  patient_id = O$patient_id
+)
+
+ir_att %>% 
+  write_csv('../data/IR_att.csv')
+```
+
