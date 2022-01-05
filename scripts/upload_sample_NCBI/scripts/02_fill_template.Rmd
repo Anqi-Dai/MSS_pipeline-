@@ -264,6 +264,8 @@ sra_fill1 <- tibble(
 
 sra_fill1 %>% 
   write_tsv('../data/nilu_fill1.tsv')
+
+see <- read_tsv('../data/nilu_fill1.tsv')
 ```
 
 ```{r}

@@ -16,7 +16,7 @@ get_table_from_database('asv_alpha_diversity_ag')
 
 ```{r}
 already <- read_csv('~/Downloads/tblASVsamples.csv')
-
+total <- read_rds('/Volumes/vandenbrinklab/IR_project/rds_final_files/periengr_samples.rds') 
 need <- read_rds('/Volumes/vandenbrinklab/IR_project/rds_final_files/periengr_samples.rds') %>% 
   filter(!sampleid %in% already$SampleID) %>% 
   left_join(asv_alpha_diversity_ag %>% 
@@ -31,6 +31,40 @@ need %>%
   write_csv('../scripts/download_IR_16s.sh', col_names = F)
 
 # download 
+
+# already uploaded 
+uploaded <- read_csv('~/Downloads/tblASVsamples.csv') %>% 
+  filter(SampleID %in% total$sampleid) %>% 
+  select(SampleID,Accession, BioProject )
+
+
+# two samples have already been uploaded before
+#FMT.0182J	SAMN13502466
+#FMT.0173O	SAMN13502452
+
+two <- tibble(
+  SampleID = c('FMT.0182J','FMT.0173O'),
+  Accession = c('SAMN13502466','SAMN13502452'),
+  BioProject = c('PRJNA545312','PRJNA545312'),
+)
+
+all_other_accession <- bind_rows(
+  uploaded, two
+)
+
+recent <- read_tsv('~/Downloads/attributes.tsv') %>% 
+  select(sample_name, accession) %>% 
+  mutate(BioProject = 'PRJNA792881') %>% 
+  rename(SampleID = sample_name,
+         Accession = accession)
+
+all_2066 <- bind_rows(
+  recent, all_other_accession
+)
+
+all_2066 %>% 
+  count(BioProject)
+all_2066 %>% write_csv('../data/IR_2066.csv')
 ```
 
 ```{r}
@@ -48,14 +82,27 @@ chen %>%
   write_csv('../scripts/download_chen_16s.sh', col_names = F)
 ```
 ```{r}
+files <- need <- read_rds('/Volumes/vandenbrinklab/IR_project/rds_final_files/periengr_samples.rds') %>% 
+  filter(!sampleid %in% already$SampleID) %>% 
+  left_join(asv_alpha_diversity_ag %>% 
+              select(sampleid, oligos_id, path_pool))
+
+get_table_from_database('samples_castori_ag')
+
 O <- read_rds('/Volumes/vandenbrinklab/IR_project/rds_final_files/periengr_samples.rds') %>% 
   filter(!sampleid %in% already$SampleID) %>% 
   inner_join(samples_castori_ag %>% 
                select(sampleid, datecollection)) %>% 
-  mutate(patient_id = str_replace(sampleid, '[:alpha:]$',''))
+  mutate(patient_id = str_replace(sampleid, '[:alpha:]$','')) %>% 
+  mutate(DayRelativeToNearestHCT = datecollection - hct) %>% 
+  filter(! sampleid %in% c('FMT.0182J','FMT.0173O','1574E.2')) %>% 
+  inner_join(files %>% 
+               select(sampleid, oligos_id)) %>% 
+  mutate(R1 = str_glue('{oligos_id}_R1.fastq.gz'),
+         R2 = str_glue('{oligos_id}_R2.fastq.gz'))
   
 
-get_table_from_database('samples_castori_ag')
+
 
 
 att <- read_tsv('../data/tables/Metagenome.environmental.1.0.tsv', comment = '#')  %>% 
@@ -69,10 +116,38 @@ ir_att <- tibble(
   collection_date = 'not applicable',
   geo_loc_name = 'MSK',
   lat_lon = '40.7641 N 73.9568 W',
-  patient_id = O$patient_id
+  patient_id = O$patient_id,
+  DayRelativeToNearestHCT =  O$DayRelativeToNearestHCT
 )
 
 ir_att %>% 
   write_csv('../data/IR_att.csv')
+
+
+```
+
+```{r}
+cols <- readxl::read_excel('../data/tables/SRA_metadata.xlsx', sheet = 2)
+colnames(cols)
+
+# fill the sra meta info
+sra_fill <- tibble(
+  sample_name = ir_att$sample_name,
+  library_ID = ir_att$sample_name,
+  title = 'Stool sample of allo-HCT patient',
+  library_strategy = 'amplicon',
+  library_source = 'GENOMIC',
+  library_selection = 'PCR',
+  library_layout ='paired',
+  platform= 'ILLUMINA',
+  instrument_model= 'Illumina MiSeq',
+  design_description='PCR amplification of 16S V4-V5 regions; Bead-beating, phenol chloroform DNA extraction',
+  filetype= 'fastq',
+  filename=O$R1,
+  filename2=O$R2
+)
+
+sra_fill %>% 
+  write_tsv('../data/IR_sra.tsv')
 ```
 
