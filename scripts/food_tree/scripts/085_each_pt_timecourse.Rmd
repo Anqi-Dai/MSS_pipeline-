@@ -12,11 +12,11 @@ Make a figure with panels with each patient's timecourse in daily caloric intake
 ```{r}
 library(ggpubr)
 library(tidyverse)
-pt_line_size <- 0.5
+pt_line_size <- 0.2
 alpha_val <- 1
 point_size <- 0.5
 diet_line_color <- '#E41A1C'
-axis_text_size <- 8
+axis_text_size <- 3
 axis_title_size <- 8
 stool_line_color <- 'blue'
 ```
@@ -111,20 +111,21 @@ whole_list <-  mrns %>%
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         axis.title.y = element_text(color = diet_line_color),
+        axis.title.x = element_blank(), 
+        axis.text.y = element_blank(), 
+        axis.ticks.y = element_blank(),
         axis.title.y.right = element_text(color = stool_line_color),
         aspect.ratio=1)
   })
-```
 
-```{r}
 # arrange the above into a facet-wrap
 library(gridExtra)
 n <- length(whole_list)
 nCol <- 8
 all <- do.call("grid.arrange", c(whole_list, ncol=nCol))
 ggsave('../figs/paper/085_all_patients_timecourse.eps', 
-       width = 10, 
-       height = 15,
+       width = 8, 
+       height = 10,
        plot = all)
 ```
 
