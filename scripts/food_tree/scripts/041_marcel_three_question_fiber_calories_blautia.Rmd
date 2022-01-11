@@ -266,18 +266,33 @@ combined <- meta_blautia_fiber %>%
   full_join(Enterococcus)%>% 
   mutate(kcal = ave_cal/1000) %>% 
   mutate(ave_fiber_log = log10(ave_fiber + 0.01),
-         simpson_reciprocal_log = log10(simpson_reciprocal))
+         simpson_reciprocal_log = log10(simpson_reciprocal)) %>% 
+  mutate(blautia_relab_log = if_else(is.na(blautia_relab_log), 0, blautia_relab_log))
+
+combined %>% 
+  filter(ave_fiber < 35) %>% 
+  ggscatter( x= 'ave_fiber', y = 'Enterococcus_relab_log',
+               add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman", 
+                                 label.sep = "\n", 
+                                 label.x.npc = "middle", 
+                                 label.y.npc = "bottom",
+                                 size = 5,
+                                 color = 'black'))
 ```
 
 ## plotting 
 
 ```{r}
 combined  %>% 
-  dplyr::select(simpson_reciprocal_log, blautia_relab_log, Enterococcus_relab_log, ave_fiber_log, kcal) %>% 
+  dplyr::select(simpson_reciprocal_log, blautia_relab_log, Enterococcus_relab_log,  ave_fiber_log, kcal) %>% 
   gather('yaxis', 'value', simpson_reciprocal_log:Enterococcus_relab_log) %>% 
   mutate(yaxis = factor(yaxis, levels = c('simpson_reciprocal_log','blautia_relab_log','Enterococcus_relab_log'))) %>% 
   gather('xaxis', 'number', kcal:ave_fiber_log) %>% 
-  mutate(xaxis = factor(xaxis, levels = c('kcal','ave_fiber_log'))) %>% 
+  mutate(xaxis = factor(xaxis, levels = c('kcal','ave_fiber'))) %>% 
   ggscatter(x = 'number', y = 'value', alpha = 0.2,xlab = '', ylab = '',size = 1.2, 
              add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line

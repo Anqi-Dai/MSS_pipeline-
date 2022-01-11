@@ -107,57 +107,69 @@ dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>%
   inner_join(tree_df %>% mutate(Food_code = as.numeric(FoodID)), by = "Food_code") %>% 
   mutate(log10wt = log10(dehydrated_weight))
 
-clade_markder <- dm5 %>% 
-  select(description, clade_marker_color = color) %>% 
-  mutate(clade_marker_shape = '.',
-         clade_marker_size = 50,
-         clade_marker_edge_color = 'white') %>% 
-  gather('key','value', clade_marker_color:clade_marker_edge_color)
-
-clade_markder %>% 
-  write_tsv('../data/source/clade_annot_marker.txt', col_names = F)
+# clade_markder <- dm5 %>% 
+#   select(description, clade_marker_color = color) %>% 
+#  mutate(clade_marker_shape = '.',clade_marker_size = 50,clade_marker_edge_color = 'white') %>% 
+#   gather('key','value', clade_marker_color:clade_marker_edge_color)
+# 
+# # the below is the file for the dot on the tree to mark the dm 5 food for that patient.
+# clade_markder %>% 
+#   write_tsv('../data/source/clade_annot_marker.txt', col_names = F)
 
 
 ring_itself <- tibble(
-  ring_level = c(1, 2),
+  ring_level = c(1),
   ring_internal_separator_thickness = 0.1,
-  ring_external_separator_thickness = 0.1,
+  ring_external_separator_thickness = 0,
   ring_label_font_size = 5,
   ring_separator_color = 'black'
 ) %>% 
   gather('key', 'value', ring_internal_separator_thickness:ring_separator_color) %>% 
   select(key, ring_level, value) %>% 
-  write_tsv('../data/source/ring_annot_marker.txt', col_names = F)
+  write_tsv('../data/source/ring_itself.txt', col_names = F)
 ```
 
 ```{r}
 # add the day meal log10 wt for the food code to the second ring
-ring2 <- dm5 %>% 
-  mutate(ring_height = log10wt,
-         ring_height = ring_height/2) %>% 
-  select(description, ring_color = color, ring_height) %>% 
-  mutate(ring_alpha = 0.5,
-         ring_width = 1) %>% 
-  gather('key','value', ring_color:ring_width) %>% 
-  mutate(ring_level = 2) %>% 
-  select(description, key, ring_level, value) 
-
-ring2 %>% write_tsv('../data/source/ring2.txt', col_names = F)
+# ring2 <- dm5 %>% 
+#   mutate(ring_height = log10wt,
+#          ring_height = ring_height/2) %>% 
+#   select(description, ring_color = color, ring_height) %>% 
+#   mutate(ring_alpha = 0.5,
+#          ring_width = 1) %>% 
+#   gather('key','value', ring_color:ring_width) %>% 
+#   mutate(ring_level = 2) %>% 
+#   select(description, key, ring_level, value) 
+# 
+# ring2 %>% write_tsv('../data/source/ring2.txt', col_names = F)
 ```
 
+```{r}
+# add another layer of the ring as the text annotation of what the ring 2 food is
+dm5_annot <- dm5 %>% 
+  #mutate(ring_height = log10wt,ring_height = ring_height/2) %>% 
+  select(description, annotation = item, annotation_background_color = color) %>% 
+  mutate(annotation_rotation = 90,
+         annotation_font_size = 3)  %>% 
+  gather('key','value', annotation:annotation_font_size) %>% 
+  select(description, key, value) 
+
+dm5_annot %>% write_tsv('../data/source/dm5_annotation.txt', col_names = F)
+```
+    
     
 ```{bash}
-cat ../data/source/annotation.base.txt ../data/source/ring_annot_marker.txt > ../data/cleaned_tree/Annot_tree.txt
-cat ../data/cleaned_tree/Annot_tree.txt ../data/source/clade_annot_marker.txt > ../data/cleaned_tree/Annot_tree2.txt
-cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring2.txt > ../data/cleaned_tree/Annot_tree3.txt
-cat ../data/cleaned_tree/Annot_tree3.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree4.txt 
+cat ../data/source/annotation.base.txt ../data/source/dm5_annotation.txt > ../data/cleaned_tree/Annot_tree.txt
+cat ../data/cleaned_tree/Annot_tree.txt ../data/source/ring_itself.txt > ../data/cleaned_tree/Annot_tree2.txt 
+cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree4.txt 
 ```
+
 
 ```{bash}
 # this runs in the source folder 
 # the key is that the tree and the annot file has to have the string of food name as leaves 
 graphlan_annotate.py --annot ../cleaned_tree/Annot_tree4.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
-graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.pdf --dpi 400 --size 2.5 --pad 2
+graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.pdf --dpi 400 --size 3 --pad 0
 
 ```
 

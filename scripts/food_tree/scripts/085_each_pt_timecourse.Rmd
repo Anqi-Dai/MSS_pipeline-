@@ -138,38 +138,3 @@ ggsave('../figs/paper/085_example_patient_timecourse.eps',
 ```
 
 
-```{r}
-
-library(psych)
-macro_columns4 <- full %>% 
-  select(starts_with('ave')) %>% 
-  select(-ave_carb, -ave_cal)
-
-pairs.panels(macro_columns4, 
-             method = "pearson", # correlation method
-             hist.col = "#00AFBB",
-             density = TRUE,  # show density plots
-             ellipses = TRUE # show correlation ellipses
-             )
-```
-
-```{r}
-# to solve the high correlation between the fat and protein, combine them
-macro_columns <- full %>% 
-  select(starts_with('ave')) %>% 
-  select(-ave_carb, -ave_cal) %>% 
-  mutate(fat_n_pro = ave_fat + ave_Protein) %>% 
-  select(-ave_fat, -ave_Protein)
-
-
-pairs.panels(macro_columns, 
-             method = "pearson", # correlation method
-             hist.col = "#00AFBB",
-             density = TRUE,  # show density plots
-             ellipses = TRUE # show correlation ellipses
-             )
-```
-
-
-
-
