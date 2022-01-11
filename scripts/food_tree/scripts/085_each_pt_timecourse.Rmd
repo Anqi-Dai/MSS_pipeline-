@@ -75,6 +75,7 @@ every_pt_list <-  mrns %>%
       geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
     scale_y_continuous(name = "Daily calories / Faith div\n(*10e3)", limits = c(0, 2.6),
     sec.axis = sec_axis(~.*scale_factor, name = expression(Fecal~alpha~diversity))) +
+      labs(x = 'Day relative to HCT', y = '') + 
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
@@ -92,12 +93,7 @@ every_pt_list <-  mrns %>%
 whole_list <-  mrns %>% 
   set_names(mrns) %>% 
   map(function(.x) {
-      ggscatter(data =  day_calori[[.x]], x = 'fdrt', y = 'daycal', alpha = alpha_val, size = 0, 
-                color = diet_line_color,
-            xlab = 'Day relative to HCT',
-            #title = str_glue('{.x}'),
-            ylab = ''
-            )  +
+      ggplot()  +
       geom_line(data = day_calori[[.x]], aes(x = fdrt, y = daycal), linetype = 'solid', size = pt_line_size, col = diet_line_color) +
       # the diet faith 
       #geom_point(data = faith[[.x]], aes(x = fdrt, y = faith_pd), col = diet_line_color, size = point_size) +
@@ -107,13 +103,13 @@ whole_list <-  mrns %>%
       geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
     scale_y_continuous(name = "", limits = c(0, 2.6),
     sec.axis = sec_axis(~.*scale_factor)) +
+    labs(x = 'Day relative to HCT', y = '') + 
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         axis.title.y = element_text(color = diet_line_color),
-        axis.title.x = element_blank(), 
+        #axis.title.x = element_blank(), 
         axis.text.y = element_blank(), 
-        axis.ticks.y = element_blank(),
         axis.title.y.right = element_text(color = stool_line_color),
         aspect.ratio=1)
   })
@@ -140,4 +136,40 @@ ggsave('../figs/paper/085_example_patient_timecourse.eps',
          dpi = 400, device = 'eps',
        plot = example)
 ```
+
+
+```{r}
+
+library(psych)
+macro_columns4 <- full %>% 
+  select(starts_with('ave')) %>% 
+  select(-ave_carb, -ave_cal)
+
+pairs.panels(macro_columns4, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+```
+
+```{r}
+# to solve the high correlation between the fat and protein, combine them
+macro_columns <- full %>% 
+  select(starts_with('ave')) %>% 
+  select(-ave_carb, -ave_cal) %>% 
+  mutate(fat_n_pro = ave_fat + ave_Protein) %>% 
+  select(-ave_fat, -ave_Protein)
+
+
+pairs.panels(macro_columns, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+```
+
+
+
 

@@ -209,10 +209,44 @@ full <- meta %>%
          inten_re = if_else(intensity == 'reduced', 1, 0))
 
 full %>% 
+  mutate(ave_fat_n_pro = ave_fat + ave_Protein) %>% 
+  select(-fat_n_pro ) %>% 
   write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
 
 full <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
 summary(full)
+```
+
+```{r}
+library(psych)
+macro_columns4 <- full %>% 
+  select(starts_with('ave')) %>% 
+  select(-ave_carb, -ave_cal)
+
+pairs.panels(macro_columns4, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+ggsave('../figs/078_macro_4_pair_cor.pdf')
+```
+
+```{r}
+# to solve the high correlation between the fat and protein, combine them
+macro_columns <- full %>% 
+  select(starts_with('ave')) %>% 
+  select(-ave_carb, -ave_cal) %>% 
+  mutate(fat_n_pro = ave_fat + ave_Protein) %>% 
+  select(-ave_fat, -ave_Protein)
+
+
+pairs.panels(macro_columns, 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
 ```
 
 ## modeling part 
@@ -534,13 +568,12 @@ ggsave('../figs/paper/078_fiber_alpha_model_coeff_forest.eps',
 ```
 
 
-### simpson reciprocal ~ ave_fiber + ave_fat + ave_Protein + ave_Sugars + empirical + intensity + TPN + EN + ...
+### simpson reciprocal ~ ave_fiber + ave_fat_n_pro + ave_Sugars + empirical + intensity + TPN + EN + ...
 
 ```{r}
 alpha_macro <- log(simpson_reciprocal) ~ 1 +
                 ave_fiber +
-                ave_fat +
-                ave_Protein +
+                ave_fat_n_pro +
                 ave_Sugars +
                inten_non + inten_ab + inten_re +
                EN +
@@ -552,8 +585,7 @@ alpha_macro <- log(simpson_reciprocal) ~ 1 +
 priors_alpha_macro <- c(
             # for the macro nutrients
             prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fat_n_pro"),
             prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
@@ -585,8 +617,7 @@ mean_macro <-  full %>%
 mean_ave_macro_prior <- prior_draws(model_alpha_macro) %>% 
   mutate(mean_div = Intercept + 
           b_ave_fiber * mean_macro$ave_fiber+
-           b_ave_fat * mean_macro$ave_fat+
-           b_ave_Protein * mean_macro$ave_Protein+
+           b_ave_fat_n_pro * mean_macro$ave_fat_n_pro+
            b_ave_Sugars * mean_macro$ave_Sugars+
            b_inten_re ) %>% 
   select(mean_div) %>% 
@@ -669,17 +700,15 @@ ggsave('../figs/paper/078_macronutrients_alpha_model_coeff_forest_binary.eps',
          dpi = 400, device = 'eps')
 ```
 
-### genus ~ ave_fiber + ave_fat + ave_Protein + ave_Sugars + ave_carb + empirical + intensity + TPN + EN + ...
+### genus ~ ave_fiber + ave_fat_n_pro + ave_Sugars + empirical + intensity + TPN + EN + ...
 
 ```{r}
 # The outcome being each of the genus
 # to test and confirm the prior
 Enterococcus_mod <- Enterococcus ~ 1 +
               ave_fiber +
-                ave_fat +
-                ave_Protein +
+              ave_fat_n_pro +
                 ave_Sugars +
-                ave_carb +
                inten_non + inten_ab + inten_re +
                 empirical+
                 TPN+
@@ -690,10 +719,8 @@ Enterococcus_mod <- Enterococcus ~ 1 +
 priors_genus_macro <- c(
             # for the macro nutrients
             prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fat_n_pro"),
             prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_carb"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -716,17 +743,16 @@ Enterococcus_model <- brm( Enterococcus_mod,
               chains = 2, 
               control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T )
+```
 
 
-
+```{r}
 # check the priors
 mean_enterococcus_prior <- prior_draws(Enterococcus_model) %>% 
   mutate(mean_genus = Intercept + 
           b_ave_fiber * mean_macro$ave_fiber+
-           b_ave_fat * mean_macro$ave_fat+
-           b_ave_Protein * mean_macro$ave_Protein+
+           b_ave_fat_n_pro * mean_macro$ave_fat_n_pro+
            b_ave_Sugars * mean_macro$ave_Sugars+
-           b_ave_carb * mean_macro$ave_carb+
            b_inten_re ) %>% 
   select(mean_genus) %>% 
   mutate(grp = 'mean_enterococcus') %>% 
@@ -774,10 +800,8 @@ ret_genus_macro <- target_genera %>%
     mod =  brm( as.formula(str_glue('{genus}  ~ 
                1 +
                  ave_fiber +
-                ave_fat +
-                ave_Protein +
+                ave_fat_n_pro +
                 ave_Sugars +
-                ave_carb +
                inten_non + inten_ab + inten_re +
                 empirical+
                 TPN+

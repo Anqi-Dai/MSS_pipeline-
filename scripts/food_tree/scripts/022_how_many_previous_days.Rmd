@@ -235,45 +235,45 @@ fns_both <- tibble(
 
 
 ```{r}
-# a function to do the procrustes as a pair
-protest_Nday <- map2(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
-  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
-    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
-    column_to_rownames('X1') %>% 
-    as.matrix()
-  
-  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
-    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
-    column_to_rownames('X1') %>% 
-    as.matrix()
-  
-  protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
-  return( list(pval  = protest_res$signif,
-               corr = protest_res$t0))
-}) 
+# # a function to do the procrustes as a pair
+# protest_Nday <- map2(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+#   dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+#     filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+#     column_to_rownames('X1') %>% 
+#     as.matrix()
+#   
+#   spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+#     filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+#     column_to_rownames('X1') %>% 
+#     as.matrix()
+#   
+#   protest_res = protest(X = dpcoa, Y = spcoa,  permutations = 999)
+#   return( list(pval  = protest_res$signif,
+#                corr = protest_res$t0))
+# }) 
 
-# make the above to a df and then plot 
-protest_Nday[[1]]$corr
-
-pvals <- protest_Nday %>% 
-  set_names(fns_both  %>% pull(ID)) %>%  
-  map_dfr(~ pluck(.x = ., 'pval')) %>% 
-  gather('pNd', 'pval')
-
-corrs <-  protest_Nday %>% 
-  set_names(fns_both  %>% pull(ID)) %>% 
-  map_dfr(~ pluck(.x = ., 'corr')) %>% 
-  gather('pNd', 'corr')
-
-allstool_res <- pvals %>% 
-  full_join(corrs)
-
-allstool_res %>% 
-  gather('type', 'value', pval:corr) %>% 
-  ggboxplot(y =  'value', add = 'dotplot', label = 'pNd', repel = T,
-            xlab = '', ylab = '',
-            title = 'procrustes test  (all qualified stool samples)') +
-  facet_wrap(~ type, scales = 'free_y')
+# # make the above to a df and then plot 
+# protest_Nday[[1]]$corr
+# 
+# pvals <- protest_Nday %>% 
+#   set_names(fns_both  %>% pull(ID)) %>%  
+#   map_dfr(~ pluck(.x = ., 'pval')) %>% 
+#   gather('pNd', 'pval')
+# 
+# corrs <-  protest_Nday %>% 
+#   set_names(fns_both  %>% pull(ID)) %>% 
+#   map_dfr(~ pluck(.x = ., 'corr')) %>% 
+#   gather('pNd', 'corr')
+# 
+# allstool_res <- pvals %>% 
+#   full_join(corrs)
+# 
+# allstool_res %>% 
+#   gather('type', 'value', pval:corr) %>% 
+#   ggboxplot(y =  'value', add = 'dotplot', label = 'pNd', repel = T,
+#             xlab = '', ylab = '',
+#             title = 'procrustes test  (all qualified stool samples)') +
+#   facet_wrap(~ type, scales = 'free_y')
 
 ```
 
@@ -296,17 +296,23 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
   mutate(pNd = fns_both$ID)
 ```
 
+```{r}
+# convert it to a score so that the p2d is the highest
+procrustes_Nday_score <- procrustes_Nday %>% 
+  mutate(score = min(.$ss) - ss)
+```
+
 
 ```{r sum_of_squares}
 # make the figure
 axis_text_size <- 10
 axis_title_size <- 10
 
-procrustes_Nday %>% 
+procrustes_Nday_score %>% 
   mutate(pNd = str_extract(pNd, '\\d')) %>% 
-  ggdotchart(x = 'pNd', y = 'ss', sorting = 'none', ylab = 'Sum of squares',
+  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Sum of squares',
              xlab = 'Number of previous days\nof dietary intake', size = 1.3) +
-  geom_line(aes(x = pNd, y = ss), group = 1, linetype = 'dashed', size = 0.3) +
+  geom_line(aes(x = pNd, y = score), group = 1, linetype = 'dashed', size = 0.3) +
   theme(aspect.ratio=1,
         axis.text=element_text(size=axis_text_size), 
         axis.title=element_text(size=axis_title_size),
