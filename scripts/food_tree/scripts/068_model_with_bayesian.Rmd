@@ -318,19 +318,23 @@ fg_colors <- post_coeff %>%
 
 title1 <- bquote(Outcome: log[e]~(Simpsons~reciprocal))
 
-post_coeff %>% 
+div_post <- post_coeff %>% 
   ggplot(aes(x = coeff, y = shortname, col = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'High-level food categories\n(FNDDS)') +
+       y = '', 
+       title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = fg_colors) +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
+
+div_post %>% 
+  write_rds('../data/068_div_post.rds')
 
 ggsave('../figs/paper/068_fig2_model_coeff_forest.eps',  
        width = 80,

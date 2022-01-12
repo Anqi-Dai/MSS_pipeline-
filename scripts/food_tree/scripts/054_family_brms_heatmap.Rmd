@@ -204,9 +204,10 @@ fg_colors <- post_coeff %>%
 Enterococcaceae_model_coeff <- post_coeff %>% 
   ggplot(aes(x = coeff, y = shortname, col = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = '') +
+       y = '',
+       title = 'Enterococcaceae') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = fg_colors) +
