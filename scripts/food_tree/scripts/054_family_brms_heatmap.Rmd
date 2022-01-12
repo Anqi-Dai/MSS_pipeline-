@@ -88,6 +88,8 @@ domcts <- cts %>%
 
 All <- domcts %>% 
   full_join(meta, by = "sampleid")
+
+#All <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
 ```
 
 ## setting priors
@@ -191,7 +193,7 @@ post_coeff <- post_samples %>%
   mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
   left_join(key %>% select(fgrp1, color, shortname))  %>% 
   mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F))  %>% 
-  mutate(shortname = factor(shortname, levels = c("Fruits"  , "Sweets"  ,  "Vegetables", "Grains"    , "Milk"   ,    "Meat"    ,   "Eggs"      , "Legumes" ,   "Oils" )))
+  mutate(shortname = factor(shortname, levels = c("Fruits"  , "Sweets"  ,  "Vegetables", "Grains"    , "Milk"   ,    "Meats"    ,   "Eggs"      , "Legumes" ,   "Oils" )))
 
 fg_colors <- post_coeff %>% 
   distinct(shortname, color) %>% 
@@ -199,7 +201,7 @@ fg_colors <- post_coeff %>%
   deframe()
 
 # plotting the forest
-post_coeff %>% 
+Enterococcaceae_model_coeff <- post_coeff %>% 
   ggplot(aes(x = coeff, y = shortname, col = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
@@ -212,7 +214,10 @@ post_coeff %>%
         axis.title=element_text(size=10),
         aspect.ratio=1) 
 
-ggsave('../figs/paper/054_fig2_model_Enterococcaceae_coeff_forest.eps',  
+Enterococcaceae_model_coeff %>% 
+  write_rds('../data/054_Enterococcaceae_model_coeff.rds')
+
+ggsave('../figs/paper/054_fig2_model_Enterococcaceae_model_coeff_forest.eps',  
        width = 80,
        height = 80,
          units = c("mm"),

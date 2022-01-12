@@ -1,0 +1,95 @@
+---
+title: "Figure 2"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+axis_text_size <- 10
+axis_title_size <- 10
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccccc')
+```
+
+
+
+```{r 2a_procrustes}
+procrustes_dat <- read_csv('../data/022_procrustes_Nday_score.csv')
+
+f2a <- procrustes_Nday_score %>% 
+  mutate(pNd = str_extract(pNd, '\\d')) %>% 
+  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Sum of squares',
+             xlab = 'Number of previous days\nof dietary intake', size = 1.3) +
+  geom_line(aes(x = pNd, y = score), group = 1, linetype = 'dashed', size = 0.3) +
+  theme(aspect.ratio=1,
+        axis.text=element_text(size=axis_text_size), 
+        axis.title=element_text(size=axis_title_size),
+        axis.text.x = element_text(angle=0, hjust=0.5)) 
+
+ggsave('../figs/paper/022_fig2_procrustes.eps',
+       width = 100,
+       height = 50,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+```
+```{r 2b_diagram}
+p <- '../figs/paper/fig2_cartoon_of_model.png'
+diagram <- ggdraw() +
+  draw_image(magick::image_read(p),   scale = 1) 
+diagram
+```
+
+```{r 2c_div_fg9}
+main_post <- read_csv('../data/brms_model_var_res_updated.csv')  
+
+post_coeff <- main_post %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(key %>% select(fgrp1, color, shortname))  %>% 
+  mutate(shortname = fct_reorder(shortname, value, .fun=median, .desc = F)) 
+
+fg_labels <- levels(post_coeff$shortname)
+
+fg_colors <- post_coeff %>% 
+  distinct(shortname, color) %>% 
+  select(shortname, color) %>% 
+  deframe()
+
+title1 <- bquote(Outcome: log[e]~(Simpsons~reciprocal_diversity))
+f2c <- post_coeff %>% 
+  ggplot(aes(x = value, y = shortname, col = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'High-level food categories\n(FNDDS)',
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = fg_colors) +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+```
+
+
+```{r}
+f2d <- read_rds('../data/068_only3_sim.rds')
+
+f2e <- read_rds('../data/054_Enterococcaceae_model_coeff.rds')
+```
+

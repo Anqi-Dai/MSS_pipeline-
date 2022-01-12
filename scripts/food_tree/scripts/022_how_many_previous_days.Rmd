@@ -324,6 +324,9 @@ ggsave('../figs/paper/022_fig2_procrustes.eps',
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'eps')
+
+procrustes_Nday_score %>% 
+  write_csv('../data/022_procrustes_Nday_score.csv')
 ```
 
 ```{r}
