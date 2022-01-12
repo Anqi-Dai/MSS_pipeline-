@@ -170,7 +170,7 @@ cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring_annot.txt > ../data
 # the key is that the tree and the annot file has to have the string of food name as leaves 
 graphlan_annotate.py --annot ../cleaned_tree/Annot_tree4.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
 graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.pdf --dpi 400 --size 3 --pad 0
-
+graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.svg --dpi 400 --size 3 --pad 0
 ```
 
 Succeeded!!!!!!!!!!!!! Now I have the ring added using graphlan!!! Perfectly aligned and the colors match!!!!!!!!

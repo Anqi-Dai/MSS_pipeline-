@@ -345,32 +345,16 @@ daym5
 
 ```{r tree}
 # import the tree from pdf to a ggplot kind of object
-p <- grImport2::readPicture( "../figs/paper/080_food_tree_ring.svg" )
-tree <- grImport2::pictureGrob( p )
+# p <- grImport2::readPicture( "../figs/paper/080_food_tree_ring.svg" )
+# tree <- grImport2::pictureGrob( p )# soooo freaking slow!!!!!
+
+p <- '../figs/paper/080_food_tree_ring.png'
+tree <- ggdraw() +
+  draw_image(p,   scale = 1) 
+tree
 ```
 
-```{r midright}
-# middle right
-midright <- plot_grid( daym5,  fig1_umap,
-                  ncol = 1, labels = c('E','F'), rel_heights = c(0.5,0.5))
 
-middle <- plot_grid( tree, midright,
-                 nrow = 1,  labels = c('D',''), rel_widths = c(1.8,1))
-
-
-# assemble all
-f1 <-  plot_grid(top,  middle, bot,
-                 rel_heights = c(1,2,1),
-                 nrow = 3)
-
-ggsave('../figs/paper/bot_fig1.pdf',
-       width = 160,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400,
-       device = cairo_pdf , plot = bot)
-```
  
 ```{r}
 # wanna create a figure legend with the full food group names and a color palette
@@ -399,9 +383,13 @@ palette_fg %>%
 ```{r}
 fg_colors <- palette_fg %>% 
   select(fdesc, color) %>% 
+  mutate(fdesc = factor(fdesc, levels = c('Grain Product', 'Vegetables', 'Meat, Poultry, Fish & Mixtures', 'Milk & Milk Products', 'Sugars, Sweets & Beverages', 'Fruits', 'Dry Beans, Peas, Other Legumes, Nuts, & Seeds', 'Fats, Oils & Salad Dressings', 'Eggs'))) %>% 
+   mutate(fdesc = str_wrap(fdesc, width = 35, indent = 0, exdent = 3)) %>% 
   deframe()
 
-dtb %>% 
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+fglegend <- dtb %>% 
   mutate(fgrp1 = str_sub(Food_code, 1 ,1)) %>% 
   group_by(fgrp1) %>% 
   summarise(total = sum(dehydrated_weight)) %>% 
@@ -409,8 +397,46 @@ dtb %>%
   ggbarplot(x = 'fdesc', y = 'total', 
             color = 'fdesc', fil = 'fdesc' ) +
   scale_color_manual(values = fg_colors)  +
-  scale_fill_manual(values = fg_colors) 
+  scale_fill_manual(values = fg_colors)  +
+  guides(col=guide_legend(ncol=1))  +
+  theme(legend.title = element_blank())
+
+fg_legend <-  cowplot::get_legend(fglegend)
+fg_legend_ <- as_ggplot(fg_legend)
 
 ggsave('../figs/paper/072_fg_color_palette.pdf', dpi = 400, width = 15)
+```
+
+
+
+# Assembling the final version of the figure 1
+
+```{r midright}
+# middle right
+top_right <- plot_grid(  fig1_umap,fg_legend_,
+                  ncol = 1, labels = c('B',''), rel_heights = c(0.5,0.5))
+
+top_left <- plot_grid( tree,
+                 nrow = 1,  labels = c('A'))
+
+top <- plot_grid(  top_left,top_right,
+                  ncol = 2, rel_widths = c(0.8,0.5))
+top
+```
+
+
+```{r midright}
+# assemble all
+f1 <-  plot_grid(top,  middle, bot,
+                 rel_heights = c(1,2,1),
+                 nrow = 3)
+
+ggsave('../figs/paper/bot_fig1.pdf',
+       width = 160,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400,
+       device = cairo_pdf , plot = bot)
 ```
 
