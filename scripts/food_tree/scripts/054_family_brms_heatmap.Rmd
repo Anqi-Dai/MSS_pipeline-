@@ -211,8 +211,8 @@ Enterococcaceae_model_coeff <- post_coeff %>%
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = fg_colors) +
-  theme(axis.text=element_text(size=10),
-        axis.title=element_text(size=10),
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=8),
         aspect.ratio=1) 
 
 Enterococcaceae_model_coeff %>% 

@@ -329,8 +329,8 @@ div_post <- post_coeff %>%
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = fg_colors) +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=8),
         aspect.ratio=1)
 
 div_post %>% 
@@ -481,9 +481,9 @@ only3_sim <- only3 %>%
   scale_color_manual(values = key %>% 
                        select(fg1_name, color) %>% deframe()) +
   xlim(-6, 4.5) +
-  theme(axis.text=element_text(size=axis_text_size),
+  theme(axis.text=element_text(size=8),
         legend.position = 'none',
-        axis.title=element_text(size=axis_title_size),
+        axis.title=element_text(size=8),
         aspect.ratio=1)
 
 only3_sim %>% 
