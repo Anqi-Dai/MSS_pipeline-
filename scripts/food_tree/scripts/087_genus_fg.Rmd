@@ -275,7 +275,12 @@ total <- All %>%
   select(sampleid:Veillonellaceae) %>% 
   full_join(full)
 
+total %>% 
+  write_csv('../data/087_ALL_meta_data.csv')
+```
 
+
+```{r}
 priors_genus_macro <- c(
             # for the macro nutrients
             prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),

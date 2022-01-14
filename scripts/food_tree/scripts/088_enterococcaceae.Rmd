@@ -1,0 +1,27 @@
+---
+title: "What is happening with Enterococcus and Enterococcaceae"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+total <- read_csv('../data/087_ALL_meta_data.csv')
+
+total %>% 
+  ggscatter(x = 'Enterococcus', y = 'Enterococcaceae',
+               add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
+  geom_abline( slope = 1)
+```
+
