@@ -1,0 +1,43 @@
+---
+title: "Check what samples are in cluster"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+cur <- read_delim('../data/current.txt', delim = '\t',  col_names = F) %>% 
+  mutate(fid = str_replace(X1, '^.+Sample_','')) %>% 
+  mutate(fid = str_replace(fid, '_IGO.+$',''))
+
+overlap <- cur %>% 
+  inner_join(fids)
+
+length(setdiff(fids$fid, cur$fid))
+
+# fids: oriana all + arielle
+miss <- tibble(fid = setdiff(fids$fid, cur$fid)) %>% 
+  left_join(shotgun_lookup_ad)
+
+length(intersect(miss$fid, ba$fid))
+
+
+missing_fids <- setdiff(fids$fid, cur$fid)
+missing <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/all_BAs_conc.csv') %>% 
+  mutate(fid = if_else(str_detect(sampleid, '^FMT'), str_replace(sampleid, '\\.', '_'), sampleid)) %>% 
+  filter(fid %in% missing_fids)
+  
+missing %>% 
+  write_csv('../data/BA_missing.csv', col_names = F)
+
+```
+

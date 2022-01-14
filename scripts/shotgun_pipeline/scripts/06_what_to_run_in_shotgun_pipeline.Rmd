@@ -1,0 +1,38 @@
+---
+title: "The samples tha will go into the shotgun pipeline"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# 2021-1-13
+# Oriana samples Arielle samples shotgun
+ba <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/all_BAs_conc.csv') %>% 
+  select(sampleid) %>% 
+  mutate(fid = if_else(str_detect(sampleid, '^FMT'), str_replace(sampleid, '\\.', '_'), sampleid))
+
+arie <- tibble(
+  dir = list.files('/Volumes/vandenBrinkLab/MMF/Sequencing Data/Arielle/Shotgun/') 
+) %>% 
+  mutate(fid = str_replace(dir, 'Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$',''))
+
+fids <- bind_rows(
+  ba %>% select(fid),
+  arie %>% select(fid)
+)
+
+fids %>% 
+  write_csv('../data/OA2.csv', col_names = F)
+
+
+
+```
+

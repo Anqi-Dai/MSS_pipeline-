@@ -172,10 +172,7 @@ copies = cts_ %>%
        y = 'Enterococcus copy\nnumbers') +
   theme_classic() +
   theme(aspect.ratio=1,
-        panel.grid.major.x = element_line(colour = "grey85"))+
-  scale_y_log10("Enterococcus copy\nnumbers",
-        breaks = scales::trans_breaks("log10", function(x) 10^x),
-        labels = scales::trans_format("log10", scales::math_format(10^.x)))
+        panel.grid.major.x = element_line(colour = "grey85"))
 
 res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
 res
