@@ -148,19 +148,132 @@ ggsave('../figs/paper/078_macronutrients_alpha_model_fat_coeff_forest_binary.eps
          dpi = 400, device = 'eps')
 ```
 
+### simpson reciprocal ~ ave_fiber + ave_Protein + ave_Sugars + empirical + intensity + TPN + EN + ...
+
+```{r}
+alpha_macro_Protein <- log(simpson_reciprocal) ~ 1 +
+                ave_fiber +
+                ave_Protein +
+                ave_Sugars +
+               inten_non + inten_ab + inten_re +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+priors_alpha_macro_Protein <- c(
+            # for the macro nutrients
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(2, 0.5), class = 'Intercept'))
+# vet the prior 
+model_alpha_macro_Protein  <- brm( alpha_macro_Protein,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_macro_Protein,
+               control = list(adapt_delta = 0.99),
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T)
 
 
+mean_ave_macro_Protein_prior <- prior_draws(model_alpha_macro_Protein) %>% 
+  mutate(mean_div = Intercept + 
+          b_ave_fiber * mean_macro$ave_fiber+
+           b_ave_Protein * mean_macro$ave_Protein+
+           b_ave_Sugars * mean_macro$ave_Sugars+
+           b_inten_re ) %>% 
+  select(mean_div) %>% 
+  mutate(grp = 'mean_macro_Protein') %>% 
+  rename(prior_res = mean_div) %>% 
+  select(grp, prior_res)
+```
+
+```{r}
+# plot the above model post coeff
+post_coeff <- posterior_samples(model_alpha_macro_Protein, '^b_') %>% 
+  select(starts_with('b_ave')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+   mutate(item = case_when(
+    item ==  'fiber' ~ 'Fibers',
+    TRUE ~ item
+  ))  %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Macronutrients') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+ggsave('../figs/paper/078_macronutrients_alpha_model_Protein_coeff_forest.eps',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+```
+
+```{r}
+# the binary vars
+coeff_bi <- posterior_samples(model_alpha_macro_Protein, '^b_')  %>% 
+  select(!starts_with('b_ave')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
+  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Factor variables') +
+  theme_classic() +
+  theme(legend.position = 'none',
+        aspect.ratio=1)
+ggsave('../figs/paper/078_macronutrients_alpha_model_Protein_coeff_forest_binary.eps',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+```
 
 
-
-### genus ~ ave_fiber + ave_fat_n_pro + ave_Sugars + empirical + intensity + TPN + EN + ...
+### genus ~ ave_fiber + ave_fat + ave_Sugars + empirical + intensity + TPN + EN + ...
 
 ```{r}
 # The outcome being each of the genus
 # to test and confirm the prior
 Enterococcus_mod <- Enterococcus ~ 1 +
               ave_fiber +
-              ave_fat_n_pro +
+              ave_fat +
                 ave_Sugars +
                inten_non + inten_ab + inten_re +
                 empirical+
@@ -169,10 +282,10 @@ Enterococcus_mod <- Enterococcus ~ 1 +
                (1 | mrn) +
                 (1 | timebin)
 
-priors_genus_macro <- c(
+priors_genus_macro_fat <- c(
             # for the macro nutrients
             prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fat_n_pro"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
             prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
@@ -191,39 +304,40 @@ priors_genus_macro <- c(
 Enterococcus_model <- brm( Enterococcus_mod,  
               data = full, 
               warmup = 1000, iter = 3000, 
-              prior = priors_genus_macro,
+              prior = priors_genus_macro_fat,
               cores = ncores, 
               chains = 2, 
               control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T )
+```
 
 
-
-coeff_bi <- post_samples %>% 
-  select(!starts_with('b_fg')) %>% 
-  select(-b_Intercept) %>% 
-  gather('item', 'coeff') %>% 
-  mutate(item_name = case_when(
-    item ==  'b_inten_non' ~ 'Intensity: nonablative',
-    item == 'b_inten_ab' ~ 'Intensity: ablative',
-    item ==  'b_inten_re' ~ 'Intensity: reduced',
-    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
-    item == 'b_TPNTRUE' ~ 'TPN exposure',
-    item ==  'b_ENTRUE' ~ 'EN exposure'
-  )) %>% 
-  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
-  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
-
-coeff_bi %>% 
-  ggplot(aes(x = coeff, y = item_name)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
-       y = 'Binary variables') +
-  theme_classic() +
-  theme(legend.position = 'none',
-        aspect.ratio=1)
+```{r}
+# coeff_bi <- post_samples %>% 
+#   select(!starts_with('b_fg')) %>% 
+#   select(-b_Intercept) %>% 
+#   gather('item', 'coeff') %>% 
+#   mutate(item_name = case_when(
+#     item ==  'b_inten_non' ~ 'Intensity: nonablative',
+#     item == 'b_inten_ab' ~ 'Intensity: ablative',
+#     item ==  'b_inten_re' ~ 'Intensity: reduced',
+#     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+#     item == 'b_TPNTRUE' ~ 'TPN exposure',
+#     item ==  'b_ENTRUE' ~ 'EN exposure'
+#   )) %>% 
+#   mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
+#   mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+# 
+# coeff_bi %>% 
+#   ggplot(aes(x = coeff, y = item_name)) +
+#   stat_pointinterval(.width = c(.66, .95)) +
+#   #scale_color_manual(values = c('#EC0000','#00468B')) +
+#   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+#   labs(x = 'Regression coefficients',
+#        y = 'Binary variables') +
+#   theme_classic() +
+#   theme(legend.position = 'none',
+#         aspect.ratio=1)
 ```
 
 
@@ -232,7 +346,7 @@ coeff_bi %>%
 mean_enterococcus_prior <- prior_draws(Enterococcus_model) %>% 
   mutate(mean_genus = Intercept + 
           b_ave_fiber * mean_macro$ave_fiber+
-           b_ave_fat_n_pro * mean_macro$ave_fat_n_pro+
+           b_ave_fat * mean_macro$ave_fat+
            b_ave_Sugars * mean_macro$ave_Sugars+
            b_inten_re ) %>% 
   select(mean_genus) %>% 
@@ -271,19 +385,26 @@ post_coeff %>%
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
-  
 
+ggsave('../figs/paper/090_macro_fat_Enterococcus_model.eps' ,width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'eps')
 
 ```
 
+
+#### All genera
+
 ```{r}
-ret_genus_macro <- target_genera %>% 
+ret_genus_macro_fat <- target_genera %>% 
   set_names(target_genera) %>% 
   purrr::map(function(genus) {
     mod =  brm( as.formula(str_glue('{genus}  ~ 
                1 +
                  ave_fiber +
-                ave_fat_n_pro +
+                ave_fat +
                 ave_Sugars +
                inten_non + inten_ab + inten_re +
                 empirical+
@@ -293,7 +414,7 @@ ret_genus_macro <- target_genera %>%
                 (1 | timebin)')),  
                 data = full, 
               warmup = 1000, iter = 3000, 
-              prior = priors_genus_macro,
+              prior = priors_genus_macro_fat,
               cores = ncores, 
               chains = 2, 
               control = list(adapt_delta = 0.99),
@@ -301,28 +422,28 @@ ret_genus_macro <- target_genera %>%
   })
 
 # save the data
-prior_df <- ret_genus_macro %>% 
+prior_df <- ret_genus_macro_fat %>% 
   imap(~ prior_draws(.x) ) %>% 
   bind_rows(.id = 'genus')
 prior_df %>% 
-  write_csv('../data/078_genus_macro_model_prior.csv')
+  write_csv('../data/078_genus_macro_fat_model_prior.csv')
 
-post_df <- ret_genus_macro %>% 
+post_df <- ret_genus_macro_fat %>% 
   imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
             select(-starts_with('r_'))))  %>% 
   bind_rows(.id = 'genus')  
 
 post_df %>% 
-  write_csv('../data/078_genus_macro_model_post.csv')
+  write_csv('../data/078_genus_macro_fat_model_post.csv')
 ```
 
 ```{r}
 ## look at the all genera priors
-valid_interval_perc <- ret_genus_macro %>% 
+valid_interval_perc <- ret_genus_macro_fat %>% 
   imap(~ prior_draws(.x) %>% 
             mutate(mean_genera = Intercept + 
                     b_ave_fiber * mean_macro$ave_fiber+
-                     b_ave_fat_n_pro * mean_macro$ave_fat_n_pro+
+                     b_ave_fat * mean_macro$ave_fat+
                      b_ave_Sugars * mean_macro$ave_Sugars+
                      b_inten_re ) %>% 
             select(mean_genera) %>% 
@@ -341,7 +462,7 @@ valid_interval_perc <- ret_genus_macro %>%
 ```
 
 ```{r}
-post_df <- read_csv('../data/078_genus_macro_model_post.csv')
+post_df <- read_csv('../data/078_genus_macro_fat_model_post.csv')
   
 post_res_genera <- post_df %>% 
   select(genus, starts_with('b_ave')) %>% 
@@ -401,7 +522,7 @@ ggplot(post_res_ordered, aes(x = genus, y = item)) +
   geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
   geom_text(aes(label = mark, x = genus,y =  item),
             nudge_y = -0.1, nudge_x = 0,size = 5) +
-  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI > 0 positive', '75% CI < 0 negative')) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
   theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
@@ -414,8 +535,8 @@ ggplot(post_res_ordered, aes(x = genus, y = item)) +
         legend.key = element_rect( colour = "gray50"),
         panel.background = element_blank()) 
 
-ggsave('../figs/paper/078_heatmap_genus_36_macro_ggplot.pdf', width = 8, height = 3)
-ggsave('../figs/paper/078_heatmap_genus_36_macro_ggplot.jpg', width = 8, height = 3)
+ggsave('../figs/paper/078_heatmap_genus_36_macro_fat_ggplot.pdf', width = 10, height = 3)
+ggsave('../figs/paper/078_heatmap_genus_36_macro_fat_ggplot.jpg', width = 10, height = 3)
 ```
 
 ```{r}
