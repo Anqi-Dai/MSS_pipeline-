@@ -23,5 +23,35 @@ total %>%
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
   geom_abline( slope = 1)
+
+total %>% 
+  filter(Enterococcus == 0) %>% 
+  select(Enterococcus, Enterococcaceae, sampleid)
+
+gcts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')
+
+fcts <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
+  mutate(taxa_family = str_extract(taxa_family, 'f__.+$')) %>% 
+  mutate(family = str_replace(taxa_family, 'f__','')) %>% 
+  filter(family != 'NA') %>% 
+  mutate(relablog = log10(relab + 2*10^-6))  %>% 
+  select(sampleid, family, relablog)  %>% 
+  spread('family', 'relablog') 
+# I think I know what went wrong, the fill NA with 0 thing worked mistakenly at enterococcus when it's absent ....
+ fcts %>% 
+   write_csv('../data/088_family_relab_log10_wide.csv')
+```
+
+```{r}
+# re-do the genus level log relab
+zero_transform <- log10(0 + 2*10^-6)
+
+genus <- gcts %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  select(sampleid, genus, relablog) %>% 
+  spread('genus', 'relablog', fill = zero_transform) 
+ 
+genus %>% 
+  write_csv('../data/088_genus_relab_log10_wide.csv')
 ```
 
