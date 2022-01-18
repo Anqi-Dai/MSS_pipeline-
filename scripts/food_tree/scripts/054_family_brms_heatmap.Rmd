@@ -9,6 +9,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(tidybayes)
 library(brms)
 options(mc.cores = parallel::detectCores())
 rstan::rstan_options(auto_write = TRUE)
@@ -80,11 +81,9 @@ target_family <-  cts %>%
   pull(taxa_family)
 ```
 ```{r}
-domcts <- cts %>% 
-  filter(taxa_family %in% target_family) %>% 
-  mutate(relablog = log10(relab + 2*10^-6)) %>% 
-  dplyr::select(-relab) %>% 
-  spread(key = 'taxa_family', value = 'relablog')
+fcts <- read_csv('../data/088_family_relab_log10_wide.csv')
+domcts <- fcts %>% 
+  select(sampleid, all_of(target_family))
 
 All <- domcts %>% 
   full_join(meta, by = "sampleid")
@@ -220,7 +219,7 @@ Enterococcaceae_model_coeff %>%
 
 ggsave('../figs/paper/054_fig2_model_Enterococcaceae_model_coeff_forest.eps',  
        width = 80,
-       height = 80,
+       height = 80, 
          units = c("mm"),
          dpi = 400, device = 'eps')
 ```
