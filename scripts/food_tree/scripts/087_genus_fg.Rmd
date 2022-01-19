@@ -203,16 +203,19 @@ col_key <- post_res_genera %>%
   distinct(color) %>% 
   pull(color)
 names(col_key) <- col_key
+
+# make the blautia and enterococcus to be in red font for easier see
+genus_text_color <- ifelse(sort(target_genera, decreasing = F) %in% c('Blautia','Enterococcus'), 'red', 'black')
  
 ggplot(post_res_genera, aes(x = genus, y = item)) +
   geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
   geom_text(aes(label = mark, x = genus,y =  item),
             nudge_y = -0.1, nudge_x = 0,size = 5) +
-  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI > 0 positive', '75% CI < 0 negative')) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
   theme_light() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.x = element_text(angle=50, hjust=1, size=11, colour = genus_text_color),
         axis.text.y=element_text(size=11),
         axis.title=element_text(size=axis_title_size),
         #panel.grid.major = element_blank(), 

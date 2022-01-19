@@ -12,7 +12,9 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-Same day macronutrients with calories and stool sample 
+**Same day** macro nutrients with calories and stool sample 
+
+# the 3 by 2 grid scatter plot
 
 ```{r}
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
@@ -28,7 +30,44 @@ byday <- dtb %>%
             d_sugar = sum(Sugars_g)) %>% 
   rename(drt = fdrt) %>% 
   inner_join(full %>% 
-               rename(drt = sdrt), by = c("mrn", "drt")) %>% 
-  select(simpson_reciprocal, Blautia, Enterococcus, daycal:d_sugar)
+               rename(drt = sdrt) %>% 
+               select(mrn,drt, simpson_reciprocal, Actinomyces: Veillonella), by = c("mrn", "drt"))
 ```
 
+```{r}
+byday %>% 
+  mutate(simpson_reciprocal_nlog  = log(simpson_reciprocal)) %>% 
+  rename(`log10(Blautia)` = Blautia,
+         `log10(Enterococcus)` = Enterococcus,
+         `Daily caloric intake` = daycal, 
+         `Daily fiber intake` = d_fiber, 
+         `log(Simpson reciprocal)` = simpson_reciprocal_nlog) %>% 
+  dplyr::select(`log(Simpson reciprocal)`, `log10(Blautia)`, `log10(Enterococcus)`,  `Daily fiber intake` , `Daily caloric intake`) %>% 
+  gather('yaxis', 'value', `log(Simpson reciprocal)`:`log10(Enterococcus)`) %>% 
+  mutate(yaxis = factor(yaxis, levels = c('log(Simpson reciprocal)','log10(Blautia)','log10(Enterococcus)'))) %>% 
+  gather('xaxis', 'number', `Daily caloric intake`:`Daily fiber intake`) %>% 
+  mutate(xaxis = factor(xaxis, levels = c('Daily caloric intake','Daily fiber intake'))) %>% 
+  ggscatter(x = 'number', y = 'value', alpha = 0.2,xlab = '', ylab = '',size = 1.2, 
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman", 
+                                 label.sep = "\n", 
+                                 label.x.npc = "middle", 
+                                 label.y.npc = "top",
+                                 size = 3.5,
+                                 color = 'red')) +
+  facet_grid(yaxis ~ xaxis, scales = 'free') + 
+  theme_bw(base_size = 11) +
+  theme(aspect.ratio = 1,
+        panel.grid.major = element_blank(), 
+        #strip.background = element_blank(),
+        #strip.text = element_blank(),
+        panel.grid.minor = element_blank()
+       ) 
+
+ggsave('../figs/paper/089_sameday_six_panels.pdf', width = 4, height = 6)  
+```
+
+# 
