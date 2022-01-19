@@ -10,6 +10,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(tidybayes)  
+library(brms)
+library(rstan)
+options(mc.cores = parallel::detectCores())
+ncores = parallel::detectCores()
+rstan_options(auto_write = TRUE)
+axis_text_size <- 10
+axis_title_size <- 10
 ```
 
 **Same day** macro nutrients with calories and stool sample 
@@ -31,7 +39,20 @@ byday <- dtb %>%
   rename(drt = fdrt) %>% 
   inner_join(full %>% 
                rename(drt = sdrt) %>% 
-               select(mrn,drt, simpson_reciprocal, Actinomyces: Veillonella), by = c("mrn", "drt"))
+               select(mrn,drt, simpson_reciprocal, intensity, empirical, TPN, EN, Actinomyces: Veillonella), by = c("mrn", "drt")) %>% 
+  mutate(timebin = cut_width(drt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(d_fiber = d_fiber/100,
+         d_fat = d_fat/100,
+         d_protein = d_protein/100,
+         d_sugar = d_sugar/100,
+         d_carb = d_carb/100,
+         daycal = daycal/1000
+         ) %>% 
+  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
+         inten_ab = if_else(intensity == 'ablative', 1, 0),
+         inten_re = if_else(intensity == 'reduced', 1, 0)) %>% 
+  ungroup()
 ```
 
 ```{r}
@@ -70,4 +91,310 @@ byday %>%
 ggsave('../figs/paper/089_sameday_six_panels.pdf', width = 4, height = 6)  
 ```
 
-# 
+# genus ~ d_fiber + d_fat + d_Sugars + empirical + intensity + TPN + EN + ...
+
+But with same-day data.  
+
+```{r}
+library(psych)
+pairs.panels(byday %>% ungroup %>% select(starts_with('d_')) %>% select(-d_carb), 
+             method = "pearson", # correlation method
+             hist.col = "#00AFBB",
+             density = TRUE,  # show density plots
+             ellipses = TRUE # show correlation ellipses
+             )
+# protein and fat still looks highly correlated 
+```
+
+```{r}
+Enterococcus_mod <- Enterococcus ~ 1 +
+              d_fiber +
+              d_fat +
+                d_sugar +
+               inten_non + inten_ab + inten_re +
+                empirical+
+                TPN+
+                EN+ 
+               (1 | mrn) +
+                (1 | timebin)
+priors_genus_macro_fat <- c(
+            # for the macro nutrients
+            prior(normal(0, 0.4), class = 'b', coef = "d_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "d_fat"),
+            prior(normal(0, 0.4), class = 'b', coef = "d_sugar"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(-3, 1), class = 'Intercept'))
+Enterococcus_model <- brm( Enterococcus_mod,  
+              data = byday, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_genus_macro_fat,
+              cores = ncores, 
+              chains = 2, 
+              control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T )
+
+
+mean_macro <-  byday %>% 
+  select(starts_with('d_')) %>% 
+  summarise_all(funs(mean))
+
+# check the priors
+mean_enterococcus_prior <- prior_draws(Enterococcus_model) %>% 
+  mutate(mean_genus = Intercept + 
+          b_d_fiber * mean_macro$d_fiber+
+           b_d_fat * mean_macro$d_fat+
+           b_d_sugar * mean_macro$d_sugar+
+           b_inten_re ) %>% 
+  select(mean_genus) %>% 
+  mutate(grp = 'mean_enterococcus') %>% 
+  rename(prior_res = mean_genus) %>% 
+  select(grp, prior_res)
+
+# calculate the percentage that falls within the actual range of the data
+mean_enterococcus_prior %>% 
+  count(prior_res >= min(byday$Enterococcus) & prior_res <= max(byday$Enterococcus)) %>% 
+  mutate(fraction = round(n /sum(n), 2))  %>% 
+  slice(2) %>% 
+  pull(fraction)
+```
+
+```{r all_genera}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) 
+thre <- seq(0.0001, 0.002, 0.0001)
+thre %>% 
+  set_names(thre) %>% 
+  map_dfr(function(num){
+    cts %>% 
+    group_by(genus) %>% 
+    count(relab > num) %>% 
+    rename(criteria = names(.)[2]) %>% 
+    filter(criteria == 'TRUE') %>% 
+    arrange(-n) %>% 
+    filter(genus != 'NA') %>% 
+    mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+    filter(perc > 10) %>% 
+      nrow
+  }) %>% 
+  gather('thre', 'num')
+target_genera <-  cts %>% 
+  group_by(genus) %>% 
+  count(relab > 0.002) %>% 
+  rename(criteria = names(.)[2]) %>% 
+  filter(criteria == 'TRUE') %>% 
+  arrange(-n) %>% 
+  filter(genus != 'NA') %>% 
+  mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+  filter(perc > 10) %>% 
+  pull(genus) 
+
+ret_genus_macro_fat <- target_genera %>% 
+  set_names(target_genera) %>% 
+  purrr::map(function(genus) {
+    mod =  brm( as.formula(str_glue('{genus}  ~ 
+               1 +
+                 d_fiber +
+                d_fat +
+                d_sugar +
+               inten_non + inten_ab + inten_re +
+                empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)')),  
+                data = byday, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_genus_macro_fat,
+              cores = ncores, 
+              chains = 2, 
+              control = list(adapt_delta = 0.99),
+              seed = 456, sample_prior = T) 
+  })
+
+# save the data
+prior_df <- ret_genus_macro_fat %>% 
+  imap(~ prior_draws(.x) ) %>% 
+  bind_rows(.id = 'genus')
+prior_df %>% 
+  write_csv('../data/089_sameday_genus_macro_fat_model_prior.csv')
+
+post_df <- ret_genus_macro_fat %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
+            select(-starts_with('r_'))))  %>% 
+  bind_rows(.id = 'genus')  
+post_df %>% 
+  write_csv('../data/089_sameday_genus_macro_fat_model_post.csv')
+
+
+## look at the all genera priors
+valid_interval_perc <- ret_genus_macro_fat %>% 
+  imap(~ prior_draws(.x) %>% 
+            mutate(mean_genera = Intercept + 
+                    b_d_fiber * mean_macro$d_fiber+
+                     b_d_fat * mean_macro$d_fat+
+                     b_d_sugar * mean_macro$d_sugar+
+                     b_inten_re ) %>% 
+            select(mean_genera) %>% 
+            mutate(grp = 'ave_each') %>% 
+            rename(prior_res = mean_genera) %>% 
+            select(grp, prior_res) %>% 
+            count(prior_res > min(byday$Enterococcus) & prior_res < max(byday$Enterococcus) ) %>% 
+            mutate(perc = n/sum(n)*100) %>% 
+            select(perc) %>% 
+            slice(2) %>% 
+            pull(perc) %>% 
+            round(1) ) %>% 
+  bind_rows(.id = .y) %>% 
+  gather('genus','within_interval_perc')
+```
+
+```{r}
+post_df <- read_csv('../data/089_sameday_genus_macro_fat_model_post.csv')
+  
+post_res_genera <- post_df %>% 
+  select(genus, starts_with('b_d')) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
+  group_by(genus, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+  mutate(item = str_to_title(item))
+```
+
+```{r}
+col_key <- post_res_genera %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key
+
+genus_text_color <- ifelse(sort(target_genera, decreasing = F) %in% c('Blautia','Enterococcus'), 'red', 'black')
+ 
+ggplot(post_res_genera, aes(x = genus, y = item)) +
+  geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  item),
+            nudge_y = -0.1, nudge_x = 0,size = 5) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_light() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=50, hjust=1, size=11, colour = genus_text_color),
+        axis.text.y=element_text(size=11),
+        axis.title=element_text(size=axis_title_size),
+        #panel.grid.major = element_blank(), 
+        #panel.grid.minor = element_blank(),
+        legend.position = 'top',
+        legend.key = element_rect( colour = "gray50"),
+        panel.background = element_blank()) 
+ggsave('../figs/paper/089_sameday_heatmap_genus_36_macro_fat_ggplot.pdf', width = 10, height = 3)
+ggsave('../figs/paper/089_sameday_heatmap_genus_36_macro_fat_ggplot.jpg', width = 10, height = 3)
+```
+
+# Simpson reciprocal ~ d_fiber + d_fat + d_Sugars + empirical + intensity + TPN + EN + ...
+
+```{r}
+alpha_macro_fat <- log(simpson_reciprocal) ~ 1 +
+                d_fiber +
+                d_fat +
+                d_sugar +
+               inten_non + inten_ab + inten_re +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_alpha_macro_fat <- c(
+            # for the macro nutrients
+            prior(normal(0, 0.4), class = 'b', coef = "d_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "d_fat"),
+            prior(normal(0, 0.4), class = 'b', coef = "d_sugar"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(2, 0.5), class = 'Intercept'))
+# vet the prior 
+model_alpha_macro_fat  <- brm( alpha_macro_fat,  
+              data = byday, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_macro_fat,
+               control = list(adapt_delta = 0.99),
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T)
+
+
+mean_ave_macro_fat_prior <- prior_draws(model_alpha_macro_fat) %>% 
+  mutate(mean_div = Intercept + 
+          b_d_fiber * mean_macro$d_fiber+
+           b_d_fat * mean_macro$d_fat+
+           b_d_sugar * mean_macro$d_sugar+
+           b_inten_re ) %>% 
+  select(mean_div) %>% 
+  mutate(grp = 'mean_macro_fat') %>% 
+  rename(prior_res = mean_div) %>% 
+  select(grp, prior_res)
+```
+```{r}
+# plot the above model post coeff
+post_coeff <- posterior_samples(model_alpha_macro_fat, '^b_') %>% 
+  select(starts_with('b_d')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_d_','')) %>% 
+   mutate(item = case_when(
+    item ==  'fiber' ~ 'Fibers',
+    item == 'fat' ~ 'Fat',
+    item == 'sugar' ~ 'Sugars',
+    TRUE ~ item
+  ))  %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Macronutrients',
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+ggsave('../figs/paper/089_sameday_macronutrients_alpha_model_fat_coeff_forest.pdf',  
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
+```
+
