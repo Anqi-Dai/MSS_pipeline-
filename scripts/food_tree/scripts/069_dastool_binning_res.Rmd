@@ -460,7 +460,7 @@ combined_mean %>%
 
 ```{r}
 # the fruits and enterococcus irep alone
-combined %>% 
+fruit_entero <-combined %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
   summarise(ave_irep = mean(aveirep)) %>% 
@@ -484,7 +484,7 @@ ggsave('../figs/paper/069_fruit_enterococcus.tiff',
 
 ```{r}
 # the average but excluding the enterococcus
-combined %>% 
+fruit_all_other <- combined %>% 
   filter(!str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
   summarise(ave_irep = mean(aveirep)) %>% 
@@ -511,7 +511,7 @@ ggsave('../figs/paper/069_fruit_no_enterococcus_ave.tiff',
 If excluding the empirical abx samples 
 
 ```{r}
-combined %>% 
+fruit_entero <- combined %>% 
   filter(empirical == 'FALSE') %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
@@ -529,13 +529,13 @@ combined %>%
 ggsave('../figs/paper/069_sweets_enterococcus.jpg', width = 5)
 ```
 ```{r}
-combined %>% 
+fruit_all_other <- combined %>% 
   filter(empirical == 'FALSE') %>% 
   filter(!str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
   summarise(ave_irep = mean(aveirep)) %>% 
   inner_join(meta) %>% 
-  ggscatter(x = 'fg_sweets', y = 'ave_irep', title = 'Average of all taxa excluding Enterococcus',
+  ggscatter(x = 'fg_sweets', y = 'ave_irep', title = 'Average of all taxa excluding\nEnterococcus',
           add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval

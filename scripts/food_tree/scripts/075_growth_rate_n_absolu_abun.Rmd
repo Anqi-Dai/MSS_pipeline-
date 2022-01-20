@@ -164,7 +164,7 @@ copies = cts_ %>%
   filter(mrn == p11) %>% 
   ggplot(aes(x = sdrt, y = entero_copy )) +
   geom_point() +
-  geom_line(aes(x = sdrt, y = entero_copy), linetype = 'solid', size = 1, col = 'red') +
+  geom_line(aes(x = sdrt, y = entero_copy), linetype = 'solid', size = 1, col = 'black') +
  # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
   #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
   xlim(xmin, xmax) +
@@ -174,12 +174,13 @@ copies = cts_ %>%
   theme(aspect.ratio=1,
         panel.grid.major.x = element_line(colour = "grey85"))
 
-res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
+res = cowplot::plot_grid(fruit_entero, irep, fruit_all_other, copies, axis = 'tblr', align = 'hv', ncol = 2, labels = c('A','C','B','D'))
 res
-ggsave('../figs/paper/075_p11_irep_copy.pdf',  
-       width = 100,
-       height = 100,
+ggsave('../figs/paper/075_figure3.pdf',  
+       width = 200,
+       height = 200,
          units = c("mm"),
+       plot = res, 
          dpi = 400, device = 'pdf')
 ```
 

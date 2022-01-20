@@ -16,9 +16,11 @@ pt_line_size <- 0.2
 alpha_val <- 1
 point_size <- 0.5
 diet_line_color <- '#E41A1C'
-axis_text_size <- 3
+axis_text_size <- 5
 axis_title_size <- 8
 stool_line_color <- 'blue'
+faith_line_color <- 'black'
+axis_line_thickness <- 0.2
 ```
 
 
@@ -33,13 +35,11 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')%>
 day_calori <- dtb %>% 
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal))%>% 
-  mutate(daycal = daycal/1000) %>% 
   split(.$mrn)
 
 faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
   separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
   mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) %>% 
-  mutate(faith_pd = faith_pd/1000) %>% 
   split(.$mrn)
 
 
@@ -55,32 +55,31 @@ range(stool$simpson_reciprocal)
 
 ```{r}
 # to put the stool data in the same dimension as the diet data use a scaling factor to bring them to same level when plotting the y but then show on the  y axis scale that they are different
-scale_factor <- 20
+scale_factor <- 50
 
 every_pt_list <-  mrns %>% 
   set_names(mrns) %>% 
   map(function(.x) {
-      ggscatter(data =  day_calori[[.x]], x = 'fdrt', y = 'daycal', alpha = alpha_val, size = 0.5, 
-                color = diet_line_color,
-            xlab = 'Day relative to HCT',
-            #title = str_glue('{.x}'),
-            ylab = ''
-            )  +
+      ggplot()  +
       geom_line(data = day_calori[[.x]], aes(x = fdrt, y = daycal), linetype = 'solid', size = pt_line_size, col = diet_line_color) +
       # the diet faith 
-      geom_point(data = faith[[.x]], aes(x = fdrt, y = faith_pd), col = diet_line_color, size = point_size) +
-      geom_line(data = faith[[.x]], aes(x = fdrt, y = faith_pd), linetype = 'dashed', size = pt_line_size, col = diet_line_color) +
+      #geom_point(data = faith[[.x]], aes(x = fdrt, y = faith_pd), col = diet_line_color, size = point_size) +
+      geom_line(data = faith[[.x]], aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pt_line_size, col = faith_line_color) +
       # the stool data
-      geom_point(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), col = stool_line_color, size = point_size, shape = 'triangle') +
-      geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
-    scale_y_continuous(name = "Daily calories / Faith div\n(*10e3)", limits = c(0, 2.6),
-    sec.axis = sec_axis(~.*scale_factor, name = expression(Fecal~alpha~diversity))) +
-      labs(x = 'Day relative to HCT', y = '') + 
+      #geom_point(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), col = stool_line_color, size = point_size, shape = 'triangle') +
+      geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal*scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
+      theme_pubr() +
+    scale_y_continuous(name = "Daily calories, Faith div", 
+                       #limits = c(0, 2400),
+    sec.axis = sec_axis(~./scale_factor, name = expression(Fecal~alpha~diversity))) +
+      labs(x = 'Transplant day', y = '') + 
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         axis.title.y = element_text(color = diet_line_color),
+        axis.line = element_line(colour = 'black', size = axis_line_thickness),
         axis.title.y.right = element_text(color = stool_line_color),
+         axis.ticks = element_line(colour = "black", size = axis_line_thickness), 
         aspect.ratio=1)
   })
 
@@ -97,17 +96,22 @@ whole_list <-  mrns %>%
       geom_line(data = day_calori[[.x]], aes(x = fdrt, y = daycal), linetype = 'solid', size = pt_line_size, col = diet_line_color) +
       # the diet faith 
       #geom_point(data = faith[[.x]], aes(x = fdrt, y = faith_pd), col = diet_line_color, size = point_size) +
-      geom_line(data = faith[[.x]], aes(x = fdrt, y = faith_pd), linetype = 'dashed', size = pt_line_size, col = diet_line_color) +
+      geom_line(data = faith[[.x]], aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pt_line_size, col = faith_line_color) +
       # the stool data
       #geom_point(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), col = stool_line_color, size = point_size, shape = 'triangle') +
-      geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
-    scale_y_continuous(name = "", limits = c(0, 2.6),
-    sec.axis = sec_axis(~.*scale_factor)) +
-    labs(x = 'Day relative to HCT', y = '') + 
+      geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal*scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
+      theme_pubr() +
+    scale_y_continuous(name = "", 
+                       #limits = c(0, 2.6),
+    sec.axis = sec_axis(~./scale_factor)) +
+    labs(x = 'Transplant day', y = '') + 
+      
   theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
+        axis.title=element_text(size=5),
         plot.title = element_text(size=axis_title_size),
         axis.title.y = element_text(color = diet_line_color),
+        axis.line = element_line(colour = 'black', size = axis_line_thickness),
+        axis.ticks = element_line(colour = "black", size = axis_line_thickness), 
         #axis.title.x = element_blank(), 
         axis.text.y = element_blank(), 
         axis.title.y.right = element_text(color = stool_line_color),
@@ -119,7 +123,7 @@ library(gridExtra)
 n <- length(whole_list)
 nCol <- 8
 all <- do.call("grid.arrange", c(whole_list, ncol=nCol))
-ggsave('../figs/paper/085_all_patients_timecourse.eps', 
+ggsave('../figs/paper/085_all_patients_timecourse.pdf', 
        width = 8, 
        height = 10,
        plot = all)
@@ -129,11 +133,11 @@ ggsave('../figs/paper/085_all_patients_timecourse.eps',
 # use one to be the example plot
 example <- every_pt_list[[2]]
 
-ggsave('../figs/paper/085_example_patient_timecourse.eps', 
+ggsave('../figs/paper/085_example_patient_timecourse.pdf', 
         width = 60,
        height = 60,
          units = c("mm"),
-         dpi = 400, device = 'eps',
+         dpi = 400, device = 'pdf',
        plot = example)
 ```
 

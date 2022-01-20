@@ -1,5 +1,5 @@
 ---
-title: "macronutrients_analysis"
+title: "Same day caloric intake and the microbiome "
 output: html_document
 ---
 
@@ -20,10 +20,6 @@ ncores = parallel::detectCores()
 rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
-```
-
-```{r}
-# the % needs met data
 ```
 
 ```{r}
@@ -75,185 +71,160 @@ gcts <- cts %>%
 ## food and p2d average in cal and nutrients
 
 ```{r p2d_cal}
-# the daily caloric intake :
-all_daily_pt <- dtb %>%
-  group_by(mrn, fdrt) %>%
-  summarise(total_daily = sum(Calories_kcal))
-
-# the previous two days average for each stool sample
-
-stb_pair <- meta %>%  
-  select(mrn, sdrt) %>% 
-  transmute(mrn = mrn,
-            p1d = sdrt-1,
-            p2d = sdrt-2) 
-
-mean_p2d_cal <-  function(mrn_, p1d_, p2d_){
-  df = all_daily_pt %>% 
-    filter(mrn == mrn_) %>% 
-    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
-    group_by(mrn) %>% 
-    summarise(ave_cal = sum(total_daily)/2)
-  return(df)
-}
-
-mean_p2d_df_cal <- pmap(stb_pair, function(mrn, p1d, p2d){
-    mean_p2d_cal(mrn, p1d, p2d)
-  }) %>% 
-  set_names(meta %>% pull(sampleid)) %>% 
-  bind_rows(.id = 'sampleid') 
+# # the daily caloric intake :
+# all_daily_pt <- dtb %>%
+#   group_by(mrn, fdrt) %>%
+#   summarise(total_daily = sum(Calories_kcal))
+# 
+# # the previous two days average for each stool sample
+# 
+# stb_pair <- meta %>%  
+#   select(mrn, sdrt) %>% 
+#   transmute(mrn = mrn,
+#             p1d = sdrt-1,
+#             p2d = sdrt-2) 
+# 
+# mean_p2d_cal <-  function(mrn_, p1d_, p2d_){
+#   df = all_daily_pt %>% 
+#     filter(mrn == mrn_) %>% 
+#     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+#     group_by(mrn) %>% 
+#     summarise(ave_cal = sum(total_daily)/2)
+#   return(df)
+# }
+# 
+# mean_p2d_df_cal <- pmap(stb_pair, function(mrn, p1d, p2d){
+#     mean_p2d_cal(mrn, p1d, p2d)
+#   }) %>% 
+#   set_names(meta %>% pull(sampleid)) %>% 
+#   bind_rows(.id = 'sampleid') 
+# ```
+# 
+# ```{r p2d_nutrients}
+# # the daily total of each nutrients 
+# nutrients <- dtb %>%
+#   select(mrn, fdrt, Protein_g:Sugars_g) %>% 
+#   gather('type','gram', Protein_g:Sugars_g) %>% 
+#   group_by(mrn, fdrt, type) %>%
+#   summarise(total_daily = sum(gram)) %>% 
+#   split(.$type)
+# 
+# mean_p2d_fiber <-  function(mrn_, p1d_, p2d_){
+#   df = nutrients$Fibers_g %>% 
+#     filter(mrn == mrn_) %>% 
+#     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+#     group_by(mrn) %>% 
+#     summarise(ave_fiber = sum(total_daily)/2)
+#   return(df)
+# }
+# mean_p2d_carb <-  function(mrn_, p1d_, p2d_){
+#   df = nutrients$Carbohydrates_g %>% 
+#     filter(mrn == mrn_) %>% 
+#     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+#     group_by(mrn) %>% 
+#     summarise(ave_carb = sum(total_daily)/2)
+#   return(df)
+# }
+# 
+# mean_p2d_fat <-  function(mrn_, p1d_, p2d_){
+#   df = nutrients$Fat_g %>% 
+#     filter(mrn == mrn_) %>% 
+#     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+#     group_by(mrn) %>% 
+#     summarise(ave_fat = sum(total_daily)/2)
+#   return(df)
+# }
+# mean_p2d_Protein <-  function(mrn_, p1d_, p2d_){
+#   df = nutrients$Protein_g %>% 
+#     filter(mrn == mrn_) %>% 
+#     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+#     group_by(mrn) %>% 
+#     summarise(ave_Protein = sum(total_daily)/2)
+#   return(df)
+# }
+# mean_p2d_Sugars <-  function(mrn_, p1d_, p2d_){
+#   df = nutrients$Sugars_g %>% 
+#     filter(mrn == mrn_) %>% 
+#     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+#     group_by(mrn) %>% 
+#     summarise(ave_Sugars = sum(total_daily)/2)
+#   return(df)
+# }
+# 
+# mean_p2d_fiber <- pmap(stb_pair, function(mrn, p1d, p2d){
+#     mean_p2d_fiber(mrn, p1d, p2d)
+#   }) %>% 
+#   set_names(meta %>% pull(sampleid)) %>% 
+#   bind_rows(.id = 'sampleid') 
+# 
+# mean_p2d_fat <- pmap(stb_pair, function(mrn, p1d, p2d){
+#     mean_p2d_fat(mrn, p1d, p2d)
+#   }) %>% 
+#   set_names(meta %>% pull(sampleid)) %>% 
+#   bind_rows(.id = 'sampleid') 
+# 
+# mean_p2d_Protein <- pmap(stb_pair, function(mrn, p1d, p2d){
+#     mean_p2d_Protein(mrn, p1d, p2d)
+#   }) %>% 
+#   set_names(meta %>% pull(sampleid)) %>% 
+#   bind_rows(.id = 'sampleid') 
+# 
+# mean_p2d_Sugars <- pmap(stb_pair, function(mrn, p1d, p2d){
+#     mean_p2d_Sugars(mrn, p1d, p2d)
+#   }) %>% 
+#   set_names(meta %>% pull(sampleid)) %>% 
+#   bind_rows(.id = 'sampleid') 
+# 
+# mean_p2d_carb <- pmap(stb_pair, function(mrn, p1d, p2d){
+#     mean_p2d_carb(mrn, p1d, p2d)
+#   }) %>% 
+#   set_names(meta %>% pull(sampleid)) %>% 
+#   bind_rows(.id = 'sampleid') 
+# 
+# p2d_diet <- mean_p2d_df_cal %>% 
+#   full_join(mean_p2d_fiber, by = c("sampleid", "mrn")) %>% 
+#   full_join(mean_p2d_fat, by = c("sampleid", "mrn")) %>% 
+#   full_join(mean_p2d_Protein, by = c("sampleid", "mrn")) %>% 
+#   full_join(mean_p2d_Sugars, by = c("sampleid", "mrn")) %>% 
+#   full_join(mean_p2d_carb, by = c("sampleid", "mrn")) 
+# 
+# full <- meta %>% 
+#   full_join(p2d_diet, by = c("sampleid", "mrn")) %>% 
+#   full_join(gcts, by = "sampleid") %>% 
+#   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+#   mutate(mrn = factor(mrn)) %>% 
+#   mutate(ave_fiber = ave_fiber/100,
+#          ave_fat = ave_fat/100,
+#          ave_Protein = ave_Protein/100,
+#          ave_Sugars = ave_Sugars/100,
+#          ave_carb = ave_carb/100,
+#          ave_cal = ave_cal/1000
+#          ) %>% 
+#   mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
+#          inten_ab = if_else(intensity == 'ablative', 1, 0),
+#          inten_re = if_else(intensity == 'reduced', 1, 0))
+# 
+# full %>% 
+#   write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
+# 
+# full <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
+# summary(full)
 ```
 
-```{r p2d_nutrients}
-# the daily total of each nutrients 
-nutrients <- dtb %>%
-  select(mrn, fdrt, Protein_g:Sugars_g) %>% 
-  gather('type','gram', Protein_g:Sugars_g) %>% 
-  group_by(mrn, fdrt, type) %>%
-  summarise(total_daily = sum(gram)) %>% 
-  split(.$type)
-
-mean_p2d_fiber <-  function(mrn_, p1d_, p2d_){
-  df = nutrients$Fibers_g %>% 
-    filter(mrn == mrn_) %>% 
-    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
-    group_by(mrn) %>% 
-    summarise(ave_fiber = sum(total_daily)/2)
-  return(df)
-}
-mean_p2d_carb <-  function(mrn_, p1d_, p2d_){
-  df = nutrients$Carbohydrates_g %>% 
-    filter(mrn == mrn_) %>% 
-    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
-    group_by(mrn) %>% 
-    summarise(ave_carb = sum(total_daily)/2)
-  return(df)
-}
-
-mean_p2d_fat <-  function(mrn_, p1d_, p2d_){
-  df = nutrients$Fat_g %>% 
-    filter(mrn == mrn_) %>% 
-    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
-    group_by(mrn) %>% 
-    summarise(ave_fat = sum(total_daily)/2)
-  return(df)
-}
-mean_p2d_Protein <-  function(mrn_, p1d_, p2d_){
-  df = nutrients$Protein_g %>% 
-    filter(mrn == mrn_) %>% 
-    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
-    group_by(mrn) %>% 
-    summarise(ave_Protein = sum(total_daily)/2)
-  return(df)
-}
-mean_p2d_Sugars <-  function(mrn_, p1d_, p2d_){
-  df = nutrients$Sugars_g %>% 
-    filter(mrn == mrn_) %>% 
-    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
-    group_by(mrn) %>% 
-    summarise(ave_Sugars = sum(total_daily)/2)
-  return(df)
-}
-
-mean_p2d_fiber <- pmap(stb_pair, function(mrn, p1d, p2d){
-    mean_p2d_fiber(mrn, p1d, p2d)
-  }) %>% 
-  set_names(meta %>% pull(sampleid)) %>% 
-  bind_rows(.id = 'sampleid') 
-
-mean_p2d_fat <- pmap(stb_pair, function(mrn, p1d, p2d){
-    mean_p2d_fat(mrn, p1d, p2d)
-  }) %>% 
-  set_names(meta %>% pull(sampleid)) %>% 
-  bind_rows(.id = 'sampleid') 
-
-mean_p2d_Protein <- pmap(stb_pair, function(mrn, p1d, p2d){
-    mean_p2d_Protein(mrn, p1d, p2d)
-  }) %>% 
-  set_names(meta %>% pull(sampleid)) %>% 
-  bind_rows(.id = 'sampleid') 
-
-mean_p2d_Sugars <- pmap(stb_pair, function(mrn, p1d, p2d){
-    mean_p2d_Sugars(mrn, p1d, p2d)
-  }) %>% 
-  set_names(meta %>% pull(sampleid)) %>% 
-  bind_rows(.id = 'sampleid') 
-
-mean_p2d_carb <- pmap(stb_pair, function(mrn, p1d, p2d){
-    mean_p2d_carb(mrn, p1d, p2d)
-  }) %>% 
-  set_names(meta %>% pull(sampleid)) %>% 
-  bind_rows(.id = 'sampleid') 
-
-p2d_diet <- mean_p2d_df_cal %>% 
-  full_join(mean_p2d_fiber, by = c("sampleid", "mrn")) %>% 
-  full_join(mean_p2d_fat, by = c("sampleid", "mrn")) %>% 
-  full_join(mean_p2d_Protein, by = c("sampleid", "mrn")) %>% 
-  full_join(mean_p2d_Sugars, by = c("sampleid", "mrn")) %>% 
-  full_join(mean_p2d_carb, by = c("sampleid", "mrn")) 
-
-full <- meta %>% 
-  full_join(p2d_diet, by = c("sampleid", "mrn")) %>% 
-  full_join(gcts, by = "sampleid") %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(mrn = factor(mrn)) %>% 
-  mutate(ave_fiber = ave_fiber/100,
-         ave_fat = ave_fat/100,
-         ave_Protein = ave_Protein/100,
-         ave_Sugars = ave_Sugars/100,
-         ave_carb = ave_carb/100,
-         ave_cal = ave_cal/1000
-         ) %>% 
-  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
-         inten_ab = if_else(intensity == 'ablative', 1, 0),
-         inten_re = if_else(intensity == 'reduced', 1, 0))
-
-full %>% 
-  write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
-
-full <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
-summary(full)
-```
 
 ```{r}
-library(psych)
-macro_columns4 <- full %>% 
-  select(starts_with('ave')) %>% 
-  select(-ave_carb, -ave_cal)
-
-pairs.panels(macro_columns4, 
-             method = "pearson", # correlation method
-             hist.col = "#00AFBB",
-             density = TRUE,  # show density plots
-             ellipses = TRUE # show correlation ellipses
-             )
-ggsave('../figs/078_macro_4_pair_cor.pdf')
+byday <- read_csv('../data/089_sameday_diet_and_microbiome.csv')
 ```
 
-```{r}
-# to solve the high correlation between the fat and protein, combine them
-macro_columns <- full %>% 
-  select(starts_with('ave')) %>% 
-  select(-ave_carb, -ave_cal) %>% 
-  mutate(fat_n_pro = ave_fat + ave_Protein) %>% 
-  select(-ave_fat, -ave_Protein)
 
-
-pairs.panels(macro_columns, 
-             method = "pearson", # correlation method
-             hist.col = "#00AFBB",
-             density = TRUE,  # show density plots
-             ellipses = TRUE # show correlation ellipses
-             )
-```
 
 ## modeling part 
 
-### simpson reciprocal ~ p2d_cal + empirical + intensity + TPN + EN + ...
+### simpson reciprocal ~ daycal + empirical + intensity + TPN + EN + ...
 
 ```{r}
 alpha_cal <- log(simpson_reciprocal) ~ 1 +
-                ave_cal +
+                daycal +
                inten_non + inten_ab + inten_re +
                EN +
                 TPN +
@@ -262,7 +233,7 @@ alpha_cal <- log(simpson_reciprocal) ~ 1 +
                 (1 | timebin)
 
 priors_alpha_cal <- c(
-            prior(normal(0, 0.5), class = 'b', coef = "ave_cal"),
+            prior(normal(0, 0.5), class = 'b', coef = "daycal"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -278,18 +249,18 @@ priors_alpha_cal <- c(
 
 # vet the prior 
 model_alpha_cal  <- brm( alpha_cal,  
-              data = full, 
+              data = byday, 
               warmup = 1000, iter = 3000, 
               prior = priors_alpha_cal,
               cores = ncores,
               chains = 2, 
               seed = 123, sample_prior = T)
 
-mean_ave_cal <- mean(full$ave_cal)
+mean_day_cal <- mean(byday$daycal)
 
 mean_ave_cal_prior <- prior_draws(model_alpha_cal) %>% 
   mutate(mean_ave_cal_div = Intercept + 
-          b_ave_cal * mean_ave_cal+
+          b_daycal * mean_day_cal+
            b_inten_re ) %>% 
   select(mean_ave_cal_div) %>% 
   mutate(grp = 'mean_ave_cal') %>% 
@@ -297,16 +268,19 @@ mean_ave_cal_prior <- prior_draws(model_alpha_cal) %>%
   select(grp, prior_res)
 
 mean_ave_cal_prior %>% 
-  count(prior_res >= min(full$simpson_reciprocal) & prior_res <= max(full$simpson_reciprocal)) %>% 
+  count(prior_res >= min(byday$simpson_reciprocal) & prior_res <= max(byday$simpson_reciprocal)) %>% 
   mutate(fraction = round(n /sum(n), 2))  %>% 
   slice(2) %>% 
   pull(fraction)
+```
 
+
+```{r}
 # look at the post
 post_coeff <- posterior_samples(model_alpha_cal, '^b_') %>% 
-  select(starts_with('b_ave')) %>% 
+  select(starts_with('b_day')) %>% 
   gather('item', 'coeff') %>% 
-  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+  mutate(item = str_replace(item, 'b_','')) %>% 
   mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
 
 post_coeff %>% 
@@ -314,82 +288,77 @@ post_coeff %>%
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'Calories') +
+       y = 'Calories',
+       title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 
-ggsave('../figs/paper/078_cal_alpha_model_coeff_forest.eps',  
+ggsave('../figs/paper/078_sameday_cal_alpha_model_coeff_forest.pdf',  
        width = 80,
        height = 80,
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'eps') 
+         dpi = 400, device = 'pdf') 
 
-ggsave('../figs/paper/078_cal_alpha_model_coeff_forest.jpg',  
-       width = 80,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'jpg') 
 
 ```
 
-### genus ~ p2d_cal + empirical + intensity + TPN + EN + ...
+### genus ~ daycal + empirical + intensity + TPN + EN + ...
 
 ```{r}
-Enterococcus_cal <- Enterococcus ~ 1 +
-                ave_cal +
-               inten_non + inten_ab + inten_re +
-               EN +
-                TPN +
-                empirical +
-               (1 | mrn) +
-                (1 | timebin)
-
+# Enterococcus_cal <- Enterococcus ~ 1 +
+#                 ave_cal +
+#                inten_non + inten_ab + inten_re +
+#                EN +
+#                 TPN +
+#                 empirical +
+#                (1 | mrn) +
+#                 (1 | timebin)
+# 
 priors_genus_cal <- c(
-            prior(normal(0, 0.5), class = 'b', coef = "ave_cal"),
-            # for the TPN 
+            prior(normal(0, 0.5), class = 'b', coef = "daycal"),
+            # for the TPN
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
             prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
-            # for the empirical 
+            # for the empirical
             prior(normal(0, 0.6), class = 'b', coef = "empiricalTRUE"),
-            # for the intensity 
+            # for the intensity
             prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
             # for the intercept
             prior(normal(-3, 1), class = 'Intercept'))
-
-# vet the prior 
-model_Enterococcus_cal  <- brm( Enterococcus_cal,  
-              data = full, 
-              warmup = 1000, iter = 3000, 
-              prior = priors_genus_cal,
-              cores = ncores,
-              control = list(adapt_delta = 0.99),
-              chains = 2, 
-              seed = 123, sample_prior = T)
-
-mean_ave_cal <- mean(full$ave_cal)
-
-mean_Enterococcus_cal_prior <- prior_draws(model_Enterococcus_cal) %>% 
-  mutate(mean_ave_Enterococcus_div = Intercept + 
-          b_ave_cal * mean_ave_cal+
-           b_inten_re ) %>% 
-  select(mean_ave_Enterococcus_div) %>% 
-  mutate(grp = 'mean_ave_genus') %>% 
-  rename(prior_res = mean_ave_Enterococcus_div) %>% 
-  select(grp, prior_res)
-
-mean_Enterococcus_cal_prior %>% 
-  count(prior_res >= min(full$Enterococcus) & prior_res <= max(full$Enterococcus)) %>% 
-  mutate(fraction = round(n /sum(n), 2))  %>% 
-  slice(2) %>% 
-  pull(fraction)
+# 
+# # vet the prior 
+# model_Enterococcus_cal  <- brm( Enterococcus_cal,  
+#               data = full, 
+#               warmup = 1000, iter = 3000, 
+#               prior = priors_genus_cal,
+#               cores = ncores,
+#               control = list(adapt_delta = 0.99),
+#               chains = 2, 
+#               seed = 123, sample_prior = T)
+# 
+# mean_ave_cal <- mean(full$ave_cal)
+# 
+# mean_Enterococcus_cal_prior <- prior_draws(model_Enterococcus_cal) %>% 
+#   mutate(mean_ave_Enterococcus_div = Intercept + 
+#           b_ave_cal * mean_ave_cal+
+#            b_inten_re ) %>% 
+#   select(mean_ave_Enterococcus_div) %>% 
+#   mutate(grp = 'mean_ave_genus') %>% 
+#   rename(prior_res = mean_ave_Enterococcus_div) %>% 
+#   select(grp, prior_res)
+# 
+# mean_Enterococcus_cal_prior %>% 
+#   count(prior_res >= min(full$Enterococcus) & prior_res <= max(full$Enterococcus)) %>% 
+#   mutate(fraction = round(n /sum(n), 2))  %>% 
+#   slice(2) %>% 
+#   pull(fraction)
 ```
 
 ```{r}
@@ -399,14 +368,14 @@ ret_genus_cal <- target_genera %>%
   purrr::map(function(genus) {
     mod =  brm( as.formula(str_glue('{genus}  ~ 
                 1 +
-                ave_cal +
+                daycal +
                 inten_non + inten_ab + inten_re +
                 empirical+
                 TPN+
                 EN+
                (1 | mrn) +
                 (1 | timebin)')),  
-                data = full, 
+                data = byday, 
               warmup = 1000, iter = 3000, 
               prior = priors_genus_cal,
               cores = ncores, 
@@ -420,22 +389,22 @@ prior_df <- ret_genus_cal %>%
   imap(~ prior_draws(.x) ) %>% 
   bind_rows(.id = 'genus')
 prior_df %>% 
-  write_csv('../data/078_genus_cal_model_prior.csv')
+  write_csv('../data/078_sameday_genus_cal_model_prior.csv')
 
 post_df <- ret_genus_cal %>% 
   imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
             select(-starts_with('r_'))))  %>% 
   bind_rows(.id = 'genus')  
 post_df %>% 
-  write_csv('../data/078_genus_cal_model_post.csv')
+  write_csv('../data/078_sameday_genus_cal_model_post.csv')
 ```
 
 ```{r}
 # look at the post
-post_df <- read_csv('../data/078_genus_cal_model_post.csv') 
+post_df <- read_csv('../data/078_sameday_genus_cal_model_post.csv') 
 
 post_res_genera <- post_df %>% 
-  select(genus, starts_with('b_ave')) %>% 
+  select(genus, starts_with('b_day')) %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   group_by(genus, item) %>% 
   summarise(q50 = median(coeff),
@@ -477,124 +446,6 @@ ggplot(post_res_genera, aes(x = genus, y = item)) +
         legend.key = element_rect( colour = "gray50"),
         panel.background = element_blank()) 
 
-ggsave('../figs/paper/078_heatmap_genus_36_cal_ggplot.pdf', width = 8, height = 3)
-ggsave('../figs/paper/078_heatmap_genus_36_cal_ggplot.jpg', width = 8, height = 3)
-```
-
-### simpson reciprocal ~ ave_fiber + empirical + intensity + TPN + EN + ...
-
-```{r}
-alpha_fiber <- log(simpson_reciprocal) ~ 1 +
-                ave_fiber +
-               inten_non + inten_ab + inten_re +
-               EN +
-                TPN +
-                empirical +
-               (1 | mrn) +
-                (1 | timebin)
-
-priors_alpha_fiber <- c(
-            # for the macro nutrients
-            prior(normal(0, 1), class = 'b', coef = "ave_fiber"),
-            # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
-            # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
-            # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
-            # for the intensity 
-            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
-            # for the intercept
-            prior(normal(2, 0.5), class = 'Intercept'))
-
-# vet the prior 
-model_alpha_fiber  <- brm( alpha_fiber,  
-              data = full, 
-              warmup = 1000, iter = 3000, 
-              prior = priors_alpha_fiber,
-               control = list(adapt_delta = 0.99),
-              cores = ncores,
-              chains = 2, 
-              seed = 123, sample_prior = T)
-
-mean_macro <-  full %>% 
-  select(starts_with('ave_')) %>% 
-  summarise_all(funs(mean))
-
-mean_ave_fiber_prior <- prior_draws(model_alpha_fiber) %>% 
-  mutate(mean_div = Intercept + 
-          b_ave_fiber * mean_macro$ave_fiber+
-           b_inten_re ) %>% 
-  select(mean_div) %>% 
-  mutate(grp = 'mean_macro') %>% 
-  rename(prior_res = mean_div) %>% 
-  select(grp, prior_res)
-```
-
-```{r}
-# plot the above model post coeff
-post_coeff <- posterior_samples(model_alpha_fiber, '^b_') %>% 
-  select(starts_with('b_ave')) %>% 
-  gather('item', 'coeff') %>% 
-  mutate(item = str_replace(item, 'b_ave_','')) %>% 
-   mutate(item = case_when(
-    item ==  'fiber' ~ 'Fibers',
-    TRUE ~ item
-  ))  %>% 
-  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
-
-post_coeff %>% 
-  ggplot(aes(x = coeff, y = item)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
-       y = 'Macronutrients') +
-  theme_classic() +
-  theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
-
-ggsave('../figs/paper/078_fiber_alpha_model_coeff_forest.eps',  
-       width = 80,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'eps')
-
-coeff_bi <- post_samples %>% 
-  select(!starts_with('b_fg')) %>% 
-  select(-b_Intercept) %>% 
-  gather('item', 'coeff') %>% 
-  mutate(item_name = case_when(
-    item ==  'b_inten_non' ~ 'Intensity: nonablative',
-    item == 'b_inten_ab' ~ 'Intensity: ablative',
-    item ==  'b_inten_re' ~ 'Intensity: reduced',
-    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
-    item == 'b_TPNTRUE' ~ 'TPN exposure',
-    item ==  'b_ENTRUE' ~ 'EN exposure'
-  )) %>% 
-  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
-  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
-
-coeff_bi %>% 
-  ggplot(aes(x = coeff, y = item_name)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
-       y = 'Binary variables') +
-  theme_classic() +
-  theme(legend.position = 'none',
-        aspect.ratio=1)
-```
-
-
-
-```{r}
-# why: when looking scatter plot of sugar VS enterococcus there is about 0 cor,
-# but when including sugar as macronutrients 
+ggsave('../figs/paper/078_sameday_heatmap_genus_36_cal_ggplot.pdf', width = 11, height = 3)
 ```
 

@@ -53,21 +53,44 @@ byday <- dtb %>%
          inten_ab = if_else(intensity == 'ablative', 1, 0),
          inten_re = if_else(intensity == 'reduced', 1, 0)) %>% 
   ungroup()
+
+byday_original <- dtb %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(daycal = sum(Calories_kcal),
+            d_protein = sum(Protein_g),
+            d_fat = sum(Fat_g),
+            d_carb = sum(Carbohydrates_g),
+            d_fiber = sum(Fibers_g),
+            d_sugar = sum(Sugars_g)) %>% 
+  rename(drt = fdrt) %>% 
+  inner_join(full %>% 
+               rename(drt = sdrt) %>% 
+               select(mrn,drt, simpson_reciprocal, intensity, empirical, TPN, EN, Actinomyces: Veillonella), by = c("mrn", "drt")) %>% 
+  ungroup()
+
+byday %>% write_csv('../data/089_sameday_diet_and_microbiome.csv')
+
 ```
 
 ```{r}
-byday %>% 
+macro_panel <- byday_original %>% 
   mutate(simpson_reciprocal_nlog  = log(simpson_reciprocal)) %>% 
   rename(`log10(Blautia)` = Blautia,
          `log10(Enterococcus)` = Enterococcus,
-         `Daily caloric intake` = daycal, 
-         `Daily fiber intake` = d_fiber, 
          `log(Simpson reciprocal)` = simpson_reciprocal_nlog) %>% 
-  dplyr::select(`log(Simpson reciprocal)`, `log10(Blautia)`, `log10(Enterococcus)`,  `Daily fiber intake` , `Daily caloric intake`) %>% 
+  dplyr::select(`log(Simpson reciprocal)`, `log10(Blautia)`, `log10(Enterococcus)`,  d_protein:d_sugar ) %>% 
   gather('yaxis', 'value', `log(Simpson reciprocal)`:`log10(Enterococcus)`) %>% 
   mutate(yaxis = factor(yaxis, levels = c('log(Simpson reciprocal)','log10(Blautia)','log10(Enterococcus)'))) %>% 
-  gather('xaxis', 'number', `Daily caloric intake`:`Daily fiber intake`) %>% 
-  mutate(xaxis = factor(xaxis, levels = c('Daily caloric intake','Daily fiber intake'))) %>% 
+  gather('xaxis', 'number', d_protein:d_sugar) %>% 
+  mutate(xaxis = str_replace(xaxis, 'd_',''),
+         xaxis = str_to_title(xaxis),
+         xaxis = str_glue('Daily {xaxis} Intake')) 
+
+```
+
+
+```{r}
+macro_panel %>% 
   ggscatter(x = 'number', y = 'value', alpha = 0.2,xlab = '', ylab = '',size = 1.2, 
              add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
@@ -77,7 +100,7 @@ byday %>%
                                  label.sep = "\n", 
                                  label.x.npc = "middle", 
                                  label.y.npc = "top",
-                                 size = 3.5,
+                                 size = 3,
                                  color = 'red')) +
   facet_grid(yaxis ~ xaxis, scales = 'free') + 
   theme_bw(base_size = 11) +
@@ -88,7 +111,7 @@ byday %>%
         panel.grid.minor = element_blank()
        ) 
 
-ggsave('../figs/paper/089_sameday_six_panels.pdf', width = 4, height = 6)  
+ggsave('../figs/paper/S2_sameday_macronutrients_microbiome_089_Jan20.pdf', width = 8, height = 5)  
 ```
 
 # genus ~ d_fiber + d_fat + d_Sugars + empirical + intensity + TPN + EN + ...

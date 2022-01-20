@@ -1,0 +1,210 @@
+---
+title: "Procrustes using the macronutrients counts"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(vegan)
+library(tidyverse)
+library(ggpubr)
+```
+
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  select(mrn, fdrt, ends_with('_g')) %>% 
+  select(-Sodium_g) %>% 
+  gather('nutrient','gram', Protein_g:Sugars_g)
+
+stb <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+```
+```{r}
+pt_fdrt <- dtb %>% 
+  distinct(mrn, fdrt)
+
+stb_loop <- stb %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5) 
+ 
+check_p5d_diet <-  function(mrn_, p1d_, p2d_, p3d_, p4d_, p5d_){
+  num = pt_fdrt %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_ ,p3d_, p4d_, p5d_ )) %>% 
+    nrow()
+  return(num)
+}
+
+check_p5d_diet_df <- pmap(stb_loop, function(mrn, p1d, p2d, p3d, p4d, p5d){
+    check_p5d_diet(mrn, p1d, p2d, p3d, p4d, p5d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows() %>% 
+  gather('sampleid', 'pNd_num') 
+
+p5d_samples <- check_p5d_diet_df %>% 
+  filter(pNd_num == 5) %>% 
+  pull(sampleid)  
+ 
+stb_loop_sum <- stb %>%  
+  filter(sampleid %in% p5d_samples) %>% 
+  mutate(p1d = sdrt-1,
+            p2d = sdrt-2, 
+            p3d = sdrt-3,
+            p4d = sdrt-4,
+            p5d = sdrt-5) 
+```
+
+```{r}
+p1d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%   
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']])) %>% 
+        group_by(nutrient) %>% 
+        summarise(ave_gram = sum(gram))
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'ave_gram', fill = 0)
+
+p1d <- p1d[, colSums(p1d != 0) > 0]
+ 
+p2d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']])) %>% 
+        group_by(nutrient) %>% 
+        summarise(ave_gram = sum(gram)/2)
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'ave_gram', fill = 0)
+
+p2d <- p2d[, colSums(p2d != 0) > 0]
+
+p3d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']])) %>% 
+        group_by(nutrient) %>% 
+        summarise(ave_gram = sum(gram)/3)
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'ave_gram', fill = 0)
+
+p3d <- p3d[, colSums(p3d != 0) > 0]
+
+
+p4d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']])) %>% 
+        group_by(nutrient) %>% 
+        summarise(ave_gram = sum(gram)/4)
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'ave_gram', fill = 0) 
+
+p4d <- p4d[, colSums(p4d != 0) > 0]
+
+p5d <- apply(stb_loop_sum, 1, function(Row){
+  df = dtb %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']], Row[['p3d']], Row[['p4d']], Row[['p5d']])) %>% 
+        group_by(nutrient) %>% 
+        summarise(ave_gram = sum(gram)/5)
+}) %>% 
+  set_names(stb_loop_sum %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'sampleid', value = 'ave_gram', fill = 0)  
+
+p5d <- p5d[, colSums(p5d != 0) > 0]
+```
+
+```{r}
+# output the macronutrients cts table (need to be in a similar format to fit my previously written snakemake rules)
+dcts <- list(p1d = p1d,
+             p2d = p2d,
+             p3d = p3d,
+             p4d = p4d,
+             p5d = p5d)
+
+for (i in 1:length(dcts)){
+  dcts[[i]] %>% 
+    write_tsv(str_glue('../data/finalized/paired/pNday/allstool_{names(dcts)[i]}_diet_macro_dehydrated_weight_per_pt.tsv'))
+}
+```
+
+
+After running in snakemake:
+
+
+```{r}
+fns_both <- tibble(
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_diet_macro_dehydrated_weight_per_pt_bc_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_scts_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//allstool_','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
+```
+
+```{r sum_of_squares}
+procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  procrustes_res = procrustes(X = dpcoa, Y = spcoa)
+  return( procrustes_res$ss)
+}) %>% 
+  gather(key = 'pNd', value = 'ss') %>% 
+  mutate(pNd = fns_both$ID)
+
+# convert it to a score so that the p2d is the highest
+procrustes_Nday_score <- procrustes_Nday %>% 
+  mutate(score = min(.$ss) - ss)
+```
+
+```{r sum_of_squares}
+# make the figure
+axis_text_size <- 10
+axis_title_size <- 10
+
+procrustes_Nday_score %>% 
+  mutate(pNd = str_extract(pNd, '\\d')) %>% 
+  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Sum of squares',
+             xlab = 'Number of previous days\nof dietary intake', size = 1.3) +
+  geom_line(aes(x = pNd, y = score), group = 1, linetype = 'dashed', size = 0.3) +
+  theme(aspect.ratio=1,
+        axis.text=element_text(size=axis_text_size), 
+        axis.title=element_text(size=axis_title_size),
+        axis.text.x = element_text(angle=0, hjust=0.5)) 
+
+ggsave('../figs/paper/091_macro_procrustes.pdf',
+       width = 100,
+       height = 50,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
+
+procrustes_Nday_score %>% 
+  write_csv('../data/091_macro_procrustes_Nday_score.csv')
+```
