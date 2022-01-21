@@ -146,6 +146,7 @@ ring_itself <- tibble(
 
 ```{r}
 # add another layer of the ring as the text annotation of what the ring 2 food is
+# decided to not want this in the main figure cuz it's not population data 
 dm5_annot <- dm5 %>% 
   #mutate(ring_height = log10wt,ring_height = ring_height/2) %>% 
   select(description, annotation = item, annotation_background_color = color) %>% 
@@ -159,8 +160,8 @@ dm5_annot %>% write_tsv('../data/source/dm5_annotation.txt', col_names = F)
     
     
 ```{bash}
-cat ../data/source/annotation.base.txt ../data/source/dm5_annotation.txt > ../data/cleaned_tree/Annot_tree.txt
-cat ../data/cleaned_tree/Annot_tree.txt ../data/source/ring_itself.txt > ../data/cleaned_tree/Annot_tree2.txt 
+#cat ../data/source/annotation.base.txt ../data/source/dm5_annotation.txt > ../data/cleaned_tree/Annot_tree.txt
+cat ../data/source/annotation.base.txt ../data/source/ring_itself.txt > ../data/cleaned_tree/Annot_tree2.txt 
 cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree4.txt 
 ```
 
@@ -169,8 +170,8 @@ cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring_annot.txt > ../data
 # this runs in the source folder 
 # the key is that the tree and the annot file has to have the string of food name as leaves 
 graphlan_annotate.py --annot ../cleaned_tree/Annot_tree4.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
-graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.pdf --dpi 400 --size 3 --pad 0
-graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.svg --dpi 400 --size 3 --pad 0
+graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.png --dpi 400 --size 3 --pad 0
+
 ```
 
 Succeeded!!!!!!!!!!!!! Now I have the ring added using graphlan!!! Perfectly aligned and the colors match!!!!!!!!

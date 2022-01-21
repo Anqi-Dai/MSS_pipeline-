@@ -7,6 +7,8 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+**Previous 2 day results**
+
 ```{r}
 library(tidyverse)
 library(ggpubr)
@@ -92,24 +94,21 @@ post_coeff <- posterior_samples(model_alpha_macro_fat, '^b_') %>%
   ))  %>% 
   mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
 
-post_coeff %>% 
+macronutrients_alpha_main <- post_coeff %>% 
   ggplot(aes(x = coeff, y = item)) +
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'Macronutrients') +
+       y = 'Macronutrients',
+       title = expression(Microbiome~alpha~diversity)) +
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 
-ggsave('../figs/paper/078_macronutrients_alpha_model_fat_coeff_forest.eps',  
-       width = 80,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'eps')
+macronutrients_alpha_main %>% 
+  write_rds('../data/090_macronutrients_alpha_main.rds')
 ```
 
 ```{r}
@@ -129,13 +128,14 @@ coeff_bi <- posterior_samples(model_alpha_macro_fat, '^b_')  %>%
   mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
   mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
 
-coeff_bi %>% 
+macronutrients_alpha_factor <- coeff_bi %>% 
   ggplot(aes(x = coeff, y = item_name)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'Factor variables') +
+       y = 'Factor variables',
+       title = expression(Microbiome~alpha~diversity)) +
   theme_classic() +
   theme(legend.position = 'none',
         aspect.ratio=1)
@@ -146,6 +146,9 @@ ggsave('../figs/paper/078_macronutrients_alpha_model_fat_coeff_forest_binary.eps
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'eps')
+
+macronutrients_alpha_factor %>% 
+  write_rds('../data/090_macronutrients_alpha_factor.rds')
 ```
 
 ### simpson reciprocal ~ ave_fiber + ave_Protein + ave_Sugars + empirical + intensity + TPN + EN + ...

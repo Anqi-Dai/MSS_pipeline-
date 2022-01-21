@@ -1,0 +1,65 @@
+---
+title: "The two procrustes"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+
+axis_text_size <- 10
+axis_title_size <- 10
+plot_title_size <- 12
+```
+
+```{r}
+macro_pro <- read_csv('../data/091_macro_procrustes_Nday_score.csv')
+macro_pro_fig <- macro_pro %>% 
+  mutate(pNd = str_extract(pNd, '\\d')) %>% 
+  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Procrustes score',
+             xlab = 'Number of previous days\nof dietary intake', size = 1.3,
+             title = 'Macronutrient based') +
+  geom_line(aes(x = pNd, y = score), group = 1, linetype = 'dashed', size = 0.3) +
+  theme(aspect.ratio=1,
+        axis.text=element_text(size=axis_text_size), 
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=plot_title_size),
+        axis.text.x = element_text(angle=0, hjust=0.5)) 
+
+
+```
+
+```{r}
+fg_pro <- read_csv('../data/022_procrustes_Nday_score.csv')
+
+fg_pro_fig <- fg_pro %>% 
+  mutate(pNd = str_extract(pNd, '\\d')) %>% 
+  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Procrustes score',
+             xlab = 'Number of previous days\nof dietary intake', size = 1.3,
+             title = 'Food group based') +
+  geom_line(aes(x = pNd, y = score), group = 1, linetype = 'dashed', size = 0.3) +
+  theme(aspect.ratio=1,
+        axis.text=element_text(size=axis_text_size), 
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=plot_title_size),
+        axis.text.x = element_text(angle=0, hjust=0.5)) 
+
+```
+
+```{r}
+all <-  plot_grid(  macro_pro_fig,fg_pro_fig,
+                  nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
+
+ggsave('../figs/paper/S3_two_procrustes_092_Jan21.pdf',
+       width = 150,
+       height = 60, 
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
+```
+

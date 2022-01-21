@@ -225,7 +225,7 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap-LLLL-1', y = 'taxumap-LLLL-2', color = 'fg1_dom', alpha = alpha_val,size = point_size , xlab = 'UMAP1', ylab = 'UMAP2') +
+  ggscatter(x = 'taxumap-LLLL-1', y = 'taxumap-LLLL-2', color = 'fg1_dom', alpha = 0.2,size = point_size , xlab = 'UMAP1', ylab = 'UMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
   theme(legend.position = "none",
@@ -384,10 +384,10 @@ f1 <-  plot_grid(top, bot,
                  rel_heights = c(2,1),
                  nrow = 2)
 
-ggsave('../figs/paper/fig1_all.pdf',
+ggsave('../figs/paper/F1_overview_072_Jan21.pdf',
        width = 190,
        height = 180,
-         #height = 60,
+         #height = 60,  
          units = c("mm"),
          dpi = 400, plot = f1)
 ```

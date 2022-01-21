@@ -181,29 +181,7 @@ procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
 # convert it to a score so that the p2d is the highest
 procrustes_Nday_score <- procrustes_Nday %>% 
   mutate(score = min(.$ss) - ss)
-```
 
-```{r sum_of_squares}
-# make the figure
-axis_text_size <- 10
-axis_title_size <- 10
-
-procrustes_Nday_score %>% 
-  mutate(pNd = str_extract(pNd, '\\d')) %>% 
-  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Sum of squares',
-             xlab = 'Number of previous days\nof dietary intake', size = 1.3) +
-  geom_line(aes(x = pNd, y = score), group = 1, linetype = 'dashed', size = 0.3) +
-  theme(aspect.ratio=1,
-        axis.text=element_text(size=axis_text_size), 
-        axis.title=element_text(size=axis_title_size),
-        axis.text.x = element_text(angle=0, hjust=0.5)) 
-
-ggsave('../figs/paper/091_macro_procrustes.pdf',
-       width = 100,
-       height = 50,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf')
 
 procrustes_Nday_score %>% 
   write_csv('../data/091_macro_procrustes_Nday_score.csv')
