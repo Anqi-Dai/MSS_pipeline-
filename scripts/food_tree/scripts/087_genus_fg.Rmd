@@ -228,6 +228,135 @@ ggplot(post_res_genera, aes(x = genus, y = item)) +
 ggsave('../figs/paper/087_heatmap_genus_36_foodgroup_ggplot.pdf', width = 12, height = 5)
 ```
 
+## The Enterococcus genus as outcome
+
+```{r}
+entero_genus <- brm( Enterococcus  ~ 
+               1 +
+                fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               inten_non + inten_ab + inten_re +
+                empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin),  
+                data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = ncores, 
+              chains = 2, 
+              control = list(adapt_delta = 0.99),
+              seed = 456, sample_prior = T) 
+
+post_enterco <- suppressWarnings(posterior_samples(entero_genus)) %>% 
+            select(-starts_with('r_'))
+post_enterco %>%  write_csv('../data/087_Enterococcus_model_fg_post.csv')
+```
+
+```{r Enterococcus}
+post_samples  <- posterior_samples(entero_genus, '^b_')
+
+nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description) 
+
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') 
+
+post_coeff <- post_samples %>% 
+  select(starts_with('b_fg')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(key) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
+  left_join(key %>% select(fgrp1, color, shortname))  %>% 
+  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F))  %>% 
+  mutate(shortname = factor(shortname, levels = c("Fruits"  , "Sweets"  ,  "Vegetables", "Grains"    , "Milk"   ,    "Meats"    ,   "Eggs"      , "Legumes" ,   "Oils" )))
+
+fg_colors <- post_coeff %>% 
+  distinct(shortname, color) %>% 
+  select(shortname, color) %>% 
+  deframe()
+
+# plotting the forest
+Enterococcaceae_model_coeff <- post_coeff %>% 
+  ggplot(aes(x = coeff, y = shortname, col = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = '',
+       title = 'Enterococcus') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = fg_colors) +
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=8),
+        aspect.ratio=1) 
+
+Enterococcaceae_model_coeff %>% 
+  write_rds('../data/087_entero_genus_fg_main.rds')
+
+ggsave('../figs/paper/087_entero_genus_fg_main_forest.eps',  
+       width = 80,
+       height = 80, 
+         units = c("mm"),
+         dpi = 400, device = 'eps')
+```
+
+```{r enterococcus_factor}
+coeff_bi <- post_samples %>% 
+  select(!starts_with('b_fg')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
+  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+
+
+entero_genus_factor <- coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Factor variables',
+       title = 'Enterococcus') +
+  theme_classic() +
+  theme(legend.position = 'none',
+        aspect.ratio=1)
+
+entero_genus_factor %>% write_rds('../data/087_entero_genus_factor_forest.rds')
+```
+
+
 # The macronutrients predictor with family as outcome
 
 ```{r}

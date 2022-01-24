@@ -47,8 +47,9 @@ tb %>%
   stat_compare_means(comparisons= list(c('BM', 'BMT')),
             label= "p.value",
             method= 'wilcox.test',
-						correct=F) +
-  ggsave('../data/three_KO_bile_box.pdf')
+						correct=F) 
+
+ggsave('../data/three_KO_bile_box.pdf')
 ```
 
 ```{r}
@@ -60,7 +61,8 @@ tb %>%
   stat_compare_means(comparisons= list(c('BM', 'BMT')),
             label= "p.value",
             method= 'wilcox.test',
-						correct=F) +
-  ggsave('../data/conbimed_bile_box.pdf')
+						correct=F) 
+
+ggsave('../data/conbimed_bile_box.pdf')
 ```
 

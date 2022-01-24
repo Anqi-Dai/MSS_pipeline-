@@ -207,8 +207,9 @@ post_pca %>%  write_csv('../data/084_narcotics_PCA_model_post.csv')
 ```
 
 ```{r}
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccccc')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 
+post_samples <- read_csv('../data/084_narcotics_PCA_model_post.csv')
 
 post_coeff <- post_samples %>% 
   select(starts_with('b_fg')) %>% 
@@ -237,10 +238,10 @@ pca_fg <- post_coeff %>%
   ggplot(aes(x = coeff, y = shortname, col = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'High-level food categories\n(FNDDS)',
-       title = expression(paste('Outcome:', log[e], '(alpha diversity)'))) +
+       y = '',
+       title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = fg_colors) +
@@ -255,6 +256,7 @@ ggsave('../figs/paper/084_narcotics_model_fg_coeff.jpg', width = 5)
 coeff_bi <- post_samples %>% 
   select(!starts_with('b_fg')) %>% 
   select(-b_Intercept) %>% 
+  select(starts_with('b_')) %>% 
   gather('item', 'coeff') %>% 
   mutate(item_name = case_when(
     item ==  'b_inten_non' ~ 'Intensity: nonablative',
@@ -267,14 +269,15 @@ coeff_bi <- post_samples %>%
   )) %>% 
   mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
 
+
 pca_bi <- coeff_bi %>% 
   ggplot(aes(x = coeff, y = item_name)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
-       y = 'Binary variables',
-       title = expression(paste('Outcome:', log[e], '(alpha diversity)'))) +
+       y = 'Factor variables',
+       title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none',
         axis.text=element_text(size=11),
@@ -283,6 +286,7 @@ pca_bi <- coeff_bi %>%
 
 ggsave('../figs/paper/084_narcotics_model_binary.jpg', width = 5)
 ```
+
 ```{r}
 # combine them together to make one supplementary figure
 pca <- cowplot::plot_grid(pca_fg, pca_bi, 
@@ -291,14 +295,22 @@ pca <- cowplot::plot_grid(pca_fg, pca_bi,
           #rel_widths =  c(1,1),
           #rel_heights = c(1,1),
           labels = c('A','B'),
-          axis = 'tblr') 
+          axis = 'tb') 
+pca
+```
 
-ggsave('../figs/paper/084_narcotics_PCA_model_coeff_forest.eps',  
+
+```{r}
+ggsave('../figs/paper/S8_narcotics_PCA_084_Jan24.pdf',  
        width = 190,
        height = 70,
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'eps')
+         dpi = 400, device = 'pdf', plot = pca)
+```
+
+
+```{r}
 ggsave('../figs/paper/084_narcotics_PCA_model_coeff_forest.jpg',  
        width = 190,
        height = 70,

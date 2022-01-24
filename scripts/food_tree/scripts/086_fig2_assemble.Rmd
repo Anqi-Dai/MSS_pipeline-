@@ -11,10 +11,10 @@ library(tidyverse)
 ```{r}
 axis_text_size <- 10
 axis_title_size <- 10
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccccc')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 ```
 
-
+# fig2 main figure
 
 ```{r 2a_procrustes}
 procrustes_Nday_score <- read_csv('../data/022_procrustes_Nday_score.csv')
@@ -32,10 +32,10 @@ f2a <- procrustes_Nday_score %>%
 
 ```
 ```{r 2b_diagram}
-p <- '../figs/paper/fig2_cartoon_of_model.png'
+p <- '../figs/paper/cartoon_of_model.png'
 diagram <- ggdraw() +
   draw_image(magick::image_read(p),   scale = 1) 
-diagram
+diagram 
 ```
 
 ```{r 2c_div_fg9}
@@ -46,7 +46,7 @@ f2c <- read_rds('../data/068_div_post.rds')
 ```{r}
 f2d <- read_rds('../data/068_only3_sim.rds')
 
-f2e <- read_rds('../data/054_Enterococcaceae_model_coeff.rds')
+f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
 ```
 
 ```{r}
@@ -58,11 +58,27 @@ bottom <- plot_grid(  f2c,f2d,f2e,
 f2 <-  plot_grid(top, bottom,
                  rel_heights = c(0.8,1),
                  nrow = 2)
-ggsave('../figs/paper/fig2_all.pdf',
+ggsave('../figs/paper/F2_model_results_086_Jan24.pdf',
        width = 180,
        height = 120,
          #height = 60,
          units = c("mm"),
          dpi = 400, plot = f2)
+```
+
+# accompanying supplementary figure
+
+```{r}
+div_fac <- read_rds('../data/068_diversity_factor_forest.rds')
+enter_fac <- read_rds('../data/087_entero_genus_factor_forest.rds')
+fac2 <- plot_grid(  div_fac,enter_fac,
+                  nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
+
+ggsave('../figs/paper/S6_div_entero_factor_086_Jan24.pdf',
+       width = 170,
+       height = 60, 
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf', plot = fac2)
 ```
 
