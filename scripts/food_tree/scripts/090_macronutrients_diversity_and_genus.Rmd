@@ -7,7 +7,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-**Previous 2 day results**
+**Previous 2 day results** 
 
 ```{r}
 library(tidyverse)
@@ -97,7 +97,7 @@ post_coeff <- posterior_samples(model_alpha_macro_fat, '^b_') %>%
 macronutrients_alpha_main <- post_coeff %>% 
   ggplot(aes(x = coeff, y = item)) +
   stat_pointinterval(.width = c(.66, .95)) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'Macronutrients',
        title = expression(Microbiome~alpha~diversity)) +
@@ -132,20 +132,16 @@ macronutrients_alpha_factor <- coeff_bi %>%
   ggplot(aes(x = coeff, y = item_name)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'Regression coefficients',
        y = 'Factor variables',
        title = expression(Microbiome~alpha~diversity)) +
   theme_classic() +
   theme(legend.position = 'none',
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
         aspect.ratio=1)
 
-ggsave('../figs/paper/078_macronutrients_alpha_model_fat_coeff_forest_binary.eps',  
-       width = 80,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'eps')
 
 macronutrients_alpha_factor %>% 
   write_rds('../data/090_macronutrients_alpha_factor.rds')
@@ -429,7 +425,7 @@ prior_df <- ret_genus_macro_fat %>%
   imap(~ prior_draws(.x) ) %>% 
   bind_rows(.id = 'genus')
 prior_df %>% 
-  write_csv('../data/078_genus_macro_fat_model_prior.csv')
+  write_csv('../data/078_genus_macro_fat_model_prior.csv') 
 
 post_df <- ret_genus_macro_fat %>% 
   imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
@@ -485,7 +481,8 @@ post_res_genera <- post_df %>%
   mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
   mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(item = str_replace(item, 'b_ave_','')) %>% 
-  mutate(item = str_to_title(item))
+  mutate(item = str_to_title(item)) %>% 
+  mutate(item = if_else(item == 'Fiber', 'Fibers', item))
 ```
 ```{r}
 # trying to order the rows and the columns by similarity in euclidean distances
@@ -525,36 +522,59 @@ names(col_key) <- col_key
 
 genus_text_color <- ifelse(sort(target_genera, decreasing = F) %in% c('Blautia','Enterococcus'), 'red', 'black')
  
-ggplot(post_res_genera, aes(x = genus, y = item)) +
+genus_macro_fat_main <- ggplot(post_res_genera, aes(x = genus, y = item)) +
   geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
   geom_text(aes(label = mark, x = genus,y =  item),
             nudge_y = -0.1, nudge_x = 0,size = 5) +
   scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
-  theme_light() +
+  theme_pubr() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         axis.text.x = element_text(angle=50, hjust=1, size=11, colour = genus_text_color),
         axis.text.y=element_text(size=11),
         axis.title=element_text(size=axis_title_size),
-        #panel.grid.major = element_blank(), 
-        #panel.grid.minor = element_blank(),
+        #panel.grid.major = element_line( colour = "gray50"), 
+        #panel.grid.minor = element_line( colour = "gray50"),
         legend.position = 'top',
         legend.key = element_rect( colour = "gray50"),
-        panel.background = element_blank()) 
+        panel.background=element_rect(colour="black")) 
 
-ggsave('../figs/paper/078_heatmap_genus_36_macro_fat_ggplot.pdf', width = 10, height = 3)
-ggsave('../figs/paper/078_heatmap_genus_36_macro_fat_ggplot.jpg', width = 10, height = 3)
+
+genus_macro_fat_main %>% write_rds('../data/090_genus_macro_fat_main.rds')
+ggsave('../figs/paper/078_heatmap_genus_36_macro_fat_ggplot.pdf', width = 10, height = 3, plot = genus_macro_fat_main)
 ```
 
 ```{r}
-full %>% 
-  mutate(logsugar = log10(ave_Sugars*100) )%>% 
-  filter(ave_Sugars < 2) %>% 
-  ggscatter(x = 'ave_Sugars', y = 'Enterococcus',
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) 
-  
+# the factor variables for the genus macro fat
+coeff_factor <- post_df %>% 
+  select(!starts_with('b_ave')) %>% 
+  select(starts_with('b_')) %>% 
+  select(-b_Intercept) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
+  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+
+genus_macro_fat_factor <- coeff_factor %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Regression coefficients',
+       y = 'Factor variables') +
+  theme_classic() +
+  theme(legend.position = 'none',
+        aspect.ratio=1)
+
+genus_macro_fat_factor %>% 
+  write_rds('../data/090_genus_macro_fat_factor.rds')
+
 ```
+

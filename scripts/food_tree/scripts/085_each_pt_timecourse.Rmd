@@ -63,14 +63,12 @@ every_pt_list <-  mrns %>%
       ggplot()  +
       geom_line(data = day_calori[[.x]], aes(x = fdrt, y = daycal), linetype = 'solid', size = pt_line_size, col = diet_line_color) +
       # the diet faith 
-      #geom_point(data = faith[[.x]], aes(x = fdrt, y = faith_pd), col = diet_line_color, size = point_size) +
       geom_line(data = faith[[.x]], aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pt_line_size, col = faith_line_color) +
       # the stool data
-      #geom_point(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), col = stool_line_color, size = point_size, shape = 'triangle') +
       geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal*scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
       theme_pubr() +
     scale_y_continuous(name = "Daily calories, Faith div", 
-                       #limits = c(0, 2400),
+                       limits = c(0, 2400),
     sec.axis = sec_axis(~./scale_factor, name = expression(Fecal~alpha~diversity))) +
       labs(x = 'Transplant day', y = '') + 
   theme(axis.text=element_text(size=axis_text_size),
@@ -95,14 +93,11 @@ whole_list <-  mrns %>%
       ggplot()  +
       geom_line(data = day_calori[[.x]], aes(x = fdrt, y = daycal), linetype = 'solid', size = pt_line_size, col = diet_line_color) +
       # the diet faith 
-      #geom_point(data = faith[[.x]], aes(x = fdrt, y = faith_pd), col = diet_line_color, size = point_size) +
       geom_line(data = faith[[.x]], aes(x = fdrt, y = faith_pd), linetype = 'solid', size = pt_line_size, col = faith_line_color) +
       # the stool data
-      #geom_point(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal/scale_factor), col = stool_line_color, size = point_size, shape = 'triangle') +
       geom_line(data = meta[[.x]], aes(x = sdrt, y = simpson_reciprocal*scale_factor), linetype = 'solid', size = pt_line_size, col = stool_line_color) +
       theme_pubr() +
-    scale_y_continuous(name = "", 
-                       #limits = c(0, 2.6),
+    scale_y_continuous(name = "", limits = c(0, 2400),
     sec.axis = sec_axis(~./scale_factor)) +
     labs(x = 'Transplant day', y = '') + 
       

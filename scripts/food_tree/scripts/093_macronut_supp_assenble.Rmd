@@ -13,6 +13,39 @@ library(cowplot)
 ```
 
 ```{r}
+alpha_main <- read_rds('../data/090_macronutrients_alpha_main.rds')
+alpha_factor <- read_rds('../data/090_macronutrients_alpha_factor.rds')
 
+alpha <-  plot_grid(  alpha_main,alpha_factor,
+                  nrow = 1, labels = c('A','B'), rel_widths = c(1, 1), align = 'hv', axis = 'tblr')
+alpha
+```
+```{r}
+genus_main <- read_rds('../data/090_genus_macro_fat_main.rds')
+genus_factor <- read_rds('../data/090_genus_macro_fat_factor.rds')
+```
+
+
+```{r}
+genus <-  plot_grid(  genus_main,genus_factor,
+                  nrow = 2, labels = c('C','D'), 
+                  rel_heights  = c(1, 1), 
+                  align = 'v', axis = 'lb')
+genus
+```
+
+
+```{r}
+macro <- plot_grid(  alpha, genus,
+                  nrow = 2,  
+                  rel_heights  = c(1, 2), 
+                  align = 'v', axis = 'tblr')
+
+ggsave('../figs/paper/S4_macronutrients_alpha_and_genus_093_Jan24.pdf',
+        width = 240,
+       height = 220,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
 ```
 
