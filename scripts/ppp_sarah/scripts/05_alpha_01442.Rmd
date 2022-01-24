@@ -1,0 +1,92 @@
+---
+title: "alpha diversity and K01442"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+diversity metrics for D7
+contribution/which species are driving differences in BSH on D7
+ 
+ 
+```{r}
+library(tidyverse)
+library(vegan)
+library(ggpubr)
+library(openxlsx)
+```
+
+```{r}
+pheno <- read_csv('../data/phenon.csv', col_names = c('sampleid','pheno')) %>% 
+  mutate(sampleid = str_replace(sampleid, '_IGO.+$',''),
+         sampleid = str_glue('{sampleid}_humann3')) %>% 
+  separate(pheno, into = c('day','grp'), sep = '_C_') %>% 
+  mutate(grp = str_replace(grp, '_0.+$', '')) %>% 
+  mutate(sampleid = str_replace(sampleid, '_humann3',''))
+pheno
+```
+
+```{r}
+cts <- read_tsv('../data/lefse/shotgun_taxa/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
+  filter(str_detect(clade_name, 's__')) %>% 
+  rename_all(~ gsub("_metaphlan3_profile", "", .)) %>% 
+  select(-NCBI_tax_id)
+
+cts_all <- cts %>% 
+  gather('sampleid', 'perc', names(.)[2]:names(.)[ncol(.)]) %>% 
+  spread(key = 'clade_name', value = 'perc', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+cts %>% 
+  gather('sampleid', 'perc', names(.)[2]:names(.)[ncol(.)]) %>% 
+  write_csv('../data/05_all_shotgun_metaphlan_spp.csv')
+
+meta <- diversity(cts_all, index = 'inv') %>% 
+  enframe(name = 'sampleid', value = 'inv') %>% 
+  inner_join(pheno)   %>% 
+  rename(simpson_reciprocal = inv)
+
+
+write.xlsx(meta, '../data/05_meta_with_alpha.xlsx')
+```
+
+
+```{r}
+meta %>% 
+  filter(day == 'D7') %>% 
+   ggboxplot(x = 'grp', y = 'simpson_reciprocal', add = 'dotplot',
+             ylab = 'Simpson reciprocal diversity', xlab = '',
+             title = 'D7') +
+  stat_compare_means(comparisons= list(c('BM', 'BMT')),
+            label= "p.value",
+            method= 'wilcox.test',
+						correct=F) 
+
+ggsave('../data/05_d7_alpha.pdf', height = 4, width = 5)
+
+
+```
+ 
+# 01442 spp contribution
+
+```{r}
+tb <- read_tsv('../data/humann3_KO_cpm_joined_stratified.tsv') %>% 
+  rename(KO = names(.)[1]) %>% 
+  filter(str_detect(KO, 'K01442')) %>% 
+  gather('sampleid', 'cpm', names(.)[2]:names(.)[ncol(.)])  %>% 
+  mutate(sampleid = str_replace(sampleid, '_humann3','')) %>% 
+  left_join(pheno) %>% 
+  filter(day == 'D7')
+
+tb %>% 
+  filter(str_detect(KO, 'Lactobacillus_johnsonii')) %>% 
+  ggboxplot(x = 'grp', y = 'cpm', facet.by = 'KO',add = 'dotplot',
+            xlab = '', ylab = 'Counts per million') +
+  stat_compare_means(comparisons= list(c('BM', 'BMT')),
+            label= "p.value",
+            method= 'wilcox.test',
+						correct=T) 
+```
+
