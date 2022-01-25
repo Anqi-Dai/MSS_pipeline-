@@ -1,0 +1,68 @@
+---
+title: "Figure 3 about irep"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(cowplot)
+library(ggpubr)
+```
+
+```{r}
+combined <- read_csv('../data/growth/069_irep_combined_res.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+```
+
+# fruits with or without enterococcus
+
+```{r}
+fruit_entero <-combined %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta) %>% 
+  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Enterococcus only',alpha = 0.7, 
+            ylab = 'Average growth rate\n(iRep estimation)',
+            xlab = 'Fruit intake in previous 2 days (g)', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", 
+                                 label.x.npc = "center", label.y.npc = "bottom", size = 2))   +
+  theme_classic() +
+  theme(aspect.ratio = 1)
+
+fruit_all_other <- combined %>% 
+  filter(!str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta) %>% 
+  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'All taxa excluding Enterococcus',
+            alpha = 0.7, 
+             ylab = 'Average growth rate\n(iRep estimation)',
+            xlab = 'Fruit intake in previous 2 days (g)',
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2))   +
+  theme_classic() +
+  theme(aspect.ratio = 1)
+
+
+
+```
+
+```{r}
+entero_top <- plot_grid(fruit_entero, fruit_all_other,
+          labels = c('A','B'), 
+          axis = 'lbrt', align = 'hv')
+ggsave('../figs/paper/094_F3_entero_fruit.pdf', width = 180, units = 'mm', dpi = 400, plot = entero_top)
+```
+

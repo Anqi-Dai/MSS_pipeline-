@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(brms)
+library(ggpubr)
 options(mc.cores = parallel::detectCores())
 rstan::rstan_options(auto_write = TRUE)
 ncores <- parallel::detectCores()
@@ -147,6 +148,7 @@ post_df %>%
 mean_fg <-  meta %>% 
    select(starts_with('fg')) %>% 
    summarise_all(funs(mean))
+
   
 valid_interval_perc <- ret_genus %>% 
   imap(~ prior_draws(.x) %>% 
@@ -177,7 +179,7 @@ valid_interval_perc <- ret_genus %>%
 
 ```{r}
 post_df <- read_csv('../data/087_genus_foodgroup_model_post.csv')
-  
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 post_res_genera <- post_df %>% 
   select(genus, starts_with('b_fg')) %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
@@ -196,7 +198,9 @@ post_res_genera <- post_df %>%
   mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
   mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(item = str_replace(item, 'b_ave_','')) %>% 
-  mutate(item = str_to_title(item))
+  mutate(item = str_to_title(item)) %>% 
+  mutate(item = str_replace(item, 'B_','')) %>% 
+  left_join(key %>% select(item = fg1_name, shortname))
 
 col_key <- post_res_genera %>% 
   ungroup() %>% 
@@ -206,13 +210,16 @@ names(col_key) <- col_key
 
 # make the blautia and enterococcus to be in red font for easier see
 genus_text_color <- ifelse(sort(target_genera, decreasing = F) %in% c('Blautia','Enterococcus'), 'red', 'black')
- 
-ggplot(post_res_genera, aes(x = genus, y = item)) +
-  geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
-  geom_text(aes(label = mark, x = genus,y =  item),
+```
+
+
+```{r}
+genus_fg_main <- ggplot(post_res_genera, aes(x = genus, y = shortname)) +
+  geom_tile(aes(fill = color,  x = genus, y =  shortname), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  shortname),
             nudge_y = -0.1, nudge_x = 0,size = 5) +
   scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
-  theme_light() +
+  theme_pubr() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         axis.text.x = element_text(angle=50, hjust=1, size=11, colour = genus_text_color),
@@ -221,12 +228,76 @@ ggplot(post_res_genera, aes(x = genus, y = item)) +
         #panel.grid.major = element_blank(), 
         #panel.grid.minor = element_blank(),
         legend.position = 'top',
-        legend.key = element_rect( colour = "gray50"),
-        panel.background = element_blank()) 
+        panel.background=element_rect(colour="black"),
+        legend.key = element_rect( colour = "gray50")) 
+genus_fg_main 
 
 
 ggsave('../figs/paper/087_heatmap_genus_36_foodgroup_ggplot.pdf', width = 12, height = 5)
 ```
+```{r}
+# the factors for the genus-fg
+post_bi_res <- post_df %>% 
+  select(genus, starts_with('b_')) %>% 
+  select(-starts_with('b_fg'), -b_Intercept) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
+  group_by(genus, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) 
+
+
+genus_fg_factor <- ggplot(post_bi_res, aes(x = genus, y = item_name)) +
+  geom_tile(aes(fill = color,  x = genus, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  item_name),
+            nudge_y = -0.1, nudge_x = 0,size = 5) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.y=element_text(size=11),
+        axis.title=element_text(size=axis_title_size),
+        #panel.grid.major = element_blank(), 
+        #panel.grid.minor = element_blank(),
+        legend.position = 'top',
+        legend.key = element_rect( colour = "gray50"),
+        panel.background = element_rect(colour="black")) 
+ggsave('../figs/paper/087_heatmap_factors_genus_fg_ggplot.pdf', width = 9, height = 4)
+```
+
+```{r}
+# stack the two heatmap together
+library(cowplot)
+heatmap <-  plot_grid(  genus_fg_main,genus_fg_factor,
+                  nrow = 2, labels = c('A','B'), rel_heights  = c(1, 0.8), align = 'hv', axis = 'tblr')
+
+ggsave( '../figs/paper/S9_heatmap_fg_genus_087_Jan25.pdf',
+      width = 250,
+       height = 220,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
+```
+
 
 ## The Enterococcus genus as outcome
 
@@ -357,214 +428,5 @@ entero_genus_factor %>% write_rds('../data/087_entero_genus_factor_forest.rds')
 ```
 
 
-# The macronutrients predictor with family as outcome
-
-```{r}
-# family macro
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn)) %>% 
-  mutate(fg_egg = fg_egg/100,
-         fg_fruit = fg_fruit/100,
-         fg_grain = fg_grain/100,
-         fg_legume = fg_legume/100,
-         fg_meat = fg_meat/100,
-         fg_milk = fg_milk/100,
-         fg_oils = fg_oils/100,
-         fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100) %>% 
-  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
-         inten_ab = if_else(intensity == 'ablative', 1, 0),
-         inten_re = if_else(intensity == 'reduced', 1, 0))
-cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
-  filter(sampleid %in% meta$sampleid) %>% 
-  dplyr::select(sampleid, taxa_family, relab) %>% 
-  mutate(taxa_family = str_extract(taxa_family, 'f__.+$')) %>% 
-  mutate(taxa_family = str_replace(taxa_family, 'f__','')) %>% 
-  filter(taxa_family != 'NA')
-
-thre <- seq(0.0001, 0.003, 0.0001)
-thre %>% 
-  set_names(thre) %>% 
-  map_dfr(function(num){
-    cts %>% 
-    group_by(taxa_family) %>% 
-    count(relab > num) %>% 
-    rename(criteria = names(.)[2]) %>% 
-    filter(criteria == 'TRUE') %>% 
-    arrange(-n) %>% 
-    mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
-    filter(perc > 10) %>% 
-      nrow
-  }) %>% 
-  gather('thre', 'num')
-# choose 0.002
-target_family <-  cts %>% 
-  group_by(taxa_family) %>% 
-  count(relab > 0.002) %>% 
-  rename(criteria = names(.)[2]) %>% 
-  filter(criteria == 'TRUE') %>% 
-  arrange(-n) %>% 
-  mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
-  filter(perc > 10) %>% 
-  pull(taxa_family)
-
-domcts <- cts %>% 
-  filter(taxa_family %in% target_family) %>% 
-  mutate(relablog = log10(relab + 2*10^-6)) %>% 
-  dplyr::select(-relab) %>% 
-  spread(key = 'taxa_family', value = 'relablog')
-All <- domcts %>% 
-  full_join(meta, by = "sampleid")
-
-total <- All %>% 
-  select(sampleid:Veillonellaceae) %>% 
-  full_join(full)
-
-total %>% 
-  write_csv('../data/087_ALL_meta_data.csv')
-```
-
-
-```{r}
-priors_genus_macro <- c(
-            # for the macro nutrients
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fat_n_pro"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
-            # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
-            # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
-            # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
-            # for the intensity 
-            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
-            # for the intercept
-            prior(normal(-3, 1), class = 'Intercept'))
-
-
-ret_family_macro <- target_family %>% 
-  set_names(target_family) %>% 
-  purrr::map(function(fam) {
-    mod =  brm( as.formula(str_glue('{fam}  ~ 
-               1 +
-                 ave_fiber +
-                ave_fat_n_pro +
-                ave_Sugars +
-               inten_non + inten_ab + inten_re +
-                empirical+
-                TPN+
-                EN+
-               (1 | mrn) +
-                (1 | timebin)')),  
-                data = total, 
-              warmup = 1000, iter = 3000, 
-              prior = priors_genus_macro,
-              cores = ncores, 
-              chains = 2, 
-              control = list(adapt_delta = 0.99),
-              seed = 456, sample_prior = T) 
-  })
-```
-```{r}
-# save the data
-prior_df <- ret_family_macro %>% 
-  imap(~ prior_draws(.x) ) %>% 
-  bind_rows(.id = 'family')
-prior_df %>% 
-  write_csv('../data/087_family_macro_model_prior.csv')
-
-
-post_df <- ret_family_macro %>% 
-  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
-            select(-starts_with('r_'))))  %>% 
-  bind_rows(.id = 'family')  
-post_df %>% 
-  write_csv('../data/087_family_macro_model_post.csv')
-```
-
-```{r}
-mean_macro <-  full %>% 
-  select(starts_with('ave_')) %>% 
-  summarise_all(funs(mean))
-
-
-fam <-  cts %>% 
-  filter(taxa_family %in% target_family) %>% 
-  mutate(relablog = log10(relab + 2*10^-6))
-
-valid_interval_perc <- ret_family_macro %>% 
-  imap(~ prior_draws(.x) %>% 
-            mutate(mean_fg = Intercept + 
-                    b_ave_fiber * mean_macro$ave_fiber+
-                     b_ave_fat_n_pro * mean_macro$ave_fat_n_pro+
-                     b_ave_Sugars * mean_macro$ave_Sugars+
-                     b_inten_re ) %>% 
-            select(mean_fg) %>% 
-            mutate(grp = 'ave_each') %>% 
-            rename(prior_res = mean_fg) %>% 
-            select(grp, prior_res) %>% 
-            count(prior_res >min(fam$relablog) & prior_res<max(fam$relablog)) %>% 
-            mutate(perc = n/4000*100) %>% 
-            select(perc) %>% 
-            slice(2) %>% 
-            pull(perc) %>% 
-            round(1) ) %>% 
-  bind_rows(.id = .y) %>% 
-  gather('family','within_interval_perc')
-```
-
-```{r}
-post_df <- read_csv('../data/087_family_macro_model_post.csv')
-  
-post_res_family_macro <- post_df %>% 
-  select(family, starts_with('b_ave')) %>% 
-  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
-  group_by(family, item) %>% 
-  summarise(q50 = median(coeff),
-            q2.5 = quantile(coeff, probs = 0.025),
-            q97.5 = quantile(coeff, probs = 0.975),
-            q12.5 = quantile(coeff, probs = 0.125),
-            q87.5 = quantile(coeff, probs = 0.875),
-            q1.25 = quantile(coeff, probs = 0.0125),
-            q98.75 = quantile(coeff, probs = 0.9875),
-            q0.5 = quantile(coeff, probs = 0.005),
-            q99.5 = quantile(coeff, probs = 0.995)
-            ) %>% 
-  ungroup() %>% 
-  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
-  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
-  mutate(item = str_replace(item, 'b_ave_','')) %>% 
-  mutate(item = str_to_title(item))
-
-
-col_key <- post_res_family_macro %>% 
-  ungroup() %>% 
-  distinct(color) %>% 
-  pull(color)
-names(col_key) <- col_key
- 
-ggplot(post_res_family_macro, aes(x = family, y = item)) +
-  geom_tile(aes(fill = color,  x = family, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
-  geom_text(aes(label = mark, x = family,y =  item),
-            nudge_y = -0.1, nudge_x = 0,size = 5) +
-  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI > 0 positive', '75% CI < 0 negative')) +
-  theme_light() +
-  theme(axis.title.x = element_blank(),
-        axis.title.y = element_blank(),
-        axis.text.x = element_text(angle=50, hjust=1, size=11),
-        axis.text.y=element_text(size=11),
-        axis.title=element_text(size=axis_title_size),
-        #panel.grid.major = element_blank(), 
-        #panel.grid.minor = element_blank(),
-        legend.position = 'top',
-        legend.key = element_rect( colour = "gray50"),
-        panel.background = element_blank()) 
-
-ggsave('../figs/paper/087_heatmap_family_24_macro_ggplot.pdf', width = 8, height = 4)
 ```
 

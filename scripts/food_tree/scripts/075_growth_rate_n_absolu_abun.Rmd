@@ -147,7 +147,7 @@ irep = entero %>%
   geom_point() +
   labs(title = str_glue('{}')) +
   geom_hline(yintercept = irep_q25, linetype = 'dashed') +
-  geom_text(data = quantile_annot_df, mapping = aes(x = 14, y = height, label = quant), nudge_y = 0.02, size = 2.5) +
+  #geom_text(data = quantile_annot_df, mapping = aes(x = 14, y = height, label = quant), nudge_y = 0.02, size = 2.5) +
   geom_hline(yintercept = irep_q50, linetype = 'dashed') +
   geom_hline(yintercept = irep_q75, linetype = 'dashed') +
   xlim(xmin, xmax) +
@@ -156,7 +156,10 @@ irep = entero %>%
        y = 'Average replication rate')+
   theme_classic()+
   theme(aspect.ratio=1,
-        panel.grid.major.x = element_line(color = "grey85")) 
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_line(color = "grey85"),
+        plot.margin = margin(b=-0.8,unit="cm"))
   
 
 copies = cts_ %>% 
@@ -171,17 +174,60 @@ copies = cts_ %>%
   labs(x = 'Day relative to transplant',
        y = 'Enterococcus copy\nnumbers') +
   theme_classic() +
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=1/2.5,
+        plot.margin = margin(l=-0.8,unit="cm"),
         panel.grid.major.x = element_line(colour = "grey85"))
 
-res = cowplot::plot_grid(fruit_entero, irep, fruit_all_other, copies, axis = 'tblr', align = 'hv', ncol = 2, labels = c('A','C','B','D'))
-res
-ggsave('../figs/paper/075_figure3.pdf',  
-       width = 200,
-       height = 200,
-         units = c("mm"),
-       plot = res, 
-         dpi = 400, device = 'pdf')
+# a violin plot to show all the entero irep distribution
+entero_box <- ggboxplot(entero,  y = "ave_irpe", add = 'jitter',
+                          xlab = '', ylab = 'All Enterococcus replication rate')+
+   theme_classic() +
+   ylim(1, irep_highest)+
+  theme(aspect.ratio=4,
+        plot.margin = margin(l=-0.8,unit="cm"),
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.text.x = element_blank(),
+        )
+ 
+  
+irep_p11 <- plot_grid(irep, copies,entero_box, byrow = F,
+          nrow = 2, axis = 'ltbr', align = 'hv', rel_heights = c(2,1))
+
+ggsave('../figs/paper/F3_irep_p11_enterococcus.pdf', width = 120,
+      height = 140, units = 'mm', dpi = 400, plot = irep_p11)
+```
+
+
+
+
+```{r}
+copies_p11 <- cts_ %>% 
+  filter(sdrt %in% -5:15) %>% 
+  filter(mrn == p11) %>% 
+  mutate(sdrt = as.numeric(sdrt))
+
+irep_p11 <-  entero %>% 
+  filter(sdrt %in% -5:15) %>% 
+  filter(mrn == p11)
+
+both <- bind_rows(
+  tibble(
+  sdrt = irep_p11$sdrt,
+  value = irep_p11$ave_irpe,
+  grp = 'ave_irpe'
+),
+ tibble(
+  sdrt = copies_p11$sdrt,
+  value = copies_p11$entero_copy,
+  grp = 'entero_copy'
+)
+)
+
+both %>% 
+  ggplot(aes(x = sdrt, y = value)) +
+  geom_point() +
+  facet_grid(grp ~., scales = 'free')
 ```
 
 
