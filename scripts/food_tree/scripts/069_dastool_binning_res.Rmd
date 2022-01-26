@@ -42,7 +42,7 @@ tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>%
   filter(!is.na(iRep)) %>% 
   arrange(Sample,Bin,  best_species) %>% 
   # if there are multiple get the average
-  group_by(Sample, best_species) %>% 
+  group_by(Sample, best_species, best_level) %>% 
   summarise(aveirep = mean(iRep)) %>% 
   filter(best_species != 'Unclassified')
 
