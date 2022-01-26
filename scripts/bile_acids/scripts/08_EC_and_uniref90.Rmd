@@ -1,0 +1,116 @@
+---
+title: "The EC and uniref90"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(ggpubr)
+```
+
+```{r}
+ba <- read_excel('../data/KO_BAs.xlsx') %>% 
+  mutate(ECnum = str_replace(EC, 'EC:',''))
+
+```
+
+```{r}
+intersect(all_ec,ba$ECnum ) 
+```
+
+
+```{r}
+# to look at the recent batch from Oriana
+pheno <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/all_BAs_conc.csv')
+
+list.files('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/')
+
+oriana_all <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/all_BAs_conc.csv') %>% 
+  select(sampleid) %>% 
+  mutate(fid = if_else(str_detect(sampleid, '^FMT'), str_replace(sampleid, '\\.', '_'), sampleid))
+
+oba <- tibble(
+  fn = list.files('../data/KO/', full.names = T)
+) %>% 
+  mutate(fid = str_replace(fn, '../data/KO//', ''),
+         fid = str_replace(fid, '_humann3_KO_cpm.tsv', '')) %>% 
+  filter(fid %in% oriana_all$fid)
+
+onset <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/cohort_BAs_later.csv')
+
+perien <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/cohort_BAs_periengr.csv')
+
+list.files('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/')
+
+ursodiol <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/ursodiol.csv')
+```
+
+
+```{r}
+ofn <- oba %>% 
+  pull(fn)
+ 
+res <- ofn %>% 
+  set_names(ofn) %>% 
+  map(~ read_tsv(.) %>% 
+  filter(!str_detect(`# Gene Family`, '\\|')) %>% 
+  rename(KOID = `# Gene Family`,
+         cpm = names(.)[2]) ) %>% 
+  bind_rows(.id = 'fn')
+
+bas <- res %>% 
+  filter(KOID %in% ba$KO) %>% 
+  left_join(oba) %>% 
+  inner_join(oriana_all) %>% 
+  left_join(pheno %>% 
+              select(BatchID, DiseaseGroup, sampleid, mrn))
+
+bas %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+
+include <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/ursodiol_exposed_samples_for_analysis.csv')
+
+bas %>% 
+  filter(sampleid %in% onset$sampleid) %>% 
+  filter(sampleid %in% include$sampleid) %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+
+
+bas %>% 
+  filter(sampleid %in% perien$sampleid) %>% 
+  filter(sampleid %in% include$sampleid) %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+
+
+# ursodile exposure 
+
+
+
+bas %>% 
+  filter(sampleid %in% perien$sampleid) %>% 
+  filter(sampleid %in% include$sampleid) %>% 
+  distinct(sampleid)
+
+bas %>% 
+  filter(sampleid %in% onset$sampleid) %>% 
+  filter(sampleid %in% include$sampleid) %>% 
+  distinct(sampleid)
+```
+

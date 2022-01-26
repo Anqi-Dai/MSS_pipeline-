@@ -44,7 +44,7 @@ all.equal(pheno$sampleid, colnames(ctslog2))
 combat_ctslog2 = ComBat(dat=ctslog2, batch=pheno$BatchID, mod=NULL, par.prior=FALSE, mean.only=TRUE,prior.plots=T )
 
 pca_res <- prcomp(combat_ctslog2 %>% t(), scale. = TRUE, center = T)
-autoplot(pca_res)
+
 pca_res$x
 pca_res$x %>% 
   as.data.frame() %>% 
@@ -55,6 +55,7 @@ pca_res$x %>%
 
 combat_ctslog2 %>% 
   as.data.frame() %>% 
+  rownames_to_column('BA') %>% 
   write_csv('../data/log2_transformed_auc_batch_corrected.csv')
 ```
 
