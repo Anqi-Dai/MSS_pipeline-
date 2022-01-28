@@ -1,0 +1,23 @@
+---
+title: "Shotgun data analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+- [ ]  the alpha diversity of the shotgun data
+- [ ]  the spp contribution
+- [ ]  the pca to see the pool batch effect
+
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+
+```
+

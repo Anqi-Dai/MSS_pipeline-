@@ -1,0 +1,67 @@
+---
+title: "A look at KOs"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+serpath <- '/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/'
+
+meta <- read_csv(file = file.path(serpath, '08_shotgun_meta.csv'))
+
+ba <- read_excel('../data/KO_BAs.xlsx') %>% 
+  mutate(ECnum = str_replace(EC, 'EC:',''))
+
+res <- read_csv(file = file.path(serpath, '08_shotgun_KO.csv'))
+
+ba_kos <- res %>% 
+  filter(!str_detect(KOID, '\\|')) %>% 
+  filter(KOID %in% ba$KO) %>% 
+  left_join(meta)
+```
+
+```{r}
+# look at urso exposed samples
+# onset samples
+ba_kos %>% 
+  filter(in_onset == 'TRUE') %>% 
+  filter(urso_expo == 'TRUE') %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+
+# peri samples
+ba_kos %>% 
+  filter(in_peri == 'TRUE') %>% 
+  filter(urso_expo == 'TRUE') %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+
+ 
+# how many samples 
+ba_kos %>% 
+  filter(in_onset == 'TRUE') %>% 
+  filter(urso_expo == 'TRUE') %>% 
+  distinct(sampleid) %>% 
+  nrow
+
+ba_kos %>% 
+  filter(in_peri == 'TRUE') %>% 
+  filter(urso_expo == 'TRUE') %>% 
+  distinct(sampleid) %>% 
+  nrow
+```
+

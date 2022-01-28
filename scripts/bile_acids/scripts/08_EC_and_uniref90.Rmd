@@ -19,10 +19,6 @@ ba <- read_excel('../data/KO_BAs.xlsx') %>%
 
 ```
 
-```{r}
-intersect(all_ec,ba$ECnum ) 
-```
-
 
 ```{r}
 # to look at the recent batch from Oriana
@@ -47,7 +43,24 @@ perien <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_
 
 list.files('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/')
 
+serpath <- '/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/'
+
 ursodiol <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/ursodiol.csv')
+```
+
+```{r}
+# make a meta table for my own sanity
+meta <- oba %>% 
+  inner_join(oriana_all) %>% 
+  inner_join(pheno %>% 
+              select(BatchID, DiseaseGroup, sampleid, mrn)) %>% 
+  mutate(in_onset = if_else(sampleid %in% onset$sampleid, T, F),
+         in_peri = if_else(sampleid %in% perien$sampleid, T, F),
+         urso_expo = if_else(sampleid %in% include$sampleid, T, F)) %>% 
+  select(-fn)
+ 
+meta %>% 
+  write_csv(file = file.path(serpath, '08_shotgun_meta.csv'))
 ```
 
 
@@ -58,59 +71,24 @@ ofn <- oba %>%
 res <- ofn %>% 
   set_names(ofn) %>% 
   map(~ read_tsv(.) %>% 
-  filter(!str_detect(`# Gene Family`, '\\|')) %>% 
+  #filter(!str_detect(`# Gene Family`, '\\|')) %>% 
   rename(KOID = `# Gene Family`,
          cpm = names(.)[2]) ) %>% 
-  bind_rows(.id = 'fn')
-
-bas <- res %>% 
-  filter(KOID %in% ba$KO) %>% 
+  bind_rows(.id = 'fn') %>% 
   left_join(oba) %>% 
-  inner_join(oriana_all) %>% 
-  left_join(pheno %>% 
-              select(BatchID, DiseaseGroup, sampleid, mrn))
+  inner_join(oriana_all)
 
-bas %>% 
-  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
-  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
-            label= "p.format",
-            method= 'wilcox.test',
-						correct=FALSE)
-
-include <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/ursodiol_exposed_samples_for_analysis.csv')
-
-bas %>% 
-  filter(sampleid %in% onset$sampleid) %>% 
-  filter(sampleid %in% include$sampleid) %>% 
-  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
-  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
-            label= "p.format",
-            method= 'wilcox.test',
-						correct=FALSE)
-
-
-bas %>% 
-  filter(sampleid %in% perien$sampleid) %>% 
-  filter(sampleid %in% include$sampleid) %>% 
-  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
-  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
-            label= "p.format",
-            method= 'wilcox.test',
-						correct=FALSE)
-
-
-# ursodile exposure 
+res %>% 
+  select(-fn) %>% 
+  write_csv(file = file.path(serpath, '08_shotgun_KO.csv'))
 
 
 
-bas %>% 
-  filter(sampleid %in% perien$sampleid) %>% 
-  filter(sampleid %in% include$sampleid) %>% 
-  distinct(sampleid)
+bas %>% distinct(fn)
+meta <- bas %>% 
+  select(sampleid:mrn) %>% 
+  distinct()
 
-bas %>% 
-  filter(sampleid %in% onset$sampleid) %>% 
-  filter(sampleid %in% include$sampleid) %>% 
-  distinct(sampleid)
+
 ```
 

@@ -82,9 +82,14 @@ cts_all %>%
   write_csv('../softwares/phylo-umap/taxumap/data/taxUMAP_food_cts.csv')
 
 
-cts_all %>% 
-  write_csv('../data/cleaned_diet_data/taxUMAP_food_cts.csv')
 
+
+detable <- cts_all %>% 
+  gather('foodcode', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  filter(str_detect(foodcode, '^9')) %>% 
+  arrange(-relab) %>% 
+  rename(fid = index_column) %>% 
+  left_join(link_all %>% select(fid, index_column))
 ```
 ```{r}
 # requested by Jonas (can you send me another file, with the same sample index, that has the total kcal in one column, and the total grams in another in it? )
@@ -100,6 +105,9 @@ requested <- dtb %>%
 
 requested %>% 
   write_csv('../data/index_with_cal_and_gram.csv')
+
+
+
 ```
 
 
