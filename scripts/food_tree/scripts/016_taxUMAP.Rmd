@@ -87,6 +87,23 @@ cts_all %>%
 
 ```
 ```{r}
+# requested by Jonas (can you send me another file, with the same sample index, that has the total kcal in one column, and the total grams in another in it? )
+requested <- dtb %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(total_kcal = sum(Calories_kcal),
+            total_gram = sum(dehydrated_weight)) %>% 
+  full_join(link_all %>% 
+              mutate(mrn = as.numeric(mrn),
+                     fdrt = as.numeric(fdrt))) %>% 
+  ungroup( )%>% 
+  select(index_column,total_kcal, total_gram )
+
+requested %>% 
+  write_csv('../data/index_with_cal_and_gram.csv')
+```
+
+
+```{r}
 # next is the taxanomy table that should contain taxonomic levels. They should be ordered from left to right in decreasing taxonomic hierarchy 
 # done in tree building script
 ```
