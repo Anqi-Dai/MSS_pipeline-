@@ -37,7 +37,7 @@ oba <- tibble(
          fid = str_replace(fid, '_humann3_KO_cpm.tsv', '')) %>% 
   filter(fid %in% oriana_all$fid)
 
-onset <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/cohort_BAs_later.csv')
+onset <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/cohort_BAs_later.csv') 
 
 perien <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/cohort_BAs_periengr.csv')
 

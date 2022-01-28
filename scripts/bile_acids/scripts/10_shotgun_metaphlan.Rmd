@@ -1,5 +1,5 @@
 ---
-title: "Shotgun data analysis"
+title: "Shotgun metaphlan "
 output: html_document
 ---
 
@@ -8,8 +8,6 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 - [ ]  the alpha diversity of the shotgun data
-- [ ]  the spp contribution
-- [ ]  the pca to see the pool batch effect
 
 
 ```{r}
@@ -18,6 +16,69 @@ library(ggpubr)
 ```
 
 ```{r}
+serpath <- '/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/'
+meta <- read_csv(file = file.path(serpath, '08_shotgun_meta.csv'))
 
+fns <- list.files('../data/new_meta/', full.names = T)
+test <- read_tsv(fns[1], skip = 4) %>% 
+  select(taxa = names(.)[1],
+         relative_abundance)
+
+res <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., skip = 4) %>% 
+        select(taxa = names(.)[1],
+         relative_abundance) )%>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fid = str_replace(fn, '../data/new_meta//', ''),
+         fid = str_replace(fid, '_metaphlan3_profile.txt', '')) %>% 
+  filter(fid %in% meta$fid) 
+
+all <- res %>% 
+  left_join(meta) 
+
+all %>% write_csv(file = file.path(serpath, '10_shotgun_metaphlan.csv'))
+```
+
+```{r}
+# alpha diversity
+library(vegan)
+cts_all <- all %>% 
+  select(taxa, relative_abundance, sampleid) %>% 
+  spread(key = 'taxa', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+combined <- diversity(cts_all, index = 'inv') %>% 
+  enframe(name = 'sampleid', value = 'inv') %>% 
+  full_join(meta)   %>% 
+  rename(simpson_reciprocal = inv)
+```
+
+```{r}
+# onset samples
+combined %>% 
+  filter(in_onset == 'TRUE') %>% 
+  filter(urso_expo == 'TRUE') %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'simpson_reciprocal', add = 'jitter',
+            title = 'onset') +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+ggsave('../figs/10_onset_alpha.pdf', width = 8, height = 6)
+```
+
+```{r}
+# peri samples
+combined %>% 
+  filter(in_peri == 'TRUE') %>% 
+  filter(urso_expo == 'TRUE') %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'simpson_reciprocal', add = 'jitter',
+            title = 'peri') +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+ggsave('../figs/10_peri_alpha.pdf', width = 8, height = 6)
 ```
 
