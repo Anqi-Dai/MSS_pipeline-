@@ -1,0 +1,79 @@
+---
+title: "batch effects of the shotgun samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database(config_file = '~/dbConfig.txt')
+get_table_from_database('shotgun_lookup_ad')
+meta <- read_csv('')
+```
+
+```{r}
+pilot <- meta %>% 
+  filter(fid %in% shotgun_lookup_ad$fid) %>% 
+  pull(fid)
+
+new <- meta %>% 
+  filter(!fid %in% shotgun_lookup_ad$fid)
+
+pools <- bind_rows(
+  tibble(
+    fid = new$fid,
+    projectid = 'Project_12652'
+  ),
+  shotgun_lookup_ad %>% 
+    filter(fid %in% pilot) %>% 
+    select(fid, projectid)
+)
+
+kos <- read_csv(file.path(serpath, '08_shotgun_KO.csv'))
+
+ko <- kos %>% 
+  filter(!str_detect(KOID,'\\|')) %>% 
+  select(-sampleid) %>% 
+  spread('fid', 'cpm', fill =0 ) %>% 
+  column_to_rownames('KOID') %>% 
+  as.matrix()
+
+pseudo <- min(ko[ko>0])/2
+
+ctslog2 <- log2(ko + pseudo)
+
+pheno <- pools %>% 
+  arrange(fid)
+
+all.equal(pheno$fid, colnames(ctslog2))
+```
+
+```{r}
+# pca raw
+pca_ori <- prcomp(ctslog2 %>% t(), scale. = TRUE, center = T)
+ 
+pools %>% 
+  count(projectid, sort = T)
+```
+
+
+```{r}
+pca_ori$x %>% 
+  as.data.frame() %>% 
+  rownames_to_column('fid') %>% 
+  select(PC1, PC2, fid) %>% 
+  full_join(pheno)  %>% 
+  ggscatter(x = 'PC1', y = 'PC2', color = 'projectid', alpha = 0.5)
+```
+
+
+```{r}
+library(sva)
+combat_ctslog2 = ComBat(dat=ctslog2, batch=pheno$projectid, mod=NULL, par.prior=FALSE, mean.only=TRUE,prior.plots=T )
+```
+

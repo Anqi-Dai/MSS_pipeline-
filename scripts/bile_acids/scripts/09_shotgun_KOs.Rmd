@@ -35,20 +35,26 @@ ba_kos %>%
   filter(in_onset == 'TRUE') %>% 
   filter(urso_expo == 'TRUE') %>% 
   ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
+  scale_y_log10() +
   stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
             label= "p.format",
             method= 'wilcox.test',
 						correct=FALSE)
+
+ggsave('../figs/09_onset_KO.pdf', width = 8, height = 12)
 
 # peri samples
 ba_kos %>% 
   filter(in_peri == 'TRUE') %>% 
   filter(urso_expo == 'TRUE') %>% 
   ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'KOID', add = 'jitter') +
+  scale_y_log10() +
   stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
             label= "p.format",
             method= 'wilcox.test',
 						correct=FALSE)
+
+ggsave('../figs/09_peri_KO.pdf', width = 8, height = 12)
 
  
 # how many samples 
@@ -63,5 +69,26 @@ ba_kos %>%
   filter(urso_expo == 'TRUE') %>% 
   distinct(sampleid) %>% 
   nrow
+```
+```{r}
+# look at the spp contribution 
+# K01442 for peri time
+K01442 <- res %>% 
+  filter(str_detect(KOID, 'K01442\\|')) %>% 
+  left_join(meta, by = c("fid", "sampleid")) %>% 
+  filter(in_peri == 'TRUE' & urso_expo == 'TRUE') %>% 
+  mutate(spp = str_extract(KOID, 's__.+$')) %>% 
+  filter(!is.na(spp)) %>% 
+  mutate(genus = str_extract(KOID, 'g__.+\\.'))
+
+K01442 %>% 
+  ggboxplot(x  = 'DiseaseGroup', y = 'cpm', facet.by = 'genus', add = 'jitter') +
+  scale_y_log10() +
+  stat_compare_means(comparisons= list(c('GVHD', 'CTRL')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+
+ggsave('../figs/09_K01442_peri_genus.pdf', width = 10, height = 12)
 ```
 
