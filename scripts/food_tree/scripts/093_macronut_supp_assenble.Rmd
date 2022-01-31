@@ -43,7 +43,7 @@ macro <- plot_grid(  alpha, genus,
 
 ggsave('../figs/paper/S4_macronutrients_alpha_and_genus_093_Jan24.pdf',
         width = 240,
-       height = 220,
+       height = 250,
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'pdf')

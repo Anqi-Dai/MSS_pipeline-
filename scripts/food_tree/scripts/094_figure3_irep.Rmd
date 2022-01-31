@@ -21,6 +21,24 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 # fruits with or without enterococcus
 
 ```{r}
+both_val <- bind_rows(
+  combined %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta) %>% 
+    mutate(grp = 'entero'),
+  combined %>% 
+  filter(!str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta) %>% 
+    mutate(grp = 'other')
+)
+ylowerlim <- min(both_val$ave_irep)
+yupperlim <- max(both_val$ave_irep)
+
+
 fruit_entero <-combined %>% 
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
@@ -33,9 +51,9 @@ fruit_entero <-combined %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", 
-                                 label.x.npc = "center", label.y.npc = "bottom", size = 2))   +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n",  size = 4))   +
   theme_classic() +
+  ylim(ylowerlim, yupperlim) +
   theme(aspect.ratio = 1)
 
 fruit_all_other <- combined %>% 
@@ -51,8 +69,9 @@ fruit_all_other <- combined %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2))   +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 4))   +
   theme_classic() +
+   ylim(ylowerlim, yupperlim) +
   theme(aspect.ratio = 1)
 ```
 

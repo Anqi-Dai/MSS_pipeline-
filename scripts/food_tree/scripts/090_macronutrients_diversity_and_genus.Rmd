@@ -21,6 +21,9 @@ rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
 full <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
+
+target_genera <- read_csv('../data/target_genera.csv') %>% 
+  pull(genus)
 ```
 
 ### simpson reciprocal ~ ave_fiber + ave_fat + ave_Sugars + empirical + intensity + TPN + EN + ...
@@ -546,11 +549,24 @@ ggsave('../figs/paper/078_heatmap_genus_36_macro_fat_ggplot.pdf', width = 10, he
 
 ```{r}
 # the factor variables for the genus macro fat
-coeff_factor <- post_df %>% 
-  select(!starts_with('b_ave')) %>% 
-  select(starts_with('b_')) %>% 
-  select(-b_Intercept) %>% 
-  gather('item', 'coeff') %>% 
+post_bi_res <- post_df %>% 
+  select(genus, starts_with('b_')) %>% 
+  select(-starts_with('b_ave'), -b_Intercept) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
+  group_by(genus, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(item_name = case_when(
     item ==  'b_inten_non' ~ 'Intensity: nonablative',
     item == 'b_inten_ab' ~ 'Intensity: ablative',
@@ -558,20 +574,23 @@ coeff_factor <- post_df %>%
     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure'
-  )) %>% 
-  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
-  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
-
-genus_macro_fat_factor <- coeff_factor %>% 
-  ggplot(aes(x = coeff, y = item_name)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
-       y = 'Factor variables') +
-  theme_classic() +
-  theme(legend.position = 'none',
-        aspect.ratio=1)
+  )) 
+genus_macro_fat_factor <- ggplot(post_bi_res, aes(x = genus, y = item_name)) +
+  geom_tile(aes(fill = color,  x = genus, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  item_name),
+            nudge_y = -0.1, nudge_x = 0,size = 5) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.y=element_text(size=11),
+        axis.title=element_text(size=axis_title_size),
+        #panel.grid.major = element_blank(), 
+        #panel.grid.minor = element_blank(),
+        legend.position = 'top',
+        legend.key = element_rect( colour = "gray50"),
+        panel.background = element_rect(colour="black")) 
 
 genus_macro_fat_factor %>% 
   write_rds('../data/090_genus_macro_fat_factor.rds')
