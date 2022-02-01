@@ -13,6 +13,7 @@ connect_database('~/dbConfig.txt')
 list_table_from_database('qpcr')
 get_table_from_database('qpcr_16s_ag')
 library(tidyverse)
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ```
 
 ```{r}
@@ -174,7 +175,7 @@ copies = cts_ %>%
   labs(x = 'Day relative to transplant',
        y = 'Enterococcus copy\nnumbers') +
   theme_classic() +
-  theme(aspect.ratio=1/2.8,
+  theme(aspect.ratio=1,
         plot.margin = margin(l=-0.8,unit="cm"),
         panel.grid.major.x = element_line(colour = "grey85"))
 
@@ -237,10 +238,11 @@ fruit_time <- fruit %>%
        y = 'Fruit intake') +
   theme_classic() + 
   ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  scale_y_sqrt() +
   geom_hline(yintercept = f_q25, linetype = 'dashed') +
   geom_hline(yintercept = f_q50, linetype = 'dashed') + 
   geom_hline(yintercept = f_q75, linetype = 'dashed') +
-  theme(aspect.ratio=1/2.8,
+  theme(aspect.ratio=1,#1/2.8
         plot.margin = margin(l=-0.8,unit="cm"),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
@@ -249,6 +251,10 @@ fruit_time <- fruit %>%
 p11_ver <- plot_grid(fruit_time, irep, copies, byrow = F,
           nrow = 3, axis = 'ltbr', align = 'hv', rel_heights = c(1,2, 1))
 p11_ver
+
+
+ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 100,
+      height = 180, units = 'mm', dpi = 400, plot = p11_ver)
 ```
 
 

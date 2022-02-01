@@ -78,7 +78,7 @@ every_pt_list <-  mrns %>%
         axis.line = element_line(colour = 'black', size = axis_line_thickness),
         axis.title.y.right = element_text(color = stool_line_color),
          axis.ticks = element_line(colour = "black", size = axis_line_thickness), 
-        aspect.ratio=1)
+        aspect.ratio=1/1.5)
   })
 
 ```
@@ -107,10 +107,10 @@ whole_list <-  mrns %>%
         axis.title.y = element_text(color = diet_line_color),
         axis.line = element_line(colour = 'black', size = axis_line_thickness),
         axis.ticks = element_line(colour = "black", size = axis_line_thickness), 
-        #axis.title.x = element_blank(), 
+        axis.title.x = element_blank(), 
         axis.text.y = element_blank(), 
         axis.title.y.right = element_text(color = stool_line_color),
-        aspect.ratio=1)
+        aspect.ratio=1/1.5)
   })
 
 # arrange the above into a facet-wrap
@@ -120,7 +120,7 @@ nCol <- 8
 all <- do.call("grid.arrange", c(whole_list, ncol=nCol))
 ggsave('../figs/paper/085_all_patients_timecourse.pdf', 
        width = 8, 
-       height = 10,
+       height = 9,
        plot = all)
 ```
 
