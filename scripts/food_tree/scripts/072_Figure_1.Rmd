@@ -22,10 +22,7 @@ pick_line_size <- 0.5
 example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
-```
 
-
-```{r colors}
 # the colors for each food group specified and saved here
 fpalette <- tribble(
   ~fg1_name, ~color, ~fgrp1,
@@ -203,6 +200,8 @@ coord <- dcoords %>%
 
 fcts_fg <- read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv') 
 
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv')
+
 fcts_fg_dom <- fcts_fg %>%
   group_by(mrn, fdrt) %>% 
   arrange(-grp_frac, .by_group = T) %>% 
@@ -215,23 +214,29 @@ fcts_fg_dom <- fcts_fg %>%
 df <- coord %>% 
   inner_join(fcts_fg_dom) %>% 
   left_join(fpalette %>% select(fg1_dom = fg1_name, color)) %>% 
-  add_count(fg1_dom)
+  add_count(fg1_dom) %>% 
+  rename(fg1_name = fg1_dom) %>% 
+  left_join(key )
 
 color_key <- df %>% 
-  distinct(fg1_dom, color) %>% 
-  mutate(fg1_dom = factor(fg1_dom)) %>% 
-  arrange(fg1_dom) %>% 
+  ungroup() %>% 
+  distinct(shortname, color) %>% 
+  select(shortname, color) %>% 
+  #mutate(shortname = factor(shortname)) %>% 
+  #arrange(shortname) %>% 
   deframe()
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'fg1_dom', alpha = 0.2,size = point_size , xlab = 'UMAP1', ylab = 'UMAP2') +
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.2,size = point_size , xlab = 'UMAP1', ylab = 'UMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
-  theme(legend.position = "none",
+  theme(legend.position = "right",
+        legend.title = element_blank(),
         axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1) 
+        aspect.ratio=1) +
+  guides(colour = guide_legend(override.aes = list(alpha=1)))
 
 fig1_umap
 
@@ -298,7 +303,7 @@ ggsave('../figs/paper/072_fig1_umap.pdf',
 
 p <- '../figs/paper/080_food_tree_ring.png'
 tree <- ggdraw() +
-  draw_image(p,   scale = 1) 
+  draw_image(p,   scale = 1.3) 
 tree
 ```
 
@@ -367,15 +372,15 @@ ggsave('../figs/paper/072_fg_color_palette.pdf', dpi = 400, width = 15)
 
 ```{r top}
 
-top <- plot_grid(tree,  fg_legend_, fig1_umap,labels = c('A',NA, "B"),
-                  nrow = 1, rel_widths = c(1.3,1.1,1), axis = 'lbrt', align = 'hv')
+top <- plot_grid(tree, fig1_umap,labels = c('A', "B"),
+                  nrow = 1, rel_widths = c(1,1), axis = 'lbrt', align = 'hv')
 top
 ```
 
 ```{r bottom}
 # assemble all
 f1 <-  plot_grid(top, bot,
-                 rel_heights = c(1,1),
+                 rel_heights = c(1.3,1),
                  nrow = 2)
 
 ggsave('../figs/paper/F1_overview_072_Jan31.pdf',

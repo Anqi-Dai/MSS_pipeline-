@@ -249,7 +249,7 @@ fruit_time <- fruit %>%
         panel.grid.major.x = element_line(colour = "grey85"))
 
 p11_ver <- plot_grid(fruit_time, irep, copies, byrow = F,
-          nrow = 3, axis = 'ltbr', align = 'hv', rel_heights = c(1,2, 1))
+          nrow = 3, axis = 'ltbr', align = 'hv', rel_heights = c(1,1, 1))
 p11_ver
 
 
