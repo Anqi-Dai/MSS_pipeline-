@@ -158,7 +158,7 @@ irep = entero %>%
   ylim(1, irep_highest) +
   labs(x = '',
        y = 'Average replication rate',
-       title = 'Enterococcus growth rate')+
+       title = 'Enterococcus')+
   theme_classic()+
   theme(aspect.ratio=1,
         axis.text.x=element_blank(),
@@ -224,7 +224,7 @@ highest_daily_fruit_intake <- ceiling( max(all_fruit$fruitdaily))
 lowest_daily_fruit_intake <- floor( min(all_fruit$fruitdaily))
 
 all_fruit_box <- ggboxplot(all_fruit,  y = "fruitdaily", add = 'jitter',add.params = list(alpha = 0.05),
-                          xlab = '', ylab = 'All patients fruit daily intake')+
+                          xlab = '', ylab = 'All patients')+
    theme_classic() +
    ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
   theme(aspect.ratio=5,
@@ -232,6 +232,31 @@ all_fruit_box <- ggboxplot(all_fruit,  y = "fruitdaily", add = 'jitter',add.para
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.text.x = element_blank() )
+
+```
+
+```{r}
+fruit_time <- fruit %>% 
+  ggplot(aes(x = fdrt, y = fruitsum )) +
+  geom_point() +
+  geom_line(aes(x = fdrt, y = fruitsum), linetype = 'solid', size = 0.5, col = 'black') +
+ # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
+  #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Fruit intake',
+       title = 'Fruit intake') +
+  theme_classic() + 
+  ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  #scale_y_sqrt() +
+  geom_hline(yintercept = f_q25, linetype = 'dashed') +
+  geom_hline(yintercept = f_q50, linetype = 'dashed') + 
+  geom_hline(yintercept = f_q75, linetype = 'dashed') +
+  theme(aspect.ratio=1,#1/2.8
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_line(colour = "grey85"))
 ```
 
 ```{r}
@@ -262,10 +287,10 @@ highest_daily_sweet_intake <- ceiling( max(all_sweet$sweetdaily))
 lowest_daily_sweet_intake <- floor( min(all_sweet$sweetdaily))
 
 all_sweet_box <- ggboxplot(all_sweet,  y = "sweetdaily", add = 'jitter',add.params = list(alpha = 0.05),
-                          xlab = '', ylab = 'All patients sweet daily intake')+
+                          xlab = '', ylab = 'All patients')+
    theme_classic() +
    ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
-  scale_y_sqrt() +
+  #scale_y_sqrt() +
   theme(aspect.ratio=5,
         plot.margin = margin(l=-0.8,unit="cm"),
        axis.ticks.x=element_blank(),
@@ -285,7 +310,7 @@ sweets_time <- sweets %>%
        title = 'Sweets intake') +
   theme_classic() + 
   ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
-  scale_y_sqrt() +
+  #scale_y_sqrt() +
   geom_hline(yintercept = s_q25, linetype = 'dashed') +
   geom_hline(yintercept = s_q50, linetype = 'dashed') + 
   geom_hline(yintercept = s_q75, linetype = 'dashed') +
@@ -297,29 +322,6 @@ sweets_time <- sweets %>%
 ```
 
 
-```{r}
-fruit_time <- fruit %>% 
-  ggplot(aes(x = fdrt, y = fruitsum )) +
-  geom_point() +
-  geom_line(aes(x = fdrt, y = fruitsum), linetype = 'solid', size = 0.5, col = 'black') +
- # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
-  #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-  xlim(xmin, xmax) +
-  labs(x = '',
-       y = 'Fruit intake',
-       title = 'Fruit intake') +
-  theme_classic() + 
-  ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
-  scale_y_sqrt() +
-  geom_hline(yintercept = f_q25, linetype = 'dashed') +
-  geom_hline(yintercept = f_q50, linetype = 'dashed') + 
-  geom_hline(yintercept = f_q75, linetype = 'dashed') +
-  theme(aspect.ratio=1,#1/2.8
-        plot.margin = margin(l=-0.8,unit="cm"),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        panel.grid.major.x = element_line(colour = "grey85"))
-```
 
 ```{r}
 # if fruits and sweets combined for this patient
@@ -351,8 +353,8 @@ both_time <- both %>%
        y = 'Both intake',
        title = 'Both intake') +
   theme_classic() + 
-  ylim(both_all_low, both_all_high)+
-  scale_y_sqrt() +
+   ylim(both_all_low, both_all_high)+
+  #scale_y_sqrt() +
   geom_hline(yintercept = b_q25, linetype = 'dashed') +
   geom_hline(yintercept = b_q50, linetype = 'dashed') + 
   geom_hline(yintercept = b_q75, linetype = 'dashed') +
@@ -361,17 +363,34 @@ both_time <- both %>%
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(colour = "grey85"))
+
+
+all_both_box <- ggboxplot(both_all,  y = "bothwt", add = 'jitter',add.params = list(alpha = 0.05),
+                          xlab = '', ylab = 'All patients')+
+   theme_classic() +
+   ylim(both_all_low, both_all_high)+
+  #scale_y_sqrt() +
+  theme(aspect.ratio=5,
+        plot.margin = margin(l=-0.8,unit="cm"),
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.text.x = element_blank() ) 
  
 ```
 
 
 ```{r}
-p11_ver <- plot_grid(sweets_time, fruit_time, both_time, irep, copies, byrow = F,
-          ncol = 1, axis = 'ltbr', align = 'hv')
+p11_ver <- plot_grid(sweets_time, all_sweet_box, 
+                     fruit_time,all_fruit_box,  
+                     both_time, all_both_box,
+                     irep, NA, 
+                     copies,NA,
+                     byrow = T,
+          ncol = 2, axis = 'ltbr', align = 'hv')
 p11_ver
  
 
-ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 100,
+ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 130,
       height = 250, units = 'mm', dpi = 400, plot = p11_ver)
 ```
 
