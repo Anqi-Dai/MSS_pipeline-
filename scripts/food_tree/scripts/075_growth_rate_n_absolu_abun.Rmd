@@ -13,6 +13,8 @@ connect_database('~/dbConfig.txt')
 list_table_from_database('qpcr')
 get_table_from_database('qpcr_16s_ag')
 library(tidyverse)
+library(ggpubr)
+library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ```
 
@@ -71,56 +73,57 @@ cts_ <- cts %>%
   filter(sdrt < 54)
 ```
 ```{r}
-entero %>% 
-  ggplot(aes(x = sdrt, y = ave_irpe )) +
-  geom_point() +
-  geom_point(data = cts_, aes(x = sdrt, y = entero_copy, col = 'red')) +
-  facet_wrap(~mrn)
+# entero %>% 
+#   ggplot(aes(x = sdrt, y = ave_irpe )) +
+#   geom_point() +
+#   geom_point(data = cts_, aes(x = sdrt, y = entero_copy, col = 'red')) +
+#   facet_wrap(~mrn)
 
 # the patients that have both the irep and qpcr results
 both <- intersect(cts_$mrn, entero$mrn)
 ```
 ```{r}
-absl <- both %>% 
-  set_names(both) %>% 
+absl <- both %>%
+  set_names(both) %>%
   imap(function(.x, .y){
     # set the min and max in the x axis to be the min and max of the global values
-    xmax = max(max(entero %>% 
-      filter(mrn == .x) %>% pull(sdrt)), max(cts_ %>% 
+    xmax = max(max(entero %>%
+      filter(mrn == .x) %>% pull(sdrt)), max(cts_ %>%
       filter(mrn == .x) %>% pull(sdrt))) + 2
-    
-    xmin = min(min(entero %>% 
-      filter(mrn == .x) %>% pull(sdrt)), min(cts_ %>% 
+
+    xmin = min(min(entero %>%
+      filter(mrn == .x) %>% pull(sdrt)), min(cts_ %>%
       filter(mrn == .x) %>% pull(sdrt))) -2
-    
-    irep = entero %>% 
-      filter(mrn == .x) %>% 
+
+    irep = entero %>%
+      filter(mrn == .x) %>%
       ggplot(aes(x = sdrt, y = ave_irpe )) +
       geom_point() +
       labs(title = str_glue('{}')) +
       xlim(xmin, xmax) +
       labs(x = '',
            y = 'average irep values')
-      
-    
-    copies = cts_ %>% 
-      filter(mrn == .x) %>% 
+
+
+    copies = cts_ %>%
+      filter(mrn == .x) %>%
       ggplot(aes(x = sdrt, y = entero_copy )) +
       geom_point() +
-     # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
+     # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),
       #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
       xlim(xmin, xmax) +
       labs(x = 'day relative to transplant',
            y = 'Enterococcus copy\nnumbers')
-    
+
     res = cowplot::plot_grid(irep, copies, axis = 'tblr', align = 'hv', ncol = 1)
     #ggsave(str_glue('../data/{.y}.pdf'), width = 5, height = 4)
   })
-
-seq(1, length(absl)) %>% 
-  set_names(seq(1, length(absl))) %>% 
-  imap(~ ggsave(str_glue('../data/Patient{.y}.pdf'), width = 5, height = 4, plot = absl[[.x]]))
+# 
+# seq(1, length(absl)) %>% 
+#   set_names(seq(1, length(absl))) %>% 
+#   imap(~ ggsave(str_glue('../data/Patient{.y}.pdf'), width = 5, height = 4, plot = absl[[.x]]))
 ```
+
 ## customize patient 11 for show
 
 ```{r}
@@ -154,7 +157,8 @@ irep = entero %>%
   xlim(xmin, xmax) +
   ylim(1, irep_highest) +
   labs(x = '',
-       y = 'Average replication rate')+
+       y = 'Average replication rate',
+       title = 'Enterococcus growth rate')+
   theme_classic()+
   theme(aspect.ratio=1,
         axis.text.x=element_blank(),
@@ -173,7 +177,8 @@ copies = cts_ %>%
   #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
   xlim(xmin, xmax) +
   labs(x = 'Day relative to transplant',
-       y = 'Enterococcus copy\nnumbers') +
+       y = 'Enterococcus copy\nnumbers',
+       title = 'Copy numbers') +
   theme_classic() +
   theme(aspect.ratio=1,
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -198,7 +203,11 @@ fruit <- dtb %>%
   mutate(Food_code = as.character(Food_code) ) %>% 
   filter(str_detect(Food_code, '^6')) %>% 
   group_by(fdrt) %>% 
-  summarise(fruitsum = sum(dehydrated_weight))
+  summarise(fruitsum = sum(dehydrated_weight)) %>% 
+  full_join(tibble(
+    fdrt = seq(-2, 12, 1)
+  )) %>% 
+  mutate(fruitsum = if_else(is.na(fruitsum), 0, fruitsum))
 
 # a boxplot for all the daily fruit consumption
 all_fruit <- dtb %>%  
@@ -225,6 +234,68 @@ all_fruit_box <- ggboxplot(all_fruit,  y = "fruitdaily", add = 'jitter',add.para
        axis.text.x = element_blank() )
 ```
 
+```{r}
+# the sweets intake for this patient
+sweets <- dtb %>%  
+  filter(mrn == p11 & fdrt %in% -4:15) %>% 
+  mutate(Food_code = as.character(Food_code) ) %>% 
+  filter(str_detect(Food_code, '^9')) %>% 
+  group_by(fdrt) %>% 
+  summarise(sweetsum = sum(dehydrated_weight)) %>% 
+  full_join(tibble(
+    fdrt = seq(-2, 12, 1)
+  )) %>% 
+  mutate(sweetsum = if_else(is.na(sweetsum), 0, sweetsum))
+
+# a boxplot for all the daily sweets consumption
+all_sweet <- dtb %>%  
+  mutate(Food_code = as.character(Food_code) ) %>% 
+  filter(str_detect(Food_code, '^9')) %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(sweetdaily = sum(dehydrated_weight))
+
+s_q25 <- quantile(x = all_sweet$sweetdaily, 0.25)
+s_q50 <- quantile(x = all_sweet$sweetdaily, 0.5)
+s_q75 <- quantile(x = all_sweet$sweetdaily, 0.75)
+
+highest_daily_sweet_intake <- ceiling( max(all_sweet$sweetdaily))
+lowest_daily_sweet_intake <- floor( min(all_sweet$sweetdaily))
+
+all_sweet_box <- ggboxplot(all_sweet,  y = "sweetdaily", add = 'jitter',add.params = list(alpha = 0.05),
+                          xlab = '', ylab = 'All patients sweet daily intake')+
+   theme_classic() +
+   ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  scale_y_sqrt() +
+  theme(aspect.ratio=5,
+        plot.margin = margin(l=-0.8,unit="cm"),
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.text.x = element_blank() ) 
+```
+ 
+
+```{r}
+sweets_time <- sweets %>%    
+  ggplot(aes(x = fdrt, y = sweetsum )) +
+  geom_point() +
+  geom_line(aes(x = fdrt, y = sweetsum), linetype = 'solid', size = 0.5, col = 'black') +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Sweets intake',
+       title = 'Sweets intake') +
+  theme_classic() + 
+  ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  scale_y_sqrt() +
+  geom_hline(yintercept = s_q25, linetype = 'dashed') +
+  geom_hline(yintercept = s_q50, linetype = 'dashed') + 
+  geom_hline(yintercept = s_q75, linetype = 'dashed') +
+  theme(aspect.ratio=1,#1/2.8
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_line(colour = "grey85"))
+```
+
 
 ```{r}
 fruit_time <- fruit %>% 
@@ -235,7 +306,8 @@ fruit_time <- fruit %>%
   #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
   xlim(xmin, xmax) +
   labs(x = '',
-       y = 'Fruit intake') +
+       y = 'Fruit intake',
+       title = 'Fruit intake') +
   theme_classic() + 
   ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
   scale_y_sqrt() +
@@ -247,14 +319,60 @@ fruit_time <- fruit %>%
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(colour = "grey85"))
+```
 
-p11_ver <- plot_grid(fruit_time, irep, copies, byrow = F,
-          nrow = 3, axis = 'ltbr', align = 'hv', rel_heights = c(1,1, 1))
+```{r}
+# if fruits and sweets combined for this patient
+both <- fruit %>% 
+  full_join(sweets) %>% 
+  mutate(bothwt = fruitsum + sweetsum)
+
+both_all <- all_sweet %>% 
+  full_join(all_fruit)  %>% 
+  mutate(sweetdaily = if_else(is.na(sweetdaily), 0, sweetdaily),
+         fruitdaily = if_else(is.na(fruitdaily), 0, fruitdaily)) %>% 
+  mutate(bothwt = fruitdaily + sweetdaily)
+
+both_all_high <-  ceiling( max(both_all$bothwt))
+both_all_low <- floor( min(both_all$bothwt))
+
+b_q25 <- quantile(x = both_all$bothwt, 0.25)
+b_q50 <- quantile(x = both_all$bothwt, 0.5)
+b_q75 <- quantile(x = both_all$bothwt, 0.75)
+
+both_time <- both %>% 
+  ggplot(aes(x = fdrt, y = bothwt )) +
+  geom_point() +
+  geom_line(aes(x = fdrt, y = bothwt), linetype = 'solid', size = 0.5, col = 'black') +
+ # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
+  #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Both intake',
+       title = 'Both intake') +
+  theme_classic() + 
+  ylim(both_all_low, both_all_high)+
+  scale_y_sqrt() +
+  geom_hline(yintercept = b_q25, linetype = 'dashed') +
+  geom_hline(yintercept = b_q50, linetype = 'dashed') + 
+  geom_hline(yintercept = b_q75, linetype = 'dashed') +
+  theme(aspect.ratio=1,#1/2.8
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_line(colour = "grey85"))
+ 
+```
+
+
+```{r}
+p11_ver <- plot_grid(sweets_time, fruit_time, both_time, irep, copies, byrow = F,
+          ncol = 1, axis = 'ltbr', align = 'hv')
 p11_ver
-
+ 
 
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 100,
-      height = 180, units = 'mm', dpi = 400, plot = p11_ver)
+      height = 250, units = 'mm', dpi = 400, plot = p11_ver)
 ```
 
 
@@ -273,32 +391,32 @@ ggsave('../figs/paper/075_irep_p11_enterococcus.pdf', width = 160,
 
 
 ```{r}
-copies_p11 <- cts_ %>% 
-  filter(sdrt %in% -5:15) %>% 
-  filter(mrn == p11) %>% 
-  mutate(sdrt = as.numeric(sdrt))
-
-irep_p11 <-  entero %>% 
-  filter(sdrt %in% -5:15) %>% 
-  filter(mrn == p11)
-
-both <- bind_rows(
-  tibble(
-  sdrt = irep_p11$sdrt,
-  value = irep_p11$ave_irpe,
-  grp = 'ave_irpe'
-),
- tibble(
-  sdrt = copies_p11$sdrt,
-  value = copies_p11$entero_copy,
-  grp = 'entero_copy'
-)
-)
-
-both %>% 
-  ggplot(aes(x = sdrt, y = value)) +
-  geom_point() +
-  facet_grid(grp ~., scales = 'free')
+# copies_p11 <- cts_ %>% 
+#   filter(sdrt %in% -5:15) %>% 
+#   filter(mrn == p11) %>% 
+#   mutate(sdrt = as.numeric(sdrt))
+# 
+# irep_p11 <-  entero %>% 
+#   filter(sdrt %in% -5:15) %>% 
+#   filter(mrn == p11)
+# 
+# both <- bind_rows(
+#   tibble(
+#   sdrt = irep_p11$sdrt,
+#   value = irep_p11$ave_irpe,
+#   grp = 'ave_irpe'
+# ),
+#  tibble(
+#   sdrt = copies_p11$sdrt,
+#   value = copies_p11$entero_copy,
+#   grp = 'entero_copy'
+# )
+# )
+# 
+# both %>% 
+#   ggplot(aes(x = sdrt, y = value)) +
+#   geom_point() +
+#   facet_grid(grp ~., scales = 'free')
 ```
 
 

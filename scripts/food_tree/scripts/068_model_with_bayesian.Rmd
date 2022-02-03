@@ -26,6 +26,10 @@ ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 axis_text_size <- 10
 axis_title_size <- 10
+
+dtb %>% 
+  distinct(mrn) %>% 
+  write_csv('../data/nutrition_patients_97_mrns.csv', col_names = T)
 ```
 
 ```{r}
@@ -90,6 +94,8 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          inten_re = if_else(intensity == 'reduced', 1, 0)) 
 
 colnames(meta)
+
+
 ```
 
 ## Priors 
