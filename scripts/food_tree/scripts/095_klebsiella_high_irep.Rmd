@@ -193,5 +193,39 @@ abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval,
         axis.ticks.y=element_blank(),
         axis.text.y=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"))
+
+
+
+irep = growth %>% 
+  ggplot(aes(x = sdrt, y = aveirep )) +
+  geom_point() +
+  labs(title = str_glue('{}')) +
+  #geom_hline(yintercept = irep_q25, linetype = 'dashed') +
+  #geom_hline(yintercept = irep_q50, linetype = 'dashed') +
+  #geom_hline(yintercept = irep_q75, linetype = 'dashed') +
+  xlim(xmin, xmax) +
+  #ylim(1, irep_highest) +
+  labs(x = '',
+       y = 'Average replication rate',
+       title = 'Klebsiella')+
+  theme_classic()+
+  theme(aspect.ratio=1,
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        panel.grid.major.x = element_line(color = "grey85"))
+ 
+ 
+ 
+pkle_ver <- plot_grid(abx_time, 
+                     sweets_time, 
+                     fruit_time,
+                     irep, 
+                     copies,
+                     byrow = T,
+          ncol = 1, axis = 'ltbr', align = 'hv')
+pkle_ver
+
+ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 130,
+      height = 250, units = 'mm', dpi = 400, plot = pkle_ver)
 ```
 
