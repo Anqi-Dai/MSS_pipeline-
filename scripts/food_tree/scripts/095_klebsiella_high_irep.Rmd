@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(ggpubr)
 library(tidyverse)
+library(cowplot)
 ```
 
 ```{r}
@@ -117,7 +118,7 @@ abx <- antibiotics_antibacterial_multicenter_ag %>%
   arrange(startdrt, stopdrt) %>% 
   mutate(yval = seq(1, nrow(.)))
 ```
-```{r}
+```{r plotting}
 xmin <- lowerday - 1 
 xmax <- highday + 1  
  
@@ -227,5 +228,81 @@ pkle_ver
 
 ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 130,
       height = 250, units = 'mm', dpi = 400, plot = pkle_ver)
+```
+```{r scatter}
+
+kle_df <- combined %>% 
+  filter(str_detect(best_species, 'Klebsiella')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta)
+
+non_kle_df <- combined %>% 
+  filter(!str_detect(best_species, 'Klebsiella')) %>% 
+  group_by(sampleid) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(meta)
+
+ylowerlim <- min(min(non_kle_df$ave_irep), min(kle_df$ave_irep))
+yupperlim <-  max(max(non_kle_df$ave_irep), max(kle_df$ave_irep)) 
+  
+fruit_kle <- kle_df %>% 
+  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Klebsiella only',alpha = 0.7, 
+            ylab = 'Average growth rate\n(iRep estimation)',
+            xlab = 'Fruit intake in previous 2 days (g)', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n",  size = 4))   +
+  theme_classic() +
+  ylim(ylowerlim, yupperlim) +
+  theme(aspect.ratio = 1)
+
+
+fruit_all_other <- non_kle_df %>% 
+  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'All taxa excluding Klebsiella',
+            alpha = 0.7, 
+             ylab = 'Average growth rate\n(iRep estimation)',
+            xlab = 'Fruit intake in previous 2 days (g)',
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 4))   +
+  theme_classic() +
+  ylim(ylowerlim, yupperlim) +
+  theme(aspect.ratio = 1)
+```
+
+```{r}
+sweets_kle <- kle_df %>% 
+  ggscatter(x = 'fg_sweets', y = 'ave_irep', title = 'Klebsiella only',alpha = 0.7, 
+            ylab = 'Average growth rate\n(iRep estimation)',
+            xlab = 'Sweets intake in previous 2 days (g)', 
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n",  size = 4))   +
+  theme_classic() +
+  ylim(ylowerlim, yupperlim) +
+  theme(aspect.ratio = 1)
+```
+
+```{r}
+sweets_all_other <- non_kle_df %>% 
+  ggscatter(x = 'fg_sweets', y = 'ave_irep', title = 'All taxa excluding Klebsiella',
+            alpha = 0.7, 
+             ylab = 'Average growth rate\n(iRep estimation)',
+            xlab = 'Sweets intake in previous 2 days (g)',
+          add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 4))   +
+  theme_classic() +
+  ylim(ylowerlim, yupperlim) +
+  theme(aspect.ratio = 1)
 ```
 
