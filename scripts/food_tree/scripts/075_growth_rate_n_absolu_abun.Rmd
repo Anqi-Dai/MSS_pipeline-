@@ -158,7 +158,7 @@ irep = entero %>%
   xlim(xmin, xmax) +
   ylim(1, irep_highest) +
   labs(x = '',
-       y = 'Average replication rate',
+       y = 'Replication rate',
        title = 'Enterococcus')+
   theme_classic()+
   theme(aspect.ratio=1,
@@ -186,15 +186,20 @@ copies = cts_ %>%
         panel.grid.major.x = element_line(colour = "grey85"))
 
 # a violin plot to show all the entero irep distribution
-entero_box <- ggboxplot(entero,  y = "ave_irpe", add = 'jitter',
-                          xlab = '', ylab = 'All Enterococcus replication rate')+
-   theme_classic() +
-   ylim(1, irep_highest)+
-  theme(aspect.ratio=5,
-        plot.margin = margin(l=-0.8,unit="cm"),
+
+
+entero_box <- entero %>% 
+  ggviolin(y = 'ave_irpe', add = 'boxplot') +
+  theme_classic() +
+   ylim(1, irep_highest) +
+  theme(aspect.ratio=6,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
-       axis.text.x = element_blank() )
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
  
  
 # a plot to show the fruit intake over time for this patient
@@ -226,15 +231,19 @@ f_q75 <- quantile(x = all_fruit$fruitdaily, 0.75)
 highest_daily_fruit_intake <- ceiling( max(all_fruit$fruitdaily))
 lowest_daily_fruit_intake <- floor( min(all_fruit$fruitdaily))
 
-all_fruit_box <- ggboxplot(all_fruit,  y = "fruitdaily", add = 'jitter',add.params = list(alpha = 0.05),
-                          xlab = '', ylab = 'All patients')+
-   theme_classic() +
+
+all_fruit_box <- all_fruit %>% 
+  ggviolin(y = 'fruitdaily', add = 'boxplot') +
+  theme_classic() +
    ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
-  theme(aspect.ratio=5,
-        plot.margin = margin(l=-0.8,unit="cm"),
+  theme(aspect.ratio=6,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
-       axis.text.x = element_blank() )
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
 
 ```
 
@@ -291,15 +300,18 @@ s_q75 <- quantile(x = all_sweet$sweetdaily, 0.75)
 highest_daily_sweet_intake <- ceiling( max(all_sweet$sweetdaily))
 lowest_daily_sweet_intake <- floor( min(all_sweet$sweetdaily))
 
-all_sweet_box <- ggboxplot(all_sweet,  y = "sweetdaily", add = 'jitter',add.params = list(alpha = 0.05),
-                          xlab = '', ylab = 'All patients')+
-   theme_classic() +
+
+all_sweet_box <-  all_sweet %>% 
+  ggviolin(y = 'sweetdaily', add = 'boxplot') +
+  theme_classic() +
    ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
-  #scale_y_sqrt() +
-  theme(aspect.ratio=5,
-        plot.margin = margin(l=-0.8,unit="cm"),
+  theme(aspect.ratio=6,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
        axis.text.x = element_blank() ) 
 ```
  
@@ -405,7 +417,7 @@ xmin < -5.1
 abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
   geom_segment(
      size = 0.5, lineend = 'round',
-     #arrow = arrow(length = unit(0.05, "inches"))
+     arrow = arrow(length = unit(0.05, "inches"))
   ) +
   geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 2) +
   coord_cartesian(xlim=c(xmin, xmax)) + 
@@ -425,11 +437,12 @@ abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, 
 p11_ver <- plot_grid(abx, NA,
                      sweets_time, all_sweet_box, 
                      fruit_time,all_fruit_box,  
-                     irep, NA, 
+                     irep, entero_box, 
                      copies,NA,
                      byrow = T,
-          ncol = 2, axis = 'ltbr', align = 'hv')
-p11_ver
+          ncol = 2, axis = 'ltbr', align = 'hv', rel_widths = c(1, 0.5))
+p11_ver %>% 
+  write_rds('../data/075_p11_vertical5.rds')
  
 
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 130,
@@ -445,7 +458,7 @@ boxes <- plot_grid(all_fruit_box, NA, entero_box,
           nrow = 3, rel_heights  = c(1,1, 2))
 
 f3 <-  plot_grid(p11_ver, boxes, 
-          nrow = 1, rel_widths   = c(2,1))
+          nrow = 1, rel_widths = c(2,1))
 
 ggsave('../figs/paper/075_irep_p11_enterococcus.pdf', width = 160,
       height = 180, units = 'mm', dpi = 400, plot = f3)

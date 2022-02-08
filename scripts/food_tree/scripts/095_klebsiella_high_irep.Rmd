@@ -287,6 +287,19 @@ pkle_ver
 ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 130,
       height = 250, units = 'mm', dpi = 400, plot = pkle_ver)
 ```
+
+```{r with_p11}
+p11 <- read_rds('../data/075_p11_vertical5.rds')
+ 
+both <- plot_grid(p11, pkle_ver,
+                     byrow = T,
+          ncol = 2, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1), labels = c('C','D'))
+
+ggsave('../figs/paper/095_both_vertical5.pdf', width = 260,
+      height = 250, units = 'mm', dpi = 400, plot = both)
+```
+
+
 ```{r scatter}
 
 kle_df <- combined %>% 
