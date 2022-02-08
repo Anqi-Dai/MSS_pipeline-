@@ -61,6 +61,19 @@ bars_ <- bars %>%
 fill_val <- bars %>% 
   distinct(fg1_name, color) %>% 
   deframe()
+
+# figure out the y axis for the summed ring
+# I was plotting the half of the log10gram
+bars %>% 
+  ggplot(aes(x = Food_code, y = log10gram)) +
+  geom_blank() +
+  theme_classic() +
+  ylim(0, max(bars$log10gram)) +
+  labs(y = '') +
+  theme(axis.text.x = element_blank())
+
+ggsave('../figs/080_ring_y_axis.pdf')
+
 ```
 ```{r}
 # p <- ggplot(bars_, aes(x=Food_code, y=log10gram, fill = fg1_name)) +  
@@ -119,7 +132,7 @@ dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>%
 
 ring_itself <- tibble(
   ring_level = c(1),
-  ring_internal_separator_thickness = 0.1,
+  ring_internal_separator_thickness = 0,
   ring_external_separator_thickness = 0,
   ring_label_font_size = 5,
   ring_separator_color = 'black'

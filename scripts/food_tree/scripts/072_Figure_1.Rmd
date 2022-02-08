@@ -222,10 +222,11 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.2,size = point_size , xlab = 'UMAP1', ylab = 'UMAP2') +
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.7,size = 0.8 , 
+            xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
-  theme(legend.position = "right",
+  theme(legend.position = "none",
         legend.title = element_blank(),
         axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
@@ -297,7 +298,7 @@ ggsave('../figs/paper/072_fig1_umap.pdf',
 
 p <- '../figs/paper/080_food_tree_ring.png'
 tree <- ggdraw() +
-  draw_image(p,   scale = 1.5) 
+  draw_image(p,   scale = 1.2) 
 tree
 ```
 
@@ -364,24 +365,33 @@ ggsave('../figs/paper/072_fg_color_palette.pdf', dpi = 400, width = 15)
 
 # Assembling the final version of the figure 1
 
-```{r top}
+```{r top_n_bottom}
 
 top <- plot_grid(tree, fig1_umap,labels = c('A', "B"),
                   nrow = 1, rel_widths = c(1.5,1), axis = 'lbrt', align = 'hv')
 top
-```
 
-```{r bottom}
 # assemble all
 f1 <-  plot_grid(top, bot,
-                 rel_heights = c(1.3,1),
+                 rel_heights = c(1,1),
                  nrow = 2)
 
-ggsave('../figs/paper/F1_overview_072_Feb1.pdf',
+ggsave('../figs/paper/F1_overview_072_Feb8.pdf',
        width = 190,
        height = 140,
          #height = 60,  
          units = c("mm"),
          dpi = 400, plot = f1)
+```
+```{r}
+names(wes_palettes)
+wes_palette("FantasticFox1")
+wes_palette("GrandBudapest1")
+wes_palette("GrandBudapest2")
+df <- mtcars
+df$name <- rownames(df)
+ggscatter(df, x = "wt", y = "mpg",
+   color = "cyl", palette = wes_palette("GrandBudapest2", 3, type = c('discrete')),
+   label = "name", repel = TRUE)
 ```
 

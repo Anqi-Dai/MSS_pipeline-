@@ -306,3 +306,14 @@ sweets_all_other <- non_kle_df %>%
   theme(aspect.ratio = 1)
 ```
 
+```{r}
+kle_all <- plot_grid(sweets_kle, sweets_all_other,
+                    fruit_kle, fruit_all_other,
+                     byrow = T,
+          ncol = 2, axis = 'ltbr', align = 'hv')
+kle_all
+
+ggsave('../figs/paper/095_irep_kle_all.pdf', width = 180,
+      height = 200, units = 'mm', dpi = 400, plot = kle_all)
+```
+
