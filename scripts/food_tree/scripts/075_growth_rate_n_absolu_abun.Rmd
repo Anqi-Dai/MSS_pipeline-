@@ -217,6 +217,8 @@ all_fruit <- dtb %>%
   group_by(mrn, fdrt) %>% 
   summarise(fruitdaily = sum(dehydrated_weight))
 
+all_fruit %>% write_csv('../data/075_all_daily_fruit.csv')
+
 f_q25 <- quantile(x = all_fruit$fruitdaily, 0.25)
 f_q50 <- quantile(x = all_fruit$fruitdaily, 0.5)
 f_q75 <- quantile(x = all_fruit$fruitdaily, 0.75)
@@ -279,6 +281,8 @@ all_sweet <- dtb %>%
   filter(str_detect(Food_code, '^9')) %>% 
   group_by(mrn, fdrt) %>% 
   summarise(sweetdaily = sum(dehydrated_weight))
+
+all_sweet %>% write_csv('../data/075_all_daily_sweet.csv')
 
 s_q25 <- quantile(x = all_sweet$sweetdaily, 0.25)
 s_q50 <- quantile(x = all_sweet$sweetdaily, 0.5)

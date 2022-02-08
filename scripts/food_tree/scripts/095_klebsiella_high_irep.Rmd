@@ -17,6 +17,20 @@ library(cowplot)
 combined <- read_csv('../data/growth/069_irep_combined_res.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+all_fruit <- read_csv('../data/075_all_daily_fruit.csv')
+all_sweet <- read_csv('../data/075_all_daily_sweet.csv')
+
+
+highest_daily_fruit_intake <- ceiling( max(all_fruit$fruitdaily))
+lowest_daily_fruit_intake <- floor( min(all_fruit$fruitdaily))
+
+highest_daily_sweet_intake <- ceiling( max(all_sweet$sweetdaily))
+lowest_daily_sweet_intake <- floor( min(all_sweet$sweetdaily))
+
+all_kle_irep <- combined %>% 
+  filter(str_detect(best_species, 'Klebsiella'))
+
+irep_highest <- ceiling( max(all_kle_irep$aveirep))
 ```
 
 ```{r abso}
@@ -146,15 +160,14 @@ fruit_time <- fruit %>%
        y = 'Fruit intake',
        title = 'Fruit intake') +
   theme_classic() + 
-  #ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
-  #scale_y_sqrt() +
-  #geom_hline(yintercept = f_q25, linetype = 'dashed') +
-  #geom_hline(yintercept = f_q50, linetype = 'dashed') + 
-  #geom_hline(yintercept = f_q75, linetype = 'dashed') +
-  theme(aspect.ratio=1,
+  ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.25), linetype = 'dashed') +
+  geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.5), linetype = 'dashed') + 
+  geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.75), linetype = 'dashed') +
+  theme(aspect.ratio=1,  
         plot.margin = margin(l=-0.8,unit="cm"),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(colour = "grey85"))
 
   
@@ -167,15 +180,14 @@ sweets_time <- sweets %>%
        y = 'Sweets intake',
        title = 'Sweets intake') +
   theme_classic() + 
- # ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
-  #scale_y_sqrt() +
-  #geom_hline(yintercept = s_q25, linetype = 'dashed') +
-  #geom_hline(yintercept = s_q50, linetype = 'dashed') + 
-  #geom_hline(yintercept = s_q75, linetype = 'dashed') +
+  ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.25), linetype = 'dashed') +
+  geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.5), linetype = 'dashed') + 
+  geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.75), linetype = 'dashed') +
   theme(aspect.ratio=1,
         plot.margin = margin(l=-0.8,unit="cm"),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(colour = "grey85"))
 
 abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
@@ -184,13 +196,14 @@ abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval,
      arrow = arrow(length = unit(0.05, "inches"))
   ) +
   geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 2) +
+   xlim(xmin, xmax) +
   labs(x = '',
        y = '',
        title = 'Antibiotics') + 
   theme_classic() +
   theme(aspect.ratio=1,
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
         axis.text.y=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"))
@@ -201,29 +214,74 @@ irep = growth %>%
   ggplot(aes(x = sdrt, y = aveirep )) +
   geom_point() +
   labs(title = str_glue('{}')) +
-  #geom_hline(yintercept = irep_q25, linetype = 'dashed') +
-  #geom_hline(yintercept = irep_q50, linetype = 'dashed') +
-  #geom_hline(yintercept = irep_q75, linetype = 'dashed') +
+  geom_hline(yintercept = quantile(x = all_kle_irep$aveirep, 0.25), linetype = 'dashed') +
+  geom_hline(yintercept = quantile(x = all_kle_irep$aveirep, 0.5), linetype = 'dashed') +
+  geom_hline(yintercept = quantile(x = all_kle_irep$aveirep, 0.75), linetype = 'dashed') +
   xlim(xmin, xmax) +
-  #ylim(1, irep_highest) +
-  labs(x = '',
-       y = 'Average replication rate',
+  ylim(1, irep_highest) +
+  labs(x = '', 
+       y = 'Replication rate',
        title = 'Klebsiella')+
   theme_classic()+
   theme(aspect.ratio=1,
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"))
- 
- 
- 
-pkle_ver <- plot_grid(abx_time, 
-                     sweets_time, 
-                     fruit_time,
-                     irep, 
-                     copies,
+```
+
+
+```{r population_box}
+# the boxes of the populations 
+all_kle <- all_kle_irep %>% 
+  ggviolin(y = 'aveirep', add = 'boxplot') +
+  theme_classic() +
+   ylim(1, irep_highest) +
+  theme(aspect.ratio=6,
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
+
+
+violin9 <- all_sweet %>% 
+  ggviolin(y = 'sweetdaily', add = 'boxplot') +
+  theme_classic() +
+   ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  theme(aspect.ratio=6,
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
+
+violin6 <- all_fruit %>% 
+  ggviolin(y = 'fruitdaily', add = 'boxplot') +
+  theme_classic() +
+   ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  theme(aspect.ratio=6,
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
+```
+
+
+```{r population_box}
+pkle_ver <- plot_grid(abx_time, NA,
+                     sweets_time, violin9,
+                     fruit_time, violin6,
+                     irep, all_kle,
+                     copies,NA,
                      byrow = T,
-          ncol = 1, axis = 'ltbr', align = 'hv')
+          ncol = 2, axis = 'ltbr', align = 'hv', rel_widths = c(1, 0.5))
 pkle_ver
 
 ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 130,

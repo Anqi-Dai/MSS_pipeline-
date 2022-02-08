@@ -70,10 +70,11 @@ bars %>%
   theme_classic() +
   ylim(0, max(bars$log10gram)) +
   labs(y = '') +
-  theme(axis.text.x = element_blank())
+  theme(axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        axis.line.x = element_blank())
 
-ggsave('../figs/080_ring_y_axis.pdf')
-
+ggsave('../figs/paper/080_ring_y_axis.pdf', height = 1)
 ```
 ```{r}
 # p <- ggplot(bars_, aes(x=Food_code, y=log10gram, fill = fg1_name)) +  
@@ -89,8 +90,6 @@ ggsave('../figs/080_ring_y_axis.pdf')
 #     #plot.margin = unit(rep(-2,4), "cm")    
 #   ) +
 #   coord_polar(start = 90)
-
-  
 ```
 
 ## plot using the graphlan itself
