@@ -162,8 +162,8 @@ irep = entero %>%
        title = 'Enterococcus')+
   theme_classic()+
   theme(aspect.ratio=1,
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"),
         plot.margin = margin(b=-0.8,unit="cm"))
   
@@ -266,8 +266,8 @@ fruit_time <- fruit %>%
   geom_hline(yintercept = f_q75, linetype = 'dashed') +
   theme(aspect.ratio=1,#1/2.8
         plot.margin = margin(l=-0.8,unit="cm"),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(colour = "grey85"))
 ```
 
@@ -333,8 +333,8 @@ sweets_time <- sweets %>%
   geom_hline(yintercept = s_q75, linetype = 'dashed') +
   theme(aspect.ratio=1,#1/2.8
         plot.margin = margin(l=-0.8,unit="cm"),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(colour = "grey85"))
 ```
 
@@ -426,8 +426,8 @@ abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, 
        title = 'Antibiotics') + 
   theme_classic() +
   theme(aspect.ratio=1,
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
         axis.text.y=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"))
@@ -448,10 +448,6 @@ p11_ver %>%
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 130,
       height = 250, units = 'mm', dpi = 400, plot = p11_ver)
 ```
-
-
-
-
 
 ```{r}
 boxes <- plot_grid(all_fruit_box, NA, entero_box,

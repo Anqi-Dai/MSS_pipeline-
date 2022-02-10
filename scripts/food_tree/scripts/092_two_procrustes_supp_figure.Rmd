@@ -55,11 +55,11 @@ fg_pro_fig <- fg_pro %>%
 all <-  plot_grid(  macro_pro_fig,fg_pro_fig,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
-ggsave('../figs/paper/S3_two_procrustes_092_Jan21.pdf',
-       width = 150,
+ggsave('../figs/paper/S3_macro_procrustes_092_Feb9.pdf',
+       width = 75,
        height = 60, 
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'pdf')
+         dpi = 400, device = 'pdf', plot = macro_pro_fig)
 ```
 
