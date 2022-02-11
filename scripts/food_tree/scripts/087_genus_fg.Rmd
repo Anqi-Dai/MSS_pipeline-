@@ -97,7 +97,10 @@ priors <- c(# for the food group variables
             prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
             prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
             prior(normal(-3, 1), class = 'Intercept'))
+```
 
+
+```{r}
 ret_genus <- target_genera %>% 
   set_names(target_genera) %>% 
   purrr::map(function(genus) {
@@ -370,17 +373,25 @@ fg_colors <- post_coeff %>%
   select(shortname, color) %>% 
   deframe()
 
+# to find out if the group crosses zero or not
+cross0 <- post_coeff %>%
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+
 # plotting the forest
 Enterococcaceae_model_coeff <- post_coeff %>% 
-  ggplot(aes(x = coeff, y = shortname, col = shortname)) +
+  left_join(cross0) %>% 
+  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
+  labs(x = 'Coefficients',
        y = '',
        title = 'Enterococcus') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = fg_colors) +
+  scale_color_manual(values = c("#EC0000", "gray40")) +
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=8),
         aspect.ratio=1) 
@@ -388,11 +399,7 @@ Enterococcaceae_model_coeff <- post_coeff %>%
 Enterococcaceae_model_coeff %>% 
   write_rds('../data/087_entero_genus_fg_main.rds')
 
-ggsave('../figs/paper/087_entero_genus_fg_main_forest.eps',  
-       width = 80,
-       height = 80, 
-         units = c("mm"),
-         dpi = 400, device = 'eps')
+Enterococcaceae_model_coeff
 ```
 
 ```{r enterococcus_factor}
@@ -408,8 +415,9 @@ coeff_bi <- post_samples %>%
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure'
   )) %>% 
-  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
-  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+  mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
+                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
+                                                  'Empirical abx exposure'))) 
 
 
 entero_genus_factor <- coeff_bi %>% 
@@ -417,16 +425,12 @@ entero_genus_factor <- coeff_bi %>%
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
+  labs(x = 'Coefficients',
        y = 'Factor variables',
        title = 'Enterococcus') +
   theme_classic() +
   theme(legend.position = 'none',
         aspect.ratio=1)
-
+ 
 entero_genus_factor %>% write_rds('../data/087_entero_genus_factor_forest.rds')
 ```
-
-
-```
-

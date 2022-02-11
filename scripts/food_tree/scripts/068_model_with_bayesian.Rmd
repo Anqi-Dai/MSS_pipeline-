@@ -329,7 +329,7 @@ div_post <- post_coeff %>%
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
+  labs(x = 'Coefficients',
        y = '', 
        title = 'Diversity') +
   theme_classic() +
@@ -342,12 +342,6 @@ div_post <- post_coeff %>%
 div_post %>% 
   write_rds('../data/068_div_post.rds')
 
-ggsave('../figs/paper/068_fig2_model_coeff_forest.eps',  
-       width = 80,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'eps')
 ```
 
 
@@ -482,35 +476,29 @@ only3_sim <- only3 %>%
   group_by(term, shortname) %>% 
   median_qi(post_diff_original_scale, .width = c(.95, .8, .5)) %>%
   ggplot(aes(y = shortname, x = post_diff_original_scale)) +
-  geom_interval(aes(xmin = .lower, xmax = .upper, fill = term)) + 
+  geom_interval(aes(xmin = .lower, xmax = .upper)) + 
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
        title = 'Diversity predictions') +
   theme_classic() + 
-    scale_fill_manual(values = key %>% 
-                       select(fg1_name, color) %>% deframe()) +
+  #scale_color_manual(values = key %>% select(fg1_name, color) %>% deframe()) +
   scale_x_continuous(breaks = seq(-10, 20, 2)) +
- #scale_color_brewer()+
+  scale_color_brewer(palette = 'Greys')+
   xlim(-6, 4.5) +
+  guides(shape = guide_legend(override.aes = list(size = 0.5)))+
   theme(axis.text=element_text(size=8),
-        legend.position = 'right',
+       legend.position = c(0.87, 0.3),
+       legend.title = element_text( size=6), 
+       legend.text=element_text(size=6),
         axis.title=element_text(size=8),
         aspect.ratio=1)
 
 only3_sim 
-```
 
-
-```{r post_diff_3}
 only3_sim %>% 
   write_rds('../data/068_only3_sim.rds')
 
-ggsave('../figs/paper/068_fig2_fg3_post_diff.eps',  width = 80,
-       height = 80,
-         #height = 60, 
-         units = c("mm"),
-         dpi = 400, device = 'eps')  
 ```
 
 

@@ -47,9 +47,7 @@ f2c <- read_rds('../data/068_div_post.rds')
 f2d <- read_rds('../data/068_only3_sim.rds')
 
 f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
-```
 
-```{r}
 top <- plot_grid(  f2a,diagram,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
