@@ -43,7 +43,7 @@ tbt_ent <- bind_rows(
   left_join(key)
 
 f3a <- tbt_ent %>% 
-  ggscatter(x = 'gram', y = 'ave_irep',
+  ggscatter(x = 'gram', y = 'ave_irep',alpha = 0.5,
             xlab = 'Intake in previous 2 days (g)',
             ylab = 'Average growth rate\n(iRep estimation)',
              add = "reg.line", 
@@ -52,7 +52,11 @@ f3a <- tbt_ent %>%
            cor.coef = TRUE, 
            cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 4, label.x = 190)) +
   facet_grid(shortname ~ grp) +
-  theme_bw() 
+  theme_bw() +
+  theme(strip.text.x = element_text(size = 8))
+
+f3a %>% write_rds('../data/094_f3a.rds')
+
 ```
 
 # summarizing ireps of all major genera
