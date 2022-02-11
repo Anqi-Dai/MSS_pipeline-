@@ -315,6 +315,13 @@ post_coeff <- post_samples %>%
   mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
 
 fg_labels <- levels(post_coeff$shortname)
+
+
+cross0 <- post_coeff %>%
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
 ```
 ```{r}
 fg_colors <- post_coeff %>% 
@@ -325,16 +332,16 @@ fg_colors <- post_coeff %>%
 title1 <- bquote(Outcome: log[e]~(Simpsons~reciprocal))
 
 div_post <- post_coeff %>% 
-  ggplot(aes(x = coeff, y = shortname, col = shortname)) +
+  left_join(cross0) %>% 
+  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
   stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'Coefficients',
        y = '', 
        title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = fg_colors) +
+  scale_color_manual(values = c("#EC0000", "gray40")) +
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=8),
         aspect.ratio=1)
@@ -342,6 +349,7 @@ div_post <- post_coeff %>%
 div_post %>% 
   write_rds('../data/068_div_post.rds')
 
+div_post
 ```
 
 
@@ -358,15 +366,16 @@ coeff_bi <- post_samples %>%
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure'
   )) %>% 
-  mutate(item = factor(item, levels = c('b_empiF','b_empiT','b_inten_non','b_inten_re','b_inten_ab','b_enF','b_enT','b_tpnF','b_tpnT'))) %>% 
-  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+  mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
+                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
+                                                  'Empirical abx exposure'))) 
 
 diversity_factor <- coeff_bi %>% 
   ggplot(aes(x = coeff, y = item_name)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
+  labs(x = 'Coefficients',
        y = 'Factor variables',
        title = 'Diversity') +
   theme_classic() +
@@ -376,12 +385,7 @@ diversity_factor <- coeff_bi %>%
 diversity_factor %>% 
   write_rds('../data/068_diversity_factor_forest.rds')
 
-ggsave('../figs/paper/068_fig2_model_coeff_forest_binary.eps',  
-       width = 100,
-       height = 100,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'eps')
+
 ```
 
  
@@ -480,22 +484,25 @@ only3_sim <- only3 %>%
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
-       title = 'Diversity predictions') +
+       title = 'Diversity prediction') +
   theme_classic() + 
   #scale_color_manual(values = key %>% select(fg1_name, color) %>% deframe()) +
   scale_x_continuous(breaks = seq(-10, 20, 2)) +
   scale_color_brewer(palette = 'Greys')+
   xlim(-6, 4.5) +
-  guides(shape = guide_legend(override.aes = list(size = 0.5)))+
+  guides(color = guide_legend(override.aes = list(size = 4),
+                              title = 'HDI'))+
   theme(axis.text=element_text(size=8),
-       legend.position = c(0.87, 0.3),
+       legend.position = c(0.87, 0.25),
+       legend.key.size = unit(3, 'mm'),
        legend.title = element_text( size=6), 
        legend.text=element_text(size=6),
         axis.title=element_text(size=8),
+       legend.key = element_rect(fill = 'white', colour = NA),
         aspect.ratio=1)
-
-only3_sim 
-
+ 
+only3_sim  
+ 
 only3_sim %>% 
   write_rds('../data/068_only3_sim.rds')
 

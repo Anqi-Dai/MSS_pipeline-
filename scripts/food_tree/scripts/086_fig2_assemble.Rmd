@@ -34,29 +34,35 @@ f2a <- procrustes_Nday_score %>%
 ```{r 2b_diagram}
 p <- '../figs/paper/cartoon_of_model.png'
 diagram <- ggdraw() +
-  draw_image(magick::image_read(p),   scale = 1) 
+  draw_image(magick::image_read(p),   scale = 0.9) 
 diagram 
 ```
 
 ```{r 2c_div_fg9}
 f2c <- read_rds('../data/068_div_post.rds')
-```
 
-
-```{r}
 f2d <- read_rds('../data/068_only3_sim.rds')
 
 f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
+```
 
-top <- plot_grid(  f2a,diagram,
-                  nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
-bottom <- plot_grid(  f2c,f2d,f2e, 
-                  nrow = 1, labels = c('C','D', 'E'), rel_heights = c(1, 1, 1), align = 'hv')
-f2 <-  plot_grid(top, bottom,
-                 rel_heights = c(0.8,1),
+```{r align}
+
+
+
+left <- align_plots(f2a, f2c, align = 'v', axis = 'l')
+
+top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1, 2) )
+
+bottom <- plot_grid(  left[[2]],f2d,f2e, 
+                  nrow = 1, labels = c('C','D', 'E'), rel_widths  = c(1, 1, 1), align = 'hv')
+
+f2 <-  plot_grid(top,bottom,
+                 rel_heights = c(1,1),
                  nrow = 2)
-ggsave('../figs/paper/F2_model_results_086_Jan24.pdf',
+
+ggsave('../figs/paper/F2_model_results_086.pdf',
        width = 180,
        height = 120,
          #height = 60,
@@ -72,7 +78,7 @@ enter_fac <- read_rds('../data/087_entero_genus_factor_forest.rds')
 fac2 <- plot_grid(  div_fac,enter_fac,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
-ggsave('../figs/paper/S6_div_entero_factor_086_Jan24.pdf',
+ggsave('../figs/paper/S6_div_entero_factor_086.pdf',
        width = 170,
        height = 60, 
          #height = 60,
