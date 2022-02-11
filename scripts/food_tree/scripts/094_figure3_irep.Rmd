@@ -13,73 +13,46 @@ library(cowplot)
 library(ggpubr)
 ```
 
-```{r}
+```{r} 
 combined <- read_csv('../data/growth/069_irep_combined_res.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
+  select(fg = fg1_name,shortname )
 ```
 
 # fruits with or without enterococcus
 
 ```{r}
-both_val <- bind_rows(
+tbt_ent <- bind_rows(
   combined %>% 
-  filter(str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(aveirep)) %>% 
-  inner_join(meta) %>% 
-    mutate(grp = 'entero'),
+    filter(str_detect(best_species, 'Enterococcus')) %>% 
+    group_by(sampleid) %>% 
+    summarise(ave_irep = mean(aveirep)) %>% 
+    inner_join(meta) %>% 
+    mutate(grp = 'Enterococcus only'),
   combined %>% 
-  filter(!str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(aveirep)) %>% 
-  inner_join(meta) %>% 
-    mutate(grp = 'other')
-)
-ylowerlim <- min(both_val$ave_irep)
-yupperlim <- max(both_val$ave_irep)
+    filter(!str_detect(best_species, 'Enterococcus')) %>% 
+    group_by(sampleid) %>% 
+    summarise(ave_irep = mean(aveirep)) %>% 
+    inner_join(meta) %>% 
+    mutate(grp = 'All taxa excluding Enterococcus')
+) %>% 
+  select(sampleid, ave_irep, grp, fg_sweets, fg_fruit ) %>% 
+  gather('fg', 'gram', fg_sweets:fg_fruit) %>% 
+  mutate(grp = factor(grp, levels = c('Enterococcus only','All taxa excluding Enterococcus'))) %>% 
+  left_join(key)
 
-
-fruit_entero <-combined %>% 
-  filter(str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(aveirep)) %>% 
-  inner_join(meta) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'Enterococcus only',alpha = 0.7, 
+f3a <- tbt_ent %>% 
+  ggscatter(x = 'gram', y = 'ave_irep',
+            xlab = 'Intake in previous 2 days (g)',
             ylab = 'Average growth rate\n(iRep estimation)',
-            xlab = 'Fruit intake in previous 2 days (g)', 
-          add = "reg.line",  # Add regressin line
+             add = "reg.line", 
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n",  size = 4))   +
-  theme_classic() +
-  ylim(ylowerlim, yupperlim) +
-  theme(aspect.ratio = 1)
-
-fruit_all_other <- combined %>% 
-  filter(!str_detect(best_species, 'Enterococcus')) %>% 
-  group_by(sampleid) %>% 
-  summarise(ave_irep = mean(aveirep)) %>% 
-  inner_join(meta) %>% 
-  ggscatter(x = 'fg_fruit', y = 'ave_irep', title = 'All taxa excluding Enterococcus',
-            alpha = 0.7, 
-             ylab = 'Average growth rate\n(iRep estimation)',
-            xlab = 'Fruit intake in previous 2 days (g)',
-          add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 4))   +
-  theme_classic() +
-   ylim(ylowerlim, yupperlim) +
-  theme(aspect.ratio = 1)
-```
-
-```{r}
-entero_top <- plot_grid(fruit_entero, fruit_all_other,
-          labels = c('A','B'), 
-          axis = 'lbrt', align = 'hv')
-ggsave('../figs/paper/094_F3_entero_fruit.pdf', width = 180, units = 'mm', dpi = 400, plot = entero_top)
+           conf.int = TRUE,
+           cor.coef = TRUE, 
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 4, label.x = 190)) +
+  facet_grid(shortname ~ grp) +
+  theme_bw() 
 ```
 
 # summarizing ireps of all major genera
@@ -105,9 +78,10 @@ genus_combined <- combined %>%
 
 genus_combined %>% 
   ungroup() %>% 
-  ggboxplot(x = 'xlabel', y = 'aveirep', add = 'jitter',xlab = 'Genus',
+  ggviolin(x = 'xlabel', y = 'aveirep', add = 'boxplot',xlab = 'Genus',
             ylab = 'Average irep value',
-            add.params = list(alpha = 0.5)) +
+            #add.params = list(alpha = 0.5)
+           ) +
   theme(
      axis.text.x = element_text(angle=45, hjust=1)
   )
@@ -115,4 +89,3 @@ genus_combined %>%
 ggsave('../figs/paper/S10_genus_irep_histogram_094_Jan25.pdf', width = 320, height = 120, units = 'mm', dpi = 400)
 
 ```
-
