@@ -21,7 +21,7 @@ procrustes_Nday_score <- read_csv('../data/022_procrustes_Nday_score.csv')
 
 f2a <- procrustes_Nday_score %>% 
   mutate(pNd = str_extract(pNd, '\\d')) %>% 
-  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Sum of squares',
+  ggdotchart(x = 'pNd', y = 'score', sorting = 'none', ylab = 'Procrustes score',
              xlab = 'Number of previous days\nof dietary intake', size = 1.3) +
   geom_line(aes(x = pNd, y = score), group = 1, linetype = 'dashed', size = 0.3) +
   theme(aspect.ratio=1,

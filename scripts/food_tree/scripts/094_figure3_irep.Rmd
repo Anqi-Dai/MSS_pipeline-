@@ -35,11 +35,11 @@ tbt_ent <- bind_rows(
     group_by(sampleid) %>% 
     summarise(ave_irep = mean(aveirep)) %>% 
     inner_join(meta) %>% 
-    mutate(grp = 'All taxa excluding Enterococcus')
+    mutate(grp = 'All taxa excl. Enterococcus')
 ) %>% 
   select(sampleid, ave_irep, grp, fg_sweets, fg_fruit ) %>% 
   gather('fg', 'gram', fg_sweets:fg_fruit) %>% 
-  mutate(grp = factor(grp, levels = c('Enterococcus only','All taxa excluding Enterococcus'))) %>% 
+  mutate(grp = factor(grp, levels = c('Enterococcus only','All taxa excl. Enterococcus'))) %>% 
   left_join(key)
 
 f3a <- tbt_ent %>% 
@@ -50,7 +50,7 @@ f3a <- tbt_ent %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 4, label.x = 190)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2, label.x = 180)) +
   facet_grid(shortname ~ grp) +
   theme_bw() +
   theme(strip.text.x = element_text(size = 8))

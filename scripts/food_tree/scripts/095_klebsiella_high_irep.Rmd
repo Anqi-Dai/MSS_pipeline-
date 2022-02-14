@@ -220,7 +220,7 @@ irep = growth %>%
   xlim(xmin, xmax) +
   ylim(1, irep_highest) +
   labs(x = '', 
-       y = 'Replication rate',
+       y = 'Growth rate',
        title = 'Klebsiella')+
   theme_classic()+
   theme(aspect.ratio=1,
@@ -300,27 +300,39 @@ ggsave('../figs/paper/095_both_vertical5.pdf', width = 260,
 ```
 
 ```{r whole_f3}
-left <- align_plots(f3a, p11, align = 'v', axis = 'l')
+left <- align_plots(f3a, fruit_time, align = 'v', axis = 'l')
 
 top <- plot_grid(left[[1]], f3b, labels = c('A', 'B'),rel_widths  = c(1, 1) )
 
-bottom <- plot_grid(  left[[2]],pkle_ver,
-                  nrow = 1, labels = c('C','D'), rel_widths  = c(1, 1), align = 'hv')
+bottom <- plot_grid(  left[[2]],violin6,
+                  nrow = 1, labels = c('C','D'), rel_widths  = c(1, 0.5), align = 'hv')
+
+test <- plot_grid(f3a,bottom,
+                 rel_heights = c(1,1),
+                 nrow = 2)
 
 f3 <-  plot_grid(top,bottom,
-                 rel_heights = c(1,4),
+                 rel_heights = c(1,1),
                  nrow = 2)
 
  
 
 ggsave('../figs/paper/F3_entero_fruit_095.pdf',
-       width = 200,
-       height = 320,
+       width = 180,
+       height = 300,
          #height = 60,
          units = c("mm"),
          dpi = 400, plot = f3)  
 ```
 
+```{r}
+# building up the plots one column and then another column
+f3a <- read_rds('../data/094_f3a.rds')
+left <- align_plots(f3a, abx,sweets_time,  align = 'v', axis = 'l')
+row3 <- plot_grid(  left[[3]],violin6,
+                  nrow = 1, labels = c('C','D'), rel_widths  = c(1, 0.5), align = 'hv')
+
+```
 
 # Scatter two by two  
 
@@ -358,6 +370,5 @@ f3b <- tbt_kle %>%
   theme(strip.text.x = element_text(size = 8))
 
 f3b %>% write_rds('../data/094_f3b.rds')
-
 ```
 

@@ -158,7 +158,7 @@ irep = entero %>%
   xlim(xmin, xmax) +
   ylim(1, irep_highest) +
   labs(x = '',
-       y = 'Replication rate',
+       y = 'Growth rate',
        title = 'Enterococcus')+
   theme_classic()+
   theme(aspect.ratio=1,
