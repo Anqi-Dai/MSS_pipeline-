@@ -17,6 +17,8 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+plot_ratio <- 1/2
 ```
 
 ```{r}
@@ -161,13 +163,15 @@ irep = entero %>%
        y = 'Growth rate',
        title = 'Enterococcus')+
   theme_classic()+
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=plot_ratio,
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"),
         plot.margin = margin(b=-0.8,unit="cm"))
-  
+```
 
+
+```{r}
 copies = cts_ %>% 
   filter(sdrt %in% -5:15) %>% 
   filter(mrn == p11) %>% 
@@ -181,7 +185,7 @@ copies = cts_ %>%
        y = 'Enterococcus copy\nnumbers',
        title = 'Copy numbers') +
   theme_classic() +
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
         panel.grid.major.x = element_line(colour = "grey85"))
 
@@ -264,7 +268,7 @@ fruit_time <- fruit %>%
   geom_hline(yintercept = f_q25, linetype = 'dashed') +
   geom_hline(yintercept = f_q50, linetype = 'dashed') + 
   geom_hline(yintercept = f_q75, linetype = 'dashed') +
-  theme(aspect.ratio=1,#1/2.8
+  theme(aspect.ratio=plot_ratio,#1/2.8
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
@@ -331,7 +335,7 @@ sweets_time <- sweets %>%
   geom_hline(yintercept = s_q25, linetype = 'dashed') +
   geom_hline(yintercept = s_q50, linetype = 'dashed') + 
   geom_hline(yintercept = s_q75, linetype = 'dashed') +
-  theme(aspect.ratio=1,#1/2.8
+  theme(aspect.ratio=plot_ratio,#1/2.8
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
@@ -375,7 +379,7 @@ both_time <- both %>%
   geom_hline(yintercept = b_q25, linetype = 'dashed') +
   geom_hline(yintercept = b_q50, linetype = 'dashed') + 
   geom_hline(yintercept = b_q75, linetype = 'dashed') +
-  theme(aspect.ratio=1,#1/2.8
+  theme(aspect.ratio=plot_ratio,#1/2.8
         plot.margin = margin(l=-0.8,unit="cm"),
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
@@ -425,7 +429,7 @@ abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, 
        y = '',
        title = 'Antibiotics') + 
   theme_classic() +
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=plot_ratio,
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
@@ -449,14 +453,5 @@ ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 130,
       height = 250, units = 'mm', dpi = 400, plot = p11_ver)
 ```
 
-```{r}
-boxes <- plot_grid(all_fruit_box, NA, entero_box,
-          nrow = 3, rel_heights  = c(1,1, 2))
 
-f3 <-  plot_grid(p11_ver, boxes, 
-          nrow = 1, rel_widths = c(2,1))
-
-ggsave('../figs/paper/075_irep_p11_enterococcus.pdf', width = 160,
-      height = 180, units = 'mm', dpi = 400, plot = f3)
-```
 

@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggpubr)
 library(tidyverse)
 library(cowplot)
+plot_ratio <- 1/2
 ```
 
 ```{r}
@@ -146,7 +147,7 @@ copies <- cts_ %>%
        y = 'Klebsiella copy\nnumbers',
        title = 'Copy numbers') +
   theme_classic() +
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
         panel.grid.major.x = element_line(colour = "grey85"))
 
@@ -164,7 +165,7 @@ fruit_time <- fruit %>%
   geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.25), linetype = 'dashed') +
   geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.5), linetype = 'dashed') + 
   geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.75), linetype = 'dashed') +
-  theme(aspect.ratio=1,  
+  theme(aspect.ratio=plot_ratio,  
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
@@ -184,7 +185,7 @@ sweets_time <- sweets %>%
   geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.25), linetype = 'dashed') +
   geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.5), linetype = 'dashed') + 
   geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.75), linetype = 'dashed') +
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
@@ -201,7 +202,7 @@ abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval,
        y = '',
        title = 'Antibiotics') + 
   theme_classic() +
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=plot_ratio,
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
@@ -223,7 +224,7 @@ irep = growth %>%
        y = 'Growth rate',
        title = 'Klebsiella')+
   theme_classic()+
-  theme(aspect.ratio=1,
+  theme(aspect.ratio=plot_ratio,
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"))
@@ -299,40 +300,6 @@ ggsave('../figs/paper/095_both_vertical5.pdf', width = 260,
       height = 250, units = 'mm', dpi = 400, plot = both)
 ```
 
-```{r whole_f3}
-left <- align_plots(f3a, fruit_time, align = 'v', axis = 'l')
-
-top <- plot_grid(left[[1]], f3b, labels = c('A', 'B'),rel_widths  = c(1, 1) )
-
-bottom <- plot_grid(  left[[2]],violin6,
-                  nrow = 1, labels = c('C','D'), rel_widths  = c(1, 0.5), align = 'hv')
-
-test <- plot_grid(f3a,bottom,
-                 rel_heights = c(1,1),
-                 nrow = 2)
-
-f3 <-  plot_grid(top,bottom,
-                 rel_heights = c(1,1),
-                 nrow = 2)
-
- 
-
-ggsave('../figs/paper/F3_entero_fruit_095.pdf',
-       width = 180,
-       height = 300,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, plot = f3)  
-```
-
-```{r}
-# building up the plots one column and then another column
-f3a <- read_rds('../data/094_f3a.rds')
-left <- align_plots(f3a, abx,sweets_time,  align = 'v', axis = 'l')
-row3 <- plot_grid(  left[[3]],violin6,
-                  nrow = 1, labels = c('C','D'), rel_widths  = c(1, 0.5), align = 'hv')
-
-```
 
 # Scatter two by two  
 
@@ -371,4 +338,25 @@ f3b <- tbt_kle %>%
 
 f3b %>% write_rds('../data/094_f3b.rds')
 ```
+
+```{r whole_f3}
+f3a <- read_rds('../data/094_f3a.rds')
+f3b <- read_rds('../data/094_f3b.rds')
+
+
+top <- plot_grid(f3a, f3b, labels = c('A', 'B'),rel_widths  = c(1, 1) )
+
+f3 <-  plot_grid(top,both,
+                 rel_heights = c(1,4),
+                 nrow = 2)
+
+ 
+ggsave('../figs/paper/F3_entero_fruit_095.pdf',
+       width = 180,
+       height = 300,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = f3)  
+```
+
 
