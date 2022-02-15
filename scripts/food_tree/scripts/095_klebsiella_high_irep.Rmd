@@ -237,7 +237,7 @@ all_kle <- all_kle_irep %>%
   ggviolin(y = 'aveirep', add = 'boxplot') +
   theme_classic() +
    ylim(1, irep_highest) +
-  theme(aspect.ratio=6,
+  theme(aspect.ratio=6*plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
@@ -251,38 +251,49 @@ violin9 <- all_sweet %>%
   ggviolin(y = 'sweetdaily', add = 'boxplot') +
   theme_classic() +
    ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
-  theme(aspect.ratio=6,
+  theme(aspect.ratio=6*plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
        line = element_blank(),
-       axis.text.x = element_blank() ) 
+       axis.text.x = element_blank() )
+```
 
+
+```{r population_box}
 violin6 <- all_fruit %>% 
   ggviolin(y = 'fruitdaily', add = 'boxplot') +
   theme_classic() +
    ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
-  theme(aspect.ratio=6,
+  theme(aspect.ratio=2,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
-       line = element_blank(),
-       axis.text.x = element_blank() ) 
+       #line = element_blank(),
+       axis.text.x = element_blank() )
+
+f_row <- plot_grid(
+                     fruit_time,violin6,
+                     byrow = T,
+          ncol = 2, axis = 'b', align = 'h', 
+          rel_widths = c(1, 0.3))
+f_row  
 ```
 
 
 ```{r population_box}
 pkle_ver <- plot_grid(abx_time, NA,
-                     sweets_time, violin9,
-                     fruit_time, violin6,
+                     sweets_time,violin9,
+                     fruit_time,violin6,
                      irep, all_kle,
                      copies,NA,
                      byrow = T,
-          ncol = 2, axis = 'ltbr', align = 'hv', rel_widths = c(1, 0.5))
+          ncol = 2, axis = 'ltbr', align = 'hv', 
+          rel_widths = c(1, 0.5))
 pkle_ver
 
 ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 90,
