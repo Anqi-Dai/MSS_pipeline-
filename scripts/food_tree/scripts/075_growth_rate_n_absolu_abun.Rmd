@@ -17,7 +17,8 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
-
+axis_text_size <- 11
+axis_title_size <- 11
 plot_ratio <- 1/2
 ```
 
@@ -167,6 +168,9 @@ irep = entero %>%
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
         panel.grid.major.x = element_line(color = "grey85"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         plot.margin = margin(b=-0.8,unit="cm"))
 ```
 
@@ -187,6 +191,9 @@ copies = cts_ %>%
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
 
 # a violin plot to show all the entero irep distribution
@@ -196,7 +203,7 @@ entero_box <- entero %>%
   ggviolin(y = 'ave_irpe', add = 'boxplot') +
   theme_classic() +
    ylim(1, irep_highest) +
-  theme(aspect.ratio=6,
+  theme(aspect.ratio=plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
@@ -240,7 +247,7 @@ all_fruit_box <- all_fruit %>%
   ggviolin(y = 'fruitdaily', add = 'boxplot') +
   theme_classic() +
    ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
-  theme(aspect.ratio=6,
+  theme(aspect.ratio=plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
@@ -272,6 +279,9 @@ fruit_time <- fruit %>%
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
 ```
 
@@ -309,7 +319,7 @@ all_sweet_box <-  all_sweet %>%
   ggviolin(y = 'sweetdaily', add = 'boxplot') +
   theme_classic() +
    ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
-  theme(aspect.ratio=6,
+  theme(aspect.ratio=plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
@@ -339,65 +349,12 @@ sweets_time <- sweets %>%
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
 ```
 
-
-
-```{r}
-# if fruits and sweets combined for this patient
-both <- fruit %>% 
-  full_join(sweets) %>% 
-  mutate(bothwt = fruitsum + sweetsum)
-
-both_all <- all_sweet %>% 
-  full_join(all_fruit)  %>% 
-  mutate(sweetdaily = if_else(is.na(sweetdaily), 0, sweetdaily),
-         fruitdaily = if_else(is.na(fruitdaily), 0, fruitdaily)) %>% 
-  mutate(bothwt = fruitdaily + sweetdaily)
-
-both_all_high <-  ceiling( max(both_all$bothwt))
-both_all_low <- floor( min(both_all$bothwt))
-
-b_q25 <- quantile(x = both_all$bothwt, 0.25)
-b_q50 <- quantile(x = both_all$bothwt, 0.5)
-b_q75 <- quantile(x = both_all$bothwt, 0.75)
-
-both_time <- both %>% 
-  ggplot(aes(x = fdrt, y = bothwt )) +
-  geom_point() +
-  geom_line(aes(x = fdrt, y = bothwt), linetype = 'solid', size = 0.5, col = 'black') +
- # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
-  #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-  xlim(xmin, xmax) +
-  labs(x = '',
-       y = 'Both intake',
-       title = 'Both intake') +
-  theme_classic() + 
-   ylim(both_all_low, both_all_high)+
-  #scale_y_sqrt() +
-  geom_hline(yintercept = b_q25, linetype = 'dashed') +
-  geom_hline(yintercept = b_q50, linetype = 'dashed') + 
-  geom_hline(yintercept = b_q75, linetype = 'dashed') +
-  theme(aspect.ratio=plot_ratio,#1/2.8
-        plot.margin = margin(l=-0.8,unit="cm"),
-        axis.text.x=element_blank(),
-        axis.ticks.x=element_blank(),
-        panel.grid.major.x = element_line(colour = "grey85"))
-
-
-all_both_box <- ggboxplot(both_all,  y = "bothwt", add = 'jitter',add.params = list(alpha = 0.05),
-                          xlab = '', ylab = 'All patients')+
-   theme_classic() +
-   ylim(both_all_low, both_all_high)+
-  #scale_y_sqrt() +
-  theme(aspect.ratio=5,
-        plot.margin = margin(l=-0.8,unit="cm"),
-       axis.ticks.x=element_blank(),
-       axis.title.x = element_blank(),
-       axis.text.x = element_blank() ) 
- 
-```
 ```{r}
 # check this patient's abx usage
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
@@ -423,7 +380,7 @@ abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, 
      size = 0.5, lineend = 'round',
      arrow = arrow(length = unit(0.05, "inches"))
   ) +
-  geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 2) +
+  geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 1.3) +
   coord_cartesian(xlim=c(xmin, xmax)) + 
   labs(x = '',
        y = '',
@@ -434,23 +391,32 @@ abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, 
         #axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
         axis.text.y=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(color = "grey85"))
 ```
 
 ```{r}
 p11_ver <- plot_grid(abx, NA,
+                     NULL, NULL, 
                      sweets_time, all_sweet_box, 
+                     NULL, NULL, 
                      fruit_time,all_fruit_box,  
+                     NULL, NULL, 
                      irep, entero_box, 
+                     NULL, NULL, 
                      copies,NA,
                      byrow = T,
-          ncol = 2, axis = 'ltbr', align = 'hv', rel_widths = c(1, 0.5))
+          ncol = 2, axis = 'ltbr', align = 'hv',  
+          rel_heights = c(1, -0.7, 1, -0.7, 1, -0.7, 1, -0.7, 1),
+          rel_widths = c(1, 1))
 p11_ver %>% 
   write_rds('../data/075_p11_vertical5.rds')
  
 
-ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 130,
-      height = 250, units = 'mm', dpi = 400, plot = p11_ver)
+ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
+      height = 220, units = 'mm', dpi = 400, plot = p11_ver)
 ```
 
 

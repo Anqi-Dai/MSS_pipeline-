@@ -12,6 +12,8 @@ library(ggpubr)
 library(tidyverse)
 library(cowplot)
 plot_ratio <- 1/2
+axis_text_size <- 11
+axis_title_size <- 11
 ```
 
 ```{r}
@@ -149,6 +151,9 @@ copies <- cts_ %>%
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
 
 
@@ -169,6 +174,9 @@ fruit_time <- fruit %>%
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
 
   
@@ -189,6 +197,9 @@ sweets_time <- sweets %>%
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
 
 abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
@@ -196,7 +207,7 @@ abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval,
      size = 0.5, lineend = 'round',
      arrow = arrow(length = unit(0.05, "inches"))
   ) +
-  geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 2) +
+  geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 1.3) +
    xlim(xmin, xmax) +
   labs(x = '',
        y = '',
@@ -207,6 +218,9 @@ abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval,
         #axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
         axis.text.y=element_blank(),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(color = "grey85"))
 
 
@@ -227,6 +241,9 @@ irep = growth %>%
   theme(aspect.ratio=plot_ratio,
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(color = "grey85"))
 ```
 
@@ -278,19 +295,25 @@ violin6 <- all_fruit %>%
 
 
 ```{r population_box}
+# the empty row trick worked ...hahhaha
 
 pkle_ver <- plot_grid(abx_time, NA,
+                      NULL, NULL, 
                      sweets_time,violin9,
+                       NULL, NULL, 
                      fruit_time,violin6,
+                       NULL, NULL, 
                      irep, all_kle,
+                       NULL, NULL, 
                      copies,NA,
                      byrow = T,
           ncol = 2, axis = 'ltbr', align = 'hv', 
+          rel_heights = c(1, -0.7, 1, -0.7, 1, -0.7, 1, -0.7, 1),
           rel_widths = c(1, 1))
 pkle_ver
 
 ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 90,
-      height = 250, units = 'mm', dpi = 400, plot = pkle_ver)
+      height = 220, units = 'mm', dpi = 400, plot = pkle_ver)
 ```
 
 ```{r with_p11}
@@ -299,49 +322,12 @@ p11 <- read_rds('../data/075_p11_vertical5.rds')
 both <- plot_grid(p11, pkle_ver,
                      byrow = T,
           ncol = 2, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1), labels = c('C','D'))
-
+ 
 ggsave('../figs/paper/095_both_vertical5.pdf', width = 260,
-      height = 250, units = 'mm', dpi = 400, plot = both)
+      height = 290, units = 'mm', dpi = 400, plot = both)
 ```
 
 
-# Scatter two by two  
-
-```{r} 
-tbt_kle <- bind_rows( 
-  combined %>% 
-    filter(str_detect(best_species, 'Klebsiella')) %>% 
-    group_by(sampleid) %>% 
-    summarise(ave_irep = mean(aveirep)) %>% 
-    inner_join(meta) %>% 
-    mutate(grp = 'Klebsiella only'),
-  combined %>% 
-    filter(!str_detect(best_species, 'Klebsiella')) %>% 
-    group_by(sampleid) %>% 
-    summarise(ave_irep = mean(aveirep)) %>% 
-    inner_join(meta) %>% 
-    mutate(grp = 'All taxa excl. Klebsiella')
-) %>% 
-  select(sampleid, ave_irep, grp, fg_sweets, fg_fruit ) %>% 
-  gather('fg', 'gram', fg_sweets:fg_fruit) %>% 
-  mutate(grp = factor(grp, levels = c('Klebsiella only','All taxa excl. Klebsiella'))) %>% 
-  left_join(key)
-
-f3b <- tbt_kle %>% 
-  ggscatter(x = 'gram', y = 'ave_irep', alpha = 0.5,
-            xlab = 'Intake in previous 2 days (g)',
-            ylab = 'Average growth rate\n(iRep estimation)',
-             add = "reg.line", 
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE,
-           cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2, label.x = 180)) +
-  facet_grid(shortname ~ grp) +
-  theme_bw() +
-  theme(strip.text.x = element_text(size = 8))
-
-f3b %>% write_rds('../data/094_f3b.rds')
-```
 
 ```{r whole_f3}
 f3a <- read_rds('../data/094_f3a.rds')
@@ -351,7 +337,7 @@ f3b <- read_rds('../data/094_f3b.rds')
 top <- plot_grid(f3a, f3b, labels = c('A', 'B'), rel_widths  = c(1, 1) )
 
 f3 <-  plot_grid(top,both,
-                 rel_heights = c(1,4),
+                 rel_heights = c(1,2),
                  nrow = 2)
 
  

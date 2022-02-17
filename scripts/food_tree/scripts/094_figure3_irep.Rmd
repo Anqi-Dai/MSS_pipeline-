@@ -13,11 +13,14 @@ library(cowplot)
 library(ggpubr)
 ```
 
+# Scatter two by two  
+
 ```{r} 
 combined <- read_csv('../data/growth/069_irep_combined_res.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
   select(fg = fg1_name,shortname )
+scatter_alpha <- 0.35
 ```
 
 # fruits with or without enterococcus
@@ -42,22 +45,113 @@ tbt_ent <- bind_rows(
   mutate(grp = factor(grp, levels = c('Enterococcus only','All taxa excl. Enterococcus'))) %>% 
   left_join(key)
 
-f3a <- tbt_ent %>% 
-  ggscatter(x = 'gram', y = 'ave_irep',alpha = 0.5,
-            xlab = 'Intake in previous 2 days (g)',
+
+# I want the top row and bottom row to have different x scales.
+t3a <- tbt_ent %>% filter(shortname == 'Fruits') %>%
+  ggscatter(x = 'gram', y = 'ave_irep', alpha = scatter_alpha,
+            xlab = 'Fruits intake in previous 2 days (g)',
             ylab = 'Average growth rate\n(iRep estimation)',
              add = "reg.line", 
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2, label.x = 180)) +
-  facet_grid(shortname ~ grp) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+  facet_grid(. ~ grp) +
   theme_bw() +
-  theme(strip.text.x = element_text(size = 8))
+  theme(plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size = 8))
+ 
+b3a <- tbt_ent %>% filter(shortname == 'Sweets') %>%
+  ggscatter(x = 'gram', y = 'ave_irep', alpha = scatter_alpha,
+            xlab = 'Sweets intake in previous 2 days (g)',
+            ylab = '',
+             add = "reg.line", 
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE,
+           cor.coef = TRUE, 
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+  facet_grid(. ~ grp) +
+  theme_bw() +
+  theme( plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size = 8))
+
+# assemble the top and bottom of 3b
+f3a <- plot_grid(t3a, b3a,
+                     byrow = T,
+          ncol = 1, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1))
 
 f3a %>% write_rds('../data/094_f3a.rds')
-
 ```
+
+# kle
+
+```{r} 
+tbt_kle <- bind_rows( 
+  combined %>% 
+    filter(str_detect(best_species, 'Klebsiella')) %>% 
+    group_by(sampleid) %>% 
+    summarise(ave_irep = mean(aveirep)) %>% 
+    inner_join(meta) %>% 
+    mutate(grp = 'Klebsiella only'),
+  combined %>% 
+    filter(!str_detect(best_species, 'Klebsiella')) %>% 
+    group_by(sampleid) %>% 
+    summarise(ave_irep = mean(aveirep)) %>% 
+    inner_join(meta) %>% 
+    mutate(grp = 'All taxa excl. Klebsiella')
+) %>% 
+  select(sampleid, ave_irep, grp, fg_sweets, fg_fruit ) %>% 
+  gather('fg', 'gram', fg_sweets:fg_fruit) %>% 
+  mutate(grp = factor(grp, levels = c('Klebsiella only','All taxa excl. Klebsiella'))) %>% 
+  left_join(key)
+
+
+# I want the top row and bottom row to have different x scales.
+t3b <- tbt_kle %>% filter(shortname == 'Fruits') %>%
+  ggscatter(x = 'gram', y = 'ave_irep', alpha = scatter_alpha,
+            xlab = 'Fruits intake in previous 2 days (g)',
+            ylab = 'Average growth rate\n(iRep estimation)',
+             add = "reg.line", 
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE,
+           cor.coef = TRUE, 
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+  facet_grid(. ~ grp) +
+  theme_bw() +
+  theme(plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size = 8))
+ 
+b3b <- tbt_kle %>% filter(shortname == 'Sweets') %>%
+  ggscatter(x = 'gram', y = 'ave_irep', alpha = scatter_alpha,
+            xlab = 'Sweets intake in previous 2 days (g)',
+            ylab = '',
+             add = "reg.line", 
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE,
+           cor.coef = TRUE, 
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+  facet_grid(. ~ grp) +
+  theme_bw() +
+  theme( plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size = 8))
+
+# assemble the top and bottom of 3b
+f3b <- plot_grid(t3b, b3b,
+                     byrow = T,
+          ncol = 1, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1))
+
+f3b %>% write_rds('../data/094_f3b.rds')
+```
+
+
 
 # summarizing ireps of all major genera
 
