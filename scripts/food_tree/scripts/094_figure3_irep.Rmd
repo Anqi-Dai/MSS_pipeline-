@@ -13,6 +13,7 @@ library(cowplot)
 library(ggpubr)
 ```
 
+
 # Scatter two by two  
 
 ```{r} 
@@ -21,6 +22,7 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
   select(fg = fg1_name,shortname )
 scatter_alpha <- 0.35
+cor_text_size <- 8
 ```
 
 # fruits with or without enterococcus
@@ -55,7 +57,7 @@ t3a <- tbt_ent %>% filter(shortname == 'Fruits') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
   facet_grid(. ~ grp) +
   theme_bw() +
   theme(plot.background = element_blank(),
@@ -71,7 +73,7 @@ b3a <- tbt_ent %>% filter(shortname == 'Sweets') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
   facet_grid(. ~ grp) +
   theme_bw() +
   theme( plot.background = element_blank(),
@@ -119,7 +121,7 @@ t3b <- tbt_kle %>% filter(shortname == 'Fruits') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
   facet_grid(. ~ grp) +
   theme_bw() +
   theme(plot.background = element_blank(),
@@ -135,7 +137,7 @@ b3b <- tbt_kle %>% filter(shortname == 'Sweets') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = 2)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
   facet_grid(. ~ grp) +
   theme_bw() +
   theme( plot.background = element_blank(),

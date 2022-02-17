@@ -186,8 +186,8 @@ copies = cts_ %>%
   #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
   xlim(xmin, xmax) +
   labs(x = 'Day relative to transplant',
-       y = 'Enterococcus copy\nnumbers',
-       title = 'Copy numbers') +
+       y = 'Copy numbers',
+       title = 'Enterococcus') +
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -246,7 +246,7 @@ lowest_daily_fruit_intake <- floor( min(all_fruit$fruitdaily))
 all_fruit_box <- all_fruit %>% 
   ggviolin(y = 'fruitdaily', add = 'boxplot') +
   theme_classic() +
-   ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  coord_cartesian(ylim = c(0, max(fruit$fruitsum)))+
   theme(aspect.ratio=plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
@@ -267,10 +267,10 @@ fruit_time <- fruit %>%
   #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
   xlim(xmin, xmax) +
   labs(x = '',
-       y = 'Fruit intake',
-       title = 'Fruit intake') +
+       y = 'Gram',
+       title = 'Fruits intake') +
   theme_classic() + 
-  ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  ylim(0, max(fruit$fruitsum))+
   #scale_y_sqrt() +
   geom_hline(yintercept = f_q25, linetype = 'dashed') +
   geom_hline(yintercept = f_q50, linetype = 'dashed') + 
@@ -318,7 +318,7 @@ lowest_daily_sweet_intake <- floor( min(all_sweet$sweetdaily))
 all_sweet_box <-  all_sweet %>% 
   ggviolin(y = 'sweetdaily', add = 'boxplot') +
   theme_classic() +
-   ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  coord_cartesian(ylim = c(0, max(sweets$sweetsum)))+
   theme(aspect.ratio=plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
@@ -337,15 +337,15 @@ sweets_time <- sweets %>%
   geom_line(aes(x = fdrt, y = sweetsum), linetype = 'solid', size = 0.5, col = 'black') +
   xlim(xmin, xmax) +
   labs(x = '',
-       y = 'Sweets intake',
+       y = 'Gram',
        title = 'Sweets intake') +
   theme_classic() + 
-  ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  ylim(0, max(sweets$sweetsum))+
   #scale_y_sqrt() +
   geom_hline(yintercept = s_q25, linetype = 'dashed') +
   geom_hline(yintercept = s_q50, linetype = 'dashed') + 
   geom_hline(yintercept = s_q75, linetype = 'dashed') +
-  theme(aspect.ratio=plot_ratio,#1/2.8
+  theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
         #axis.text.x=element_blank(),
         #axis.ticks.x=element_blank(),

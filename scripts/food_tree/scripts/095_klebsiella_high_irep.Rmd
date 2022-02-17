@@ -146,8 +146,8 @@ copies <- cts_ %>%
   geom_line(aes(x = sdrt, y = kle_copy), linetype = 'solid', size = 0.5, col = 'black') +
   xlim(xmin, xmax) +
   labs(x = 'Day relative to transplant',
-       y = 'Klebsiella copy\nnumbers',
-       title = 'Copy numbers') +
+       y = 'Copy\nnumbers',
+       title = 'Klebsiella') +
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -163,10 +163,10 @@ fruit_time <- fruit %>%
   geom_line(aes(x = fdrt, y = fruitsum), linetype = 'solid', size = 0.5, col = 'black') +
   xlim(xmin, xmax) +
   labs(x = '',
-       y = 'Fruits intake',
+       y = 'Gram',
        title = 'Fruits intake') +
   theme_classic() + 
-  ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  ylim(0, max(fruit$fruitsum))+
   geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.25), linetype = 'dashed') +
   geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.5), linetype = 'dashed') + 
   geom_hline(yintercept = quantile(x = all_fruit$fruitdaily, 0.75), linetype = 'dashed') +
@@ -178,30 +178,35 @@ fruit_time <- fruit %>%
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
+```
 
-  
+
+```{r plotting}
 sweets_time <- sweets %>%    
   ggplot(aes(x = fdrt, y = sweetsum )) +
   geom_point() +
   geom_line(aes(x = fdrt, y = sweetsum), linetype = 'solid', size = 0.5, col = 'black') +
   xlim(xmin, xmax) +
   labs(x = '',
-       y = 'Sweets intake',
+       y = 'Gram',
        title = 'Sweets intake') +
   theme_classic() + 
-  ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  ylim(0, max(sweets$sweetsum))+
   geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.25), linetype = 'dashed') +
   geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.5), linetype = 'dashed') + 
   geom_hline(yintercept = quantile(x = all_sweet$sweetdaily, 0.75), linetype = 'dashed') +
   theme(aspect.ratio=plot_ratio,
         plot.margin = margin(l=-0.8,unit="cm"),
-        #axis.text.x=element_blank(),
-        #axis.ticks.x=element_blank(),
-            axis.text=element_text(size=axis_text_size),
+        axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
+     
 
+```
+
+
+```{r plotting}
 abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
   geom_segment(
      size = 0.5, lineend = 'round',
@@ -266,8 +271,8 @@ all_kle <- all_kle_irep %>%
 
 violin9 <- all_sweet %>% 
   ggviolin(y = 'sweetdaily', add = 'boxplot') +
-  theme_classic() +
-   ylim(lowest_daily_sweet_intake, highest_daily_sweet_intake)+
+  theme_classic() + 
+  coord_cartesian(ylim = c(0, max(sweets$sweetsum)))+
   theme(aspect.ratio=plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
@@ -280,7 +285,7 @@ violin9 <- all_sweet %>%
 violin6 <- all_fruit %>% 
   ggviolin(y = 'fruitdaily', add = 'boxplot') +
   theme_classic() +
-   ylim(lowest_daily_fruit_intake, highest_daily_fruit_intake)+
+  coord_cartesian(ylim = c(0, max(fruit$fruitsum)))+
   theme(aspect.ratio=plot_ratio,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
@@ -310,10 +315,12 @@ pkle_ver <- plot_grid(abx_time, NA,
           ncol = 2, axis = 'ltbr', align = 'hv', 
           rel_heights = c(1, -0.7, 1, -0.7, 1, -0.7, 1, -0.7, 1),
           rel_widths = c(1, 1))
-pkle_ver
+pkle_ver %>% write_rds('../data/095_pkle_ver.rds')
 
 ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 90,
       height = 220, units = 'mm', dpi = 400, plot = pkle_ver)
+
+
 ```
 
 ```{r with_p11}
