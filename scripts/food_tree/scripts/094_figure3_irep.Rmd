@@ -9,10 +9,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
-library(cowplot)
+library(cowplot) 
 library(ggpubr)
 ```
-
 
 # Scatter two by two  
 
@@ -22,12 +21,19 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
   select(fg = fg1_name,shortname )
 scatter_alpha <- 0.35
-cor_text_size <- 8
+cor_text_size <- 3
+axis_text_size <- 11
+axis_title_size <- 11
 ```
 
 # fruits with or without enterococcus
 
 ```{r}
+# the median of the fruits
+median6 <- median(combined$fg_fruit)
+median9 <- median(combined$fg_sweets)
+
+
 tbt_ent <- bind_rows(
   combined %>% 
     filter(str_detect(best_species, 'Enterococcus')) %>% 
@@ -45,11 +51,35 @@ tbt_ent <- bind_rows(
   select(sampleid, ave_irep, grp, fg_sweets, fg_fruit ) %>% 
   gather('fg', 'gram', fg_sweets:fg_fruit) %>% 
   mutate(grp = factor(grp, levels = c('Enterococcus only','All taxa excl. Enterococcus'))) %>% 
-  left_join(key)
+  left_join(key) 
+
+tbt_ent_f <- tbt_ent %>% filter(shortname == 'Fruits') %>% 
+  mutate(tier = if_else(gram >= median6, 'higher', 'lower'))
+
+t3a_box <- tbt_ent_f  %>%
+  ggboxplot(x = 'tier', y = 'ave_irep', alpha = scatter_alpha,
+            xlab = 'Fruits intake in previous 2 days (g)',
+            ylab = 'Average growth rate\n(iRep estimation)') +
+  facet_grid(. ~ grp) +
+ theme_classic() +
+stat_compare_means(comparisons= list(c('higher', 'lower')),
+										label= "p.signif",
+										method= 'wilcox.test',
+										correct=FALSE) +
+  theme(plot.background = element_blank(),
+        aspect.ratio = 1,
+           axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+        strip.text.x = element_text(size = 8))
+```
 
 
+```{r}
 # I want the top row and bottom row to have different x scales.
-t3a <- tbt_ent %>% filter(shortname == 'Fruits') %>%
+t3a <- tbt_ent_f  %>%
   ggscatter(x = 'gram', y = 'ave_irep', alpha = scatter_alpha,
             xlab = 'Fruits intake in previous 2 days (g)',
             ylab = 'Average growth rate\n(iRep estimation)',
@@ -57,10 +87,14 @@ t3a <- tbt_ent %>% filter(shortname == 'Fruits') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = ",   ", size = cor_text_size)) +
   facet_grid(. ~ grp) +
-  theme_bw() +
+ theme_classic() +
   theme(plot.background = element_blank(),
+        aspect.ratio = 1,
+           axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
         strip.text.x = element_text(size = 8))
@@ -73,10 +107,14 @@ b3a <- tbt_ent %>% filter(shortname == 'Sweets') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
+           cor.coeff.args = list(method = "spearman",  label.sep =",   ", size = cor_text_size)) +
   facet_grid(. ~ grp) +
-  theme_bw() +
+ theme_classic() +
   theme( plot.background = element_blank(),
+         aspect.ratio = 1,
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
         strip.text.x = element_text(size = 8))
@@ -121,10 +159,14 @@ t3b <- tbt_kle %>% filter(shortname == 'Fruits') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = ",   ", size = cor_text_size)) +
   facet_grid(. ~ grp) +
-  theme_bw() +
+  theme_classic() +
   theme(plot.background = element_blank(),
+        aspect.ratio = 1,
+           axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
         strip.text.x = element_text(size = 8))
@@ -137,13 +179,18 @@ b3b <- tbt_kle %>% filter(shortname == 'Sweets') %>%
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
            cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", size = cor_text_size)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = ",   ", size = cor_text_size )) +
   facet_grid(. ~ grp) +
-  theme_bw() +
-  theme( plot.background = element_blank(),
+  theme_classic() +
+  theme( 
+    plot.background = element_blank(),
     panel.grid.major = element_blank(),
     panel.grid.minor = element_blank(),
-        strip.text.x = element_text(size = 8))
+    aspect.ratio = 1,
+       axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+    strip.text.x = element_text(size = 8))
 
 # assemble the top and bottom of 3b
 f3b <- plot_grid(t3b, b3b,

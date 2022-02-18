@@ -146,7 +146,7 @@ copies <- cts_ %>%
   geom_line(aes(x = sdrt, y = kle_copy), linetype = 'solid', size = 0.5, col = 'black') +
   xlim(xmin, xmax) +
   labs(x = 'Day relative to transplant',
-       y = 'Copy\nnumbers',
+       y = 'Copy numbers',
        title = 'Klebsiella') +
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
@@ -259,13 +259,13 @@ all_kle <- all_kle_irep %>%
   ggviolin(y = 'aveirep', add = 'boxplot') +
   theme_classic() +
    ylim(1, irep_highest) +
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=3,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
-       line = element_blank(),
+       #line = element_blank(),
        axis.text.x = element_blank() ) 
 
 
@@ -273,26 +273,26 @@ violin9 <- all_sweet %>%
   ggviolin(y = 'sweetdaily', add = 'boxplot') +
   theme_classic() + 
   coord_cartesian(ylim = c(0, max(sweets$sweetsum)))+
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=3,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
-       line = element_blank(),
+       #line = element_blank(),
        axis.text.x = element_blank() )
 
 violin6 <- all_fruit %>% 
   ggviolin(y = 'fruitdaily', add = 'boxplot') +
   theme_classic() +
   coord_cartesian(ylim = c(0, max(fruit$fruitsum)))+
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=3,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
-       line = element_blank(),
+       #line = element_blank(),
        axis.text.x = element_blank() )
 
 ```
@@ -317,43 +317,69 @@ pkle_ver <- plot_grid(abx_time, NA,
           rel_widths = c(1, 1))
 pkle_ver %>% write_rds('../data/095_pkle_ver.rds')
 
-ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 90,
-      height = 220, units = 'mm', dpi = 400, plot = pkle_ver)
+
 
 
 ```
 
-```{r with_p11}
+```{r}
+library(patchwork)
+p_f3d <- abx_time + plot_spacer() + sweets_time + violin9 +  fruit_time + violin6 + irep + all_kle +  copies + plot_spacer() +
+  plot_layout(widths = c(1, 0.3))
+ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 90,
+      height = 200, units = 'mm', dpi = 400, plot = p_f3d)
+```
+
+
+```{r}
+f3b / p_f3d +
+  plot_layout(heights  = c(2, 5))
+ggsave('../figs/paper/095_right.pdf', width = 120,
+      height = 300, units = 'mm', dpi = 400)
+
+A <- f3b
+B <- abx_time
+C <- violin9
+layout <- "
+AAAAAAAA
+BBBBBBDD
+"
+A + B + C  +
+  plot_layout(design = layout)
+ggsave('../figs/paper/095_right.pdf', width = 120,
+      height = 150, units = 'mm', dpi = 400)
+```
+
+
+```{r f3_bottom}
 p11 <- read_rds('../data/075_p11_vertical5.rds')
+pkle_ver <- read_rds('../data/095_pkle_ver.rds')
  
-both <- plot_grid(p11, pkle_ver,
+bottom <- plot_grid(p11, pkle_ver,
                      byrow = T,
-          ncol = 2, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1), labels = c('C','D'))
+          ncol = 2, axis = 'ltbr', align = 'h', rel_widths = c(1, 1), labels = c('C','D'))
  
 ggsave('../figs/paper/095_both_vertical5.pdf', width = 260,
-      height = 290, units = 'mm', dpi = 400, plot = both)
+      height = 290, units = 'mm', dpi = 400, plot = bottom)
 ```
 
 
 
-```{r whole_f3}
+```{r f3_top}
 f3a <- read_rds('../data/094_f3a.rds')
 f3b <- read_rds('../data/094_f3b.rds')
 
 
 top <- plot_grid(f3a, f3b, labels = c('A', 'B'), rel_widths  = c(1, 1) )
 
-f3 <-  plot_grid(top,both,
-                 rel_heights = c(1,2),
-                 nrow = 2)
-
- 
-ggsave('../figs/paper/F3_entero_fruit_095.pdf',
+ggsave('../figs/paper/F3_top.pdf',
        width = 180,
-       height = 300,
+       height = 120,
          #height = 60,
          units = c("mm"),
-         dpi = 400, plot = f3)  
+         dpi = 400, plot = top) 
+
+
 ```
 
 

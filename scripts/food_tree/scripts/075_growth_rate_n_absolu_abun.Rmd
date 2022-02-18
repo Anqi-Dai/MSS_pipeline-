@@ -418,6 +418,3 @@ p11_ver %>%
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
       height = 220, units = 'mm', dpi = 400, plot = p11_ver)
 ```
-
-
-
