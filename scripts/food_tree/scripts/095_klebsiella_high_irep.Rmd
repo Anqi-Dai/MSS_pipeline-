@@ -317,16 +317,22 @@ pkle_ver <- plot_grid(abx_time, NA,
           rel_widths = c(1, 1))
 pkle_ver %>% write_rds('../data/095_pkle_ver.rds')
 
-
-
-
+abx_time %>% write_rds('../data/095_abx_time.rds')
+sweets_time %>% write_rds('../data/095_sweets_time.rds')
+violin9 %>% write_rds('../data/095_violin9.rds')
+fruit_time %>% write_rds('../data/095_fruit_time.rds')
+violin6 %>% write_rds('../data/095_violin6.rds')
+irep %>% write_rds('../data/095_irep.rds')
+all_kle %>% write_rds('../data/095_all_kle.rds')
+copies %>% write_rds('../data/095_copies.rds')
 ```
+
 
 ```{r}
 library(patchwork)
 p_f3d <- abx_time + plot_spacer() + sweets_time + violin9 +  fruit_time + violin6 + irep + all_kle +  copies + plot_spacer() +
   plot_layout(widths = c(1, 0.3))
-ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 90,
+ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 110,
       height = 200, units = 'mm', dpi = 400, plot = p_f3d)
 ```
 

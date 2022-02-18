@@ -119,6 +119,9 @@ b3a <- tbt_ent %>% filter(shortname == 'Sweets') %>%
     panel.grid.minor = element_blank(),
         strip.text.x = element_text(size = 8))
 
+t3a %>%  write_rds('../data/094_t3a.rds')
+b3a %>%  write_rds('../data/094_b3a.rds')
+
 # assemble the top and bottom of 3b
 f3a <- plot_grid(t3a, b3a,
                      byrow = T,
@@ -196,6 +199,9 @@ b3b <- tbt_kle %>% filter(shortname == 'Sweets') %>%
 f3b <- plot_grid(t3b, b3b,
                      byrow = T,
           ncol = 1, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1))
+
+t3b %>%  write_rds('../data/094_t3b.rds')
+b3b %>%  write_rds('../data/094_b3b.rds')
 
 f3b %>% write_rds('../data/094_f3b.rds')
 ```

@@ -418,3 +418,14 @@ p11_ver %>%
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
       height = 220, units = 'mm', dpi = 400, plot = p11_ver)
 ```
+```{r}
+abx %>% write_rds('../data/075_abx.rds')
+sweets_time %>% write_rds('../data/075_sweets_time.rds')
+all_sweet_box %>% write_rds('../data/075_all_sweet_box.rds')
+fruit_time %>% write_rds('../data/075_fruit_time.rds')
+all_fruit_box %>% write_rds('../data/075_all_fruit_box.rds')
+irep %>% write_rds('../data/075_irep.rds')
+entero_box %>% write_rds('../data/075_entero_box.rds')
+copies %>% write_rds('../data/075_copies.rds')
+```
+
