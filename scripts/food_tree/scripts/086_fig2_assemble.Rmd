@@ -46,7 +46,7 @@ f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
 
 
 ```{r align}
-left <- align_plots(f2a, f2c, align = 'v', axis = 'l')
+left <- cowplot::align_plots(f2a, f2c, align = 'v', axis = 'l')
 
 top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1, 2) )
 
@@ -58,7 +58,7 @@ f2 <-  plot_grid(top,bottom,
                  nrow = 2)
  
 ggsave('../figs/paper/F2_model_results_086.pdf',
-       width = 180,
+       width = 190,
        height = 120,
          #height = 60,
          units = c("mm"),

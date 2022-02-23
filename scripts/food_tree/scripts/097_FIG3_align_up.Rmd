@@ -11,7 +11,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggpubr)
 library(cowplot)
 library(patchwork)
+library(tidyverse)
 ```
+
 
 ```{r}
 # load those objects individually

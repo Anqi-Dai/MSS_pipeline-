@@ -12,6 +12,7 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(ggimage)
+library(lemon)
 axis_text_size <- 11
 axis_title_size <- 11
 alpha_val <- 0.05
@@ -222,25 +223,21 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.7,size = 0.8 , 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.7,size = 0.8 , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
+  lemon::coord_capped_cart(bottom = 'both', left = 'both') +
   theme(legend.position = "none",
         legend.title = element_blank(),
-        axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
         aspect.ratio=1) +
   guides(colour = guide_legend(override.aes = list(alpha=1)))
 
 fig1_umap
 
-ggsave('../figs/paper/072_fig1_umap.pdf',
-       width = 52,
-       height = 52,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf', plot = fig1_umap)
 ```
 ```{r diet_composition_histogram}
 # # examine that patient's dit pick the day that's most diverse
@@ -358,7 +355,7 @@ fglegend <- dtb %>%
 fg_legend <-  cowplot::get_legend(fglegend)
 fg_legend_ <- as_ggplot(fg_legend)
 fg_legend_
-ggsave('../figs/paper/072_fg_color_palette.pdf', dpi = 400, width = 15)
+
 ```
 
 
@@ -383,15 +380,5 @@ ggsave('../figs/paper/F1_overview_072.pdf',
          units = c("mm"),
          dpi = 400, plot = f1)
 ```
-```{r}
-names(wes_palettes)
-wes_palette("FantasticFox1")
-wes_palette("GrandBudapest1")
-wes_palette("GrandBudapest2")
-df <- mtcars
-df$name <- rownames(df)
-ggscatter(df, x = "wt", y = "mpg",
-   color = "cyl", palette = wes_palette("GrandBudapest2", 3, type = c('discrete')),
-   label = "name", repel = TRUE)
-```
+
 
