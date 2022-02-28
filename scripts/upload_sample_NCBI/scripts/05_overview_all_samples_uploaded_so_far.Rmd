@@ -121,3 +121,65 @@ biosamples <- total %>%
 # Marina's done!!!!!!!
 ```
 
+
+```{r}
+# now look at Hana's
+h <- read_csv('../data/hana/All_sampleids_MAITs.csv')
+length(intersect(h$sampleid, total$BioSample.name))
+newsa <- setdiff(h$sampleid, total$BioSample.name)
+hfiles <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% newsa) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  mutate(R1 = str_glue('{oligos_id}_R1.fastq.gz'),
+         R2 = str_glue('{oligos_id}_R2.fastq.gz')) %>% 
+  mutate(p1 = str_glue('{path_pool}/{R1}'),
+         p2 = str_glue('{path_pool}/{R2}'))
+
+hfiles %>% 
+   select(p1, p2) %>% 
+   gather() %>% 
+   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{value} .')) %>% 
+   select(cmd) %>% 
+   write_csv('../data/dl_h14.sh', col_names = F)
+
+h14 <- h %>% 
+  filter(sampleid %in% newsa) %>% 
+  mutate(pid = str_extract(sampleid, '\\d\\d\\d\\d'))
+
+# now write out the biosample att file for uploading to the website
+h_att <- tibble(
+  Sample_name = h14$sampleid,
+  Organism = 'human gut metagenome',
+  host = 'Homo sapiens',
+  isolation_source = 'stool',
+  collection_date = 'not applicable',
+  geo_loc_name = 'USA: New York',
+  lat_lon = '40.7641 N 73.9568 W',
+  patient_id = h14$pid,
+  DayRelativeToNearestHCT =  h14$sample_day
+) 
+
+h_att %>% 
+  write_tsv('../data/hana/h_att.tsv')
+```
+
+```{r}
+sra_h <- tibble(
+  sample_name = hfiles$sampleid,
+  library_ID = hfiles$sampleid,
+  title = 'Stool sample of allo-HCT patient',
+  library_strategy = 'amplicon',
+  library_source = 'GENOMIC',
+  library_selection = 'PCR',
+  library_layout ='paired',
+  platform= 'ILLUMINA',
+  instrument_model= 'Illumina MiSeq',
+  design_description='PCR amplification of 16S V4-V5 regions; Bead-beating, phenol chloroform DNA extraction',
+  filetype= 'fastq',
+  filename=hfiles$R1,
+  filename2=hfiles$R2
+)
+sra_h %>% 
+  write_tsv('../data/hana/h_sra.tsv')
+```
+
