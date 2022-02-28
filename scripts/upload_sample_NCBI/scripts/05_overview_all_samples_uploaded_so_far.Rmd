@@ -1,0 +1,123 @@
+---
+title: "submitted samples catalog"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+```{r}
+# downloaded today 02-20-2022 biosamples
+# each download max captures 10000 samples
+first <- read_tsv('../data/table_download_1.tsv')
+second <- read_tsv('../data/table_download_2.tsv')
+third <- read_tsv('../data/table_download_3.tsv')
+total <- bind_rows(first, second, third)
+
+biopro <- read_tsv('../data/table_download_bioproject.tsv')
+# are there any duplicated submission
+unique_ones <- total %>% 
+  distinct(BioSample.name) %>% 
+  nrow
+
+nrow(total) - unique_ones
+# lots of duplicated submissions
+
+# look at Joao submission
+joao <- read_csv('~/Downloads/tblASVsamples.csv')
+
+length(intersect(joao$SampleID, total$BioSample.name))
+
+length(intersect(joao$BioProject, biopro$Accession))
+
+
+```
+
+```{r}
+# look at the uploaded SRA files
+sra <- bind_rows(read_tsv('../data/sra1.tsv'),
+                 read_tsv('../data/sra2.tsv'),
+                 read_tsv('../data/sra3.tsv'),
+                 read_tsv('../data/sra4.tsv'),
+                 read_tsv('../data/sra5.tsv'))
+
+length(intersect(joao$Accession, sra$Accession)) 
+
+# are there any shotgun samples
+shotgun_already <- sra %>% 
+  filter(!str_detect(SRA.filename, 'pool')) %>% 
+  filter(!str_detect(SRA.filename, 'tp|aes'))  %>% 
+  filter(str_detect(SRA.filename, 'nohumanreads')) %>% 
+  rename(sampleid = Title)
+
+all_shotgun <- sra %>% 
+  filter(!str_detect(SRA.filename, 'pool')) %>% 
+  filter(!str_detect(SRA.filename, 'tp|aes'))
+# 16s sra files 
+nrow(sra) - nrow(all_shotgun) 
+``` 
+
+```{r}
+# look at what samples in marina's need to be uploaded  16s
+marina <- read_csv('../data/marina/Doris_7_30_21_FINAL_unique_sampleids_16S.csv')
+length(intersect(marina$sampleid, total$BioSample.name))
+# the biosamples all existed
+# I need to find the sra accession for the 16s in these samples 
+
+# the samples that are very likely qualified 16s sra files
+cleaned_sra <- sra %>% 
+  mutate(sampleid = str_extract(SRA.filename, '^.+,'),
+         sampleid = str_replace(sampleid, 'pool..._R1.trimmed.fastq_','')) %>% 
+  filter(!str_detect(SRA.filename, 'fastq$')) %>% 
+  select(SRA.filename, sampleid) %>% 
+  filter(!str_detect(SRA.filename, '^reads1')) %>% 
+  mutate(sampleid = str_replace(sampleid, '_R1.fastq.gz,','')) %>% 
+  filter(!str_detect(SRA.filename, '_R1.trimmed.fastq')) %>% 
+  filter(!str_detect(SRA.filename, 'aes|tp|nohumanreads.')) %>% 
+  filter(str_detect(sampleid, 'pool')) %>% 
+  mutate(sampleid = str_replace(sampleid, '\\.\\.pool.+$',''))
+
+length(intersect(marina$sampleid, cleaned_sra$sampleid))
+find <- setdiff(marina$sampleid, cleaned_sra$sampleid)
+
+res <- asv_alpha_diversity_ag  %>% 
+  filter(sampleid %in% find)
+# the above is the samples needed to be uploaded. the dada2 version 
+
+# find the biosample id of those
+biosamples <- total %>% 
+  filter(BioSample.name %in% res$sampleid) %>% 
+  arrange(BioSample.name, desc(`Release Date`)) %>% 
+  distinct(BioSample.name, .keep_all = T) %>% 
+  select(Accession, BioSample.name) %>% 
+  rename(sampleid = BioSample.name) %>% 
+  inner_join(res) %>% 
+  mutate(R1 = str_glue('{oligos_id}_R1.fastq.gz'),
+         R2 = str_glue('{oligos_id}_R2.fastq.gz')) %>% 
+  mutate(p1 = str_glue('{path_pool}/{R1}'),
+         p2 = str_glue('{path_pool}/{R2}'))
+  
+
+ biosamples %>% 
+   select(p1, p2) %>% 
+   gather() %>% 
+   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{value} .')) %>% 
+   select(cmd) %>% 
+   write_csv('../data/dl_m7.sh', col_names = F)
+ 
+ 
+ biosamples %>% 
+   select(Accession, sampleid, R1, R2) %>% 
+   write_csv('../data/marina/sra_meta.csv')
+ 
+# Marina's done!!!!!!!
+```
+
