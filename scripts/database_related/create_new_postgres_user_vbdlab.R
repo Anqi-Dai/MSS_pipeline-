@@ -39,7 +39,6 @@ vdb_users <- c("peledj",
                "hatfielp",
                "clurmana",
                "smithm4",
-               #"test_user"
                "adintorp", 
                "ngb",
                "chens8",

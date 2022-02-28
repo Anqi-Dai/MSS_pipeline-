@@ -123,9 +123,29 @@ biosamples <- total %>%
 
 
 ```{r}
+# marina shotgun samples
+ms <- read_csv('../data/marina/Doris_7_30_21_FINAL_unique_sampleids_SHOTGUN.csv')
+
+# all of them need to be uploaded the preprocessed version
+
+```
+
+
+
+
+
+
+
+
+# Hana
+
+```{r}
 # now look at Hana's
 h <- read_csv('../data/hana/All_sampleids_MAITs.csv')
 length(intersect(h$sampleid, total$BioSample.name))
+
+
+# these are the ones that don't have biosamples !!!!!!!!!!!1
 newsa <- setdiff(h$sampleid, total$BioSample.name)
 hfiles <- asv_alpha_diversity_ag %>% 
   filter(sampleid %in% newsa) %>% 
@@ -181,5 +201,131 @@ sra_h <- tibble(
 )
 sra_h %>% 
   write_tsv('../data/hana/h_sra.tsv')
+```
+
+```{r}
+# the samples we have the srr accession already
+# correct fastq files 
+h_already <- cleaned_sra %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(sampleid %in% h$sampleid) %>% 
+  inner_join(sra %>% 
+               distinct(SRA.filename, .keep_all = T)) %>% 
+  select(sampleid, Accession)
+
+h_already %>% 
+  write_csv('../data/hana/acc1_568.csv')
+
+
+# the ones that we need to upload the corrct dada2 results fastqs
+length(setdiff(h$sampleid, cleaned_sra$sampleid))
+
+# the path of the files 
+fastq2 <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% setdiff(h$sampleid, cleaned_sra$sampleid)) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  mutate(R1 = str_glue('{oligos_id}_R1.fastq.gz'),
+         R2 = str_glue('{oligos_id}_R2.fastq.gz')) %>% 
+  mutate(p1 = str_glue('{path_pool}/{R1}'),
+         p2 = str_glue('{path_pool}/{R2}'))
+
+fastq2 %>% 
+   select(p1, p2) %>% 
+   gather() %>% 
+   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{value} .')) %>% 
+   select(cmd) %>% 
+   write_csv('../data/dl_h157.sh', col_names = F)
+
+
+
+# Hana: total 725.  new biosample+sra : 14  alrady:568 
+# the biosample acc of these samples (143)
+h2 <- total %>% 
+  filter(BioSample.name %in% fastq2$sampleid)  %>% 
+  distinct(BioSample.name, .keep_all = T) %>% 
+  rename(sampleid = BioSample.name) %>% 
+  inner_join(fastq2)
+
+
+sra_h2 <- tibble(
+  biosample_accession = h2$Accession,
+  library_ID = h2$sampleid,
+  title = 'Stool sample of allo-HCT patient',
+  library_strategy = 'amplicon',
+  library_source = 'GENOMIC',
+  library_selection = 'PCR',
+  library_layout ='paired',
+  platform= 'ILLUMINA',
+  instrument_model= 'Illumina MiSeq',
+  design_description='PCR amplification of 16S V4-V5 regions; Bead-beating, phenol chloroform DNA extraction',
+  filetype= 'fastq',
+  filename=h2$R1,
+  filename2=h2$R2
+)
+sra_h2 %>% 
+  write_tsv('../data/hana/sra_143.tsv')
+```
+
+```{r}
+# the files that I downloaded from lilac
+fns <- tibble(fn = list.files('../data/hana/fastqs/')) %>% 
+  separate(fn , into = c('sampleid','pair'), sep = '_R')
+
+missing <- fns %>% 
+  count(sampleid) %>% 
+  arrange(n) %>% 
+  filter(n == 1)
+
+fns %>% 
+  filter(sampleid %in% missing$sampleid)
+
+fastq2 %>% 
+  filter(oligos_id %in% missing$sampleid) %>% 
+  select(p2)%>% 
+   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{p2} .')) %>% 
+   select(cmd) %>% 
+   write_csv('../data/dl_h5_2.sh', col_names = F)
+```
+
+```{r}
+vdb_users <- c("peledj",
+               "burgosdm",
+               "docampom",
+               "slingerj",
+               "nguyenc1",
+               "daia1",
+               "markeyk",
+               "armijog",
+               "miltiado",
+               "andrlovh",
+               "lindners",
+               "breretod",
+               "giardinp",
+               "khann2",
+               "zuanellc",
+               "hatfielp",
+               "clurmana",
+               "smithm4",
+               "adintorp", 
+               "ngb",
+               "chens8",
+               "elkriefa",
+               "mab4025",
+               "harfordl",
+               "jesusfar",
+               "crossj",
+               'funnellt',
+               "watersn",
+               "maclachlan",
+               "feit1",
+               "MarcellL",
+               "rajs")
+
+users <- tibble(user = vdb_users) %>% 
+  mutate(email = str_glue('{user}@mskcc.org')) %>% 
+  summarize(text = str_c(email, collapse = ", "))
+
+
+users$text
 ```
 
