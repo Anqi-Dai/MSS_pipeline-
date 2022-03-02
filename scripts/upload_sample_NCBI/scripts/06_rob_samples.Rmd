@@ -1,0 +1,53 @@
+---
+title: "Rob samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# 172
+rob <- readxl::read_excel('../data/rob/jenq_454_lookup.xlsx') %>% 
+  filter(Directory.16S != 'NA' & Directory.16S != 'attempted') %>% 
+  distinct(Sample.ID, .keep_all = T)
+
+nrow(rob)
+
+# are all these samples in the biosamples
+length(intersect(rob$Sample.ID, total$BioSample.name))
+
+# some don't have biosamples yet: 11
+add_bios <- setdiff(rob$Sample.ID, total$BioSample.name)
+
+# how many files can I find
+fs <- rob %>% 
+  rename(sampleid = Sample.ID) %>% 
+  inner_join(asv_alpha_diversity_ag)
+
+# the 4 that can't find the sequencing data
+# need to run the pools
+missing <- rob %>% 
+  rename(sampleid = Sample.ID) %>% 
+  filter(!sampleid %in% asv_alpha_diversity_ag$sampleid)
+
+
+# are all the other fastqs fine
+need <- fs %>% 
+  filter(!sampleid %in% cleaned_sra$sampleid)
+
+# the 161 already has cleaned sra
+already_rob <- cleaned_sra %>% 
+  inner_join(fs) %>% 
+  inner_join(sra)
+
+already_rob %>% 
+  select(Accession, sampleid) %>% 
+  write_csv('../data/rob/already_161.csv')
+```
+

@@ -1,0 +1,57 @@
+---
+title: "Check the BSI"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+Note that there are multiple rows of results for each ‘episode’ of a bloodstream infection, because every time someone gets their blood tested, we test many spots around their body (specimen.description) for example the various tubes/lumens they have, often described as colors (red, blue) and peripheral blood, meaning an actual fresh needle stuck into a vein, not a catheter that’s sitting in them for weeks)
+also, once someone has bacteria detected, then we keep checking daily until it goes away, so need to pay attention to test_date .  Once it is positive, that only counts as one bloodstream infection event for the next many days (1 week or so).
+also, if the result is Coagulase Negative Staphylococcus then we ignore that almost always as a false positive / contaminant.
+and some of the results require some manual review because they use various free-text vocabulary terms
+
+```{r}
+bsi <- read_csv('/Volumes/vandenBrinkLab/Angel_Dai/Nutrition_project/data/bsi_nutrition_cohort-2022-02-24.csv') %>% 
+  filter(result != 'Coagulase Negative Staphylococcus') %>% 
+  mutate(mrn = as.numeric(MRN)) %>% 
+  select(mrn, test_name, test_date, test_datetime, specimen.description, result, pos)
+
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+# how many positive entries
+bsi %>% 
+  count(pos)
+
+colnames(bsi)
+
+pos_res <- bsi %>% 
+  filter(pos == "TRUE") %>% 
+  left_join(ptb %>% 
+              select(mrn, hct)) %>% 
+  mutate(test_day = test_date - hct) %>% 
+  mutate(test_day = as.numeric(test_day)) %>% 
+  filter(test_day %in% -8:53)  %>% # the time relavant to the nutrition project 
+  relocate(test_day, .after = mrn) %>% 
+  mutate(pid = str_glue('P{as.numeric(as.factor(mrn))}')) %>% 
+  relocate(pid, .after = mrn)  %>% 
+  mutate(short_res = str_extract(result, "[^\\s]+")) %>% 
+  relocate(short_res, .after = pid)  %>% 
+  arrange(pid, test_day)
+  
+pos_res %>% 
+  count(mrn, sort = T)
+
+
+# scrutinize each patient carefully
+# look at the test_day distribution
+each <- pos_res %>% 
+  gghistogram(x = 'test_day', facet.by = 'pid')
+```
+

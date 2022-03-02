@@ -123,6 +123,33 @@ biosamples <- total %>%
 
 
 ```{r}
+# to make a table with the sampleid and accession
+# for marina 16s
+already_m <- cleaned_sra %>% 
+  inner_join(marina) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  inner_join(sra) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  select(Accession, sampleid) 
+
+
+
+# the newly submitted 7
+new7 <- read_tsv('../data/marina/metadata-11133079-sra-7.tsv') %>% 
+  select(Accession = accession, sampleid = library_ID)
+
+all_16s <- bind_rows(
+  new7, already_m
+)
+
+
+all_16s %>% 
+  write_csv('../data/marina/all_16s_sra_acc_1303.csv')
+  
+```
+
+
+```{r}
 # marina shotgun samples
 ms <- read_csv('../data/marina/Doris_7_30_21_FINAL_unique_sampleids_SHOTGUN.csv')
 
@@ -288,44 +315,26 @@ fastq2 %>%
 ```
 
 ```{r}
-vdb_users <- c("peledj",
-               "burgosdm",
-               "docampom",
-               "slingerj",
-               "nguyenc1",
-               "daia1",
-               "markeyk",
-               "armijog",
-               "miltiado",
-               "andrlovh",
-               "lindners",
-               "breretod",
-               "giardinp",
-               "khann2",
-               "zuanellc",
-               "hatfielp",
-               "clurmana",
-               "smithm4",
-               "adintorp", 
-               "ngb",
-               "chens8",
-               "elkriefa",
-               "mab4025",
-               "harfordl",
-               "jesusfar",
-               "crossj",
-               'funnellt',
-               "watersn",
-               "maclachlan",
-               "feit1",
-               "MarcellL",
-               "rajs")
+# the 14 that I uploaded earlier 
+# now the sra accession returned by ncbi
+h14 <- read_tsv('../data/hana/hana_14_ncbi.tsv') %>% 
+  select( sampleid = sample_name, Accession = accession)
 
-users <- tibble(user = vdb_users) %>% 
-  mutate(email = str_glue('{user}@mskcc.org')) %>% 
-  summarize(text = str_c(email, collapse = ", "))
+h14 %>% write_csv('../data/hana/acc2_14.csv')
+```
 
 
-users$text
+
+```{r}
+# tables from these
+dir.create('../data/save')
+sra %>% 
+  write_csv('../data/save/all_sra_table_20220226.csv')
+
+cleaned_sra %>% 
+  write_csv('../data/save/human_cleaned_sra_20220226.csv')
+
+total %>% 
+  write_csv('../data/save/all_biosample_table_20220226.csv')
 ```
 
