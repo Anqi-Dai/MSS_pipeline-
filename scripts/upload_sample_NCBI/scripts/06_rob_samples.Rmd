@@ -9,9 +9,17 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database('samples_castori_ag')
+get_table_from_database('patient_allo_ag')
 ```
 
 ```{r}
+total <- read_csv('../data/save/all_biosample_table_20220226.csv')
+cleaned_sra <- read_csv('../data/save/human_cleaned_sra_20220226.csv')
+sra <- read_csv('../data/save/all_sra_table_20220226.csv')
 # 172
 rob <- readxl::read_excel('../data/rob/jenq_454_lookup.xlsx') %>% 
   filter(Directory.16S != 'NA' & Directory.16S != 'attempted') %>% 
@@ -49,5 +57,75 @@ already_rob <- cleaned_sra %>%
 already_rob %>% 
   select(Accession, sampleid) %>% 
   write_csv('../data/rob/already_161.csv')
+```
+```{r}
+# the 11 that need to create biosamples and also upload files 
+# calculate the day relative to transplant for these samples
+# some problems with the mrn so I will just put the pid there
+ptb <- patient_allo_ag %>% 
+  arrange(mrn, hct) %>% 
+  distinct(mrn, hct)
+  
+s11 <- bind_rows(need %>% select(sampleid),missing %>% select(sampleid) )  %>% 
+  mutate(pid = str_replace(sampleid, 'A|B|C|D','')) %>% 
+  filter(! sampleid %in% missing$sampleid) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection))
+
+r_s <- tibble(
+  Sample_name = s11$sampleid,
+  Organism = 'human gut metagenome',
+  host = 'Homo sapiens',
+  isolation_source = 'stool',
+  collection_date = s11$datecollection,
+  geo_loc_name = 'USA: New York',
+  lat_lon = '40.7641 N 73.9568 W',
+  patient_id = s11$pid
+) 
+ 
+r_s %>% 
+  write_tsv('../data/rob/biosample_att.tsv')
+```
+
+```{r}
+# probably the 4 missing were attempted but failed 
+  
+rfiles <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% s11$sampleid) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  mutate(R1 = str_glue('{oligos_id}_R1.fastq.gz'),
+         R2 = str_glue('{oligos_id}_R2.fastq.gz')) %>% 
+  mutate(p1 = str_glue('{path_pool}/{R1}'),
+         p2 = str_glue('{path_pool}/{R2}'))
+rfiles %>% 
+   select(p1, p2) %>% 
+   gather() %>% 
+   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{value} .')) %>% 
+   select(cmd) %>% 
+   write_csv('../data/dl_r7.sh', col_names = F)
+
+# there are problems with 4 samples
+missing %>% 
+  write_csv('../data/rob/missing4.csv')
+```
+
+```{r}
+# the sra table
+sra_r <- tibble(
+  sample_name = rfiles$sampleid,
+  library_ID = rfiles$sampleid,
+  title = 'Stool sample of allo-HCT patient',
+  library_strategy = 'amplicon',
+  library_source = 'GENOMIC',
+  library_selection = 'PCR',
+  library_layout ='paired',
+  platform= 'ILLUMINA',
+  instrument_model= 'Illumina MiSeq',
+  design_description='PCR amplification of 16S V4-V5 regions; Bead-beating, phenol chloroform DNA extraction',
+  filetype= 'fastq',
+  filename=rfiles$R1,
+  filename2=rfiles$R2
+)
+sra_r %>% 
+  write_tsv('../data/rob/r_sra.tsv')
 ```
 
