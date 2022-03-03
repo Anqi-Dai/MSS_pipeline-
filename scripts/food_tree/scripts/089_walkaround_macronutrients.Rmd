@@ -114,7 +114,97 @@ macro_panel %>%
         #strip.text = element_blank(),
         panel.grid.minor = element_blank()
        ) 
-
-ggsave('../figs/paper/S2_sameday_macronutrients_microbiome_089_Jan20.pdf', width = 10, height = 6)  
 ```
+
+```{r}
+# since I need to annotate the p value of the slope I can't do it in facet wrap
+# need to manually arrange them
+
+# calculate the p value of the slopes
+pvals <- macro_panel %>% 
+  split(., list(.$xaxis, .$yaxis)) %>% 
+  map(function(df) {
+    res = summary(lm(value ~ number, data = df ))
+    return(pval = round(res$coefficients[2, 'Pr(>|t|)'], 3))
+  })
+
+dfs <- macro_panel %>% 
+  split(., list(.$xaxis, .$yaxis))
+
+panels <- list()
+
+
+for (i in 1: length(dfs)){
+  panels[[i]] <- dfs[[i]] %>% 
+  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
+           conf.int = TRUE # Add confidence interval
+           ) +
+  theme_classic(base_size = 11) +
+  theme(aspect.ratio = 1,
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()
+       )  +
+  annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE)
+}
+names(panels) <- names(dfs)
+```
+
+```{r}
+# some tweaking of the figures
+# limit the middle row y axis to be below 0
+for (i in 1: length(dfs)){
+  if(str_detect(names(dfs)[[i]], 'Blautia')){
+    panels[[i]] <- dfs[[i]] %>% 
+  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
+           conf.int = TRUE # Add confidence interval
+           ) +
+  theme_classic(base_size = 11) +
+  theme(aspect.ratio = 1,
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()
+       )  +
+  annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE) +
+      ylim(-6, 0)
+  }
+}
+
+# all the other columns except the first column won't have y axis text
+# all the other rows except the bottom row won't have x text
+for (i in 1: length(dfs)){
+  if(!str_detect(names(dfs)[[i]], 'Enteroco|Caloric')){
+    panels[[i]] <- dfs[[i]] %>% 
+  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
+           conf.int = TRUE # Add confidence interval
+           ) +
+  theme_classic(base_size = 11) +
+  theme(aspect.ratio = 1,
+        axis.text.x=element_blank(),
+        axis.text.y=element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank()
+       )  +
+  annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE)
+  }
+}
+```
+
+
+```{r}
+library(gridExtra)
+n <- length(dfs)
+nCol <- 6
+all <- do.call("grid.arrange", c(panels, ncol=nCol))
+ggsave('../figs/paper/S2_sameday_macronutrients_microbiome_089.pdf', 
+       width = 18, 
+       height = 9,
+       plot = all)
+
+```
+
 
