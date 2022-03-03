@@ -39,6 +39,6 @@ plot_grid(t3a,b3a, abx_row , ncol = 1)
 ggsave('../figs/paper/test3.pdf')
 
 
-left <- align_plots(t3a, b3a, align = 'v', axis = 'l')
+left <- align_plots(t3a, b3a, align = 'v', axis = 'l') 
 ```
 

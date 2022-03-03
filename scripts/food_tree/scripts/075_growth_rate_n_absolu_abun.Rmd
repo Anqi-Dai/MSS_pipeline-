@@ -19,7 +19,7 @@ library(cowplot)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 axis_text_size <- 11
 axis_title_size <- 11
-plot_ratio <- 1/2
+plot_ratio <-1.5/2
 
 list_table_from_database('pathway')
 get_table_from_database('tbl_humann2_pathways')
@@ -185,12 +185,11 @@ copies = cts_ %>%
   filter(mrn == p11) %>% 
   ggplot(aes(x = sdrt, y = entero_copy )) +
   geom_point() +
-  geom_line(aes(x = sdrt, y = entero_copy), linetype = 'solid', size = 0.5, col = 'black') +
  # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
   #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
   xlim(xmin, xmax) +
   labs(x = 'Day relative to transplant',
-       y = 'Copy numbers',
+       y = 'Copy numbers X 108\nper gram of feces',
        title = 'Enterococcus') +
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
@@ -204,10 +203,10 @@ copies = cts_ %>%
 
 
 entero_box <- entero %>% 
-  ggviolin(y = 'ave_irpe', add = 'boxplot') +
+  ggboxplot(y = 'ave_irpe') +
   theme_classic() +
    ylim(1, irep_highest) +
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=4,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
@@ -248,10 +247,10 @@ lowest_daily_fruit_intake <- floor( min(all_fruit$fruitdaily))
 
 
 all_fruit_box <- all_fruit %>% 
-  ggviolin(y = 'fruitdaily', add = 'boxplot') +
+  ggboxplot(y = 'fruitdaily') +
   theme_classic() +
   coord_cartesian(ylim = c(0, max(fruit$fruitsum)))+
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=4,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
@@ -320,10 +319,10 @@ lowest_daily_sweet_intake <- floor( min(all_sweet$sweetdaily))
 
 
 all_sweet_box <-  all_sweet %>% 
-  ggviolin(y = 'sweetdaily', add = 'boxplot') +
+  ggboxplot(y = 'sweetdaily') +
   theme_classic() +
   coord_cartesian(ylim = c(0, max(sweets$sweetsum)))+
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=4,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
@@ -381,7 +380,7 @@ p11_abx <- antibiotics_antibacterial_multicenter_ag %>%
 xmin < -5.1
 abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
   geom_segment(
-    size = 3, lineend = 'square', alpha = 0.5
+    size = 2, lineend = 'square', alpha = 0.5
   ) +
   geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 1.3) +
   coord_cartesian(xlim=c(xmin, xmax)) + 
@@ -421,14 +420,12 @@ p11_ver %>%
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
       height = 220, units = 'mm', dpi = 400, plot = p11_ver)
 ```
+
 ```{r}
-abx %>% write_rds('../data/075_abx.rds')
-sweets_time %>% write_rds('../data/075_sweets_time.rds')
-all_sweet_box %>% write_rds('../data/075_all_sweet_box.rds')
-fruit_time %>% write_rds('../data/075_fruit_time.rds')
-all_fruit_box %>% write_rds('../data/075_all_fruit_box.rds')
-irep %>% write_rds('../data/075_irep.rds')
-entero_box %>% write_rds('../data/075_entero_box.rds')
-copies %>% write_rds('../data/075_copies.rds')
+library(patchwork)
+p_f3c <- abx + plot_spacer() + sweets_time + all_sweet_box +  fruit_time + all_fruit_box + irep + entero_box +  copies + plot_spacer() +
+  plot_layout(widths = c(1, 0.5))
+ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
+      height = 200, units = 'mm', dpi = 400, plot = p_f3c)
 ```
 

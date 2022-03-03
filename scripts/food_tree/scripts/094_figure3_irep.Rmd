@@ -119,15 +119,6 @@ b3a <- tbt_ent %>% filter(shortname == 'Sweets') %>%
     panel.grid.minor = element_blank(),
         strip.text.x = element_text(size = 8))
 
-t3a %>%  write_rds('../data/094_t3a.rds')
-b3a %>%  write_rds('../data/094_b3a.rds')
-
-# assemble the top and bottom of 3b
-f3a <- plot_grid(t3a, b3a,
-                     byrow = T,
-          ncol = 1, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1))
-
-f3a %>% write_rds('../data/094_f3a.rds')
 ```
 
 # kle
@@ -200,12 +191,87 @@ f3b <- plot_grid(t3b, b3b,
                      byrow = T,
           ncol = 1, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1))
 
-t3b %>%  write_rds('../data/094_t3b.rds')
-b3b %>%  write_rds('../data/094_b3b.rds')
+```
+
+```{r}
+# decided to just use the enterococcus and fruit & klebsiella with sweets
+ent_fruit <- tbt_ent %>% 
+  filter(shortname == 'Fruits' & grp == 'Enterococcus only')
+
+# calculate the p value of the slope of the regression line 
+res_ent_fruit <- summary(lm(ave_irep ~ gram, data = ent_fruit ))
+ent_fruit_p <- round(res_ent_fruit$coefficients[2, 'Pr(>|t|)'], 2)
+
+f3a <- ent_fruit %>% 
+   ggscatter(x = 'gram', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
+            xlab = 'Fruits intake in\nprevious 2 days (g)',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line", 
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE) +
+  annotate("text", x = 40, y = 1, label = str_glue("paste(italic(p), \" = {ent_fruit_p}\")"), parse = TRUE) +
+  theme_classic() +
+  theme( 
+    plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    aspect.ratio = 1,
+       axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+    strip.text.x = element_text(size = 8))
+
+f3a
+
+ggsave('../figs/paper/094_f3a.pdf',
+       width = 60,
+       height = 60,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = f3a)
+f3a %>% write_rds('../data/094_f3a.rds')
+```
+
+
+```{r}
+# klebsiella with sweets
+kle_sweet <- tbt_kle %>% 
+  filter(shortname == 'Sweets' & grp == 'Klebsiella only')
+
+# calculate the p value of the slope of the regression line 
+res_kle_sweet <- summary(lm(ave_irep ~ gram, data = kle_sweet ))
+kle_sweet_p <- round(res_kle_sweet$coefficients[2, 'Pr(>|t|)'], 2)
+
+f3b <- kle_sweet %>% 
+   ggscatter(x = 'gram', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
+            xlab = 'Sweets intake in\nprevious 2 days (g)',
+            ylab = 'Growth rate',
+            title = 'Klebsiella',
+             add = "reg.line", 
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE) +
+  annotate("text", x = 75, y = 1, label = str_glue("paste(italic(p), \" = {kle_sweet_p}\")"), parse = TRUE) +
+  theme_classic() +
+  theme( 
+    plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    aspect.ratio = 1,
+       axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+    strip.text.x = element_text(size = 8))
+
+ggsave('../figs/paper/094_f3b.pdf',
+       width = 60,
+       height = 60,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = f3b)
 
 f3b %>% write_rds('../data/094_f3b.rds')
 ```
-
 
 
 # summarizing ireps of all major genera

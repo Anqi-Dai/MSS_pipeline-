@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(ggpubr)
 library(tidyverse)
 library(cowplot)
-plot_ratio <- 1/2
+plot_ratio <- 1.5/2
 axis_text_size <- 11
 axis_title_size <- 11
 ```
@@ -52,7 +52,10 @@ target <- combined %>%
   slice(1) %>% 
   select(mrn) %>% 
   pull(mrn)
+```
 
+
+```{r abso}
 # all of the stool samples we have of this patient
 get_table_from_database('samples_castori_ag')
 get_table_from_database('asv_annotation_blast_ag')
@@ -143,10 +146,9 @@ xmax <- highday + 1
 copies <- cts_ %>% 
   ggplot(aes(x = sdrt, y = kle_copy )) +
   geom_point() +
-  geom_line(aes(x = sdrt, y = kle_copy), linetype = 'solid', size = 0.5, col = 'black') +
   xlim(xmin, xmax) +
   labs(x = 'Day relative to transplant',
-       y = 'Copy numbers',
+       y = 'Copy numbers X 108\nper gram of feces',
        title = 'Klebsiella') +
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
@@ -209,7 +211,7 @@ sweets_time <- sweets %>%
 ```{r plotting}
 abx_time <- ggplot(abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
   geom_segment(
-     size = 3, lineend = 'square', alpha = 0.5
+     size = 2, lineend = 'square', alpha = 0.5
   ) +
   geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 1.3) +
    xlim(xmin, xmax) +
@@ -258,43 +260,43 @@ irep = growth %>%
 ```{r population_box}
 # the boxes of the populations 
 all_kle <- all_kle_irep %>% 
-  ggviolin(y = 'aveirep', add = 'boxplot') +
+  ggboxplot(y = 'aveirep', outlier.shape = 20) +
   theme_classic() +
    ylim(1, irep_highest) +
-  theme(aspect.ratio=3,
+  theme(aspect.ratio=4,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
-       #line = element_blank(),
+       line = element_blank(),
        axis.text.x = element_blank() ) 
 
 
 violin9 <- all_sweet %>% 
-  ggviolin(y = 'sweetdaily', add = 'boxplot') +
+  ggboxplot(y = 'sweetdaily', outlier.shape = 20) +
   theme_classic() + 
   coord_cartesian(ylim = c(0, max(sweets$sweetsum)))+
-  theme(aspect.ratio=3,
+  theme(aspect.ratio=4,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
-       #line = element_blank(),
+       line = element_blank(),
        axis.text.x = element_blank() )
 
 violin6 <- all_fruit %>% 
-  ggviolin(y = 'fruitdaily', add = 'boxplot') +
+  ggboxplot(y = 'fruitdaily', outlier.shape = 20) +
   theme_classic() +
   coord_cartesian(ylim = c(0, max(fruit$fruitsum)))+
-  theme(aspect.ratio=3,
+  theme(aspect.ratio=4,
        axis.ticks.x=element_blank(),
        axis.title.x = element_blank(),
        axis.ticks.y=element_blank(),
        axis.title.y = element_blank(),
        axis.text.y = element_blank(),
-       #line = element_blank(),
+       line = element_blank(),
        axis.text.x = element_blank() )
 
 ```
@@ -304,60 +306,33 @@ violin6 <- all_fruit %>%
 ```{r population_box}
 # the empty row trick worked ...hahhaha
 
-pkle_ver <- plot_grid(abx_time, NA,
-                      NULL, NULL, 
-                     sweets_time,violin9,
-                       NULL, NULL, 
-                     fruit_time,violin6,
-                       NULL, NULL, 
-                     irep, all_kle,
-                       NULL, NULL, 
-                     copies,NA,
-                     byrow = T,
-          ncol = 2, axis = 'ltbr', align = 'hv', 
-          rel_heights = c(1, -0.7, 1, -0.7, 1, -0.7, 1, -0.7, 1),
-          rel_widths = c(1, 1))
-pkle_ver %>% write_rds('../data/095_pkle_ver.rds')
+# pkle_ver <- plot_grid(abx_time, NA,
+#                       NULL, NULL, 
+#                      sweets_time,violin9,
+#                        NULL, NULL, 
+#                      fruit_time,violin6,
+#                        NULL, NULL, 
+#                      irep, all_kle,
+#                        NULL, NULL, 
+#                      copies,NA,
+#                      byrow = T,
+#           ncol = 2, axis = 'ltbr', align = 'hv', 
+#           rel_heights = c(1, -0.7, 1, -0.7, 1, -0.7, 1, -0.7, 1),
+#           rel_widths = c(1, 1))
+# pkle_ver %>% write_rds('../data/095_pkle_ver.rds')
+# ggsave('../figs/paper/095_f3d.pdf', height = 10)
 
-abx_time %>% write_rds('../data/095_abx_time.rds')
-sweets_time %>% write_rds('../data/095_sweets_time.rds')
-violin9 %>% write_rds('../data/095_violin9.rds')
-fruit_time %>% write_rds('../data/095_fruit_time.rds')
-violin6 %>% write_rds('../data/095_violin6.rds')
-irep %>% write_rds('../data/095_irep.rds')
-all_kle %>% write_rds('../data/095_all_kle.rds')
-copies %>% write_rds('../data/095_copies.rds')
+
 ```
 
 
 ```{r}
 library(patchwork)
 p_f3d <- abx_time + plot_spacer() + sweets_time + violin9 +  fruit_time + violin6 + irep + all_kle +  copies + plot_spacer() +
-  plot_layout(widths = c(1, 0.3))
-ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 110,
+  plot_layout(widths = c(1, 0.5))
+ggsave('../figs/paper/095_irep_kle_vertical.pdf', width = 90,
       height = 200, units = 'mm', dpi = 400, plot = p_f3d)
 ```
-
-
-```{r}
-f3b / p_f3d +
-  plot_layout(heights  = c(2, 5))
-ggsave('../figs/paper/095_right.pdf', width = 120,
-      height = 300, units = 'mm', dpi = 400)
-
-A <- f3b
-B <- abx_time
-C <- violin9
-layout <- "
-AAAAAAAA
-BBBBBBDD
-"
-A + B + C  +
-  plot_layout(design = layout)
-ggsave('../figs/paper/095_right.pdf', width = 120,
-      height = 150, units = 'mm', dpi = 400)
-```
-
 
 ```{r f3_bottom}
 p11 <- read_rds('../data/075_p11_vertical5.rds')
@@ -367,7 +342,7 @@ bottom <- plot_grid(p11, pkle_ver,
                      byrow = T,
           ncol = 2, axis = 'ltbr', align = 'h', rel_widths = c(1, 1), labels = c('C','D'))
  
-ggsave('../figs/paper/095_both_vertical5.pdf', width = 260,
+ggsave('../figs/paper/095_both_vertical5.pdf', width = 200,
       height = 290, units = 'mm', dpi = 400, plot = bottom)
 ```
 

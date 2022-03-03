@@ -323,6 +323,17 @@ h14 <- read_tsv('../data/hana/hana_14_ncbi.tsv') %>%
 h14 %>% write_csv('../data/hana/acc2_14.csv')
 ```
 
+```{r}
+# the newly submitted 143 sra
+acc3 <- read_tsv('../data/hana/metadata-11133234-sra143.tsv') %>% 
+  select(sampleid = library_ID, Accession = accession)
+
+acc2 <- read_csv('../data/hana/acc2_14.csv')
+acc1 <- read_csv('../data/hana/acc1_568.csv')
+hana <- bind_rows(acc1, acc2, acc3)
+hana %>% 
+  write_csv('../data/hana/total_725_acc.csv')
+```
 
 
 ```{r}

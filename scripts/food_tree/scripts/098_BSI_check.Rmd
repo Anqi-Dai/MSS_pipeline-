@@ -10,6 +10,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+# see how does the 16 patients overlap here with the 95
+combined <- read_csv('../data/growth/069_irep_combined_res.csv')  %>% 
+  distinct(mrn)
+
+irep_res <- read_csv('../data/growth/069_irep_combined_res.csv')
 ```
 
 Note that there are multiple rows of results for each ‘episode’ of a bloodstream infection, because every time someone gets their blood tested, we test many spots around their body (specimen.description) for example the various tubes/lumens they have, often described as colors (red, blue) and peripheral blood, meaning an actual fresh needle stuck into a vein, not a catheter that’s sitting in them for weeks)
@@ -43,7 +48,9 @@ pos_res <- bsi %>%
   relocate(pid, .after = mrn)  %>% 
   mutate(short_res = str_extract(result, "[^\\s]+")) %>% 
   relocate(short_res, .after = pid)  %>% 
-  arrange(pid, test_day)
+  arrange(pid, test_day) %>% 
+  filter(short_res != 'Candida') %>% 
+  mutate(irep = if_else(mrn %in% combined$mrn, T, F))
   
 pos_res %>% 
   count(mrn, sort = T)
@@ -52,6 +59,16 @@ pos_res %>%
 # scrutinize each patient carefully
 # look at the test_day distribution
 each <- pos_res %>% 
-  gghistogram(x = 'test_day', facet.by = 'pid')
+  gghistogram(x = 'test_day', facet.by = 'pid', label = 'short_res', repel = T, fill = 'irep') +
+  scale_fill_manual(values = c('white','red'))
+
+ggsave('../data/098_bsi_pos.pdf', width = 10)
+
+# unfortunately P11 that is in f3c does have klebsielle at d40 
+# nothing about P klebsiella
+
+
+
+
 ```
 
