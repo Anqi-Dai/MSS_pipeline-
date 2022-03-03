@@ -1,0 +1,46 @@
+---
+title: "Duke samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+```{r}
+# total: 2678
+duke <- read_csv('../data/duke_samples_for_angel_02-22-2022 (1).csv') %>% 
+  rename(oligos_id = oligoid)
+
+# already 1769
+already <- duke %>% 
+  inner_join(asv_alpha_diversity_ag, by = 'oligos_id') %>% 
+  distinct(oligos_id, .keep_all = T)
+
+# missing 
+missing <- duke %>% 
+  filter(!oligos_id %in% asv_alpha_diversity_ag$oligos_id)
+
+find <- missing %>% 
+  filter(submitted_for_sequencing == 'yes')
+
+find %>% 
+  count(notes)
+  
+```
+```{r}
+# the three pools 
+three <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(path_pool, 'pool1094\\+1095|pool1096\\+1097|pool1100'))
+dir.create('../data/duke')
+three %>% 
+  write_csv('../data/duke/pool1094+1095_and_pool1096+1097_and_pool1100.csv')
+```
+
