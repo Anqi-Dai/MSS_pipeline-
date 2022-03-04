@@ -29,18 +29,40 @@ missing <- duke %>%
   filter(!oligos_id %in% asv_alpha_diversity_ag$oligos_id)
 
 find <- missing %>% 
-  filter(submitted_for_sequencing == 'yes')
+  filter(submitted_for_sequencing == 'yes') %>% 
+  select(sampleid, sampleid_clean, oligos_id, notes , experiment)  %>% 
+  mutate(sid = str_replace_all(oligos_id, '-|/|_','\\.'))
 
 find %>% 
   count(notes)
+
+
+
+two <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(path_pool, 'pool1096\\+1097|pool1100')) %>% 
+  select(sampleid) %>% 
+  distinct() %>% 
+  rename(sid = sampleid)
+
+length(intersect(two$sid, find$sid))
+setdiff(two$sid, find$sid)
+```
+
+
+```{r}
+setdiff( find$sid, two$sid)
+
+# the 228 that don't know what the pool or where the samples are
+where <- find %>% 
+  filter(!sid %in% two$sid)
+```
+
+
+```{r}
+first <- three %>% 
+  mutate(sid = str_replace(sampleid, '\\.','_')) %>% 
+  right_join(find %>% rename(sid = oligos_id), by = 'sid')
   
 ```
-```{r}
-# the three pools 
-three <- asv_alpha_diversity_ag %>% 
-  filter(str_detect(path_pool, 'pool1094\\+1095|pool1096\\+1097|pool1100'))
-dir.create('../data/duke')
-three %>% 
-  write_csv('../data/duke/pool1094+1095_and_pool1096+1097_and_pool1100.csv')
-```
+
 
