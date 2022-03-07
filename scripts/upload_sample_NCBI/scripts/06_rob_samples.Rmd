@@ -129,3 +129,13 @@ sra_r %>%
   write_tsv('../data/rob/r_sra.tsv')
 ```
 
+```{r}
+# to combine them together
+acc1 <- read_csv('../data/rob/already_161.csv')
+acc2 <- read_tsv('../data/rob/metadata-11152272-sra_7.tsv') %>% 
+  select(Accession = accession, sampleid = library_ID)
+
+all <- bind_rows(acc1, acc2)
+all %>% write_csv('../data/rob/final_168_acc.csv')
+```
+

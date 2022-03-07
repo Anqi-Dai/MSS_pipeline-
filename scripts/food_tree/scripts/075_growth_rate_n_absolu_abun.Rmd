@@ -21,9 +21,6 @@ axis_text_size <- 11
 axis_title_size <- 11
 plot_ratio <-1.5/2
 
-list_table_from_database('pathway')
-get_table_from_database('tbl_humann2_pathways')
-get_table_from_database('metacyc_pathway_ontology')
 ```
 
 ```{r}
@@ -152,68 +149,9 @@ quantile_annot_df <- tibble(
   height = c(irep_q25, irep_q50, irep_q75)
 )
 
-irep = entero %>% 
-  filter(sdrt %in% -5:15) %>% 
-  filter(mrn == p11) %>% 
-  ggplot(aes(x = sdrt, y = ave_irpe )) +
-  geom_point() +
-  labs(title = str_glue('{}')) +
-  geom_hline(yintercept = irep_q25, linetype = 'dashed') +
-  #geom_text(data = quantile_annot_df, mapping = aes(x = 14, y = height, label = quant), nudge_y = 0.02, size = 2.5) +
-  geom_hline(yintercept = irep_q50, linetype = 'dashed') +
-  geom_hline(yintercept = irep_q75, linetype = 'dashed') +
-  xlim(xmin, xmax) +
-  ylim(1, irep_highest) +
-  labs(x = '',
-       y = 'Growth rate',
-       title = 'Enterococcus')+
-  theme_classic()+
-  theme(aspect.ratio=plot_ratio,
-        #axis.text.x=element_blank(),
-        #axis.ticks.x=element_blank(),
-        panel.grid.major.x = element_line(color = "grey85"),
-        axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        plot.margin = margin(b=-0.8,unit="cm"))
-```
 
 
-```{r}
-copies = cts_ %>% 
-  filter(sdrt %in% -5:15) %>% 
-  filter(mrn == p11) %>% 
-  ggplot(aes(x = sdrt, y = entero_copy )) +
-  geom_point() +
- # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
-  #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-  xlim(xmin, xmax) +
-  labs(x = 'Day relative to transplant',
-       y = 'Copy numbers X 108\nper gram of feces',
-       title = 'Enterococcus') +
-  theme_classic() +
-  theme(aspect.ratio=plot_ratio,
-        plot.margin = margin(l=-0.8,unit="cm"),
-        axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        panel.grid.major.x = element_line(colour = "grey85"))
 
-# a violin plot to show all the entero irep distribution
-
-
-entero_box <- entero %>% 
-  ggboxplot(y = 'ave_irpe') +
-  theme_classic() +
-   ylim(1, irep_highest) +
-  theme(aspect.ratio=4,
-       axis.ticks.x=element_blank(),
-       axis.title.x = element_blank(),
-       axis.ticks.y=element_blank(),
-       axis.title.y = element_blank(),
-       axis.text.y = element_blank(),
-       line = element_blank(),
-       axis.text.x = element_blank() ) 
  
  
 # a plot to show the fruit intake over time for this patient
@@ -245,48 +183,8 @@ f_q75 <- quantile(x = all_fruit$fruitdaily, 0.75)
 highest_daily_fruit_intake <- ceiling( max(all_fruit$fruitdaily))
 lowest_daily_fruit_intake <- floor( min(all_fruit$fruitdaily))
 
-
-all_fruit_box <- all_fruit %>% 
-  ggboxplot(y = 'fruitdaily') +
-  theme_classic() +
-  coord_cartesian(ylim = c(0, max(fruit$fruitsum)))+
-  theme(aspect.ratio=4,
-       axis.ticks.x=element_blank(),
-       axis.title.x = element_blank(),
-       axis.ticks.y=element_blank(),
-       axis.title.y = element_blank(),
-       axis.text.y = element_blank(),
-       line = element_blank(),
-       axis.text.x = element_blank() ) 
-
 ```
 
-```{r}
-fruit_time <- fruit %>% 
-  ggplot(aes(x = fdrt, y = fruitsum )) +
-  geom_point() +
-  geom_line(aes(x = fdrt, y = fruitsum), linetype = 'solid', size = 0.5, col = 'black') +
- # scale_y_log10(breaks = scales::trans_breaks("log10", function(x) 10^x), 
-  #          labels = scales::trans_format("log10", scales::math_format(10^.x))) +
-  xlim(xmin, xmax) +
-  labs(x = '',
-       y = 'Gram',
-       title = 'Fruits intake') +
-  theme_classic() + 
-  ylim(0, max(fruit$fruitsum))+
-  #scale_y_sqrt() +
-  geom_hline(yintercept = f_q25, linetype = 'dashed') +
-  geom_hline(yintercept = f_q50, linetype = 'dashed') + 
-  geom_hline(yintercept = f_q75, linetype = 'dashed') +
-  theme(aspect.ratio=plot_ratio,#1/2.8
-        plot.margin = margin(l=-0.8,unit="cm"),
-        #axis.text.x=element_blank(),
-        #axis.ticks.x=element_blank(),
-        axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        panel.grid.major.x = element_line(colour = "grey85"))
-```
 
 ```{r}
 # the sweets intake for this patient
@@ -317,51 +215,15 @@ s_q75 <- quantile(x = all_sweet$sweetdaily, 0.75)
 highest_daily_sweet_intake <- ceiling( max(all_sweet$sweetdaily))
 lowest_daily_sweet_intake <- floor( min(all_sweet$sweetdaily))
 
-
-all_sweet_box <-  all_sweet %>% 
-  ggboxplot(y = 'sweetdaily') +
-  theme_classic() +
-  coord_cartesian(ylim = c(0, max(sweets$sweetsum)))+
-  theme(aspect.ratio=4,
-       axis.ticks.x=element_blank(),
-       axis.title.x = element_blank(),
-       axis.ticks.y=element_blank(),
-       axis.title.y = element_blank(),
-       axis.text.y = element_blank(),
-       line = element_blank(),
-       axis.text.x = element_blank() ) 
 ```
  
 
-```{r}
-sweets_time <- sweets %>%    
-  ggplot(aes(x = fdrt, y = sweetsum )) +
-  geom_point() +
-  geom_line(aes(x = fdrt, y = sweetsum), linetype = 'solid', size = 0.5, col = 'black') +
-  xlim(xmin, xmax) +
-  labs(x = '',
-       y = 'Gram',
-       title = 'Sweets intake') +
-  theme_classic() + 
-  ylim(0, max(sweets$sweetsum))+
-  #scale_y_sqrt() +
-  geom_hline(yintercept = s_q25, linetype = 'dashed') +
-  geom_hline(yintercept = s_q50, linetype = 'dashed') + 
-  geom_hline(yintercept = s_q75, linetype = 'dashed') +
-  theme(aspect.ratio=plot_ratio,
-        plot.margin = margin(l=-0.8,unit="cm"),
-        #axis.text.x=element_blank(),
-        #axis.ticks.x=element_blank(),
-        axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        panel.grid.major.x = element_line(colour = "grey85"))
-```
 
 ```{r}
 # check this patient's abx usage
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
 # any vanco?
+
 p11_abx <- antibiotics_antibacterial_multicenter_ag %>% 
   filter(patient_id == p11 ) %>% 
   rename(mrn = patient_id) %>% 
@@ -377,7 +239,56 @@ p11_abx <- antibiotics_antibacterial_multicenter_ag %>%
   mutate(yval = seq(1, nrow(.))) %>% 
   mutate(startdrt = as.numeric(startdrt) ) %>% 
   mutate(startdrt = if_else(startdrt == -5, -5.1, startdrt))
+
 xmin < -5.1
+```
+
+
+```{r}
+# a box plot to show all the entero irep distribution
+entero_box <- entero %>% 
+  ggboxplot(y = 'ave_irpe', color = 'black', outlier.shape = 20,) +
+  theme_classic() +
+   ylim(1, irep_highest) +
+  theme(aspect.ratio=4,
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
+
+all_sweet_box <-  all_sweet %>% 
+  ggboxplot(y = 'sweetdaily', outlier.shape = 20, color = '#db2589') +
+  theme_classic() +
+  coord_cartesian(ylim = c(0, max(sweets$sweetsum)))+
+  theme(aspect.ratio=4,
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
+
+
+all_fruit_box <- all_fruit %>% 
+  ggboxplot(y = 'fruitdaily', outlier.shape = 20, color = '#7D3C98') +
+  theme_classic() +
+  coord_cartesian(ylim = c(0, max(fruit$fruitsum)))+
+  theme(aspect.ratio=4,
+       axis.ticks.x=element_blank(),
+       axis.title.x = element_blank(),
+       axis.ticks.y=element_blank(),
+       axis.title.y = element_blank(),
+       axis.text.y = element_blank(),
+       line = element_blank(),
+       axis.text.x = element_blank() ) 
+
+```
+
+```{r}
 abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
   geom_segment(
     size = 2, lineend = 'square', alpha = 0.5
@@ -389,36 +300,98 @@ abx <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, 
        title = 'Antibiotics') + 
   theme_classic() +
   theme(aspect.ratio=plot_ratio,
-        #axis.text.x=element_blank(),
-        #axis.ticks.x=element_blank(),
         axis.ticks.y=element_blank(),
         axis.text.y=element_blank(),
+        line = element_blank(),
+        axis.text=element_blank(),
+        axis.title=element_blank(),
+        plot.title = element_blank(),
+        panel.grid.major.x = element_blank())
+
+
+sweets_time <- sweets %>%    
+  ggplot(aes(x = fdrt, y = sweetsum )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = quantile(x = all_sweet$sweetdaily, 0.25), ymax = quantile(x = all_sweet$sweetdaily, 0.75), fill='gray',  alpha=0.3) +
+  geom_point(col = '#db2589') +
+  geom_line(aes(x = fdrt, y = sweetsum), linetype = 'solid', size = 0.5, col = '#db2589') +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Sweets intake',
+       title = '') +
+  theme_classic() + 
+  ylim(0, max(sweets$sweetsum))+
+  theme(aspect.ratio=plot_ratio,
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+
+fruit_time <- fruit %>% 
+  ggplot(aes(x = fdrt, y = fruitsum )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = quantile(x = all_fruit$fruitdaily, 0.25), ymax = quantile(x = all_fruit$fruitdaily, 0.75), fill='gray',  alpha=0.3) +
+  geom_point( col = '#7D3C98') +
+  geom_line(aes(x = fdrt, y = fruitsum), linetype = 'solid', size = 0.5, col = '#7D3C98') +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Fruits intake',
+       title = '') +
+  theme_classic() + 
+  ylim(0, max(fruit$fruitsum))+
+  theme(aspect.ratio=plot_ratio,  
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+
+
+irep = entero %>% 
+  filter(sdrt %in% -5:15) %>% 
+  filter(mrn == p11) %>%
+  ggplot(aes(x = sdrt, y = ave_irpe )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = irep_q25, ymax = irep_q75, fill='gray',  alpha=0.3) +
+  geom_point() +
+  labs(title = str_glue('{}')) +
+  xlim(xmin, xmax) +
+  ylim(1, irep_highest) +
+  labs(x = '', 
+       y = 'Enterococcus\ngrowth rate',
+       title = '')+
+  theme_classic()+
+  theme(aspect.ratio=plot_ratio,
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
         axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(color = "grey85"))
-```
 
-```{r}
-p11_ver <- plot_grid(abx, NA,
-                     NULL, NULL, 
-                     sweets_time, all_sweet_box, 
-                     NULL, NULL, 
-                     fruit_time,all_fruit_box,  
-                     NULL, NULL, 
-                     irep, entero_box, 
-                     NULL, NULL, 
-                     copies,NA,
-                     byrow = T,
-          ncol = 2, axis = 'ltbr', align = 'hv',  
-          rel_heights = c(1, -0.7, 1, -0.7, 1, -0.7, 1, -0.7, 1),
-          rel_widths = c(1, 1))
-p11_ver %>% 
-  write_rds('../data/075_p11_vertical5.rds')
- 
 
-ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
-      height = 220, units = 'mm', dpi = 400, plot = p11_ver)
+copies = cts_ %>% 
+   filter(sdrt %in% -5:15) %>% 
+  filter(mrn == p11) %>% 
+  mutate(entero_copy = entero_copy/10e8) %>% 
+  ggplot(aes(x = sdrt, y = entero_copy )) +
+  geom_point() +
+  geom_line(aes(x = sdrt, y = entero_copy), linetype = 'solid', size = 0.5, col = 'black') +
+  xlim(xmin, xmax) +
+  labs(x = 'HCT day',
+       y = 'Enterococcus\ncopies X 108/g',
+       title = '') +
+  theme_classic() +
+  theme(aspect.ratio=plot_ratio,
+        plot.margin = margin(l=-0.8,unit="cm"),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+
+
 ```
 
 ```{r}
@@ -428,4 +401,3 @@ p_f3c <- abx + plot_spacer() + sweets_time + all_sweet_box +  fruit_time + all_f
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
       height = 200, units = 'mm', dpi = 400, plot = p_f3c)
 ```
-

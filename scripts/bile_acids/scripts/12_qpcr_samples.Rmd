@@ -1,0 +1,28 @@
+---
+title: "The qpcr samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+sam <- read_csv('../data/shotgun_samples_16sQPCR.csv')
+```
+```{r}
+# the shotgun sampleids 
+serpath <- '/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/'
+fid <- read_csv(file = file.path(serpath, '10_shotgun_metaphlan.csv')) %>% 
+  inner_join(sam) %>% 
+  mutate(R1 = str_glue('/home/daia1/my_workdir/samples/{fid}_knead_paired_1.fastq.gz'),
+         R2 = str_glue('/home/daia1/my_workdir/samples/{fid}_knead_paired_2.fastq.gz'))
+fid %>% 
+  distinct(fid, R1, R2) %>% 
+  write_csv('../data/Oriana_qpcr_157.csv')
+```
+
