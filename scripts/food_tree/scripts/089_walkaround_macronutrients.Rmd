@@ -13,6 +13,8 @@ library(ggpubr)
 library(tidybayes)  
 library(brms)
 library(rstan)
+#devtools::install_github("zeehio/facetscales")
+library(facetscales)
 options(mc.cores = parallel::detectCores())
 ncores = parallel::detectCores()
 rstan_options(auto_write = TRUE)
@@ -79,6 +81,7 @@ macro_panel <- byday_original %>%
          `log10(Enterococcus)` = Enterococcus,
          `log(Simpson reciprocal)` = simpson_reciprocal_nlog) %>% 
   dplyr::select(`log(Simpson reciprocal)`, `log10(Blautia)`, `log10(Enterococcus)`,  daycal:d_sugar ) %>% 
+  mutate(daycal = daycal/1000) %>%  # now divide the value by 1000 to save some space in x axis text!!! 
   gather('yaxis', 'value', `log(Simpson reciprocal)`:`log10(Enterococcus)`) %>% 
   mutate(yaxis = factor(yaxis, levels = c('log(Simpson reciprocal)','log10(Blautia)','log10(Enterococcus)'))) %>% 
   gather('xaxis', 'number', daycal:d_sugar) %>% 
@@ -88,22 +91,38 @@ macro_panel <- byday_original %>%
          xaxis = str_to_title(xaxis),
          xaxis = str_glue('Daily {xaxis} Intake')) %>% 
   mutate(xaxis = factor(xaxis, levels = c('Daily Caloric Intake','Daily Carb Intake','Daily Sugar Intake','Daily Fiber Intake','Daily Protein Intake','Daily Fat Intake')))
-
-
+ 
 ```
 
 
 ```{r}
+library(facetscales)
+scales_y <- list(
+  `log(Simpson reciprocal)` = scale_y_continuous(limits = c(0, 4), breaks = seq(0, 4, 1)),
+  `log10(Blautia)` = scale_y_continuous(limits = c(-6, 0), breaks = seq(-6, 0, 2)),
+  `log10(Enterococcus)` = scale_y_continuous(limits = c(-6, 0), breaks = seq(-6, 0, 2))
+)
+
+scales_x <- list(
+  `Daily Caloric Intake` = scale_x_continuous(limits = c(0, 3.3), breaks = seq(0, 3.3, 1)),
+  `Daily Protein Intake` = scale_x_continuous(limits = c(0, 170), breaks = seq(0, 170, 50)),
+  `Daily Fat Intake` = scale_x_continuous(limits = c(0, 165), breaks = seq(0, 165, 50)),
+  `Daily Carb Intake` = scale_x_continuous(limits = c(0, 410), breaks = seq(0, 410, 100)),
+  `Daily Fiber Intake` = scale_x_continuous(limits = c(0, 80), breaks = seq(0, 80, 20)),        
+  `Daily Sugar Intake` = scale_x_continuous(limits = c(0, 325), breaks = seq(0, 325, 100) )
+)
+
+
 macro_facets <- macro_panel %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.05,xlab = '', ylab = '',size = 1.2, 
+  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
              add = "reg.line",  # Add regressin line
            add.params = list(color = "darkblue", fill = "gray59"), # Customize line
            conf.int = TRUE, # Add confidence interval
           ) +
-  facet_grid(yaxis ~ xaxis, scales = 'free') + 
+  facet_grid_sc(rows = vars(yaxis), cols = vars(xaxis), scales = list(y = scales_y, x = scales_x)) +
   theme_classic(base_size = 11) +
   theme(aspect.ratio = 1,
-        panel.background = element_rect(fill = "gray89"),
+        panel.background = element_rect(fill = "gray97"),
         panel.grid.major = element_blank(), 
         strip.background = element_blank(),
         strip.text = element_blank(),
@@ -111,9 +130,10 @@ macro_facets <- macro_panel %>%
        ) 
 
 ggsave('../figs/paper/S2_sameday_macronutrients_microbiome_089.pdf', 
-       width = 190, 
+       width = 180, 
        units = c("mm"),
        plot = macro_facets)
+
 ```
 
 ```{r}
@@ -127,71 +147,28 @@ pvals <- macro_panel %>%
     res = summary(lm(value ~ number, data = df ))
     return(pval = round(res$coefficients[2, 'Pr(>|t|)'], 3))
   })
-
-dfs <- macro_panel %>% 
-  split(., list(.$xaxis, .$yaxis))
-
-panels <- list()
-
-
-for (i in 1: length(dfs)){
-  panels[[i]] <- dfs[[i]] %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
-           conf.int = TRUE # Add confidence interval
-           ) +
-  theme_classic(base_size = 11) +
-  theme(aspect.ratio = 1,
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()
-       )  +
-  annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE)
-}
-names(panels) <- names(dfs)
-```
-
-```{r}
-# some tweaking of the figures
-# limit the middle row y axis to be below 0
-for (i in 1: length(dfs)){
-  if(str_detect(names(dfs)[[i]], 'Blautia')){
-    panels[[i]] <- dfs[[i]] %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
-           conf.int = TRUE # Add confidence interval
-           ) +
-  theme_classic(base_size = 11) +
-  theme(aspect.ratio = 1,
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()
-       )  +
-  annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE) +
-      ylim(-6, 0)
-  }
-}
-
-# all the other columns except the first column won't have y axis text
-# all the other rows except the bottom row won't have x text
-for (i in 1: length(dfs)){
-  if(!str_detect(names(dfs)[[i]], 'Enteroco|Caloric')){
-    panels[[i]] <- dfs[[i]] %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
-           conf.int = TRUE # Add confidence interval
-           ) +
-  theme_classic(base_size = 11) +
-  theme(aspect.ratio = 1,
-        axis.text.x=element_blank(),
-        axis.text.y=element_blank(),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank()
-       )  +
-  annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE)
-  }
-}
+# 
+# dfs <- macro_panel %>% 
+#   split(., list(.$xaxis, .$yaxis))
+# 
+# panels <- list()
+# 
+# 
+# for (i in 1: length(dfs)){
+#   panels[[i]] <- dfs[[i]] %>% 
+#   ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
+#              add = "reg.line",  # Add regressin line
+#            add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
+#            conf.int = TRUE # Add confidence interval
+#            ) +
+#   theme_classic(base_size = 11) +
+#   theme(aspect.ratio = 1,
+#         panel.grid.major = element_blank(), 
+#         panel.grid.minor = element_blank()
+#        )  +
+#   annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE)
+# }
+# names(panels) <- names(dfs)
 ```
 
 
@@ -200,7 +177,7 @@ library(gridExtra)
 n <- length(dfs)
 nCol <- 6
 all <- do.call("grid.arrange", c(panels, ncol=nCol))
-
+ 
 ggsave('../figs/paper/S2_sameday_macronutrients_microbiome_089_2.pdf', 
        width = 190, 
        units = c("mm"),
