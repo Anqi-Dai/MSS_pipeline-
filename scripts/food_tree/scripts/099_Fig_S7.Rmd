@@ -62,6 +62,10 @@ ggdotchart(top3grp, x = "description", y = "gram_per_meal",
         axis.text.y = element_text(size=11, colour = x_txt_col),
         legend.title = element_blank())
 
-ggsave('../figs/paper/S7_top10_eaten_foods_of_3_099.pdf', width = 7.5, height = 6)
+ggsave('../figs/paper/S7_top10_eaten_foods_of_3_099.pdf', width = 8.3, height = 6)
+```
+
+```{r}
+
 ```
 
