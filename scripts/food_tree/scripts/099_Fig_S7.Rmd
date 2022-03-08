@@ -1,0 +1,67 @@
+---
+title: "Figure S7 fiber versus sugar"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
+```
+
+```{r}
+# the top 10 most consumed in fruits , sweets and veggie item 
+# total number of meals 
+n_meal <- dtb %>% 
+  count(mrn, fdrt, Meal) %>% 
+  nrow()
+  
+top3grp <- dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  filter(fgrp1 %in% c('9','6','7')) %>% 
+  group_by(Food_code, description, fgrp1) %>% 
+  summarise(total_per_code = sum(dehydrated_weight)) %>% 
+  group_by(fgrp1) %>% 
+  arrange(desc(total_per_code), .by_group = T)  %>% 
+  top_n(10) %>% 
+  left_join(key) %>% 
+  ungroup() %>% 
+  mutate(gram_per_meal = total_per_code/n_meal) %>% 
+  mutate(fg1_full_name = case_when(
+    fgrp1 == '6' ~ 'Fruits',
+    fgrp1 == '7' ~ 'Vegetables',
+    fgrp1 == '9' ~ 'Sugars, Sweets & Beverages'
+  )) %>% 
+  mutate(fg1_full_name = factor(fg1_full_name, levels = c('Fruits','Sugars, Sweets & Beverages', 'Vegetables')))
+
+# manually add the x text color
+
+x_txt_col <- c(rep('#7D3C98', 10), rep('#db2589', 10), rep('#229954', 10))
+
+ 
+ggdotchart(top3grp, x = "description", y = "gram_per_meal",
+           xlab = '', 
+           ylab = 'Per meal average consumption (gram)',
+           add = "segments",        
+   group = "fg1_full_name", color = "fg1_full_name",
+   palette = c('#7D3C98','#db2589', '#229954'),
+   rotate = TRUE,
+   sorting = "descending", 
+  #y.text.col = TRUE ,
+  ggtheme = theme_pubr()  
+  ) +
+  theme(legend.position = 'bottom',
+        axis.text.y = element_text(size=11, colour = x_txt_col),
+        legend.title = element_blank())
+
+ggsave('../figs/paper/S7_top10_eaten_foods_of_3_099.pdf', width = 7.5, height = 6)
+```
+

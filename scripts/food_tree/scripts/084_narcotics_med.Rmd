@@ -234,22 +234,28 @@ fg_colors <- key %>%
   select(shortname, color) %>% 
   deframe()
 
+cross0 <- post_coeff %>%
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+
 pca_fg <- post_coeff %>% 
-  ggplot(aes(x = coeff, y = shortname, col = shortname)) +
+  left_join(cross0) %>% 
+  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
+  labs(x = 'Coefficients',
        y = '',
        title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = fg_colors) +
+  scale_color_manual(values = c("#EC0000", "gray40")) +
   theme(axis.text=element_text(size=11),
         axis.title=element_text(size=11),
         aspect.ratio=1) 
 
-ggsave('../figs/paper/084_narcotics_model_fg_coeff.jpg', width = 5)
 ```
 
 ```{r}
@@ -265,9 +271,11 @@ coeff_bi <- post_samples %>%
     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure',
-    item == 'b_narcoticsTRUE' ~ 'narcotics exposure'
+    item == 'b_narcoticsTRUE' ~ 'PCA exposure'
   )) %>% 
-  mutate(item_name = fct_reorder(item_name, coeff, .fun=median, .desc = F)) 
+  mutate(item_name = factor(item_name, levels = c('PCA exposure', 'Intensity: nonablative', 'Intensity: reduced',
+                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
+                                                  'Empirical abx exposure'))) 
 
 
 pca_bi <- coeff_bi %>% 
@@ -275,8 +283,8 @@ pca_bi <- coeff_bi %>%
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Regression coefficients',
-       y = 'Factor variables',
+  labs(x = 'Coefficients',
+       y = '',
        title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none',
@@ -284,7 +292,7 @@ pca_bi <- coeff_bi %>%
         axis.title=element_text(size=11),
         aspect.ratio=1)
 
-ggsave('../figs/paper/084_narcotics_model_binary.jpg', width = 5)
+
 ```
 
 ```{r}
@@ -301,7 +309,7 @@ pca
 
 
 ```{r}
-ggsave('../figs/paper/S8_narcotics_PCA_084_Jan24.pdf',  
+ggsave('../figs/paper/S8_narcotics_PCA_084.pdf',  
        width = 190,
        height = 70,
          #height = 60,
@@ -310,12 +318,4 @@ ggsave('../figs/paper/S8_narcotics_PCA_084_Jan24.pdf',
 ```
 
 
-```{r}
-ggsave('../figs/paper/084_narcotics_PCA_model_coeff_forest.jpg',  
-       width = 190,
-       height = 70,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'jpg')
-```
 

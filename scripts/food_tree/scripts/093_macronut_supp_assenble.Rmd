@@ -41,7 +41,7 @@ macro <- plot_grid(  alpha, genus,
                   rel_heights  = c(1, 2), 
                   align = 'v', axis = 'tblr')
 
-ggsave('../figs/paper/S4_macronutrients_alpha_and_genus_093_Jan24.pdf',
+ggsave('../figs/paper/S4_macronutrients_alpha_and_genus_093.pdf',
         width = 240,
        height = 250,
          #height = 60,
