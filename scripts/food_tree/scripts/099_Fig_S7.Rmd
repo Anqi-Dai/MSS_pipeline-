@@ -66,6 +66,10 @@ ggsave('../figs/paper/S7_top10_eaten_foods_of_3_099.pdf', width = 8.3, height = 
 ```
 
 ```{r}
-
+#think about a way to depict the fiber sugar ratio in the top 10 foods   
+unique <- dtb %>% 
+  distinct(Food_code, description, .keep_all = T) %>% 
+  inner_join(top3grp) %>% 
+  mutate(fs_ratio = if_else(Sugars_g == 0, 0, Fibers_g/Sugars_g))
 ```
 
