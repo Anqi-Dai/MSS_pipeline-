@@ -12,13 +12,14 @@ library(tidyverse)
 library(vdbR)
 connect_database()
 get_table_from_database('asv_alpha_diversity_ag')
-
+get_table_from_database('shotgun_lookup_ad')
 dat <- asv_alpha_diversity_ag %>% 
   distinct(oligos_id) %>% 
   mutate(poolid = str_extract(oligos_id, 'pool.+$')) %>% 
   distinct(poolid) %>% 
   filter(str_detect(poolid, 'pool835|pool935|pool940|pool1042|pool1048|pool1050|pool1064|pool1109|pool1117|pool1121'))
 
+#pool1109
 
 ```
 
@@ -73,6 +74,14 @@ where %>%
   write_csv('../data/duke/where_the_228.csv')
 ```
 
+```{r}
+# reply from John
+reply <- read_csv('~/Downloads/where_the_228_JS_03-21-2022.csv') %>% 
+  distinct(sid, .keep_all = T) %>% 
+  distinct(js_comment)
+
+length(intersect(reply$sid, asv_alpha_diversity_ag$sampleid))
+```
 
 
 

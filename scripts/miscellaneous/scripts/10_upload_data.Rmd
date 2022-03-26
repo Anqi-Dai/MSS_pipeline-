@@ -12,17 +12,14 @@ library(tidyverse)
 ```
 
 ```{r}
-# 16s
+# 16s 
 path <- tibble(path = c(
   '/Volumes/vandenBrinkLab/MMF/Sequencing Data/Rena Feinman/Miseq.230/Sample_pool1126_complete',
   '/Volumes/vandenBrinkLab/MMF/Sequencing Data/Rena Feinman/Miseq.230/Sample_pool1127_complete',
   '/Volumes/vandenBrinkLab/MMF/Sequencing Data/Rena Feinman/Miseq.230/Sample_pool1128_complete',
   '/Volumes/vandenBrinkLab/MMF/Sequencing Data/Rena Feinman/Miseq.230/Sample_pool1129_complete',
-  '/Volumes/castoricenter/Human.Sequencing.Data/Miseq/Sample_pool1048_complete',
-'/Volumes/castoricenter/Human.Sequencing.Data/Miseq/Sample_pool1050_complete',
-'/Volumes/castoricenter/Human.Sequencing.Data/Miseq/Sample_pool1064_complete',
-'/Volumes/skimcs/castoricenter/Human.Sequencing.Data/Miseq/Sample_pool1109_complete'
-))
+  
+)) 
 
 list.files('/Volumes/vandenbrinklab/MMF/Sequencing Data/Kylee/Project_12892/DIANA_0451')
 ```

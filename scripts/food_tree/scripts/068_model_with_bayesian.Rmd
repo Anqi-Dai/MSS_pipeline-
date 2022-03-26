@@ -232,6 +232,46 @@ vals <- names(values)
 
 ### Extract the posterior samples 
 
+```{r}
+# the full table of the posterior results
+full_post <- posterior_samples(model_div, '^b_|^r_')
+
+# make a table with the median , thinner interval two sides, thicker interval two sides, the r hat value of the columns
+mrn_part <- full_post %>% 
+  gather() %>% 
+  filter(str_detect(key, 'mrn')) %>% 
+  mutate(mrn = str_extract(key, '\\[.+,'),
+         mrn = str_replace(mrn, '\\[', ''),
+         mrn = str_replace(mrn, ',', ''),
+         patient = as.numeric(factor(mrn)),
+         pid = str_glue('P{as.character(patient)}'),
+         key = str_glue('r_mrn[{pid},Intercept]')) 
+
+
+revised_post <- bind_rows(
+  full_post %>% 
+    gather() %>% 
+    filter(!str_detect(key, 'mrn')),
+  mrn_part
+) %>% 
+  select(key, value) %>% 
+  group_by(key) %>% 
+  summarise(q2.5 = quantile(value, probs = 0.025),
+            q97.5 = quantile(value, probs = 0.975),
+            q17 = quantile(value, probs = 0.17),
+            q83 = quantile(value, probs = 0.83),
+            q50 = quantile(value, probs = 0.5)) %>% 
+  filter(str_detect(key, '^r')) %>% 
+  select(key, q2.5,q17, q50, q83,  q97.5)
+
+library(kableExtra) 
+
+kbl(revised_post) %>%
+  kable_classic(full_width = F, html_font = "Arial") %>%
+  save_kable(file = "../figs/paper/T2_main_model_random_effects.pdf")
+```
+
+
 ```{r post_sample}
 # extract posterior samples for the coeff
 post_samples  <- posterior_samples(model_div, '^b_')
