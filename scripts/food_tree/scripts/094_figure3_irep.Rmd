@@ -302,7 +302,7 @@ genus_combined %>%
             #add.params = list(alpha = 0.5)
            ) +
   theme(
-     axis.text.x = element_text(angle=45, hjust=1)
+     axis.text.x = element_text(angle=270, hjust=1)
   )
 
 ggsave('../figs/paper/S10_genus_irep_histogram_094_Jan25.pdf', width = 320, height = 120, units = 'mm', dpi = 400)
