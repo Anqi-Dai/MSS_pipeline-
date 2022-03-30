@@ -9,9 +9,109 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(vdbR)
+library(ggpubr)
+connect_database('~/dbConfig.txt')
+get_table_from_database("asv_annotation_blast_color_ag");
 ```
 
 ```{r}
+counts_data <- get_counts_subset(c('3115A'))
 
+dat <- counts_data %>% 
+  select(asv_key:count_total, count_relative) %>% 
+  left_join(asv_annotation_blast_color_ag %>% 
+              select(asv_key,color_label_group_distinct), by = "asv_key")
+```
+
+```{r}
+# there are some ASVs that don't have a color with it, but can use the color for the genus level
+color_group <- dat %>% 
+  split(is.na(.$color_label_group_distinct))
+# find the genus for these asv
+get_table_from_database('asv_annotation_blast_ag')
+no_color <- color_group %>% 
+  pluck('TRUE') %>% 
+  distinct(asv_key) %>% 
+  inner_join(asv_annotation_blast_ag %>% 
+               select(asv_key, genus)) 
+# find the colors for these genera
+genera_colors <- no_color %>% 
+  distinct(genus) %>% 
+  inner_join(asv_annotation_blast_color_ag %>% 
+               distinct(genus, color_label_group_distinct))
+# the full df for the no color genera
+no_color_df <- no_color %>% 
+  left_join(genera_colors)
+no_color_df_full <- color_group %>% 
+  pluck('TRUE') %>% 
+  select(-color_label_group_distinct) %>% 
+  left_join(no_color_df %>% 
+              select(- genus))
+  
+# so if the genus is unknown then it's gonna be assigned "other" gray color  
+# the question is do we go one taxa level higher or make a new color base and shades for the new asv
+# after discussing with Tsoni, we decided that it's ok to assign gray to the unknown genus 
+# merge the new no_color_df_full to the original df
+dat <- bind_rows(
+  no_color_df_full,
+  color_group %>% 
+    pluck('FALSE')
+)   
+
+
+asv_color_set <- asv_annotation_blast_color_ag %>% 
+  distinct(color,color_label_group_distinct,color_label_group,color_base) %>% 
+  select(color_label_group_distinct, color) %>% 
+  deframe()
+
+cbd <- compute_beta_diversity_and_tsne(sampleid = dat$sampleid, 
+                                      taxonomy = dat$color_label_group_distinct,
+                                      count = dat$count);
+#compute beta diversity
+cbd$compute_beta_diversity()
+
+
+stacked_bar <- ggplot(dat,aes(sampleid, count_relative, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  theme_classic() +
+  labs(title = '',
+       ylab = 'Relative counts') +
+  theme(axis.text.x = element_text(angle = 90),
+        axis.text.y = element_blank(),
+        legend.position = "none") +
+  scale_fill_manual(values = asv_color_set)
+
+stacked_bar
+
+
+library(cowplot)
+p <- '../data/composition_legend.png'
+legend <- ggdraw() +
+  draw_image(magick::image_read(p),   scale = 0.9) 
+legend 
+
+
+top <- plot_grid(stacked_bar, legend, labels = 'none',rel_widths  = c(1, 2) )
+
+ggsave('../data/bar_3115A.pdf',
+       width = 190,
+       height = 120,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = top)  
+```
+
+
+```{r}
+# clean the format of the spp
+dat <- read_tsv('~/Work/projects/IL22/data/metaphlan3/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
+  mutate(spp = str_extract(clade_name, 's__.+$')) %>% 
+  select(spp)
+spp <- readxl::read_excel('../data/top20_species_strainphlan_input.xlsx')  %>% 
+  mutate(spp = str_replace_all(species, ' ', '_')) %>% 
+  mutate(spp = str_glue('s__{spp}')) %>% 
+  select(spp) %>% 
+  write_csv('../data/top20_spp.csv', col_names = F)
 ```
 

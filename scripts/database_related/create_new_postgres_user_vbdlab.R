@@ -43,7 +43,8 @@ vdb_users <- c("peledj",
                "watersn",
                "maclachlan",
                "feit1",
-               "MarcellL",
+               #"MarcellL",
+               'sadeghik',
                "rajs");
 #               "gomesa_cluster");
 
@@ -77,3 +78,4 @@ if(1){
 }
 
 #block_user_who_did_not_change_password(vdb_users[length(vdb_users)],temporary_pw);
+

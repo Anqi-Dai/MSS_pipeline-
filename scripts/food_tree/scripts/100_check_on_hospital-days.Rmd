@@ -1,0 +1,89 @@
+---
+title: "check on hospital day"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
+  separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
+
+# find the earliest day to each patient
+# and make that day the day 0
+early <- dtb %>% 
+  group_by(mrn) %>% 
+  arrange(fdrt, .by_group = T) %>% 
+  slice(1) %>% 
+  mutate(dayoffset = 0 - fdrt) %>% 
+  select(mrn, dayoffset) %>% 
+  arrange(mrn)
+
+each <- dtb %>% 
+  arrange(mrn) %>% 
+  split(.$mrn) 
+
+os <- early %>% 
+  split(.$mrn) 
+
+
+res <- map2_dfr(each, os, .f = function(.x, .y){
+  mutate(.data = .x, fdrh = fdrt + .y$dayoffset)
+})
+
+```
+
+
+```{r}
+# the macronutrients scatter plot
+m_all <- res %>%  
+  select(mrn, fdrh,Protein_g:Sodium_g ) %>% 
+  gather('grp','gram', Protein_g:Sodium_g) %>% 
+  mutate(grp = str_replace(grp, '_g$','')) %>% 
+  group_by(mrn, fdrh, grp) %>% 
+  summarise(eachsum = sum(gram)) 
+
+# nutrition data 
+macro_list_adj <- m_all %>% 
+  split(.$grp) %>% 
+  imap(function(.x, .y) {
+      ggscatter(data = .x ,x = 'fdrh', y = 'eachsum', alpha = 0.02, size = point_size, 
+            xlab = 'Day relative to hospitalization',
+            ylab = 'Grams',
+            title = str_glue('{.y}'),
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        aspect.ratio=1)
+  })
+
+macro <- plot_grid(macro_list_adj[[1]],macro_list_adj[[2]],macro_list_adj[[3]],macro_list_adj[[4]],macro_list_adj[[5]],macro_list_adj[[6]],
+          nrow = 2, 
+          align = 'hv',
+          #rel_widths =  c(1,1),
+          #rel_heights = c(1,1),
+          labels = c('A','B','C', 'D','E','F'),
+          axis = 'tblr') 
+
+ggsave('../figs/paper/100_macro_fig1_supp_adj.pdf',
+       width = 160,
+       height = 120,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
+```
+
+```{r}
+
+```
+

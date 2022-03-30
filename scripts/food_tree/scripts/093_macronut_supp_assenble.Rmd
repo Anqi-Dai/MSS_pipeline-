@@ -13,11 +13,12 @@ library(cowplot)
 ```
 
 ```{r}
+corr <- read_rds('../data/090_fat_pro_cor.rds')
 alpha_main <- read_rds('../data/090_macronutrients_alpha_main.rds')
 alpha_factor <- read_rds('../data/090_macronutrients_alpha_factor.rds')
 
-alpha <-  plot_grid(  alpha_main,alpha_factor,
-                  nrow = 1, labels = c('A','B'), rel_widths = c(1, 1), align = 'hv', axis = 'tblr')
+alpha <-  plot_grid(corr,  alpha_main,alpha_factor,
+                  nrow = 1, labels = c('A','B', 'C'),  align = 'hv', axis = 'tblr')
 alpha
 ```
 ```{r}
