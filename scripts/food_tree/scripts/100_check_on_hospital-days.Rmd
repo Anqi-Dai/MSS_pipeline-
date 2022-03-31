@@ -84,6 +84,70 @@ ggsave('../figs/paper/100_macro_fig1_supp_adj.pdf',
 ```
 
 ```{r}
+# the previous two days average faith pd
+# the previous two days average for each stool sample
+
+stb_pair <- meta %>%
+  select(mrn, sdrt) %>%
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2)
+
+mean_p2d_faith <-  function(mrn_, p1d_, p2d_){
+  df = faith %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_faith = sum(faith_pd)/2)
+  return(df)
+}
+
+mean_p2d_faith_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_faith(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+combined <- mean_p2d_faith_df %>% 
+  full_join(full )
+```
+```{r}
+combined %>% 
+  ggscatter( x = 'simpson_reciprocal', y = 'ave_faith', alpha = 0.2, 
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n" )) +
+  scale_y_log10()
+```
+```{r}
+combined %>% 
+  select(starts_with('fg_'),  simpson_reciprocal) %>% 
+  gather('grp', 'gram', fg_egg:fg_veggie) %>% 
+  ggscatter( x = 'simpson_reciprocal', y = 'gram', facet.by = 'grp', alpha = 0.2, 
+              add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n" ))
+```
+
+```{r}
+combined %>% 
+  select(starts_with('ave_')) %>% 
+  select(-ave_cal) %>% 
+  gather('grp', 'gram', ave_fiber:ave_carb) %>% 
+  ggscatter( x = 'ave_faith', y = 'gram', facet.by = 'grp', alpha = 0.2, 
+              add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n" ))
+```
+
+```{r}
+# fiber in goods 
 
 ```
 

@@ -293,12 +293,12 @@ library(cowplot)
 heatmap <-  plot_grid(  genus_fg_main,genus_fg_factor,
                   nrow = 2, labels = c('A','B'), rel_heights  = c(1, 0.8), align = 'hv', axis = 'tblr')
 
-ggsave( '../figs/paper/S9_heatmap_fg_genus_087_Jan25.pdf',
+ggsave( '../figs/paper/S9_heatmap_fg_genus_087.pdf',
       width = 250,
        height = 220,
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'pdf')
+         dpi = 400, device = 'pdf', plot = heatmap)
 ```
 
 
