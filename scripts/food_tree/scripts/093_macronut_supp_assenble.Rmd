@@ -13,12 +13,13 @@ library(cowplot)
 ```
 
 ```{r}
+fat_cal_cor <- read_rds('../data/090_fat_cal_cor.rds')
 corr <- read_rds('../data/090_fat_pro_cor.rds')
 alpha_main <- read_rds('../data/090_macronutrients_alpha_main.rds')
 alpha_factor <- read_rds('../data/090_macronutrients_alpha_factor.rds')
 
-alpha <-  plot_grid(corr,  alpha_main,alpha_factor,
-                  nrow = 1, labels = c('A','B', 'C'),  align = 'hv', axis = 'tblr')
+alpha <-  plot_grid(corr, fat_cal_cor,  alpha_main,alpha_factor,
+                  nrow = 2, labels = c('A','B', 'C', "D"),  align = 'hv', axis = 'tblr')
 alpha
 ```
 ```{r}
@@ -29,7 +30,7 @@ genus_factor <- read_rds('../data/090_genus_macro_fat_factor.rds')
 
 ```{r}
 genus <-  plot_grid(  genus_main,genus_factor,
-                  nrow = 2, labels = c('C','D'), 
+                  nrow = 2, labels = c('E','F'), 
                   rel_heights  = c(1, 1), 
                   align = 'v', axis = 'lb')
 genus
@@ -44,9 +45,16 @@ macro <- plot_grid(  alpha, genus,
 
 ggsave('../figs/paper/S4_macronutrients_alpha_and_genus_093.pdf',
         width = 240,
-       height = 250,
+       height = 350,
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'pdf')
+
+ggsave('../figs/paper/S4_macronutrients_alpha_and_genus_093.jpg',
+        width = 240,
+       height = 350,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'jpg')
 ```
 

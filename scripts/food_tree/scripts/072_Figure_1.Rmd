@@ -42,6 +42,9 @@ fpalette <- tribble(
 fpalette %>% 
   write_csv('../data/cleaned_diet_data/food_group_color_key.csv')
 
+
+  
+
 ```
 
 # fig1 bottom 3

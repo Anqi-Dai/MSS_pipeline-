@@ -140,6 +140,10 @@ en <- read_csv('../data/cleaned_diet_data/NutritionSupport_DietPatients.csv') %>
   mutate(fdrt = Date - hct) %>% 
   select(colnames(dtb))
 
+
+en %>% 
+  filter(`Nutrition Support` == 'TPN') %>% 
+  distinct(MRN)
 ```
 
 ```{r}
