@@ -24,6 +24,7 @@ full <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera3
 
 target_genera <- read_csv('../data/target_genera.csv') %>% 
   pull(genus)
+
 ```
 
 
@@ -135,6 +136,12 @@ mean_ave_macro_fat_prior <- prior_draws(model_alpha_macro_fat) %>%
   mutate(grp = 'mean_macro_fat') %>% 
   rename(prior_res = mean_div) %>% 
   select(grp, prior_res)
+
+within_perc <- mean_ave_macro_fat_prior %>% 
+  mutate(within = if_else(  between(prior_res, min(log(full$simpson_reciprocal)), max(log(full$simpson_reciprocal))), T, F) ) %>% 
+  count(within) %>% 
+  mutate(perc = round(n/sum(n)*100, 2))
+  
 ```
 
 ```{r}
