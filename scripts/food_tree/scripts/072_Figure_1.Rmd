@@ -13,8 +13,9 @@ library(ggpubr)
 library(cowplot)
 library(ggimage)
 library(lemon)
-axis_text_size <- 11
-axis_title_size <- 11
+axis_text_size <- 8
+axis_title_size <- 10
+stip_txt_size <- 8
 alpha_val <- 0.05
 point_size <- 1.2
 scatter_col <- 'gray14'
@@ -38,13 +39,6 @@ fpalette <- tribble(
   'fg_oils' , '#707B7C',  '8',
   'fg_sweets' , '#db2589' , '9'
 ) 
-
-fpalette %>% 
-  write_csv('../data/cleaned_diet_data/food_group_color_key.csv')
-
-
-  
-
 ```
 
 # fig1 bottom 3
@@ -56,62 +50,9 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 ```
 
-```{r}
-send <- dtb %>% 
-  select(-mrn) %>% 
-  distinct(Food_NSC, .keep_all = T)
-
-send %>% write_csv('../data/subset_unique_food_nsc.csv')
-```
-
-
-```{r}
-# the macronutrients scatter plot
-m_all <- dtb %>%  
-  select(mrn, fdrt,Protein_g:Sodium_g ) %>% 
-  gather('grp','gram', Protein_g:Sodium_g) %>% 
-  mutate(grp = str_replace(grp, '_g$','')) %>% 
-  group_by(mrn, fdrt, grp) %>% 
-  summarise(eachsum = sum(gram)) 
-
-
-# nutrition data 
-
-macro_list <- m_all %>% 
-  split(.$grp) %>% 
-  imap(function(.x, .y) {
-      ggscatter(data = .x ,x = 'fdrt', y = 'eachsum', alpha = 0.02, size = point_size, 
-            xlab = 'Day relative to HCT',
-            ylab = 'Grams',
-            title = str_glue('{.y}'),
-            add = "loess", conf.int = TRUE, 
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        aspect.ratio=1)
-  })
-
-macro <- plot_grid(macro_list[[1]],macro_list[[2]],macro_list[[3]],macro_list[[4]],macro_list[[5]],macro_list[[6]],
-          nrow = 2, 
-          align = 'hv',
-          #rel_widths =  c(1,1),
-          #rel_heights = c(1,1),
-          labels = c('A','B','C', 'D','E','F'),
-          axis = 'tblr') 
-
-ggsave('../figs/paper/072_macro_fig1_supp.pdf',
-       width = 160,
-       height = 120,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf')
-```
 
 
 ```{r stool_alpha}
-# picked patient
-
 
 stool_alpha <- meta %>% 
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
@@ -120,11 +61,12 @@ stool_alpha <- meta %>%
             title = expression(Microbiome~alpha~diversity),
             add = "loess", conf.int = TRUE, 
             add.params = list(color = stool_line_color, fill = "darkblue", size = 1)) +
+   scale_x_continuous( breaks = seq(0, 50, 20)) + 
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
-        aspect.ratio=1)
-
+        aspect.ratio=2)
+stool_alpha
 ```
 
 ```{r caloric_intake}
@@ -132,9 +74,9 @@ day_calori <- dtb %>%
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal))
 
-
-
+# REMEMBER THAT IN AXIS LABLE YOU NEED TO TIMES THE 1000 BACK!!!!!!
 day_cal <- day_calori %>% 
+  mutate(daycal = daycal/1000) %>% 
   ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
@@ -142,11 +84,11 @@ day_cal <- day_calori %>%
             color = scatter_col,
              add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +  
+   scale_x_continuous( breaks = seq(0, 50, 20)) + 
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
-        aspect.ratio=1)
-
+        aspect.ratio=2)
 ```
 
 ```{r nutrition_alpha}
@@ -155,8 +97,9 @@ faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.t
   separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
   mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
 
-
+# REMEMBER THAT IN AXIS LABLE YOU NEED TO TIMES THE 1000 BACK!!!!!!
 diet_alpha <- faith %>% 
+  mutate(faith_pd = faith_pd/1000) %>% 
   ggscatter('fdrt', 'faith_pd', 
              alpha = alpha_val,size = point_size, 
             color = scatter_col, 
@@ -165,34 +108,23 @@ diet_alpha <- faith %>%
             title = expression(Diet~alpha~diversity),
              add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
+   scale_x_continuous( breaks = seq(0, 50, 20)) + 
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
         ) + 
-  theme(aspect.ratio=1)
+  theme(aspect.ratio=2)
 
 ```
 
-```{r combine_bot3}
-bot <- plot_grid(day_cal, diet_alpha, stool_alpha,
-          nrow = 1, 
-          align = 'hv',
-          #rel_widths =  c(1,1),
-          #rel_heights = c(1,1),
-          labels = c('C','D','E'),
-          axis = 'tblr') 
-
-bot
-
-```
 
 # fig1 top 3
 
 ```{r}
 # the patient that is picked to showcase the timeline in data collection
-pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
-pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
+#pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
+
 ```
 
 
@@ -234,158 +166,111 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.7,size = 0.8 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.7,size = 1 , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
-  lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
   theme(legend.position = "none",
+        line = element_blank(),
         legend.title = element_blank(),
-        axis.title=element_text(size=axis_title_size),
+        axis.title=element_blank(),
         axis.text= element_blank(),
         axis.ticks = element_blank(),
         aspect.ratio=1) +
   guides(colour = guide_legend(override.aes = list(alpha=1)))
 
-fig1_umap
+```
 
-```
-```{r diet_composition_histogram}
-# # examine that patient's dit pick the day that's most diverse
-# patient_pick <- read_csv('../figs/paper/data/patient_pick_all_diet.csv')
-# 
-# days <- patient_pick %>% 
-#   group_by(mrn, fdrt, Food_code) %>% 
-#   summarise(each = sum(dehydrated_weight)) %>% 
-#   ungroup() %>% 
-#   count(fdrt, mrn)
-# 
-# diverse_day <- days %>% 
-#   arrange(-n) %>% 
-#   slice(1) %>% 
-#   pull(fdrt)
-# 
-# # look at the day -5 diet
-# dm5 <- patient_pick %>% 
-#   filter(fdrt == diverse_day) %>% 
-#   select( mrn, fdrt, Food_code, description, dehydrated_weight ) %>% 
-#   mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
-#   left_join(fpalette, by = "fgrp1") %>%  
-#   arrange(fgrp1) %>% 
-#   add_count(fgrp1) %>% 
-#   arrange(-n, -dehydrated_weight) %>% 
-#   mutate(item = c('Baked salmon','Pork sausage','Beef shortribs','Pork bacon','Beef broth','Spinach','String beans','Broccoli','Tomato catsup','Gatorade G','Fruit juice drink','Chocolate cake','Milk shake','Egg omelet'))
-# 
-# fg_factor_level <- dm5 %>% 
-#   distinct(fg1_name) %>% pull(fg1_name)
-# 
-# daym5 <- dm5 %>%  
-#   mutate(fg1_name = factor(fg1_name, levels = fg_factor_level)) %>% 
-#   ggbarplot(x = 'item', y = 'dehydrated_weight', fill = 'fg1_name', color = 'white', xlab = '', ylab = 'Dehydrated weight',
-#             width = 0.9)  +
-#   facet_grid(~ fg1_name, space = "free", scales="free_x") +
-#   scale_fill_manual(values = color_key) +
-#   scale_y_continuous(expand = c(0, 0)) + 
-#   theme(strip.background = element_blank(),
-#         strip.text = element_blank(),
-#         panel.spacing.x = unit(0, "lines"),
-#         legend.position = 'none',
-#         axis.text=element_text(size=axis_text_size),
-#         axis.title=element_text(size=axis_title_size),
-#         axis.text.x = element_text(angle=45, hjust=1, size = 6),
-#         axis.ticks.x = element_blank())
-# 
-# 
-# daym5
-```
 
 ```{r tree}
 # import the tree from pdf to a ggplot kind of object
-# p <- grImport2::readPicture( "../figs/paper/080_food_tree_ring.svg" )
-# tree <- grImport2::pictureGrob( p )# soooo freaking slow!!!!!
-
 p <- '../figs/paper/080_food_tree_ring.png'
 tree <- ggdraw() +
   draw_image(p,   scale = 1.3) 
-tree
 ```
 
 
- 
-```{r}
-# wanna create a figure legend with the full food group names and a color palette
-nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
-  filter(nchar(Level.code) == 1) %>% 
-  rename(fgrp1 = Level.code, 
-         fdesc = Main.food.description) 
-
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key.csv', col_types = 'ccc')
-```
-  
+# the macronutrients 3 by 2 panel inserted to the bottom row
 
 ```{r}
-palette_fg <- nodes %>% 
-  full_join(key) %>% 
-  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
-  #mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
-  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
-  mutate(shortname = str_replace(fg1_name, 'fg_','')) %>% 
-  mutate(shortname = str_to_title(shortname))
-palette_fg %>% 
-  write_csv('../data/cleaned_diet_data/food_group_color_key.csv')
+# the macronutrients scatter plot
+m_all <- dtb %>%  
+  select(mrn, fdrt,Protein_g:Sodium_g ) %>% 
+  gather('grp','gram', Protein_g:Sodium_g) %>% 
+  mutate(grp = str_replace(grp, '_g$','')) %>% 
+  group_by(mrn, fdrt, grp) %>% 
+  summarise(eachsum = sum(gram)) 
+
+m_panel <- m_all %>% 
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0, size = point_size, 
+            xlab = 'Day relative to HCT',
+            ylab = 'Grams',
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
+  facet_wrap(~ grp, nrow = 3, scales = 'free_y') +
+  scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  theme(axis.text=element_text(size=6),
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = stip_txt_size), 
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        aspect.ratio=1)
+m_panel
 ```
 
+# the food group daily intake as a 3 by 3 grid panel
 
-```{r fg_legend}
-fg_colors <- palette_fg %>% 
-  select(fdesc, color) %>% 
-  mutate(fdesc = factor(fdesc, levels = c('Grain Product', 'Vegetables', 'Meat, Poultry, Fish & Mixtures', 'Milk & Milk Products', 'Sugars, Sweets & Beverages', 'Fruits', 'Dry Beans, Peas, Other Legumes, Nuts, & Seeds', 'Fats, Oils & Salad Dressings', 'Eggs'))) %>% 
-   mutate(fdesc = str_wrap(fdesc, width = 35, indent = 0, exdent = 3)) %>% 
-  deframe()
+```{r}
+fg_all <- dtb %>%  
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  mutate(fgrp1 = as.numeric(fgrp1)) %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(eachsum = sum(dehydrated_weight)) %>% 
+  left_join(key)
 
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
-
-fglegend <- dtb %>% 
-  mutate(fgrp1 = str_sub(Food_code, 1 ,1)) %>% 
-  group_by(fgrp1) %>% 
-  summarise(total = sum(dehydrated_weight)) %>% 
-  full_join(palette_fg) %>% 
-  ggbarplot(x = 'fdesc', y = 'total', 
-            color = 'fdesc', fil = 'fdesc' ) +
-  scale_color_manual(values = fg_colors)  +
-  scale_fill_manual(values = fg_colors)  +
-  theme(legend.title = element_blank(),
-        legend.spacing.y = unit(5, 'cm'),
-        legend.text=element_text(size=8)) +
-  guides(col=guide_legend(ncol=1),
-         fill=guide_legend(
-                 keywidth=0.1,
-                 keyheight=0.1,
-                 default.unit="inch"))  
-
-fg_legend <-  cowplot::get_legend(fglegend)
-fg_legend_ <- as_ggplot(fg_legend)
-fg_legend_
-
+fg_panel <- fg_all %>% 
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0, size = point_size, 
+            xlab = 'Day relative to HCT',
+            ylab = 'Grams',
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
+  facet_wrap(~ shortname, 
+             scales = 'free_y',
+             nrow = 3, ) +
+  scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  theme(axis.text=element_text(size=6),
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = stip_txt_size), 
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        aspect.ratio=1.5)
+fg_panel
 ```
-
 
 
 # Assembling the final version of the figure 1
 
-```{r top_n_bottom}
+```{r}
+bot <- plot_grid(day_cal, m_panel, diet_alpha,fg_panel,  stool_alpha,
+          nrow = 1, 
+          align = 'hv',
+          rel_widths =  c(1,1.2,1,1.4,1),
+          #rel_heights = c(1,1),
+          labels = c('D','E','F', 'G', "H"),
+          axis = 'tblr') 
+
 
 top <- plot_grid(tree, fig1_umap,labels = c('A', "B"),
                   nrow = 1, rel_widths = c(1.5,1), axis = 'lbrt', align = 'hv')
-top
 
 # assemble all
 f1 <-  plot_grid(top, bot,
                  rel_heights = c(1,1),
                  nrow = 2)
 
-ggsave('../figs/paper/F1_overview_072.pdf',
-       width = 190,
+ggsave('../figs/paper/F1_overview_072_raw.pdf',
+       width = 220,
        height = 140,
          #height = 60,  
          units = c("mm"),
