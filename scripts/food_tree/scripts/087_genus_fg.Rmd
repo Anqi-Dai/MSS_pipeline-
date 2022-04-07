@@ -213,6 +213,13 @@ names(col_key) <- col_key
 
 # make the blautia and enterococcus to be in red font for easier see
 genus_text_color <- ifelse(sort(target_genera, decreasing = F) %in% c('Blautia','Enterococcus'), 'red', 'black')
+
+
+post_res_genera %>% 
+  filter( mark %in% c('***'))  %>% 
+  select(genus, color,shortname ) %>% 
+  arrange(shortname)
+
 ```
 
 
@@ -336,7 +343,7 @@ post_enterco %>%  write_csv('../data/087_Enterococcus_model_fg_post.csv')
 ```
 
 ```{r Enterococcus}
-post_samples  <- posterior_samples(entero_genus, '^b_')
+post_samples  <- read_csv('../data/087_Enterococcus_model_fg_post.csv')
 
 nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
   filter(nchar(Level.code) == 1) %>% 
@@ -368,6 +375,18 @@ post_coeff <- post_samples %>%
   mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F))  %>% 
   mutate(shortname = factor(shortname, levels = c("Fruits"  , "Sweets"  ,  "Vegetables", "Grains"    , "Milk"   ,    "Meats"    ,   "Eggs"      , "Legumes" ,   "Oils" )))
 
+# find the 66 and 95 CI
+post_coeff %>% 
+  group_by(item) %>% 
+  tidybayes::median_qi(coeff, .width = c( .66, .95))
+
+post_coeff %>% 
+  group_by(item) %>% 
+  summarise(ave = mean(coeff))
+```
+
+
+```{r Enterococcus}
 fg_colors <- post_coeff %>% 
   distinct(shortname, color) %>% 
   select(shortname, color) %>% 

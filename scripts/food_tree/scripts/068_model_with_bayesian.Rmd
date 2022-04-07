@@ -641,6 +641,25 @@ fg_val_summary_all <- bind_rows(fg_val_summary, fg_val_max, fg_val_min) %>%
   
 fg_val_summary_all
 ```
+```{r}
+all_pred %>% 
+  left_join(key %>% rename(term = fg1_name) %>% select(term, shortname)) %>% 
+  inner_join(fg_val_summary_all) %>% 
+  filter(type  %in% c('min', '50%', 'max')) %>% 
+  mutate(xtext = str_glue('{shortname} {type}: {ori_value}g')) %>% 
+  arrange(shortname, ori_value) %>% 
+# ggboxplot( data = ., x = 'xtext', y = 'pred_div', fill = 'term', xlab = '', ylab = 'Predicted alpha diversity') +
+  ggplot(aes(x = xtext, y = pred_div, col = term)) +
+  stat_pointinterval(.width = c(.8, .95)) +
+  labs(x = '', y = 'Predicted alpha diversity') +
+  facet_grid(term ~ ., scales = 'free') +
+  scale_color_manual(values = c('#7D3C98','#db2589','#229954')) +
+        coord_flip() +
+  theme_classic() +
+  theme(legend.position = 'none',
+        strip.background = element_blank(),
+        strip.text = element_blank())
+```
 
 
 ```{r}
@@ -818,7 +837,7 @@ cross0 <- post_coeff %>%
 # to find the quantiles of the post_coeff
 post_coeff %>% 
   group_by(item) %>% 
-  median_qi(coeff, .width = c( .66, .95))
+  tidybayes::median_qi(coeff, .width = c( .66, .95))
 
 post_coeff %>% 
   group_by(item) %>% 
