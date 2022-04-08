@@ -694,6 +694,7 @@ two_diff %>%
   geom_interval(aes(xmin = .lower, xmax = .upper)) + 
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
   facet_grid(~grp ) +
+  xlim(-5, 2) +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
        title = 'max and ave including tube feeds') 

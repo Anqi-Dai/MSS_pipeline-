@@ -52,8 +52,9 @@ p2d_df <- p2d %>%
   select(-fgrp1) %>% 
   mutate(ave_dewt = ave_dewt/100) %>% # need to divide by 100 here
   spread('fg1_name', 'ave_dewt', fill = 0)
-
+ 
 meta <- p2d_df
+
 ```
 
 
@@ -712,6 +713,7 @@ two_diff %>%
   geom_interval(aes(xmin = .lower, xmax = .upper)) + 
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
   facet_grid(~grp ) +
+  xlim(-5, 2) +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
        title = 'max and ave excluding tube feeds')  

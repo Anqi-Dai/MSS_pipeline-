@@ -13,7 +13,7 @@ library(ggpubr)
 ```
 
 ```{r}
-dat <- readxl::read_excel('../data/Diet Excel.xlsx') %>% 
+dat <- readxl::read_excel('../data/Diet Excel.xlsx', sheet = 1) %>% 
   rename_all(~ gsub(" ", "_", .)) %>% 
   gather('type', 'Percent', names(.)[2]:names(.)[4]) %>% 
   rename(Macronutrient = `Calories_provided_by_(%)`) %>% 
@@ -27,9 +27,45 @@ ggsave('../data/Pam_three_diets.pdf', width = 8, height = 5)
 ```
 
 ```{r}
-tb <- readxl::read_xlsx('~/Downloads/Duke_set_93_oligos.xlsx',col_names = F)
+s2 <-  readxl::read_excel('../data/Diet Excel.xlsx', sheet = 2) %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  gather('type', 'value', names(.)[2]:names(.)[3]) %>% 
+  rename(Item = `Composition_(Nutrients_expressed_as_percent_of_ration_on_an_As-Fed_basis)`) %>% 
+  arrange(type)
 
-tb %>% 
-  write_tsv('../data/Duke_set_93.oligos', col_names = F)
+
+s2 %>% 
+  ggbarplot(x = 'type', y = 'value', facet.by = 'Item', sort.by.groups = T,color = 'Item', palette = 'jco', fill = 'Item', xlab = '' ,ylab = '') +
+  facet_grid(Item ~ .) +
+  theme(axis.text.x = element_text(angle=45, hjust=1), 
+        legend.position = 'none')
+
+ggsave('../data/Pam_three_diets_sheet_2.pdf', width = 3, height = 8)
 ```
+```{r}
+s3 <-  readxl::read_excel('../data/Diet Excel.xlsx', sheet = 3) %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  gather('type', 'value', names(.)[2]:names(.)[3]) %>% 
+  arrange(type)
+
+
+s3 %>% 
+  filter(!str_detect(Fat_Composition, 'ppm')) %>% 
+  ggbarplot(x = 'type', y = 'value', facet.by = 'Fat_Composition', color = 'Fat_Composition', palette = 'nejm', fill = 'Fat_Composition', xlab = '' ,  ylab = 'percent') +
+  facet_grid(Fat_Composition ~ .) +
+  theme(axis.text.x = element_text(angle=45, hjust=1), 
+        strip.text = element_text(size =8),
+        legend.position = 'none')
+
+ggsave('../data/Pam_three_diets_sheet_3.pdf', width = 3, height = 12)
+
+s3 %>% 
+  filter(str_detect(Fat_Composition, 'ppm')) %>% 
+  ggbarplot(x = 'type', y = 'value', color = 'forestgreen',  fill = 'forestgreen', xlab = '' ,  ylab = 'PPM') +
+  theme(axis.text.x = element_text(angle=45, hjust=1), 
+        legend.position = 'none')
+
+ggsave('../data/Pam_three_diets_sheet_3_ppm.pdf', width = 3, height = 3)
+```
+
 
