@@ -91,7 +91,7 @@ day_cal <- day_calori %>%
         aspect.ratio=2)
 ```
 
-```{r nutrition_alpha}
+```{r faith}
 # this faith pd is recently calculated in 2021-07
 faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
   separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
@@ -115,7 +115,35 @@ diet_alpha <- faith %>%
         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
         ) + 
   theme(aspect.ratio=2)
+```
 
+```{r food2}
+# make a combined version of the faith and the day_cal
+food <- day_calori %>% 
+  full_join(faith)
+
+food2 <- food %>% 
+  gather('type', 'value', daycal:faith_pd) %>% 
+  mutate(value = value/1000) %>% 
+  ggscatter('fdrt', 'value', 
+             alpha = 0.02,size = point_size, 
+            color = scatter_col, 
+            ylab = expression(Diet~alpha~diversity), 
+            xlab = 'Day relative to HCT',
+            title = 'Daily caloric intake',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
+  facet_grid(type ~ .) +
+  scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  theme_classic() +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
+        ) + 
+  theme(aspect.ratio=1)
 ```
 
 
@@ -124,10 +152,7 @@ diet_alpha <- faith %>%
 ```{r}
 # the patient that is picked to showcase the timeline in data collection
 #pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
-
 ```
-
-
 
 ```{r umap}
 dcoords <- read_csv('../data/016_umap_embedding_for_angel.csv')
@@ -166,7 +191,7 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.7,size = 1 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.3,size = 3 , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
@@ -182,6 +207,30 @@ fig1_umap <- df %>%
 
 ```
 
+```{r umap_faith}
+# another umap colored by the diet diversity?
+another <- df %>% 
+  full_join(faith)
+
+library(viridis)
+umap_faith <- another %>% 
+  arrange(desc(n)) %>% 
+  mutate(log10faith = log10(faith_pd + 1)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.3,size = 3 , shape = 16,
+            xlab = '', ylab = '') +
+  scale_color_viridis() +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(legend.position = 'none',
+        line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+        aspect.ratio=1)
+```
+
+
 
 ```{r tree}
 # import the tree from pdf to a ggplot kind of object
@@ -193,7 +242,7 @@ tree <- ggdraw() +
 
 # the macronutrients 3 by 2 panel inserted to the bottom row
 
-```{r}
+```{r 3X2}
 # the macronutrients scatter plot
 m_all <- dtb %>%  
   select(mrn, fdrt,Protein_g:Sodium_g ) %>% 
@@ -203,7 +252,7 @@ m_all <- dtb %>%
   summarise(eachsum = sum(gram)) 
 
 m_panel <- m_all %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0, size = point_size, 
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.005, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Grams',
             add = "loess", conf.int = TRUE, 
@@ -221,7 +270,7 @@ m_panel
 
 # the food group daily intake as a 3 by 3 grid panel
 
-```{r}
+```{r 3X3}
 fg_all <- dtb %>%  
   mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
   mutate(fgrp1 = as.numeric(fgrp1)) %>% 
@@ -230,7 +279,7 @@ fg_all <- dtb %>%
   left_join(key)
 
 fg_panel <- fg_all %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0, size = point_size, 
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.005, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Grams',
             add = "loess", conf.int = TRUE, 
@@ -244,7 +293,7 @@ fg_panel <- fg_all %>%
         strip.text.x = element_text(size = stip_txt_size), 
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
-        aspect.ratio=1.5)
+        aspect.ratio=1)
 fg_panel
 ```
 
@@ -252,17 +301,18 @@ fg_panel
 # Assembling the final version of the figure 1
 
 ```{r}
-bot <- plot_grid(day_cal, m_panel, diet_alpha,fg_panel,  stool_alpha,
+bot <- plot_grid(food2, m_panel, fg_panel,  stool_alpha,
           nrow = 1, 
           align = 'hv',
-          rel_widths =  c(1,1.2,1,1.4,1),
+          rel_widths =  c(1,1.2,1.4,1),
           #rel_heights = c(1,1),
-          labels = c('D','E','F', 'G', "H"),
+          labels = c('E','F', 'G', "H"),
           axis = 'tblr') 
 
 
-top <- plot_grid(tree, fig1_umap,labels = c('A', "B"),
-                  nrow = 1, rel_widths = c(1.5,1), axis = 'lbrt', align = 'hv')
+top <- plot_grid(tree, fig1_umap, umap_faith,
+                 labels = c('B', "C", "D"),
+                  nrow = 1, rel_widths = c(1.5,1, 1), axis = 'lbrt', align = 'hv')
 
 # assemble all
 f1 <-  plot_grid(top, bot,

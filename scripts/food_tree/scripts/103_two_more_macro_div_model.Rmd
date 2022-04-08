@@ -231,6 +231,15 @@ post_coeff_both %>%
   group_by(item) %>% 
   median_qi(coeff, .width = c(.66, .95)) %>% 
   distinct()
+
+post_coeff_both %>% 
+  ggscatter(x = 'b_ave_Protein', y = 'b_ave_fat', alpha = 0.15,
+             add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+   
 ```
 
 ```{r}
