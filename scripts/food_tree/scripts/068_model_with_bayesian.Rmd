@@ -120,6 +120,12 @@ model_div <- brm( model_formular,
 # actually draw samples from the priors 
 samples_prior <- prior_draws(model_div)
 
+
+# save it for future use
+post_res <- suppressWarnings(posterior_samples(model_div)) %>% 
+            select(-starts_with('r_'))
+post_res %>%  write_csv('../data/068_div_model_fg_post.csv')
+
 ```
 
 ```{r }
@@ -607,14 +613,6 @@ all_pred <- bind_rows(
 ) 
 ```
 
-```{r}
-# plotting
-all_pred %>% 
-  mutate(feature = str_glue('{term} {type}')) %>% 
-  split(.$term) %>% 
-  map(~ ggboxplot( data = ., x = 'type', y = 'pred_div') +
-        coord_flip())
-```
 
 ```{r}
 fg_val_summary <- meta %>% 
@@ -930,11 +928,7 @@ ave_each_fg_post <- post_samples %>%
   rename(post_res = mean_fg) %>% 
   select(grp, post_res)
 
-# when the intake is max
-post_coeffs <- post_samples %>% 
-  select(b_Intercept, b_inten_re,  starts_with('b_fg')) %>% 
-  gather('term','post_coeff') %>% 
-  split(.$term) 
+
 
 max_each_fg_post <- vals  %>%  
   set_names(vals) %>% 

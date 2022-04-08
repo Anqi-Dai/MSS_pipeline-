@@ -1,0 +1,665 @@
+---
+title: "main model div dosage prediction"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(brms)   
+library(ggpubr)
+library(tidybayes)
+library(cowplot)
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+theme_set(theme_tidybayes() + panel_border())
+ncores <- parallel::detectCores()
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
+```
+
+```{r}
+# the mean food group intake from our data 
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
+         inten_ab = if_else(intensity == 'ablative', 1, 0),
+         inten_re = if_else(intensity == 'reduced', 1, 0)) 
+
+ave_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean)) %>% 
+  gather
+
+mean_fg <-  meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean))
+
+max_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(max)) 
+
+min_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(min)) 
+
+q25_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(quantile(., probs = c(0.25)))) 
+
+q50_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(quantile(., probs = c(0.5)))) 
+
+q75_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(quantile(., probs = c( 0.75)))) 
+
+q90_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(quantile(., probs = c( 0.9)))) 
+
+q80_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(quantile(., probs = c( 0.8)))) 
+
+```
+```{r}
+# when the intake is max
+post_samples  <- read_csv('../data/068_div_model_fg_post.csv')
+
+post_coeffs <- post_samples %>% 
+  select(b_Intercept, b_inten_re,  starts_with('b_fg')) %>% 
+  gather('term','post_coeff') %>% 
+  split(.$term) 
+```
+
+```{r}
+# create a df with max and min and ave in 9 groups
+# create a df with the corresponding value that the samples prior coeff can multiply
+max_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(max_fg_egg = if_else(key == 'fg_egg', max_fg$fg_egg, mean_),
+         max_fg_fruit = if_else(key == 'fg_fruit', max_fg$fg_fruit, mean_),
+         max_fg_grain = if_else(key == 'fg_grain', max_fg$fg_grain, mean_),
+         max_fg_legume = if_else(key == 'fg_legume', max_fg$fg_legume, mean_),
+         max_fg_meat = if_else(key == 'fg_meat', max_fg$fg_meat, mean_),
+         max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
+         max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
+         max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
+         max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+
+
+```
+
+
+```{r}
+min_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(min_fg_egg = if_else(key == 'fg_egg', min_fg$fg_egg, mean_),
+         min_fg_fruit = if_else(key == 'fg_fruit', min_fg$fg_fruit, mean_),
+         min_fg_grain = if_else(key == 'fg_grain', min_fg$fg_grain, mean_),
+         min_fg_legume = if_else(key == 'fg_legume', min_fg$fg_legume, mean_),
+         min_fg_meat = if_else(key == 'fg_meat', min_fg$fg_meat, mean_),
+         min_fg_milk = if_else(key == 'fg_milk', min_fg$fg_milk, mean_),
+         min_fg_oils = if_else(key == 'fg_oils', min_fg$fg_oils, mean_),
+         min_fg_sweets = if_else(key == 'fg_sweets', min_fg$fg_sweets, mean_),
+         min_fg_veggie = if_else(key == 'fg_veggie', min_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+
+q25_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(q25_fg_egg = if_else(key == 'fg_egg', q25_fg$fg_egg, mean_),
+         q25_fg_fruit = if_else(key == 'fg_fruit', q25_fg$fg_fruit, mean_),
+         q25_fg_grain = if_else(key == 'fg_grain', q25_fg$fg_grain, mean_),
+         q25_fg_legume = if_else(key == 'fg_legume', q25_fg$fg_legume, mean_),
+         q25_fg_meat = if_else(key == 'fg_meat', q25_fg$fg_meat, mean_),
+         q25_fg_milk = if_else(key == 'fg_milk', q25_fg$fg_milk, mean_),
+         q25_fg_oils = if_else(key == 'fg_oils', q25_fg$fg_oils, mean_),
+         q25_fg_sweets = if_else(key == 'fg_sweets', q25_fg$fg_sweets, mean_),
+         q25_fg_veggie = if_else(key == 'fg_veggie', q25_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+
+q50_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(q50_fg_egg = if_else(key == 'fg_egg', q50_fg$fg_egg, mean_),
+         q50_fg_fruit = if_else(key == 'fg_fruit', q50_fg$fg_fruit, mean_),
+         q50_fg_grain = if_else(key == 'fg_grain', q50_fg$fg_grain, mean_),
+         q50_fg_legume = if_else(key == 'fg_legume', q50_fg$fg_legume, mean_),
+         q50_fg_meat = if_else(key == 'fg_meat', q50_fg$fg_meat, mean_),
+         q50_fg_milk = if_else(key == 'fg_milk', q50_fg$fg_milk, mean_),
+         q50_fg_oils = if_else(key == 'fg_oils', q50_fg$fg_oils, mean_),
+         q50_fg_sweets = if_else(key == 'fg_sweets', q50_fg$fg_sweets, mean_),
+         q50_fg_veggie = if_else(key == 'fg_veggie', q50_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+
+
+q75_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(q75_fg_egg = if_else(key == 'fg_egg', q75_fg$fg_egg, mean_),
+         q75_fg_fruit = if_else(key == 'fg_fruit', q75_fg$fg_fruit, mean_),
+         q75_fg_grain = if_else(key == 'fg_grain', q75_fg$fg_grain, mean_),
+         q75_fg_legume = if_else(key == 'fg_legume', q75_fg$fg_legume, mean_),
+         q75_fg_meat = if_else(key == 'fg_meat', q75_fg$fg_meat, mean_),
+         q75_fg_milk = if_else(key == 'fg_milk', q75_fg$fg_milk, mean_),
+         q75_fg_oils = if_else(key == 'fg_oils', q75_fg$fg_oils, mean_),
+         q75_fg_sweets = if_else(key == 'fg_sweets', q75_fg$fg_sweets, mean_),
+         q75_fg_veggie = if_else(key == 'fg_veggie', q75_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+
+
+q90_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(q90_fg_egg = if_else(key == 'fg_egg', q90_fg$fg_egg, mean_),
+         q90_fg_fruit = if_else(key == 'fg_fruit', q90_fg$fg_fruit, mean_),
+         q90_fg_grain = if_else(key == 'fg_grain', q90_fg$fg_grain, mean_),
+         q90_fg_legume = if_else(key == 'fg_legume', q90_fg$fg_legume, mean_),
+         q90_fg_meat = if_else(key == 'fg_meat', q90_fg$fg_meat, mean_),
+         q90_fg_milk = if_else(key == 'fg_milk', q90_fg$fg_milk, mean_),
+         q90_fg_oils = if_else(key == 'fg_oils', q90_fg$fg_oils, mean_),
+         q90_fg_sweets = if_else(key == 'fg_sweets', q90_fg$fg_sweets, mean_),
+         q90_fg_veggie = if_else(key == 'fg_veggie', q90_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+
+
+q80_ <- ave_fg %>%
+  rename(mean_ = value) %>%
+  mutate(q80_fg_egg = if_else(key == 'fg_egg', q80_fg$fg_egg, mean_),
+         q80_fg_fruit = if_else(key == 'fg_fruit', q80_fg$fg_fruit, mean_),
+         q80fg_grain = if_else(key == 'fg_grain', q80_fg$fg_grain, mean_),
+         q80_fg_legume = if_else(key == 'fg_legume', q80_fg$fg_legume, mean_),
+         q80_fg_meat = if_else(key == 'fg_meat', q80_fg$fg_meat, mean_),
+         q80_fg_milk = if_else(key == 'fg_milk', q80_fg$fg_milk, mean_),
+         q80_fg_oils = if_else(key == 'fg_oils', q80_fg$fg_oils, mean_),
+         q80_fg_sweets = if_else(key == 'fg_sweets', q80_fg$fg_sweets, mean_),
+         q80_fg_veggie = if_else(key == 'fg_veggie', q80_fg$fg_veggie, mean_)) %>%
+  select(-mean_) %>%
+  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
+  arrange(key)
+```
+
+```{r}
+values <- max_ %>%
+  select(-key) %>%
+  as.list()
+
+values <- values %>%
+  map(~ set_names(x = ., max_$key))
+
+# calculate the resulted prior log div
+vals <- names(values)
+
+
+max_each_fg_post <- vals  %>%  
+  set_names(vals) %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg$post_coeff * values %>% pluck(val) %>% pluck('b_fg_egg') +
+   post_coeffs$b_fg_fruit$post_coeff * values %>% pluck(val) %>% pluck('b_fg_fruit') +
+   post_coeffs$b_fg_grain$post_coeff * values %>% pluck(val) %>% pluck('b_fg_grain') +
+   post_coeffs$b_fg_legume$post_coeff * values %>% pluck(val) %>% pluck('b_fg_legume') +
+   post_coeffs$b_fg_meat$post_coeff * values %>% pluck(val) %>% pluck('b_fg_meat') +
+   post_coeffs$b_fg_milk$post_coeff * values %>% pluck(val) %>% pluck('b_fg_milk') +
+   post_coeffs$b_fg_oils$post_coeff * values %>% pluck(val) %>% pluck('b_fg_oils') +
+   post_coeffs$b_fg_sweets$post_coeff * values %>% pluck(val) %>% pluck('b_fg_sweets') +
+   post_coeffs$b_fg_veggie$post_coeff * values %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_inten_re$post_coeff  +
+   post_coeffs$b_Intercept$post_coeff 
+  }) %>% 
+  bind_rows(.id = 'grp')
+```
+
+
+```{r}
+# the calculated ln(diversity) when the others are ave but one group is the min
+values_min <- min_ %>%
+  select(-key) %>%
+  as.list()
+
+values_min <- values_min %>%
+  map(~ set_names(x = ., min_$key))
+
+# calculate the resulted prior log div
+vals_min <- names(values_min)
+
+
+min_each_fg_post <- vals_min  %>%  
+  set_names(vals_min) %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_egg') +
+   post_coeffs$b_fg_fruit$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_fruit') +
+   post_coeffs$b_fg_grain$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_grain') +
+   post_coeffs$b_fg_legume$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_legume') +
+   post_coeffs$b_fg_meat$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_meat') +
+   post_coeffs$b_fg_milk$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_milk') +
+   post_coeffs$b_fg_oils$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_oils') +
+   post_coeffs$b_fg_sweets$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_sweets') +
+   post_coeffs$b_fg_veggie$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_inten_re$post_coeff  +
+   post_coeffs$b_Intercept$post_coeff 
+  }) %>% 
+  bind_rows(.id = 'grp')
+```
+
+```{r}
+# the calculated ln(diversity) when the others are ave but one group is the q25
+values_q25 <- q25_ %>%
+  select(-key) %>%
+  as.list()
+
+values_q25 <- values_q25 %>%
+  map(~ set_names(x = ., q25_$key))
+
+# calculate the resulted prior log div
+vals_q25 <- names(values_q25)
+
+
+q25_each_fg_post <- vals_q25  %>%  
+  set_names(vals_q25) %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_egg') +
+   post_coeffs$b_fg_fruit$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_fruit') +
+   post_coeffs$b_fg_grain$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_grain') +
+   post_coeffs$b_fg_legume$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_legume') +
+   post_coeffs$b_fg_meat$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_meat') +
+   post_coeffs$b_fg_milk$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_milk') +
+   post_coeffs$b_fg_oils$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_oils') +
+   post_coeffs$b_fg_sweets$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_sweets') +
+   post_coeffs$b_fg_veggie$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_inten_re$post_coeff  +
+   post_coeffs$b_Intercept$post_coeff 
+  }) %>% 
+  bind_rows(.id = 'grp')
+```
+
+
+```{r}
+# the calculated ln(diversity) when the others are ave but one group is the q50
+values_q50 <- q50_ %>%
+  select(-key) %>%
+  as.list()
+
+values_q50 <- values_q50 %>%
+  map(~ set_names(x = ., q50_$key))
+
+# calculate the resulted prior log div
+vals_q50 <- names(values_q50)
+
+
+q50_each_fg_post <- vals_q50  %>%  
+  set_names(vals_q50) %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_egg') +
+   post_coeffs$b_fg_fruit$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_fruit') +
+   post_coeffs$b_fg_grain$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_grain') +
+   post_coeffs$b_fg_legume$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_legume') +
+   post_coeffs$b_fg_meat$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_meat') +
+   post_coeffs$b_fg_milk$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_milk') +
+   post_coeffs$b_fg_oils$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_oils') +
+   post_coeffs$b_fg_sweets$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_sweets') +
+   post_coeffs$b_fg_veggie$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_inten_re$post_coeff  +
+   post_coeffs$b_Intercept$post_coeff 
+  }) %>% 
+  bind_rows(.id = 'grp')
+```
+
+```{r}
+# the calculated ln(diversity) when the others are ave but one group is the q50
+values_q80 <- q80_ %>%
+  select(-key) %>%
+  as.list()
+
+values_q80 <- values_q80 %>%
+  map(~ set_names(x = ., q80_$key))
+
+# calculate the resulted prior log div
+vals_q80 <- names(values_q80)
+
+
+q80_each_fg_post <- vals_q80  %>%  
+  set_names(vals_q80) %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_egg') +
+   post_coeffs$b_fg_fruit$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_fruit') +
+   post_coeffs$b_fg_grain$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_grain') +
+   post_coeffs$b_fg_legume$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_legume') +
+   post_coeffs$b_fg_meat$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_meat') +
+   post_coeffs$b_fg_milk$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_milk') +
+   post_coeffs$b_fg_oils$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_oils') +
+   post_coeffs$b_fg_sweets$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_sweets') +
+   post_coeffs$b_fg_veggie$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_inten_re$post_coeff  +
+   post_coeffs$b_Intercept$post_coeff 
+  }) %>% 
+  bind_rows(.id = 'grp')
+```
+
+
+```{r}
+# the calculated ln(diversity) when the others are ave but one group is the q50
+values_q90 <- q90_ %>%
+  select(-key) %>%
+  as.list()
+
+values_q90 <- values_q90 %>%
+  map(~ set_names(x = ., q90_$key))
+
+# calculate the resulted prior log div
+vals_q90 <- names(values_q90)
+
+
+q90_each_fg_post <- vals_q90  %>%  
+  set_names(vals_q90) %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_egg') +
+   post_coeffs$b_fg_fruit$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_fruit') +
+   post_coeffs$b_fg_grain$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_grain') +
+   post_coeffs$b_fg_legume$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_legume') +
+   post_coeffs$b_fg_meat$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_meat') +
+   post_coeffs$b_fg_milk$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_milk') +
+   post_coeffs$b_fg_oils$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_oils') +
+   post_coeffs$b_fg_sweets$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_sweets') +
+   post_coeffs$b_fg_veggie$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_inten_re$post_coeff  +
+   post_coeffs$b_Intercept$post_coeff 
+  }) %>% 
+  bind_rows(.id = 'grp')
+```
+
+```{r}
+# the calculated ln(diversity) when the others are ave but one group is the q75
+values_q75 <- q75_ %>%
+  select(-key) %>%
+  as.list()
+
+values_q75 <- values_q75 %>%
+  map(~ set_names(x = ., q75_$key))
+
+# calculate the resulted prior log div
+vals_q75 <- names(values_q75)
+
+
+q75_each_fg_post <- vals_q75  %>%  
+  set_names(vals_q75) %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_egg') +
+   post_coeffs$b_fg_fruit$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_fruit') +
+   post_coeffs$b_fg_grain$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_grain') +
+   post_coeffs$b_fg_legume$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_legume') +
+   post_coeffs$b_fg_meat$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_meat') +
+   post_coeffs$b_fg_milk$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_milk') +
+   post_coeffs$b_fg_oils$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_oils') +
+   post_coeffs$b_fg_sweets$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_sweets') +
+   post_coeffs$b_fg_veggie$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_veggie') +
+   post_coeffs$b_inten_re$post_coeff  +
+   post_coeffs$b_Intercept$post_coeff 
+  }) %>% 
+  bind_rows(.id = 'grp')
+```
+
+```{r}
+ave_each_fg_post <- post_samples %>% 
+  mutate(mean_fg = b_Intercept + 
+           b_fg_fruit*mean_fg$fg_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
+           b_fg_oils*mean_fg$fg_oils + 
+           b_fg_egg*mean_fg$fg_egg + 
+           b_fg_grain*mean_fg$fg_grain +
+           b_fg_sweets*mean_fg$fg_sweets +
+           b_fg_legume*mean_fg$fg_legume +
+           b_fg_veggie*mean_fg$fg_veggie +
+           b_inten_re ) %>% 
+  select(mean_fg) %>% 
+  mutate(grp = 'ave_each') %>% 
+  rename(post_res = mean_fg) %>% 
+  select(grp, post_res)
+```
+
+
+
+```{r}
+# calculate the original scale predicted diversity
+post_pred_min <- min_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      min_=vec
+    ) %>% 
+      mutate(
+             post_min_pred =  exp(min_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'min_','')) 
+
+
+post_pred_max <- max_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      max_=vec
+    ) %>% 
+      mutate(
+             post_max_pred =  exp(max_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'max_','')) 
+
+
+post_pred_ave <- max_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      max_=vec
+    ) %>% 
+      mutate(
+             post_max_pred =  exp(max_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'max_','')) 
+
+post_pred_q25 <- q25_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      q25_=vec
+    ) %>% 
+      mutate(
+             post_q25_pred =  exp(q25_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'q25_',''))
+
+post_pred_q50 <- q50_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      q50_=vec
+    ) %>% 
+      mutate(
+             post_q50_pred =  exp(q50_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'q50_',''))
+
+post_pred_q80 <- q80_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      q80_=vec
+    ) %>% 
+      mutate(
+             post_q80_pred =  exp(q80_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'q80_',''))
+
+post_pred_q90 <- q90_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      q90_=vec
+    ) %>% 
+      mutate(
+             post_q90_pred =  exp(q90_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'q90_',''))
+
+
+post_pred_q75 <- q75_each_fg_post %>% 
+  as.list() %>% 
+  map(function(vec) {
+    tibble(
+      q75_=vec
+    ) %>% 
+      mutate(
+             post_q75_pred =  exp(q75_))
+  }) %>% 
+  bind_rows(.id = 'term') %>% 
+  mutate(term = str_replace(term, 'q75_',''))
+
+all_pred <- bind_rows(
+  post_pred_min %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
+    rename(pred_div = post_min_pred) %>% 
+    mutate(type = 'min')%>% 
+    select(term, pred_div,type ),
+  post_pred_q25 %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
+    rename(pred_div = post_q25_pred) %>% 
+    mutate(type = '25%')%>% 
+    select(term, pred_div,type ),
+  post_pred_q50 %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
+    rename(pred_div = post_q50_pred) %>% 
+    mutate(type = '50%')%>% 
+    select(term, pred_div,type ),
+  post_pred_q80 %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
+    rename(pred_div = post_q80_pred) %>% 
+    mutate(type = '80%')%>% 
+    select(term, pred_div,type ),
+  post_pred_q90 %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
+    rename(pred_div = post_q90_pred) %>% 
+    mutate(type = '90%')%>% 
+    select(term, pred_div,type ),
+  post_pred_q75 %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
+    rename(pred_div = post_q75_pred) %>% 
+    mutate(type = '75%') %>% 
+    select(term, pred_div,type ),
+  
+  only3 %>% 
+    select(post_max_pred, term) %>% 
+    rename(pred_div = post_max_pred) %>% 
+    mutate(type = 'max') %>% 
+    select(term, pred_div,type ),
+  only3 %>% 
+    select(post_ave_pred, term) %>% 
+    rename(pred_div = post_ave_pred) %>% 
+    mutate(type = 'ave') %>% 
+    select(term, pred_div,type )
+) 
+```
+
+
+```{r}
+fg_val_summary <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(quantile(., probs = c(0.25, 0.5, 0.75, 0.8, 0.9)))) %>% 
+  mutate(grp = c('25%','50%','75%', '80%', '90%'))
+
+fg_val_max <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(max))  %>% 
+  mutate(grp = 'max')
+
+fg_val_min <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(min))  %>% 
+  mutate(grp = 'min')
+
+fg_val_summary_all <- bind_rows(fg_val_summary, fg_val_max, fg_val_min) %>%
+  gather('fg', 'value', fg_egg:fg_veggie) %>% 
+  mutate(ori_value = value*100) %>% 
+  select(-value) %>% 
+  rename(term = fg, type = grp) %>% 
+  mutate(ori_value = round(ori_value))
+  
+fg_val_summary_all
+```
+
+```{r}
+all_pred %>% 
+  left_join(key %>% rename(term = fg1_name) %>% select(term, shortname)) %>% 
+  inner_join(fg_val_summary_all) %>% 
+  filter(type  %in% c('min', '50%', 'max')) %>% 
+  mutate(xtext = str_glue('{shortname} {type}: {ori_value}g')) %>% 
+  arrange(shortname, ori_value) %>% 
+# ggboxplot( data = ., x = 'xtext', y = 'pred_div', fill = 'term', xlab = '', ylab = 'Predicted alpha diversity') +
+  ggplot(aes(x = xtext, y = pred_div, col = term)) +
+  stat_pointinterval(.width = c(.8, .95)) +
+  labs(x = '', y = 'Predicted alpha diversity') +
+  facet_grid(term ~ ., scales = 'free') +
+  scale_color_manual(values = c('#7D3C98','#db2589','#229954')) +
+        coord_flip() +
+  theme_classic() +
+  theme(legend.position = 'none',
+        strip.background = element_blank(),
+        strip.text = element_blank())
+```
+
+```{r}
+all_pred %>% 
+  left_join(key %>% rename(term = fg1_name) %>% select(term, shortname)) %>% 
+  inner_join(fg_val_summary_all) %>% 
+  filter(type != 'ave') %>% 
+  mutate(type = factor(type, levels = c('min','25%','50%','75%','80%','90%', 'max'))) %>% 
+  mutate(xtext = str_glue('{shortname} {type}: {ori_value}g')) %>% 
+  arrange(shortname, ori_value) %>% 
+  ggboxplot( data = ., x = 'xtext', y = 'pred_div', fill = 'term',
+             xlab = '', ylab = 'Predicted alpha diversity') +
+  facet_grid(term ~ ., scales = 'free') +
+  scale_fill_manual(values = c('#7D3C98','#db2589','#229954')) +
+        coord_flip() +
+  theme_classic() +
+  theme(legend.position = 'none',
+        strip.background = element_blank(),
+        strip.text = element_blank()) 
+```
