@@ -1,0 +1,35 @@
+---
+title: "Three diets"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+dat <- readxl::read_excel('../data/Diet Excel.xlsx') %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  gather('type', 'Percent', names(.)[2]:names(.)[4]) %>% 
+  rename(Macronutrient = `Calories_provided_by_(%)`) %>% 
+  arrange(type)
+
+dat %>% 
+  ggbarplot(x = 'type', y = 'Percent', facet.by = 'Macronutrient', sort.by.groups = T,color = 'Macronutrient', palette = 'lancet', fill = 'Macronutrient', xlab = '' ) +
+  theme(axis.text.x = element_text(angle=45, hjust=1))
+
+ggsave('../data/Pam_three_diets.pdf', width = 8, height = 5)
+```
+
+```{r}
+tb <- readxl::read_xlsx('~/Downloads/Duke_set_93_oligos.xlsx',col_names = F)
+
+tb %>% 
+  write_tsv('../data/Duke_set_93.oligos', col_names = F)
+```
+

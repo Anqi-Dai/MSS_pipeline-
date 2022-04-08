@@ -448,6 +448,17 @@ ave_each_fg_post <- post_samples %>%
   mutate(grp = 'ave_each') %>% 
   rename(post_res = mean_fg) %>% 
   select(grp, post_res)
+
+post_pred_ave <- tibble(
+  # because everything is the ave of it, so there is no change that whether one group is the max consumption
+  # just make three columns with the same contents
+  fg_fruit = exp(ave_each_fg_post$post_res),
+  fg_sweets = exp(ave_each_fg_post$post_res),
+  fg_veggie = exp(ave_each_fg_post$post_res)
+) %>% 
+  gather('term', 'post_ave_pred')
+
+
 ```
 
 
@@ -480,17 +491,6 @@ post_pred_max <- max_each_fg_post %>%
   mutate(term = str_replace(term, 'max_','')) 
 
 
-post_pred_ave <- max_each_fg_post %>% 
-  as.list() %>% 
-  map(function(vec) {
-    tibble(
-      max_=vec
-    ) %>% 
-      mutate(
-             post_max_pred =  exp(max_))
-  }) %>% 
-  bind_rows(.id = 'term') %>% 
-  mutate(term = str_replace(term, 'max_','')) 
 
 post_pred_q25 <- q25_each_fg_post %>% 
   as.list() %>% 
@@ -585,17 +585,17 @@ all_pred <- bind_rows(
     mutate(type = '75%') %>% 
     select(term, pred_div,type ),
   
-  only3 %>% 
-    select(post_max_pred, term) %>% 
+  post_pred_max %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
     rename(pred_div = post_max_pred) %>% 
     mutate(type = 'max') %>% 
     select(term, pred_div,type ),
-  only3 %>% 
-    select(post_ave_pred, term) %>% 
+  post_pred_ave %>% 
+    filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
     rename(pred_div = post_ave_pred) %>% 
     mutate(type = 'ave') %>% 
     select(term, pred_div,type )
-) 
+)
 ```
 
 
