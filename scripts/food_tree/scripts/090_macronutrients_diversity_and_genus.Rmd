@@ -122,6 +122,14 @@ model_alpha_macro_fat  <- brm( alpha_macro_fat,
               chains = 2, 
               seed = 123, sample_prior = T)
 
+
+post_res <- suppressWarnings(posterior_samples(model_alpha_macro_fat)) %>% 
+            select(-starts_with('r_'))
+post_res %>%  write_csv('../data/090_model_alpha_macro_fat_post.csv')
+```
+
+
+```{r}
 mean_macro <-  full %>% 
   select(starts_with('ave_')) %>% 
   summarise_all(funs(mean))
@@ -146,7 +154,7 @@ within_perc <- mean_ave_macro_fat_prior %>%
 
 ```{r}
 # plot the above model post coeff
-post_coeff <- posterior_samples(model_alpha_macro_fat, '^b_') %>% 
+post_coeff <- read_csv('../data/090_model_alpha_macro_fat_post.csv') %>% 
   select(starts_with('b_ave')) %>% 
   gather('item', 'coeff') %>% 
   mutate(item = str_replace(item, 'b_ave_','')) %>% 
@@ -164,6 +172,7 @@ macronutrients_alpha_main <- post_coeff %>%
   labs(x = 'Coefficients',
        y = 'Macronutrients',
        title = expression(Microbiome~alpha~diversity)) +
+  xlim(-1.5, 1.1) +
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text=element_text(size=axis_text_size),

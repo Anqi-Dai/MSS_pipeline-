@@ -1,0 +1,298 @@
+---
+title: "Two other variations of the macronutrients div model"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(tidybayes)  
+library(brms)
+library(rstan)
+options(mc.cores = parallel::detectCores())
+ncores = parallel::detectCores()
+rstan_options(auto_write = TRUE)
+axis_text_size <- 10
+axis_title_size <- 10
+full <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_dietall_genera36.csv')
+```
+
+### simpson reciprocal ~ ave_fiber + ave_protein + ave_Sugars + empirical + intensity + TPN + EN + ...
+
+```{r}
+alpha_macro_protein <- log(simpson_reciprocal) ~ 1 +
+                ave_fiber +
+                ave_Protein +
+                ave_Sugars +
+               inten_non + inten_ab + inten_re +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_alpha_macro_protein <- c(
+            # for the macro nutrients
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(2, 0.5), class = 'Intercept'))
+
+# vet the prior 
+model_alpha_macro_protein  <- brm( alpha_macro_protein,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_macro_protein,
+               control = list(adapt_delta = 0.99),
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T)
+
+post_res <- suppressWarnings(posterior_samples(model_alpha_macro_protein)) %>% 
+            select(-starts_with('r_'))
+post_res %>%  write_csv('../data/103_model_alpha_macro_protein_post.csv')
+```
+
+```{r}
+# plot the above model post coeff
+post_coeff_protein <- read_csv('../data/103_model_alpha_macro_protein_post.csv') %>% 
+  select(starts_with('b_ave')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+   mutate(item = case_when(
+    item ==  'fiber' ~ 'Fibers',
+    TRUE ~ item
+  ))  %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+
+macronutrients_alpha__protein_main <- post_coeff_protein %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Coefficients',
+       y = 'Macronutrients',
+       title = expression(Microbiome~alpha~diversity)) +
+  xlim(-1.5, 1.1) +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+macronutrients_alpha__protein_main %>% 
+  write_rds('../data/103_macronutrients_alpha_protein_main.rds')
+
+
+# get the value of the actual 66% and 95% CI
+post_coeff_protein %>% 
+  group_by(item) %>% 
+  median_qi(coeff, .width = c(.66, .95)) %>% 
+  distinct()
+```
+```{r}
+# the binary vars
+coeff_bi <- read_csv('../data/103_model_alpha_macro_protein_post.csv')  %>% 
+  select(!starts_with('b_ave')) %>% 
+  select(-b_Intercept) %>% 
+  select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
+                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
+                                                  'Empirical abx exposure'))) 
+
+macronutrients_alpha_protein_factor <- coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Coefficients',
+       y = 'Factor variables',
+       title = expression(Microbiome~alpha~diversity)) +
+  theme_classic() +
+  theme(legend.position = 'none',
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+macronutrients_alpha_protein_factor %>% 
+  write_rds('../data/103_macronutrients_alpha_protein_factor.rds')
+
+coeff_bi %>% 
+  group_by(item) %>% 
+  median_qi(coeff, .width = c(.66, .95)) 
+```
+
+
+### simpson reciprocal ~ ave_fiber + ave_protein + ave_fat +  ave_Sugars + empirical + intensity + TPN + EN + ...
+
+```{r}
+alpha_macro_both <- log(simpson_reciprocal) ~ 1 +
+                ave_fiber +
+                ave_Protein +
+                ave_fat +
+                ave_Sugars +
+               inten_non + inten_ab + inten_re +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_alpha_macro_both <- c(
+            # for the macro nutrients
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Protein"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
+            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
+            # for the intercept
+            prior(normal(2, 0.5), class = 'Intercept'))
+
+# vet the prior 
+model_alpha_macro_both  <- brm( alpha_macro_both,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_macro_both,
+               control = list(adapt_delta = 0.99),
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T)
+
+post_res <- suppressWarnings(posterior_samples(model_alpha_macro_both)) %>% 
+            select(-starts_with('r_'))
+post_res %>%  write_csv('../data/103_model_alpha_macro_both_post.csv')
+```
+
+```{r}
+# plot the above model post coeff
+post_coeff_both <- read_csv('../data/103_model_alpha_macro_both_post.csv') %>% 
+  select(starts_with('b_ave')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+   mutate(item = case_when(
+    item ==  'fiber' ~ 'Fibers',
+    item ==  'fat' ~ 'Fat',
+    TRUE ~ item
+  ))  %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+
+macronutrients_alpha__both_main <- post_coeff_both %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Coefficients',
+       y = 'Macronutrients',
+       title = expression(Microbiome~alpha~diversity)) +
+  xlim(-1.5, 1.1) +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+macronutrients_alpha__both_main %>% 
+  write_rds('../data/103_macronutrients_alpha_both_main.rds')
+
+
+# get the value of the actual 66% and 95% CI
+post_coeff_both %>% 
+  group_by(item) %>% 
+  median_qi(coeff, .width = c(.66, .95)) %>% 
+  distinct()
+```
+
+```{r}
+# the binary vars
+coeff_bi <- read_csv('../data/103_model_alpha_macro_both_post.csv')  %>% 
+  select(!starts_with('b_ave')) %>% 
+  select(-b_Intercept) %>% 
+  select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_inten_non' ~ 'Intensity: nonablative',
+    item == 'b_inten_ab' ~ 'Intensity: ablative',
+    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
+                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
+                                                  'Empirical abx exposure'))) 
+
+macronutrients_alpha_both_factor <- coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Coefficients',
+       y = 'Factor variables',
+       title = expression(Microbiome~alpha~diversity)) +
+  theme_classic() +
+  theme(legend.position = 'none',
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        aspect.ratio=1)
+
+macronutrients_alpha_protein_factor %>% 
+  write_rds('../data/103_macronutrients_alpha_both_factor.rds')
+
+coeff_bi %>% 
+  group_by(item) %>% 
+  median_qi(coeff, .width = c(.66, .95)) 
+```
+
+```{r}
+# need to put these three models side by side to see ....
+mod_fat_1 <- read_rds('../data/090_macronutrients_alpha_main.rds')
+mod_fat_2 <- read_rds('../data/090_macronutrients_alpha_factor.rds')
+
+library(cowplot)
+three <- plot_grid(mod_fat_1, mod_fat_2, 
+                   macronutrients_alpha__protein_main,macronutrients_alpha_protein_factor,
+                   macronutrients_alpha__both_main,macronutrients_alpha_both_factor,
+                    nrow = 3, 
+                    align = 'hv',
+                    labels = letters[1:6], 
+                    axis = 'tblr') 
+
+ggsave('../figs/paper/S4_macro_model.pdf',
+       width = 250,
+       height = 180,
+         #height = 60,  
+         units = c("mm"),
+         dpi = 400, plot = three)
+```
+
