@@ -688,6 +688,12 @@ all_pred %>%
 # the full table of the posterior results
 full_post <- posterior_samples(model_div, '^b_|^r_')
 
+
+post_coeffs <- post_samples %>% 
+  select(b_Intercept, b_inten_re,  starts_with('b_fg')) %>% 
+  gather('term','post_coeff') %>% 
+  split(.$term) 
+
 # make a table with the median , thinner interval two sides, thicker interval two sides, the r hat value of the columns
 mrn_part <- full_post %>% 
   gather() %>% 
@@ -897,20 +903,6 @@ max_each_fg_post <- vals  %>%
 maxs <- max_each_fg_post %>% 
   as.list()
 
-# diff_value_lt0 <-  maxs %>% 
-#   map(function(vec) {
-#     tibble(
-#       max_=vec,
-#       ave=ave_each_fg_post$post_res
-#     ) %>% 
-#       mutate(post_diff_ = max_ - ave)
-#   }) %>% 
-#   map( ~ count(x = ., post_diff_ < 0) %>% 
-#           mutate(perc = n/sum(n) * 100) %>% 
-#           slice(2) %>% 
-#           select(perc)) %>% 
-#   bind_rows(.id = 'term')
-
 
 theme_set(theme_tidybayes() + cowplot::panel_border())
 
@@ -1057,33 +1049,7 @@ pinterval
 ggsave('../figs/paper/prior_post_pinterval_coeff.pdf', width = 10, height = 4)
 ```
 
-## others
 
-```{r post_mean_max}
-# post_all <- bind_rows(ave_each_fg_post, max_each_fg_post) %>% 
-#   mutate(div = exp(post_res))
-# post_all %>%  write_csv('../figs/paper/data/post_ave_max_min_res_68.csv')
-# 
-# post_check_list <- fg_cha %>% 
-#   set_names(fg_cha) %>% 
-#   map(function(char){
-#     post_all %>% 
-#       filter(str_detect(grp, str_glue('ave_each|{char}'))) %>% 
-#       gghistogram(x = 'div', fill = 'grp', color = 'white', palette = 'lancet', xlab = 'logdiversity',
-#                   #add_density = TRUE, 
-#                   bins = 30,
-#                   title = str_glue('Post check {char}'))
-#     })
-# 
-# g_post <- cowplot::plot_grid(post_check_list[[1]],post_check_list[[2]],post_check_list[[3]],post_check_list[[4]],post_check_list[[5]],post_check_list[[6]],post_check_list[[7]],post_check_list[[8]],post_check_list[[9]],
-#     ncol = 3, nrow= 3, 
-#     o = 'hv',
-#     #labels = 'AUTO',
-#     axis = 'bltr') 
-# g_post
-# 
-# ggsave('../figs/paper/post_check_9fg.pdf', width = 10, height = 10, dpi = 300, plot = g_post)
-```
 
 ## Post_top_patients
 
@@ -1098,69 +1064,3 @@ for i in 5:
     leastdietdiversity_posterior = predict(least,coeffs)
 plot(topdietsdiversity_posterior) // prior 
 
-```{r}
-# the top and bottom fruit eaters diet 
-# set.seed(123)
-# N <- 5
-# N_sample <- 1000
-# topdiet <- meta %>% 
-#   top_n(n = N, wt = fg_fruit) %>% 
-#   mutate(TPNTRUE = if_else(TPN == TRUE, 1, 0),
-#          ENTRUE = if_else(EN == TRUE, 1, 0),
-#          empiricalTRUE = if_else(empirical == TRUE, 1, 0),
-#          intensityreduced = if_else(intensity == 'reduced', 1, 0),
-#          intensityablative = if_else(intensity == 'ablative', 1, 0)) %>% 
-#   select(fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie)
-# 
-# botdiet <- meta %>% 
-#   filter(fg_fruit == 0) %>% 
-#   slice_sample(n = 5) %>% 
-#   mutate(TPNTRUE = if_else(TPN == TRUE, 1, 0),
-#          ENTRUE = if_else(EN == TRUE, 1, 0),
-#          empiricalTRUE = if_else(empirical == TRUE, 1, 0),
-#          intensityreduced = if_else(intensity == 'reduced', 1, 0),
-#          intensityablative = if_else(intensity == 'ablative', 1, 0))%>% 
-#   select(fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie)
-# 
-# 
-# per_diet_post_pred <- function(fg_egg_, fg_fruit_, fg_grain_, fg_legume_, fg_meat_, fg_milk_, fg_oils_, 
-#                                fg_sweets_, fg_veggie_) {
-#   post_samp <- post_samples %>% 
-#     sample_n(size = N_sample, replace = F)
-#   
-#   ret = pmap(post_samp, function(b_Intercept, b_fg_fruit, b_fg_meat, b_fg_milk, b_fg_oils, b_fg_egg,
-#                                  b_fg_grain, b_fg_sweets, b_fg_legume, b_fg_veggie) {
-#     b_Intercept + b_fg_fruit*fg_fruit_ + b_fg_meat*fg_meat_ + b_fg_milk*fg_milk_ + b_fg_oils*fg_oils_ +
-#       b_fg_egg*fg_egg_ + b_fg_grain*fg_grain_ + b_fg_sweets*fg_sweets_ + b_fg_legume*fg_legume_ + 
-#       b_fg_veggie*fg_veggie_ 
-#   }) %>% 
-#     set_names(seq(1, N_sample)) %>% 
-#     bind_rows() %>% 
-#     gather()
-#   return(ret)
-#                                }
-# 
-# 
-# res_top <- pmap(topdiet, function(fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie){
-#   per_diet_post_pred(fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie)
-# }) %>% 
-#   set_names(paste('D', seq(1, nrow(topdiet)), sep = '')) %>% 
-#   bind_rows(.id = 'diet')
-# 
-# 
-# res_bot <- pmap(botdiet, function(fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie){
-#   per_diet_post_pred(fg_egg, fg_fruit, fg_grain, fg_legume, fg_meat, fg_milk, fg_oils, fg_sweets, fg_veggie)
-# }) %>% 
-#   set_names(paste('D', seq(1, nrow(topdiet)), sep = '')) %>% 
-#   bind_rows(.id = 'diet')
-# 
-# 
-# # plot them together in one 
-# bind_rows(
-#   res_top %>% mutate(grp = 'top'),
-#   res_bot %>% mutate(grp = 'bot')
-# ) %>% 
-#   gghistogram(x = 'value',bins = 30, fill = 'grp', palette = 'nejm', color = 'white', add = 'mean',
-#                   xlab = 'Predicted log diversity', ylab = 'Probability density') +
-#   ggsave('../figs/predicted_logdiversi_top_tybottom_5.pdf', width = 7, height = 5)
-```

@@ -23,23 +23,41 @@ axis_title_size <- 10
 
 ```{r}
 # the mean food group intake from our data 
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn)) %>% 
-  mutate(fg_egg = fg_egg/100,
-         fg_fruit = fg_fruit/100,
-         fg_grain = fg_grain/100,
-         fg_legume = fg_legume/100,
-         fg_meat = fg_meat/100,
-         fg_milk = fg_milk/100,
-         fg_oils = fg_oils/100,
-         fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100) %>% 
-  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
-         inten_ab = if_else(intensity == 'ablative', 1, 0),
-         inten_re = if_else(intensity == 'reduced', 1, 0)) 
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 
+# need to recalculate the meta and exclude the EN ones
+dtb_no_tube <- dtb %>% 
+  filter(Meal != 'EN') %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1))
+
+stb_loop <- meta %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+p2d <- apply(stb_loop, 1, function(Row){
+  df = dtb_no_tube %>%  
+        filter(mrn == Row[['mrn']]) %>% 
+        filter(fdrt %in% c(Row[['p1d']], Row[['p2d']])) %>% 
+        group_by(fgrp1) %>% 
+        summarise(ave_dewt = sum(dehydrated_weight)/2)
+}) %>% 
+  set_names(meta %>% pull(sampleid))  %>% 
+  bind_rows(.id = 'sampleid')  
+
+
+p2d_df <- p2d %>% 
+  left_join(key %>% select(fgrp1, fg1_name)) %>% 
+  select(-fgrp1) %>% 
+  mutate(ave_dewt = ave_dewt/100) %>% # need to divide by 100 here
+  spread('fg1_name', 'ave_dewt', fill = 0)
+
+meta <- p2d_df
+```
+
+
+```{r}
 ave_fg <- meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean)) %>% 
@@ -696,5 +714,5 @@ two_diff %>%
   facet_grid(~grp ) +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
-       title = 'max and ave including tube feeds') 
+       title = 'max and ave excluding tube feeds')  
 ```
