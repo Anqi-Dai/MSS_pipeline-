@@ -162,15 +162,6 @@ other <- patient_allo_ag %>%
 
 
 ```{r}
-new1 <- tibble(
-  mrn = 38084143,
-  source = 'TCD',
-  intensity = 'ablative',
-  hct = ymd('2020, January 17'),
-  age = 61.1,
-  sex = 'M',
-  disease.simple = 'AML'
-)
 
 ptb <- bind_rows(other, new1) %>% 
   full_join(full_wt)

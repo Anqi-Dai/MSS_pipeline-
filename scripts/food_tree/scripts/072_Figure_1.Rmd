@@ -228,6 +228,24 @@ umap_faith <- another %>%
         axis.text= element_blank(),
         axis.ticks = element_blank(),
         aspect.ratio=1)
+
+# another version with the legend
+umap_faith_legend <- another %>% 
+  arrange(desc(n)) %>% 
+  mutate(log10faith = log10(faith_pd + 1)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.3,size = 3 , shape = 16,
+            xlab = '', ylab = '') +
+  scale_color_viridis() +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+        aspect.ratio=1)
+
+ggsave('../data/072_umap_faith_legend.pdf', plot = umap_faith_legend)
 ```
 
 
