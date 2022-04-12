@@ -704,17 +704,26 @@ two_diff <- map2(maxs, mins, .f = function(maxi, mini){
 
 
 ```{r}
-two_diff %>% 
+two_diff_plot <-  two_diff %>% 
   filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
   gather('grp', 'post_diff', diff_max_ave:diff_min_ave) %>% 
   group_by(term, shortname, grp) %>% 
-  median_qi(post_diff, .width = c(.95, .66)) %>%
-  ggplot(aes(y = shortname, x = post_diff)) +
-  geom_interval(aes(xmin = .lower, xmax = .upper)) + 
+  arrange(shortname, grp) %>% 
+  mutate(xtxt = str_glue('{shortname}__{grp}')) %>% 
+  ggplot(aes(y = xtxt, x = post_diff, col =grp )) +
+  stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
-  facet_grid(~grp ) +
+  scale_color_manual(values = c('#A73030FF','#00468B')) +
   xlim(-5, 2) +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
-       title = 'max and ave excluding tube feeds')  
+       title = 'Diversity prediction')   +
+  theme_classic() +
+  theme(axis.text=element_text(size=8),
+        legend.position = 'none',
+        axis.text.y = element_blank(),
+        axis.title=element_text(size=8),
+        aspect.ratio=1)
+
+two_diff_plot %>% write_rds('../data/102_f2d_diversity_pred_two_diff.rds')
 ```

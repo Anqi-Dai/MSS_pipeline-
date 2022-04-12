@@ -58,7 +58,8 @@ diagram
 ```{r 2c_div_fg9}
 f2c <- read_rds('../data/068_div_post.rds')
 
-f2d <- read_rds('../data/068_only3_sim.rds')
+#f2d <- read_rds('../data/068_only3_sim.rds')
+f2d <- read_rds('../data/102_f2d_diversity_pred_two_diff.rds')
 
 f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
 ```
