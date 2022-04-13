@@ -726,4 +726,13 @@ two_diff_plot <-  two_diff %>%
         aspect.ratio=1)
 
 two_diff_plot %>% write_rds('../data/102_f2d_diversity_pred_two_diff.rds')
+
+two_diff %>% 
+  group_by(term) %>% 
+  summarise(med = mean(diff_max_ave))
+
+two_diff %>% 
+  filter(term == 'fg_fruit') %>% 
+  count(diff_max_ave < 0) %>% 
+  mutate(perc = n/sum(n)*100)
 ```

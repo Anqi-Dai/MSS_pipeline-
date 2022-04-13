@@ -40,7 +40,9 @@ top3grp <- dtb %>%
     fgrp1 == '7' ~ 'Vegetables',
     fgrp1 == '9' ~ 'Sugars, Sweets & Beverages'
   )) %>% 
-  mutate(fg1_full_name = factor(fg1_full_name, levels = c('Fruits','Sugars, Sweets & Beverages', 'Vegetables')))
+  mutate(fg1_full_name = factor(fg1_full_name, levels = c('Fruits','Sugars, Sweets & Beverages', 'Vegetables'))) %>% 
+  group_by(fg1_full_name) %>% 
+  arrange(gram_per_meal, .by_group = T)
 
 # manually add the x text color
 
@@ -54,7 +56,7 @@ ggdotchart(top3grp, x = "description", y = "gram_per_meal",
    group = "fg1_full_name", color = "fg1_full_name",
    palette = c('#7D3C98','#db2589', '#229954'),
    rotate = TRUE,
-   sorting = "descending", 
+   sorting = "none", 
   #y.text.col = TRUE ,
   ggtheme = theme_pubr()  
   ) +
@@ -66,10 +68,59 @@ ggsave('../figs/paper/S7_top10_eaten_foods_of_3_099.pdf', width = 8.3, height = 
 ```
 
 ```{r}
+# or I just calculate the sugar in percent in those food code
+top3grp_sugar <- dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  filter(fgrp1 %in% c('9','6','7')) %>% 
+  group_by(Food_code, description, fgrp1) %>% 
+  summarise(total_sugar_per_code = sum(Sugars_g)) %>% 
+  ungroup() %>% 
+  mutate(gram_sugar_per_meal = total_sugar_per_code/n_meal) %>% 
+  inner_join(top3grp) %>% 
+  mutate(sugar_perc_per_meal = gram_sugar_per_meal/gram_per_meal*100) %>% 
+  mutate(description = factor(description, levels = top3grp$description))
+```
+```{r}
+ggdotchart(top3grp_sugar, x = "description", y = "sugar_perc_per_meal",
+           xlab = '', 
+           ylab = 'Per meal average consumption of sugar in percent',
+           add = "segments",        
+   group = "fg1_full_name", color = "fg1_full_name",
+   palette = c('#7D3C98','#db2589', '#229954'),
+   rotate = TRUE,
+   sorting = "none", 
+  #y.text.col = TRUE ,
+  ggtheme = theme_pubr()  
+  ) +
+  theme(legend.position = 'bottom',
+        axis.text.y = element_text(size=11, colour = x_txt_col),
+        legend.title = element_blank())
+
+```
+
+```{r}
+# how about I plot it in bar plot and so I can have the sugar in gram per meal in the same bar to show the perc
+
+```
+
+
+```{r}
 #think about a way to depict the fiber sugar ratio in the top 10 foods   
 unique <- dtb %>% 
   distinct(Food_code, description, .keep_all = T) %>% 
-  inner_join(top3grp) %>% 
-  mutate(fs_ratio = if_else(Sugars_g == 0, 0, Fibers_g/Sugars_g))
+  #inner_join(top3grp) %>% 
+  mutate(fs_ratio = if_else(Sugars_g == 0, 0, Fibers_g/Sugars_g)) %>% 
+  select(Food_code, Food_NSC, Fibers_g:Sugars_g, fs_ratio ) %>% 
+  mutate(if_top10 = if_else(Food_code %in% top3grp$Food_code, T, F))
+
+unique %>% 
+  ggboxplot(x = 'if_top10', y = 'fs_ratio') +
+  scale_y_sqrt() +
+  stat_compare_means(comparisons= list(c('FALSE', 'TRUE')),
+										label= "p.signif",
+										method= 'wilcox.test',
+										correct=FALSE)
 ```
+
+
 
