@@ -100,7 +100,34 @@ ggdotchart(top3grp_sugar, x = "description", y = "sugar_perc_per_meal",
 
 ```{r}
 # how about I plot it in bar plot and so I can have the sugar in gram per meal in the same bar to show the perc
+bars <- top3grp_sugar %>% 
+  select(description, fg1_full_name,gram_sugar_per_meal, gram_per_meal ) %>% 
+  gather('grp','gram',gram_sugar_per_meal: gram_per_meal) %>% 
+  mutate(grp = if_else(grp == 'gram_sugar_per_meal', 'Sugars', 'Total') ) %>% 
+  mutate(grp = factor(grp, levels = c('Sugars','Total')))
+  
 
+ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consumption (gram)',
+  fill = "grp", color = "grp", palette = c("#FB9A99" ,"gray"),
+  width = 0.7, 
+  position = position_dodge(0.8)) +
+  coord_flip() +
+  theme(legend.position = 'bottom',
+        axis.text.y = element_text(size=11, colour = x_txt_col),
+        legend.title= element_blank())
+
+ 
+ggsave('../figs/paper/S7_top10_eaten_foods_of_3__and_sugar_099.pdf', width = 8.3, height = 7)
+```
+
+```{r}
+# the Soft drink, cola thing
+fix <- dtb %>% 
+  filter(description == 'Soft drink, cola') %>% 
+  filter(Sugars_g > dehydrated_weight)
+
+fix %>% 
+  write_csv('../data/099_soft_drink_cola.csv')
 ```
 
 

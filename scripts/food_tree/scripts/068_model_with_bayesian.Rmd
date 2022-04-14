@@ -286,7 +286,7 @@ kbl(revised_post) %>%
 
 ```{r post_sample}
 # extract posterior samples for the coeff
-post_samples  <- posterior_samples(model_div, '^b_')
+post_samples  <- read_csv('../data/068_div_model_fg_post.csv')
 
 # save it out for the forest plot of the coeff
 post_fg_coeff <- post_samples %>% 
@@ -342,6 +342,11 @@ post_coeff %>%
 post_coeff %>% 
   group_by(item) %>% 
   summarise(q50 = median(coeff))
+
+post_coeff %>%  
+  filter(item == 'fruit') %>% 
+  count(coeff < 0) %>% 
+  mutate(perc = n/sum(n)*100)
 ```
 
 ```{r}

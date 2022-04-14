@@ -68,7 +68,7 @@ target_fam %>%
 
 ```{r}
 # to see the overlap between these two groups of patients
-target_fam <- c('Enterococcaceae','Enterobacteriaceae')
+target_fam <- c('Enterococcaceae','b')
 
 fam_patients <- target_fam %>% 
   map(function(var){
@@ -82,7 +82,8 @@ fam_patients <- target_fam %>%
   }) 
 
 length(intersect(fam_patients[[1]], fam_patients[[2]]))
-
+length(fam_patients[[1]])
+length(fam_patients[[2]])
 # the 2 patients that were not in the overlap  
 setdiff(fam_patients[[2]], fam_patients[[1]]) # these two can be ignored doesn't reach the requirement 
 
