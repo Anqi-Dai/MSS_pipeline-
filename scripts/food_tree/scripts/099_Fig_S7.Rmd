@@ -64,7 +64,7 @@ ggdotchart(top3grp, x = "description", y = "gram_per_meal",
         axis.text.y = element_text(size=11, colour = x_txt_col),
         legend.title = element_blank())
 
-ggsave('../figs/paper/S7_top10_eaten_foods_of_3_099.pdf', width = 8.3, height = 6)
+
 ```
 
 ```{r}
@@ -80,31 +80,15 @@ top3grp_sugar <- dtb %>%
   mutate(sugar_perc_per_meal = gram_sugar_per_meal/gram_per_meal*100) %>% 
   mutate(description = factor(description, levels = top3grp$description))
 ```
-```{r}
-ggdotchart(top3grp_sugar, x = "description", y = "sugar_perc_per_meal",
-           xlab = '', 
-           ylab = 'Per meal average consumption of sugar in percent',
-           add = "segments",        
-   group = "fg1_full_name", color = "fg1_full_name",
-   palette = c('#7D3C98','#db2589', '#229954'),
-   rotate = TRUE,
-   sorting = "none", 
-  #y.text.col = TRUE ,
-  ggtheme = theme_pubr()  
-  ) +
-  theme(legend.position = 'bottom',
-        axis.text.y = element_text(size=11, colour = x_txt_col),
-        legend.title = element_blank())
 
-```
 
 ```{r}
 # how about I plot it in bar plot and so I can have the sugar in gram per meal in the same bar to show the perc
 bars <- top3grp_sugar %>% 
   select(description, fg1_full_name,gram_sugar_per_meal, gram_per_meal ) %>% 
   gather('grp','gram',gram_sugar_per_meal: gram_per_meal) %>% 
-  mutate(grp = if_else(grp == 'gram_sugar_per_meal', 'Sugars', 'Total') ) %>% 
-  mutate(grp = factor(grp, levels = c('Sugars','Total')))
+  mutate(grp = if_else(grp == 'gram_sugar_per_meal', 'Sugar fraction', 'Total') ) %>% 
+  mutate(grp = factor(grp, levels = c('Sugar fraction','Total'))) 
   
 
 ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consumption (gram)',

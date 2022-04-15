@@ -122,6 +122,10 @@ ggsave('../figs/paper/085_all_patients_timecourse.pdf',
        width = 8, 
        height = 9,
        plot = all)
+ggsave('../figs/paper/085_all_patients_timecourse.jpg', 
+       width = 8, 
+       height = 9,
+       plot = all)
 ```
 
 ```{r}

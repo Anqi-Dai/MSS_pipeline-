@@ -1,0 +1,54 @@
+---
+title: "Correcting the cola data and the dtb"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+cola <- read_csv('../data/source/099_soft_drink_cola_corrected.csv')
+
+
+```
+
+```{r}
+engy <- readxl::read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  select(Food_code, Energy_kcal, Water_g) %>% 
+  mutate(Energy_kcal = as.numeric(Energy_kcal),
+         Water_g = as.numeric(Water_g)) %>% 
+  mutate(Food_code = as.numeric(Food_code))
+
+need_conversion <-  cola %>% 
+  select(-dehydrated_weight) %>% 
+  left_join(engy, by  = 'Food_code')  %>% 
+  mutate(total_weight = Calories_kcal/Energy_kcal*100) %>% 
+  mutate(dehydrated_weight = total_weight*(1 - Water_g/100)) %>% 
+  select(-Energy_kcal, -total_weight, -Water_g)  %>% 
+  filter(dehydrated_weight > Sugars_g)
+
+# now it seems correct
+colnames(dtb) == colnames(need_conversion)
+```
+
+```{r}
+# now  merge it into the original dtb
+splits <- dtb %>% 
+  split(.$description == 'Soft drink, cola')
+
+res <- bind_rows(
+  splits %>% pluck('FALSE'),
+  need_conversion
+)
+
+res %>% write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+```
+
