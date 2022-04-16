@@ -59,7 +59,7 @@ diagram
 f2c <- read_rds('../data/068_div_post.rds')
 
 #f2d <- read_rds('../data/068_only3_sim.rds')
-f2d <- read_rds('../data/102_f2d_diversity_pred_two_diff.rds')
+f2d <- read_rds('../data/101_f2d_diversity_pred_two_diff.rds')
 
 f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
 ```
@@ -82,9 +82,11 @@ ggsave('../figs/paper/F2_model_results_086.pdf',
        height = 120,
          #height = 60,
          units = c("mm"),
-         dpi = 400, plot = f2)  
+         dpi = 400, plot = f2)
+```
 
 
+```{r align}
 # output a version just for the legend of fig2A
 f2a_legend <- two_score %>% 
   mutate(pNd = str_extract(pNd, '\\d')) %>% 
@@ -102,7 +104,7 @@ f2a_legend <- two_score %>%
         axis.title=element_text(size=8),
         axis.text.x = element_text(angle=0, hjust=0.5)) 
 
-ggsave('../figs/paper/f2a_legend.pdf', plot =f2a_legend )
+#ggsave('../figs/paper/f2a_legend.pdf', plot =f2a_legend )
 ```
 
 # accompanying supplementary figure

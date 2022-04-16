@@ -102,6 +102,7 @@ ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consump
 
  
 ggsave('../figs/paper/S7_top10_eaten_foods_of_3__and_sugar_099.pdf', width = 8.3, height = 7)
+ggsave('../figs/paper/S7_top10_eaten_foods_of_3__and_sugar_099.jpg', width = 8.3, height = 7)
 ```
 
 ```{r}

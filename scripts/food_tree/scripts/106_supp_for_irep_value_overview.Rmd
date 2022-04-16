@@ -1,0 +1,65 @@
+---
+title: "For the irep whole overview"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggbeeswarm)
+```
+
+```{r}
+combined <- read_csv('../data/growth/069_irep_combined_res.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
+  select(fg = fg1_name,shortname )
+scatter_alpha <- 0.35
+cor_text_size <- 3
+axis_text_size <- 11
+axis_title_size <- 11
+```
+
+```{r}
+# summarizing ireps of all major genera
+spp <- combined %>% 
+  count(best_species, best_level) %>% 
+  filter(!best_level %in% c('superkingdom', 'family')) %>% 
+  mutate(cleaned_genus = str_replace(best_species, '^\\[',''),
+         cleaned_genus = str_replace(cleaned_genus, '\\]','')) %>% 
+  mutate(cleaned_genus = str_replace(cleaned_genus, ' .+$',''))
+c_genus <- spp %>% 
+  count(cleaned_genus)
+
+genus_combined <- combined %>% 
+  inner_join(spp %>% 
+              select(best_species, cleaned_genus)) %>% 
+  add_count(cleaned_genus) %>% 
+  # remove the genus as singletons
+  filter(n > 1) %>% 
+  mutate(xlabel = str_glue('{cleaned_genus} ({n})')) %>% 
+  mutate(xlabel = fct_reorder(xlabel, aveirep, .fun=median, .desc = T))
+```
+
+
+```{r}
+
+genus_combined %>% 
+  ungroup() %>% 
+  ggboxplot(x = 'xlabel', y = 'aveirep', add = 'jitter',xlab = 'Genus',
+            ylab = 'Average irep value',
+            add.params = list(alpha = 0.4, size = 2, shape = 16)
+            #add.params = list(alpha = 0.5)
+           ) +
+  theme(
+     axis.text.x = element_text(angle=270, hjust=1),
+     axis.title.y = element_text(angle = 270)
+  )
+ 
+ggsave('../figs/paper/S10_genus_irep_histogram_106.pdf', width = 320, height = 120, units = 'mm', dpi = 400)
+ggsave('../figs/paper/S10_genus_irep_histogram_106.jpg', width = 320, height = 120, units = 'mm', dpi = 400)
+```
+

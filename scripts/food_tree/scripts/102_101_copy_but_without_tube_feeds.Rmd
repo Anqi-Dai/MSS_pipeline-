@@ -714,19 +714,28 @@ two_diff_plot <-  two_diff %>%
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
   scale_color_manual(values = c('#A73030FF','#00468B')) +
-  xlim(-5, 2) +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
        title = 'Diversity prediction')   +
   theme_classic() +
   theme(axis.text=element_text(size=8),
-        legend.position = 'none',
+        legend.title = element_blank(),
         axis.text.y = element_blank(),
         axis.title=element_text(size=8),
         aspect.ratio=1)
 
-two_diff_plot %>% write_rds('../data/102_f2d_diversity_pred_two_diff.rds')
+ggsave('../figs/paper/102_f2d_diversity_pred_two_diff_without_tube_feeds_in_ave_and_max.pdf',
+        plot =two_diff_plot,
+        width = 90,
+       height = 60,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400)
+two_diff_plot
+```
 
+
+```{r}
 two_diff %>% 
   group_by(term) %>% 
   summarise(med = mean(diff_max_ave))
