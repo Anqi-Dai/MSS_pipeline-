@@ -84,7 +84,6 @@ get_prior( model_formular,
 ### Setting priors
 
 ```{r set_prior}
-
 priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_egg"),
             prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
@@ -125,8 +124,95 @@ samples_prior <- prior_draws(model_div)
 post_res <- suppressWarnings(posterior_samples(model_div)) %>% 
             select(-starts_with('r_'))
 post_res %>%  write_csv('../data/068_div_model_fg_post.csv')
-
 ```
+
+
+```{r all_params_csv}
+# make 
+post_all <- suppressWarnings(posterior_samples(model_div))
+colnames(post_all)
+# the mrn ones need to be anonymized
+
+# make  a forest  plot of the mrn intercepts
+mrn_forest <- post_all %>% 
+  gather() %>% 
+  filter(str_detect(key, 'r_mrn')) %>% 
+  mutate(mrn = str_extract(key, '\\[.+,'),
+         mrn = str_replace(mrn, '\\[', ''),
+         mrn = str_replace(mrn, ',', ''),
+         patient = as.numeric(factor(mrn)),
+         pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
+         pid = str_glue('P{pid}'),
+         key = str_glue('r_mrn[{pid},Intercept]')) %>% 
+  ggplot(aes(x = value, y = pid)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = '',
+       y = '', 
+       title = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        aspect.ratio=1)
+```
+
+
+```{r all_params_csv}
+ggsave('../figs/paper/S_mrn_intercepts_forest.pdf',
+       width = 280,
+       height = 320, 
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf', plot = mrn_forest)
+
+ggsave('../figs/paper/S_mrn_intercepts_forest.jpg',
+       width = 280,
+       height = 320, 
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'jpg', plot = mrn_forest)
+```
+
+
+```{r}
+# make a table with the median , thinner interval two sides, thicker interval two sides for all of the parameters. 
+mrn_part <- post_all %>% 
+  gather() %>% 
+  filter(str_detect(key, 'r_mrn')) %>% 
+  mutate(mrn = str_extract(key, '\\[.+,'),
+         mrn = str_replace(mrn, '\\[', ''),
+         mrn = str_replace(mrn, ',', ''),
+         patient = as.numeric(factor(mrn)),
+         pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
+         pid = str_glue('P{pid}'),
+         key = str_glue('r_mrn[{pid},Intercept]')) %>% 
+  group_by(key) %>% 
+  tidybayes::median_qi(value , .width = c( .66, .95))
+
+others <-  post_all %>% 
+  gather() %>% 
+  filter(!str_detect(key, 'r_mrn')) %>% 
+  group_by(key) %>% 
+  tidybayes::median_qi(value , .width = c( .66, .95))
+```
+
+
+```{r}
+all_params <- bind_rows(mrn_part, others) %>% 
+  rename(median = value) %>% 
+  gather('side', 'value', median:.upper) %>% 
+  mutate(name = str_glue('{side}{.width}')) %>% 
+  mutate(name = str_replace(name, '^\\.','')) %>% 
+  select(key, name, value) %>% 
+  spread('name','value') %>% 
+  select(-median0.66) %>% 
+  rename(median = median0.95,
+         param = key) 
+all_params %>% 
+  write_csv('../figs/paper/Supplementary_table1_main_model_all_params_coeff_068.csv')
+```
+
 
 ```{r }
 # the mean food group intake from our data 
@@ -248,16 +334,7 @@ post_coeffs <- post_samples %>%
   gather('term','post_coeff') %>% 
   split(.$term) 
 
-# make a table with the median , thinner interval two sides, thicker interval two sides, the r hat value of the columns
-mrn_part <- full_post %>% 
-  gather() %>% 
-  filter(str_detect(key, 'mrn')) %>% 
-  mutate(mrn = str_extract(key, '\\[.+,'),
-         mrn = str_replace(mrn, '\\[', ''),
-         mrn = str_replace(mrn, ',', ''),
-         patient = as.numeric(factor(mrn)),
-         pid = str_glue('P{as.character(patient)}'),
-         key = str_glue('r_mrn[{pid},Intercept]')) 
+
 
 
 revised_post <- bind_rows(

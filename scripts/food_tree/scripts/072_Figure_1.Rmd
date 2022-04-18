@@ -216,7 +216,7 @@ library(viridis)
 umap_faith <- another %>% 
   arrange(desc(n)) %>% 
   mutate(log10faith = log10(faith_pd + 1)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.3,size = 3 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.1,size = 3 , shape = 16,
             xlab = '', ylab = '') +
   scale_color_viridis() +
   theme_classic() +
@@ -246,6 +246,67 @@ umap_faith_legend <- another %>%
         aspect.ratio=1)
 
 ggsave('../data/072_umap_faith_legend.pdf', plot = umap_faith_legend)
+```
+
+```{r umap_caloric}
+# another umap colored by the daily caloric intake
+umap_cal <- df %>% 
+  full_join(day_calori)
+
+library(viridis)
+umap_caloric <- umap_cal %>% 
+  arrange(desc(n)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.1,size = 3 , shape = 16,
+            xlab = '', ylab = '') +
+  paletteer::scale_color_paletteer_c("viridis::plasma") +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(legend.position = 'none',
+        line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+        aspect.ratio=1)
+umap_caloric
+
+
+# another version with the legend
+umap_caloric_legend <- umap_cal %>% 
+  arrange(desc(n)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.3,size = 3 , shape = 16,
+            xlab = '', ylab = '') +
+  paletteer::scale_color_paletteer_c("viridis::plasma") +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(
+        line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+        aspect.ratio=1)
+
+ggsave('../data/072_umap_cal_legend.pdf', plot = umap_caloric_legend)
+```
+
+
+```{r umap_caloric}
+# another version with the legend
+umap_faith_legend <- another %>% 
+  arrange(desc(n)) %>% 
+  mutate(log10faith = log10(faith_pd + 1)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.3,size = 3 , shape = 16,
+            xlab = '', ylab = '') +
+  scale_color_viridis() +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+        aspect.ratio=1)
 ```
 
 
@@ -327,9 +388,12 @@ bot <- plot_grid(food2, m_panel, fg_panel,  stool_alpha,
           labels = c('E','F', 'G', "H"),
           axis = 'tblr') 
 
+middle_2_umap <- plot_grid(umap_caloric,umap_faith,
+                 labels = c('D', "E"),
+                  nrow = 2,axis = 'lbrt', align = 'hv')
 
 top <- plot_grid(tree, fig1_umap, umap_faith,
-                 labels = c('B', "C", "D"),
+                 #labels = c('B', "C", "D"),
                   nrow = 1, rel_widths = c(1.5,1, 1), axis = 'lbrt', align = 'hv')
 
 # assemble all
@@ -343,6 +407,15 @@ ggsave('../figs/paper/F1_overview_072_raw.pdf',
          #height = 60,  
          units = c("mm"),
          dpi = 400, plot = f1)
+
+
+# a sub figure of only the two umaps so that I can put them into my current version Figure 1
+ggsave('../figs/paper/F1_overview_072_umap2.pdf',
+       width = 80,
+       height = 70,
+         #height = 60,  
+         units = c("mm"),
+         dpi = 400, plot = middle_2_umap)
 ```
 
 
