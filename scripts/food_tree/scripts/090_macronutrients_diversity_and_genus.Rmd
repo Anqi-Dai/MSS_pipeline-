@@ -501,6 +501,7 @@ genus_macro_fat_main <- ggplot(post_res_genera, aes(x = genus, y = item)) +
         axis.text.x = element_text(angle=50, hjust=1, size=11),
         axis.text.y=element_text(size=11),
         axis.title=element_text(size=axis_title_size),
+        legend.title = element_blank() ,
         #panel.grid.major = element_line( colour = "gray50"), 
         #panel.grid.minor = element_line( colour = "gray50"),
         legend.position = 'top',
