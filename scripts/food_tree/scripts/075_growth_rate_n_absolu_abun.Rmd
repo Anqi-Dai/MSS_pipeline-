@@ -375,7 +375,7 @@ irep = entero %>%
 copies = cts_ %>% 
    filter(sdrt %in% -5:15) %>% 
   filter(mrn == p11) %>% 
-  mutate(entero_copy = entero_copy/10e8) %>% 
+  mutate(entero_copy = entero_copy/1e8) %>% 
   ggplot(aes(x = sdrt, y = entero_copy )) +
   geom_point() +
   geom_line(aes(x = sdrt, y = entero_copy), linetype = 'solid', size = 0.5, col = 'black') +
@@ -401,3 +401,5 @@ p_f3c <- abx + plot_spacer() + sweets_time + all_sweet_box +  fruit_time + all_f
 ggsave('../figs/paper/075_irep_p11_vertical.pdf', width = 90,
       height = 200, units = 'mm', dpi = 400, plot = p_f3c)
 ```
+
+

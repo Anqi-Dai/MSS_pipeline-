@@ -712,7 +712,7 @@ two_diff_plot <-  two_diff %>%
   scale_color_manual(values = c('#A73030FF','#00468B')) +
   labs(x = expression(Change~`in`~alpha~diversity),
        y = '', 
-       title = 'Diversity prediction')   +
+       title = 'Diversity prediction') +
   theme_classic() +
   theme(axis.text=element_text(size=8),
         legend.position = 'none',
@@ -721,5 +721,12 @@ two_diff_plot <-  two_diff %>%
         aspect.ratio=1)
 
 two_diff_plot %>% write_rds('../data/101_f2d_diversity_pred_two_diff.rds')
+
+# median of the sweets red line
+two_diff %>% 
+  filter(term %in% c('fg_sweets')) %>% 
+  gather('grp', 'post_diff', diff_max_ave:diff_min_ave) %>% 
+  filter(grp == 'diff_max_ave') %>% 
+  summarise(ave_sweets = mean(post_diff))
 ```
 

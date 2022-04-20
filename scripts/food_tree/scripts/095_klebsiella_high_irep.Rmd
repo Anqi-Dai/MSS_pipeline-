@@ -225,7 +225,7 @@ irep = growth %>%
         panel.grid.major.x = element_line(color = "grey85"))
 
 copies <- cts_ %>% 
-  mutate(kle_copy = kle_copy/10e7) %>% 
+  mutate(kle_copy = kle_copy/1e7) %>% 
   ggplot(aes(x = sdrt, y = kle_copy )) +
   geom_point() +
   geom_line(aes(x = sdrt, y = kle_copy), linetype = 'solid', size = 0.5, col = 'black') +
