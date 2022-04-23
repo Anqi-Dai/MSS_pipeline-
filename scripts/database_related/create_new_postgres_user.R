@@ -20,7 +20,8 @@
 #
 #
 library(DBI)
-
+library(vdbR)
+connect_database()
 source('get_data_from_query_OTU.R');
 
 create_new_postgres_user <- function(user_name, temp_pass){
@@ -52,7 +53,7 @@ create_new_postgres_user <- function(user_name, temp_pass){
   dbSendQuery(con, grant_table_read_access);
   
   #Make default privilege to user:
-  grant_table_read_access = sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO %s;",
+  grant_table_read_access = sprintf("ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO  %s;",
                                       user_name);
   
   dbSendQuery(con, grant_table_read_access);

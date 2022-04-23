@@ -20,7 +20,8 @@ dat <- asv_alpha_diversity_ag %>%
   filter(str_detect(poolid, 'pool835|pool935|pool940|pool1042|pool1048|pool1050|pool1064|pool1109|pool1117|pool1121'))
 
 #pool1109
-
+asv_alpha_diversity_ag %>% 
+  write_csv('../data/asv_alpha_diversity_ag.csv')
 ```
 
 ```{r}
@@ -51,9 +52,8 @@ find %>%
 
 two <- asv_alpha_diversity_ag %>% 
   filter(str_detect(path_pool, 'pool1096\\+1097|pool1100')) %>% 
-  select(sampleid, path_pool) %>% 
-  distinct(sampleid, .keep_all = T) %>% 
-  rename(sid = sampleid)
+  select(oligos_id, path_pool) %>% 
+  distinct(oligos_id, .keep_all = T) 
  
 length(intersect(two$sid, find$sid))
 setdiff(two$sid, find$sid)
@@ -81,8 +81,32 @@ reply <- read_csv('~/Downloads/where_the_228_JS_03-21-2022.csv') %>%
   distinct(js_comment)
 
 length(intersect(reply$sid, asv_alpha_diversity_ag$sampleid))
+
+# after running the last pool 11037
+reply %>% 
+  filter(str_detect(js_comment, '11037'))
 ```
 
 
 
+```{r}
+# assemble the file path that need to be copied to the duke folder in amplicon
+current <- bind_rows(
+  two %>% 
+    mutate(R1 = str_glue('{path_pool}/{oligos_id}_R1.fastq.gz'),
+           R2 = str_glue('{path_pool}/{oligos_id}_R2.fastq.gz')),
+  already %>% 
+    mutate(R1 = str_glue('{path_pool}/{oligos_id}_R1.fastq.gz'),
+           R2 = str_glue('{path_pool}/{oligos_id}_R2.fastq.gz'))
+) %>% 
+  filter(!str_detect(oligos_id, '^blank'))
+
+
+current %>% 
+  select(R1, R2) %>% 
+  gather() %>% 
+  mutate(cmd = str_glue('cp {value} /home/daia1/my_workdir/samples/amplicon/duke')) %>% 
+  select(cmd) %>% 
+  write_csv('../data/cp_duke_1851.sh',col_names = F)
+```
 
