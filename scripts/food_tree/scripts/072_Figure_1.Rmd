@@ -24,6 +24,7 @@ pick_line_size <- 0.5
 example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
+umap_pt_size <- 2
 
 # the colors for each food group specified and saved here
 fpalette <- tribble(
@@ -65,7 +66,9 @@ stool_alpha <- meta %>%
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
-        aspect.ratio=2)
+        aspect.ratio=1) +
+  theme(axis.title = element_blank(),
+        plot.title = element_blank())
 stool_alpha
 ```
 
@@ -191,7 +194,7 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.3,size = 3 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.3,size = umap_pt_size , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
@@ -216,12 +219,12 @@ library(viridis)
 umap_faith <- another %>% 
   arrange(desc(n)) %>% 
   mutate(log10faith = log10(faith_pd + 1)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.1,size = 3 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.1,size = umap_pt_size, shape = 16,
             xlab = '', ylab = '') +
   scale_color_viridis() +
   theme_classic() +
   #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
-  theme(legend.position = 'none',
+  theme(
         line = element_blank(),
         legend.title = element_blank(),
         axis.title=element_blank(),
@@ -229,23 +232,6 @@ umap_faith <- another %>%
         axis.ticks = element_blank(),
         aspect.ratio=1)
 
-# another version with the legend
-umap_faith_legend <- another %>% 
-  arrange(desc(n)) %>% 
-  mutate(log10faith = log10(faith_pd + 1)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.3,size = 3 , shape = 16,
-            xlab = '', ylab = '') +
-  scale_color_viridis() +
-  theme_classic() +
-  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
-  theme(line = element_blank(),
-        legend.title = element_blank(),
-        axis.title=element_blank(),
-        axis.text= element_blank(),
-        axis.ticks = element_blank(),
-        aspect.ratio=1)
-
-ggsave('../data/072_umap_faith_legend.pdf', plot = umap_faith_legend)
 ```
 
 ```{r umap_caloric}
@@ -256,12 +242,12 @@ umap_cal <- df %>%
 library(viridis)
 umap_caloric <- umap_cal %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.1,size = 3 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.1,size = umap_pt_size , shape = 16,
             xlab = '', ylab = '') +
   paletteer::scale_color_paletteer_c("viridis::plasma") +
   theme_classic() +
   #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
-  theme(legend.position = 'none',
+  theme(
         line = element_blank(),
         legend.title = element_blank(),
         axis.title=element_blank(),
@@ -271,6 +257,31 @@ umap_caloric <- umap_cal %>%
 umap_caloric
 
 
+```
+
+```{r umap_drt}
+# another umap colored by the daily caloric intake
+
+umap_drt <- umap_cal %>% 
+  arrange(desc(fdrt)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'fdrt', alpha = 0.3,size = umap_pt_size, shape = 16,
+            xlab = '', ylab = '') +
+  paletteer::scale_color_paletteer_c("grDevices::Red-Green")+
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(
+    #legend.position = 'none',
+        line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+        aspect.ratio=1)
+umap_drt
+```
+
+
+```{r umap_drt}
 # another version with the legend
 umap_caloric_legend <- umap_cal %>% 
   arrange(desc(n)) %>% 
@@ -380,7 +391,10 @@ fg_panel
 # Assembling the final version of the figure 1
 
 ```{r}
-bot <- plot_grid(food2, m_panel, fg_panel,  stool_alpha,
+stool_two <- plot_grid(stool_alpha,stool_alpha,
+                  nrow = 2,axis = 'lbrt', align = 'hv') 
+
+bot <- plot_grid(food2, m_panel, fg_panel,  stool_two,
           nrow = 1, 
           align = 'hv',
           rel_widths =  c(1,1.2,1.4,1),
@@ -388,11 +402,9 @@ bot <- plot_grid(food2, m_panel, fg_panel,  stool_alpha,
           labels = c('E','F', 'G', "H"),
           axis = 'tblr') 
 
-middle_2_umap <- plot_grid(umap_caloric,umap_faith,
-                 labels = c('D', "E"),
-                  nrow = 2,axis = 'lbrt', align = 'hv')
 
-top <- plot_grid(tree, fig1_umap, umap_faith,
+
+top <- plot_grid(tree, fig1_umap, NA,
                  #labels = c('B', "C", "D"),
                   nrow = 1, rel_widths = c(1.5,1, 1), axis = 'lbrt', align = 'hv')
 
@@ -407,15 +419,21 @@ ggsave('../figs/paper/F1_overview_072_raw.pdf',
          #height = 60,  
          units = c("mm"),
          dpi = 400, plot = f1)
+```
 
 
-# a sub figure of only the two umaps so that I can put them into my current version Figure 1
-ggsave('../figs/paper/F1_overview_072_umap2.pdf',
+```{r}
+# a sub figure of only the two umaps so tht I can put them into my current version Figure 1
+middle_3_umap <- plot_grid(umap_caloric,umap_faith,umap_drt,
+                 labels = c('D'),
+                  nrow = 3,axis = 'lbrt', align = 'hv')
+
+ggsave('../figs/paper/F1_overview_072_umap3.pdf',
        width = 80,
-       height = 70,
+       height = 100,
          #height = 60,  
          units = c("mm"),
-         dpi = 400, plot = middle_2_umap)
+         dpi = 400, plot = middle_3_umap)
 ```
 
 
