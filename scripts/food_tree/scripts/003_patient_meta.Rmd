@@ -194,6 +194,8 @@ ptb %>%
 ```{r}
 
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+range(ptb$age)
+mean(ptb$age)
 
 ci <- read_csv('../data/cleaned_patients/angel_hctci.csv')  %>% 
   select(mrn, hct_ci) %>% 
