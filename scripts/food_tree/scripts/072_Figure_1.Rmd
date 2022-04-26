@@ -24,7 +24,7 @@ pick_line_size <- 0.5
 example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
-umap_pt_size <- 2
+umap_pt_size <- 1
 
 # the colors for each food group specified and saved here
 fpalette <- tribble(
@@ -259,67 +259,49 @@ umap_caloric
 
 ```
 
-```{r umap_drt}
-# another umap colored by the daily caloric intake
+```{r umap_time}
+# cuztomizing the times bins of the drt
+cutoff = 0 # Day 0 is conveneint but this can be varied
+n_groups_pre = 3;  # all HCT days <0 will be split into 3 bins; can vary this number to play
+n_groups_post = 6; # all HCT days >0 will be split into 6 bins; can vary this number to play
 
-umap_drt <- umap_cal %>% 
-  arrange(desc(fdrt)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'fdrt', alpha = 0.3,size = umap_pt_size, shape = 16,
-            xlab = '', ylab = '') +
-  paletteer::scale_color_paletteer_c("grDevices::Red-Green")+
-  theme_classic() +
-  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
-  theme(
-    #legend.position = 'none',
-        line = element_blank(),
-        legend.title = element_blank(),
-        axis.title=element_blank(),
-        axis.text= element_blank(),
-        axis.ticks = element_blank(),
-        aspect.ratio=1)
-umap_drt
-```
+# split the fdrt into groups:
+umap_time <- umap_cal %>% 
+  select(taxumap1, taxumap2, fdrt)  
 
+splits <- timebins %>% 
+  split(.$fdrt <= 0)
 
-```{r umap_drt}
-# another version with the legend
-umap_caloric_legend <- umap_cal %>% 
-  arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.3,size = 3 , shape = 16,
-            xlab = '', ylab = '') +
-  paletteer::scale_color_paletteer_c("viridis::plasma") +
-  theme_classic() +
-  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
-  theme(
-        line = element_blank(),
-        legend.title = element_blank(),
-        axis.title=element_blank(),
-        axis.text= element_blank(),
-        axis.ticks = element_blank(),
-        aspect.ratio=1)
+pre <- splits %>% 
+  pluck('TRUE') %>% 
+  mutate(bin = cut_number(fdrt, n_groups_pre))
 
-ggsave('../data/072_umap_cal_legend.pdf', plot = umap_caloric_legend)
-```
+post <- splits %>% 
+  pluck('FALSE') %>% 
+  mutate(bin = cut_number(fdrt, n_groups_post)) 
 
+both <- bind_rows(pre, post) %>% 
+  distinct(fdrt, .keep_all = T)
 
-```{r umap_caloric}
-# another version with the legend
-umap_faith_legend <- another %>% 
-  arrange(desc(n)) %>% 
-  mutate(log10faith = log10(faith_pd + 1)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.3,size = 3 , shape = 16,
-            xlab = '', ylab = '') +
-  scale_color_viridis() +
-  theme_classic() +
-  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
-  theme(line = element_blank(),
-        legend.title = element_blank(),
-        axis.title=element_blank(),
-        axis.text= element_blank(),
-        axis.ticks = element_blank(),
+umap_time_df <- umap_time %>% 
+  left_join(both)
+
+umap_drt_high_to_low_bin <- umap_time_df %>% 
+   arrange(desc(fdrt)) %>% 
+  #arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 0.3,size = umap_pt_size, shape = 16,
+             xlab = '', ylab = '') + 
+   scale_color_manual(values = brewer.pal(9,"Spectral"))  +
+   theme_classic() +
+   theme(
+     #legend.position = 'none',
+         line = element_blank(),
+         legend.title = element_blank(),
+         axis.title=element_blank(),
+         axis.text= element_blank(),
+         axis.ticks = element_blank(),
         aspect.ratio=1)
 ```
-
 
 
 ```{r tree}
@@ -424,7 +406,7 @@ ggsave('../figs/paper/F1_overview_072_raw.pdf',
 
 ```{r}
 # a sub figure of only the two umaps so tht I can put them into my current version Figure 1
-middle_3_umap <- plot_grid(umap_caloric,umap_faith,umap_drt,
+middle_3_umap <- plot_grid(umap_caloric,umap_faith,umap_drt_high_to_low_bin,
                  labels = c('D'),
                   nrow = 3,axis = 'lbrt', align = 'hv')
 
@@ -436,4 +418,88 @@ ggsave('../figs/paper/F1_overview_072_umap3.pdf',
          dpi = 400, plot = middle_3_umap)
 ```
 
+
+
+
+```{r}
+umap_drt_low_to_high_bin <- umap_time_df %>% 
+  arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 0.3, size = umap_pt_size, shape = 16,
+             xlab = '', ylab = '') + 
+  scale_color_manual(values = brewer.pal(9,"Spectral"))  +
+   theme_classic() +
+   theme(
+     #legend.position = 'none',
+         line = element_blank(),
+         legend.title = element_blank(),
+         axis.title=element_blank(),
+         axis.text= element_blank(),
+         axis.ticks = element_blank(),
+        aspect.ratio=1)
+
+
+
+umap_drt_high_to_low_bin_no_sorting <- umap_time_df %>% 
+  # arrange(desc(fdrt)) %>% 
+  #arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 0.3,size = umap_pt_size, shape = 16,
+             xlab = '', ylab = '') + 
+   scale_color_manual(values = brewer.pal(9,"Spectral"))  +
+   theme_classic() +
+   theme(
+     #legend.position = 'none',
+         line = element_blank(),
+         legend.title = element_blank(),
+         axis.title=element_blank(),
+         axis.text= element_blank(),
+         axis.ticks = element_blank(),
+        aspect.ratio=1)
+
+
+middle_2_umap <- plot_grid(
+                           umap_drt_low_to_high_bin, umap_drt_high_to_low_bin,
+                           umap_drt_high_to_low_bin_no_sorting,
+                 #labels = c('D'),
+                  nrow = 2,axis = 'lbrt', align = 'hv')
+
+ggsave('../figs/paper/F1_overview_072_umap2_compare.pdf',
+       width = 120,
+       height = 120,
+         #height = 60,  
+         units = c("mm"),
+         dpi = 400, plot = middle_2_umap)
+
+ggsave('../figs/paper/F1_overview_072_umap2_compare.jpg',
+       width = 120,
+       height = 120,
+         #height = 60,  
+         units = c("mm"),
+         dpi = 400, plot = middle_2_umap)
+```
+
+```{r}
+# is it indeed that corner of the dots 
+all_umap <- umap_cal %>% 
+  full_join(another) %>% 
+  select(index_column:fdrt, daycal,faith_pd )
+
+all_umap %>% 
+  #filter(taxumap1 < 16 & taxumap2 < -6) %>% 
+   arrange(desc(fdrt)) %>% 
+  #arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'fdrt', alpha = 0.3,size = umap_pt_size, shape = 16,
+             xlab = '', ylab = '') + 
+   #paletteer::scale_color_paletteer_d("khroma::BuRd")  +
+   theme_classic() +
+   theme(
+     #legend.position = 'none',
+         legend.title = element_blank(),
+         axis.title=element_blank(),
+         axis.ticks = element_blank(),
+        aspect.ratio=1)
+```
+```{r}
+several <- all_umap %>% 
+  filter(fdrt > 30 & taxumap1 < 15.5 & taxumap2 < -6)
+```
 
