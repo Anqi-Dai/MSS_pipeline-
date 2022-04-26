@@ -194,7 +194,7 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.3,size = umap_pt_size , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.8,size = 1.5 , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
@@ -219,7 +219,7 @@ library(viridis)
 umap_faith <- another %>% 
   arrange(desc(n)) %>% 
   mutate(log10faith = log10(faith_pd + 1)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.1,size = umap_pt_size, shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.8,size = umap_pt_size, shape = 16,
             xlab = '', ylab = '') +
   scale_color_viridis() +
   theme_classic() +
@@ -242,7 +242,7 @@ umap_cal <- df %>%
 library(viridis)
 umap_caloric <- umap_cal %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.1,size = umap_pt_size , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.8,size = umap_pt_size , shape = 16,
             xlab = '', ylab = '') +
   paletteer::scale_color_paletteer_c("viridis::plasma") +
   theme_classic() +
@@ -289,7 +289,7 @@ umap_time_df <- umap_time %>%
 umap_drt_high_to_low_bin <- umap_time_df %>% 
    arrange(desc(fdrt)) %>% 
   #arrange(fdrt) %>% 
-   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 0.3,size = umap_pt_size, shape = 16,
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 0.8, size = umap_pt_size, shape = 16,
              xlab = '', ylab = '') + 
    scale_color_manual(values = brewer.pal(9,"Spectral"))  +
    theme_classic() +
@@ -416,6 +416,15 @@ ggsave('../figs/paper/F1_overview_072_umap3.pdf',
          #height = 60,  
          units = c("mm"),
          dpi = 400, plot = middle_3_umap)
+```
+
+
+```{r spectral_legend}
+pdf(file = "../figs/paper/F1_spectral_legend.pdf",   # The directory you want to save the file in
+    width = 4, # The width of the plot in inches
+    height = 4)
+display.brewer.pal(9, "Spectral")
+dev.off()
 ```
 
 
