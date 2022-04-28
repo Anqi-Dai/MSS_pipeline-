@@ -71,7 +71,14 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
 
 colnames(meta)
 
+glimpse(meta)
 
+meta %>% 
+  select(-mrn, -disease.simple, -admit_wt, -ci) %>% 
+  mutate(inten_non = factor(inten_non),
+         inten_ab = factor(inten_ab),
+         inten_re = factor(inten_re)) %>% 
+  summary
 ```
 
 ## Priors 
@@ -168,6 +175,10 @@ prior_diversity <- ave_each_fg_prior %>%
   geom_vline(xintercept = min(log(meta$simpson_reciprocal)), linetype = 'dashed') +
   geom_vline(xintercept = max(log(meta$simpson_reciprocal)), linetype = 'dashed')  +
   theme(legend.position = 'none')
+
+ave_each_fg_prior %>% 
+  count(within_range) %>% 
+  mutate(perc = n/(sum(n))*100)
 
 
 prior_diversity %>% 

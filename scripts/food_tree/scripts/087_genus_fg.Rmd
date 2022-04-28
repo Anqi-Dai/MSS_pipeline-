@@ -481,6 +481,10 @@ prior_enterococcus <- ave_each_fg_prior %>%
   geom_vline(xintercept = max(full$Enterococcus), linetype = 'dashed')  +
   theme(legend.position = 'none')
 
+ave_each_fg_prior %>% 
+  count(within_range) %>% 
+  mutate(perc = n/sum(n)*100)
+
 prior_enterococcus %>% 
   write_rds('../data/087_prior_enterococcus_hist.rds'
   )
