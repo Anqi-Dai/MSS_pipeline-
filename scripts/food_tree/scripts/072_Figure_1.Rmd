@@ -24,7 +24,7 @@ pick_line_size <- 0.5
 example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
-umap_pt_size <- 1
+umap_pt_size <- 0.5
 
 # the colors for each food group specified and saved here
 fpalette <- tribble(
@@ -194,7 +194,7 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 0.8,size = 1.5 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 1,size = 0.2 , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
@@ -219,7 +219,7 @@ library(viridis)
 umap_faith <- another %>% 
   arrange(desc(n)) %>% 
   mutate(log10faith = log10(faith_pd + 1)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 0.8,size = umap_pt_size, shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 1,size = umap_pt_size, shape = 16,
             xlab = '', ylab = '') +
   scale_color_viridis() +
   theme_classic() +
@@ -242,7 +242,7 @@ umap_cal <- df %>%
 library(viridis)
 umap_caloric <- umap_cal %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 0.8,size = umap_pt_size , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'daycal', alpha = 1,size = umap_pt_size , shape = 16,
             xlab = '', ylab = '') +
   paletteer::scale_color_paletteer_c("viridis::plasma") +
   theme_classic() +
@@ -269,7 +269,9 @@ n_groups_post = 6; # all HCT days >0 will be split into 6 bins; can vary this nu
 umap_time <- umap_cal %>% 
   select(taxumap1, taxumap2, fdrt)  
 
-splits <- timebins %>% 
+times <- umap_time %>% select( fdrt)  
+
+splits <- times %>% 
   split(.$fdrt <= 0)
 
 pre <- splits %>% 
@@ -289,9 +291,9 @@ umap_time_df <- umap_time %>%
 umap_drt_high_to_low_bin <- umap_time_df %>% 
    arrange(desc(fdrt)) %>% 
   #arrange(fdrt) %>% 
-   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 0.8, size = umap_pt_size, shape = 16,
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 1, size = umap_pt_size, shape = 16,
              xlab = '', ylab = '') + 
-   scale_color_manual(values = brewer.pal(9,"Spectral"))  +
+   scale_color_manual(values = RColorBrewer::brewer.pal(9,"Spectral"))  +
    theme_classic() +
    theme(
      #legend.position = 'none',

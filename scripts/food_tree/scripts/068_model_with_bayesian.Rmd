@@ -33,21 +33,6 @@ dtb %>%
 ```
 
 
-```{r }
-# the mean food group intake from our data 
-ave_fg <- meta %>% 
-  select(starts_with('fg')) %>% 
-  summarise_all(funs(mean)) %>% 
-  gather
-
-mean_fg <-  meta %>% 
-  select(starts_with('fg')) %>% 
-  summarise_all(funs(mean))
-
-max_fg <- meta %>% 
-  select(starts_with('fg')) %>% 
-  summarise_all(funs(max)) 
-```
 
 ## Loading meta data table
 
@@ -79,6 +64,23 @@ meta %>%
          inten_ab = factor(inten_ab),
          inten_re = factor(inten_re)) %>% 
   summary
+```
+
+
+```{r }
+# the mean food group intake from our data 
+ave_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean)) %>% 
+  gather
+
+mean_fg <-  meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean))
+
+max_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(max)) 
 ```
 
 ## Priors 
@@ -419,10 +421,6 @@ post_fg_coeff_mean <- post_fg_coeff  %>%
   group_by(item) %>% 
   summarise(meanperitem = mean(value))
 
-out <- post_fg_coeff %>% 
-  left_join(post_fg_coeff_mean, by = "item")
-
-out %>% write_csv('../data/brms_model_var_res_updated.csv') 
 ```
 
 ```{r post_coeff_forest}
@@ -503,8 +501,8 @@ div_post
 
 ```{r post_coeff_binary}
 coeff_bi <- post_samples %>% 
+  select(starts_with('b_')) %>% 
   select(!starts_with('b_fg')) %>% 
-  select(-b_Intercept) %>% 
   gather('item', 'coeff') %>% 
   mutate(item_name = case_when(
     item ==  'b_inten_non' ~ 'Intensity: nonablative',
