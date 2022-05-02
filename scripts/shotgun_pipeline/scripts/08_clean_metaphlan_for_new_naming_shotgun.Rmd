@@ -7,16 +7,23 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-**The below **
+**every table's name and column headers need to be NON-capital letters**
 
 ```{r}
 library(tidyverse)
 library(vdbR)
 connect_database()
-
-get_table_from_database('metaphlan_shotgun_rel_abundance')
-
+list_table_from_database()
 ```
+
+
+
+```{r}
+get_table_from_database('humann_shotgun_ko_cpm_stratified')
+get_table_from_database('humann_shotgun_path_abundance_cpm_unstratified')
+```
+
+# the metaphlan results
 
 ```{r}
 fns <- list.files('../data/NEW_naming/', full.names = T)
@@ -64,3 +71,86 @@ dbWriteTable(
   append = TRUE, row.names = FALSE)
 ```
 
+# the pathabundance_cpm results
+
+## the unstratified version
+
+```{r}
+pabun <-  list.files('../data/NEW_naming/', full.names = T, pattern = 'humann3_pathabundance_cpm')
+test <- read_tsv(pabun[1])
+test <- read_tsv(pabun[1],  col_types = 'cd') %>% 
+  rename(pathway = `# Pathway`) %>% 
+  filter(!str_detect(pathway, '\\|')) %>% 
+  rename(pabun_cpm = names(.)[2])
+
+all_unstratified <- pabun %>% 
+  set_names(pabun) %>% 
+  map(~ read_tsv(., col_types = 'cd') %>% 
+  rename(pathway = `# Pathway`) %>% 
+  filter(!str_detect(pathway, '\\|'))  %>% 
+  rename(pabun_cpm = names(.)[2]) ) %>% 
+  bind_rows(.id = 'full_id')
+
+all_unstratified_cleaned <- all_unstratified %>% 
+   mutate(full_id = str_replace(full_id, '../data/NEW_naming//',''),
+         full_id = str_replace(full_id, '_humann3_pathabundance_cpm.tsv',''))
+
+all_unstratified_cleaned %>% write_csv('../data/all_unstratified_cleaned.csv')
+```
+
+## the stratified version
+
+```{r}
+all_stratified <- pabun %>% 
+  set_names(pabun) %>% 
+  map(~ read_tsv(., col_types = 'cd') %>% 
+  rename(pathway = `# Pathway`) %>% 
+  filter(str_detect(pathway, '\\|'))  %>% 
+  rename(pabun_cpm = names(.)[2]) ) %>% 
+  bind_rows(.id = 'full_id') %>% 
+   mutate(full_id = str_replace(full_id, '../data/NEW_naming//',''),
+         full_id = str_replace(full_id, '_humann3_pathabundance_cpm.tsv',''))
+
+all_stratified %>% write_csv('../data/all_stratified_cleaned.csv')
+```
+
+# the KO_cpm results
+
+## the unstratified version
+
+```{r}
+ko <-  list.files('../data/NEW_naming/', full.names = T, pattern = 'humann3_KO_cpm')
+test <- read_tsv(ko[1])
+test <- read_tsv(ko[1],  col_types = 'cd') %>% 
+  rename(KO = `# Gene Family`) %>% 
+  filter(!str_detect(KO, '\\|')) %>% 
+  rename(ko_cpm = names(.)[2])
+
+all_unstratified <- ko %>% 
+  set_names(ko) %>% 
+  map(~ read_tsv(., col_types = 'cd') %>% 
+  rename(KO = `# Gene Family`) %>% 
+  filter(!str_detect(KO, '\\|'))  %>% 
+  rename(ko_cpm = names(.)[2]) ) %>% 
+  bind_rows(.id = 'full_id') %>% 
+   mutate(full_id = str_replace(full_id, '../data/NEW_naming//',''),
+         full_id = str_replace(full_id, '_humann3_KO_cpm.tsv',''))
+
+all_unstratified %>% write_csv('../data/all_unstratified_cleaned_KO.csv')
+```
+
+## the stratified version
+
+```{r}
+all_stratified <- ko %>% 
+  set_names(ko) %>% 
+  map(~ read_tsv(., col_types = 'cd') %>% 
+  rename(ko = `# Gene Family`) %>% 
+  filter(str_detect(ko, '\\|'))  %>% 
+  rename(ko_cpm = names(.)[2]) ) %>% 
+  bind_rows(.id = 'full_id') %>% 
+  mutate(full_id = str_replace(full_id, '../data/NEW_naming//',''),
+         full_id = str_replace(full_id, '_humann3_KO_cpm.tsv',''))
+
+all_stratified %>% write_csv('../data/all_stratified_cleaned_KO.csv')
+```

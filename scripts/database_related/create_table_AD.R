@@ -216,7 +216,61 @@ create_table_type <- function(query_type, ...){
     
     create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
   }
+  
+  
+  if(query_type==6){
+    table_name = "humann_shotgun_path_abundance_cpm_unstratified";
+    
+    table_fields=c("full_id","pathway", "pabun_cpm");
+    
+    field_type=c("text","text", "real");
+    
+    
+    unique_set = c("full_id","pathway");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
+  
+  if(query_type==7){
+    table_name = "humann_shotgun_path_abundance_cpm_stratified";
+    
+    table_fields=c("full_id","pathway_spp", "pabun_cpm");
+    
+    field_type=c("text","text", "real");
+    
+    
+    unique_set = c("full_id","pathway_spp");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
+  
+  if(query_type==8){
+    table_name = "humann_shotgun_ko_cpm_unstratified";
+    
+    table_fields=c("full_id","ko", "ko_cpm");
+    
+    field_type=c("text","text", "real");
+    
+    
+    unique_set = c("full_id","KO");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
+  
+  if(query_type==9){
+    table_name = "humann_shotgun_ko_cpm_stratified";
+    
+    table_fields=c("full_id","ko_spp", "ko_cpm");
+    
+    field_type=c("text","text", "real");
+    
+    
+    unique_set = c("full_id","ko_spp");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
 }
+#### !!!!! all characters will be converted to non captital letters 
 
 
 create_table_prepare <- function(d_set_input){

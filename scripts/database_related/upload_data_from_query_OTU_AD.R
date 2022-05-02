@@ -130,9 +130,9 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   #     3. Retrieve data in temporary table that is not in target table
   #     4. Remove temporary table.
   #     5. Return only novel data to be uploaded;
-  table_name = "metaphlan_shotgun_rel_abundance";
+
   d_set_to_upload = d_set
-  
+  #table_name = 'humann_shotgun_ko_cpm_unstratified'
   table_name <- table_name
   d_set_to_upload <- d_set
   #Clean temp_table
@@ -146,14 +146,14 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   
   #Add uploaded_date to date_frame.
   uploaded_date = format(Sys.time(),"%m-%d-%Y");
-  d_set_to_upload$upload_date = uploaded_date;#!!!!
+  d_set_to_upload$uploaded_date = uploaded_date;#!!!!
   
   #Assign incremental key values starting on `maximum` value in current table.
   q_key_max_cur = get_data_from_query_OTU(0.2,table_name);
   if(is.na(q_key_max_cur$max)){
     q_key_max_cur$max = 0;
   }
-  d_set_to_upload$key = ( 1:length(d_set_to_upload$upload_date) ) + q_key_max_cur$max;
+  d_set_to_upload$key = ( 1:length(d_set_to_upload$uploaded_date) ) + q_key_max_cur$max;
   
   #Get columns for `column names`
   q_column_names = get_data_from_query_OTU(0.1,table_name);
@@ -356,6 +356,57 @@ upload_data_from_query_OTU <- function(query_number, ...){
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
   
+  if(query_number==8){
+    table_name = "humann_shotgun_path_abundance_cpm_unstratified";
+    
+    d_set_input = read_csv("~/pipeline/scripts/shotgun_pipeline/data/all_unstratified_cleaned.csv")
+    
+    d_set=data.frame(
+      full_id=d_set_input$full_id,
+      pathway=d_set_input$pathway,
+      pabun_cpm=d_set_input$pabun_cpm);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
+  
+  if(query_number==9){
+    table_name = "humann_shotgun_path_abundance_cpm_stratified";
+    
+    d_set_input = read_csv("~/pipeline/scripts/shotgun_pipeline/data/all_stratified_cleaned.csv")
+    
+    d_set=data.frame(
+      full_id=d_set_input$full_id,
+      pathway_spp=d_set_input$pathway,
+      pabun_cpm=d_set_input$pabun_cpm);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
+  
+  if(query_number==10){
+    table_name = "humann_shotgun_ko_cpm_unstratified";
+    
+    d_set_input = read_csv("~/pipeline/scripts/shotgun_pipeline/data/all_unstratified_cleaned_KO.csv")
+    
+    d_set=data.frame(
+      full_id=d_set_input$full_id,
+      ko=d_set_input$KO,
+      ko_cpm=d_set_input$ko_cpm);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
+  
+  if(query_number==11){
+    table_name = "humann_shotgun_ko_cpm_stratified";
+    
+    d_set_input = read_csv("~/pipeline/scripts/shotgun_pipeline/data/all_stratified_cleaned_KO.csv")
+    
+    d_set=data.frame(
+      full_id=d_set_input$full_id,
+      ko_spp=d_set_input$ko,
+      ko_cpm=d_set_input$ko_cpm);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
 }
 
 # 4-29-2022
