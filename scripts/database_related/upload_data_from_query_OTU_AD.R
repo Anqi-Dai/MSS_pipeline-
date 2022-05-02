@@ -88,6 +88,7 @@ my_dbWriteTable <- function(con, table_name, d_set_to_upload_reordered){
 upload_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to_upload ){
   #Check if d_set is in proper format to be uploaded in `table_name`.
   
+  
   #Add uploaded_date to date_frame.
   uploaded_date = format(Sys.time(),"%m-%d-%Y");
   d_set_to_upload$uploaded_date = uploaded_date;
@@ -129,6 +130,8 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   #     3. Retrieve data in temporary table that is not in target table
   #     4. Remove temporary table.
   #     5. Return only novel data to be uploaded;
+  table_name = "metaphlan_shotgun_rel_abundance";
+  d_set_to_upload = d_set
   
   table_name <- table_name
   d_set_to_upload <- d_set
@@ -143,14 +146,14 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   
   #Add uploaded_date to date_frame.
   uploaded_date = format(Sys.time(),"%m-%d-%Y");
-  d_set_to_upload$uploaded_date = uploaded_date;
+  d_set_to_upload$upload_date = uploaded_date;#!!!!
   
   #Assign incremental key values starting on `maximum` value in current table.
   q_key_max_cur = get_data_from_query_OTU(0.2,table_name);
   if(is.na(q_key_max_cur$max)){
     q_key_max_cur$max = 0;
   }
-  d_set_to_upload$key = ( 1:length(d_set_to_upload$uploaded_date) ) + q_key_max_cur$max;
+  d_set_to_upload$key = ( 1:length(d_set_to_upload$upload_date) ) + q_key_max_cur$max;
   
   #Get columns for `column names`
   q_column_names = get_data_from_query_OTU(0.1,table_name);
@@ -293,10 +296,10 @@ upload_data_from_query_OTU <- function(query_number, ...){
   
   if(query_number==6){
     table_name = "samples_castori_ag";
-    input_data_file = '~/Downloads/MSK/MSS_pipeline-/scripts/dada2_pipeline/data/tblSamples.csv'
+    input_data_file = '~/Desktop/tblSamples.csv'
     Samples_castori_center_file = input_data_file;
     
-    castori_downloaded_date = '2021-10-07'
+    castori_downloaded_date = '2022-04-29'
     #castori_data = read.table(Samples_castori_center_file,sep=",", quote = "", comment.char = "", header = T);
     castori_data = read_csv(Samples_castori_center_file)
     mrn_integer = as.character(castori_data$MRN);
@@ -336,6 +339,27 @@ upload_data_from_query_OTU <- function(query_number, ...){
     update_data_from_query_OTU_check_and_submission(table_name, d_set); 
   }
   
+  if(query_number==7){
+    table_name = "metaphlan_shotgun_rel_abundance";
+    
+    d_set_input = read_csv("~/pipeline/scripts/shotgun_pipeline/data/metaphlan_cleaned_220502.csv")
+    
+    d_set=data.frame(
+                     full_id=d_set_input$full_id,
+                     clade_name=d_set_input$clade_name,
+                     clade_taxid=d_set_input$clade_taxid,
+                     relative_abundance=d_set_input$relative_abundance,
+                     coverage = d_set_input$coverage,
+                     estimated_number_of_reads_from_the_clade = d_set_input$estimated_number_of_reads_from_the_clade,
+                     CHOCOPhlAn_version = d_set_input$CHOCOPhlAn_version);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
+  
 }
+
+# 4-29-2022
+# run the code starting from  table_name to d_set[,ind_date_type]=format(d_set[,ind_date_type],"%m-%d-%Y")
+# and then run the code update_data_from_query_OTU_check_and_submission(table_name, d_set); 
 
 

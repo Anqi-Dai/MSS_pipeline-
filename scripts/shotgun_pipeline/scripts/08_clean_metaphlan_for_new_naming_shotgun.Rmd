@@ -1,0 +1,66 @@
+---
+title: "clean the metaphlan results for the new naming shotgun data results"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+**The below **
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+
+get_table_from_database('metaphlan_shotgun_rel_abundance')
+
+```
+
+```{r}
+fns <- list.files('../data/NEW_naming/', full.names = T)
+test <- read_tsv(fns[1], skip = 4, col_types = 'ccddi') %>% 
+  rename(clade_name = `#clade_name`) %>% 
+  mutate(relative_abundance = relative_abundance/100) %>% 
+  filter(str_detect(clade_name, 's__')) 
+
+all_current_metaphlan <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., skip = 4, col_types = 'ccddi') %>% 
+  rename(clade_name = `#clade_name`) %>% 
+  mutate(relative_abundance = relative_abundance/100) %>% 
+  filter(str_detect(clade_name, 's__')) ) %>% 
+  bind_rows(.id = 'full_id')
+
+cleaned_metaphlan <- all_current_metaphlan %>% 
+  mutate(full_id = str_replace(full_id, '../data/NEW_naming//',''),
+         full_id = str_replace(full_id, '_metaphlan3_profile.txt','')) %>% 
+  mutate(CHOCOPhlAn_version  = 'mpa_v30_CHOCOPhlAn_201901')
+
+cleaned_metaphlan %>% write_csv('../data/metaphlan_cleaned_220502.csv')
+```
+
+**The below is how you are going to update the current table**
+
+```{r}
+
+cleaned_metaphlan_df <- as.data.frame(cleaned_metaphlan)
+existing_data <- dbGetQuery(psql_con, "SELECT * FROM metaphlan_shotgun_rel_abundance")
+
+if(nrow(existing_data) !=0){
+  # dont join across all columns cause the floats lose precision during the reading/writing
+  new_data <-  anti_join(cleaned_metaphlan_df, existing_data %>% select(-key, -upload_date, -relative_abundance, -coverage ),
+                         by=c("full_id", "clade_name", "clade_taxid", "estimated_number_of_reads_from_the_clade", "CHOCOPhlAn_version"))
+} else{
+  new_data <- cleaned_metaphlan_df
+}
+
+dbWriteTable(
+  psql_con, 
+  "metaphlan_shotgun_rel_abundance",
+  value = new_data %>% 
+    mutate(upload_date=Sys.Date()), 
+  append = TRUE, row.names = FALSE)
+```
+
