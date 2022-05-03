@@ -12,6 +12,13 @@ library(tidyverse)
 library(vdbR)
 connect_database('~/dbConfig.txt')
 get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('samples_castori_ag')
+df <- read_csv('~/Work/projects/CART_and_microbiome/data/amplicon/stool/combined_2_meta.csv') %>% 
+  filter(center == 'M') %>% 
+  inner_join(samples_castori_ag)
+
+df %>% 
+  write_csv('../data/cart_samples_date_collection.csv')
 ```
 
 ```{r}

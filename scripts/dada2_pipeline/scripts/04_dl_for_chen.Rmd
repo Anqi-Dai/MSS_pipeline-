@@ -1,0 +1,40 @@
+---
+title: "download the samples for chen"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+```
+
+```{r}
+chen <- read_csv('../data/chen.csv')
+get_table_from_database('asv_alpha_diversity_ag')
+
+location <- chen %>% 
+  inner_join(asv_alpha_diversity_ag %>% 
+               distinct(sampleid, .keep_all = T) %>% 
+               rename(SampleID = sampleid))
+
+missing <- chen %>% 
+  filter(! SampleID %in% asv_alpha_diversity_ag$sampleid)
+
+found <- location %>% 
+  select(oligos_id, path_pool) %>% 
+   mutate(R1 = str_glue('{oligos_id}_R1.fastq.gz'),
+         R2 = str_glue('{oligos_id}_R2.fastq.gz')) %>% 
+  mutate(p1 = str_glue('{path_pool}/{R1}'),
+         p2 = str_glue('{path_pool}/{R2}')) %>% 
+   select(p1, p2) %>% 
+   gather() %>% 
+   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{value} .')) %>% 
+   select(cmd) %>% 
+   write_csv('../data/dl_chen12729.sh', col_names = F)
+```
+
