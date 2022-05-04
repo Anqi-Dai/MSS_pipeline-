@@ -33,8 +33,8 @@ found <- location %>%
          p2 = str_glue('{path_pool}/{R2}')) %>% 
    select(p1, p2) %>% 
    gather() %>% 
-   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{value} .')) %>% 
+   mutate(cmd = str_glue('rsync --progress --partial -avz daia1@lilac.mskcc.org:{value} .')) %>% 
    select(cmd) %>% 
-   write_csv('../data/dl_chen12729.sh', col_names = F)
+   write_csv('/Volumes/castoricenter/Chen/raw_amplicon_found/dl_chen12729.sh', col_names = F)
 ```
 

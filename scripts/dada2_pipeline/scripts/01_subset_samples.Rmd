@@ -14,7 +14,6 @@ Get the asv counts and taxanomy and alpha diversity for that specific project sa
 library(vdbR)
 library(tidyverse)
 connect_database('~/dbConfig.txt')
-get_table_from_database('asv_counts_ag')
 list_table_from_database('alpha')
 get_table_from_database('asv_annotation_blast_ag')
 get_table_from_database('asv_alpha_diversity_ag')
@@ -73,3 +72,33 @@ succe %>%
 ```
 
 A total of 122 samples, 15 failed at the lib prep. 107 succeeded from 27 patients 
+
+
+# Hackensack samples
+
+```{r}
+alpha <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(oligos_id, 'pool1126|pool1127|pool1129|pool_1128')) %>% 
+  select(sampleid:shannon)  
+dir.create('../data/hackensack')
+alpha %>% write_csv('../data/hackensack/samples_alpha_diversity.csv')
+
+cts <- get_counts_subset(alpha$sampleid) %>% 
+  select(asv_key:count_total, count_relative)
+
+taxa <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  select(asv_key:blast_pass)
+
+list(alpha = alpha,
+     counts = cts,
+     taxa = taxa) %>% 
+  imap(function(.x, .y){
+    write_csv(.x, str_glue('../data/hackensack/hackensack_ASV_{.y}.csv'))
+  })
+
+
+# check the meta table they sent us
+meta <- readxl::read_excel('../data/3-1-22 Metadata MSK incl Abx.xlsx')
+```
+
