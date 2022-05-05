@@ -231,6 +231,10 @@ ggsave('../figs/paper/094_f3a.pdf',
          units = c("mm"),
          dpi = 400, plot = f3a)
 f3a %>% write_rds('../data/094_f3a.rds')
+
+ent_fruit %>% 
+  mutate(pid = str_extract(sampleid, '^\\d\\d\\d\\d')) %>% 
+  count(pid)
 ```
 
 
@@ -271,6 +275,11 @@ ggsave('../figs/paper/094_f3b.pdf',
          dpi = 400, plot = f3b)
 
 f3b %>% write_rds('../data/094_f3b.rds')
+
+
+kle_sweet %>% 
+  mutate(pid = str_extract(sampleid, '^\\d\\d\\d\\d')) %>% 
+  count(pid)
 ```
 
 

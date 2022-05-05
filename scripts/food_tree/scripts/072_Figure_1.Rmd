@@ -24,7 +24,7 @@ pick_line_size <- 0.5
 example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
-umap_pt_size <- 0.5
+umap_pt_size <- 1
 
 # the colors for each food group specified and saved here
 fpalette <- tribble(
@@ -194,7 +194,7 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 1,size = 0.2 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 1,size = 1 , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +

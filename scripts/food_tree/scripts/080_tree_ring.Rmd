@@ -62,6 +62,21 @@ bars_ <- bars %>%
   mutate(Food_code = factor(Food_code, levels = food_code_level))
 ```
 
+```{r}
+# the top several foods in each category
+top_each <- bars_ %>% 
+  select(Food_code,fg1_name, per_meal_ave ) %>% 
+  group_by(fg1_name) %>% 
+  arrange(desc(per_meal_ave)) %>% 
+  slice_max(n = 5, order_by = per_meal_ave) %>% 
+  ungroup() %>% 
+  inner_join(dtb %>% 
+               mutate(Food_code = as.character(Food_code)) %>% 
+               distinct(Food_code, description)) %>% 
+  split(.$fg1_name)
+ 
+```
+
 
 ```{r}
 # fill_val <- bars %>% 
