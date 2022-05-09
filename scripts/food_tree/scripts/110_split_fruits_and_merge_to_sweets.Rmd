@@ -1,14 +1,11 @@
 ---
-title: "Split the fruits group and model again"
+title: "Split the fake fruits out and merge to the sweets group"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-
-Split the fake fruits to a new parelle group
-
 
 ```{r}
 library(tidyverse)
@@ -18,6 +15,7 @@ library(tidybayes)
 library(cowplot)
 ncores <- parallel::detectCores()
 ```
+
 ```{r}
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
    mutate(Food_code = as.character(Food_code))
@@ -26,12 +24,12 @@ fruits_fake <- read_csv('../data/108_unique_fruits_PAAedit.csv') %>%
   mutate(Food_code = as.character(Food_code)) %>% 
   filter(fruit_include == 'no')
 
-dtbf <- dtb %>% 
+dtb2 <- dtb %>% 
   mutate(Food_code = if_else(Food_code %in% fruits_fake$Food_code, 
-                             str_replace(Food_code, '^6','F'),
+                             str_replace(Food_code, '^6','9'),
                              Food_code))
 
-fgrps_df <- dtbf %>% 
+fgrps_df <- dtb2 %>% 
   select(mrn, fdrt, dehydrated_weight, Food_code) %>% 
   mutate(fgrp1 = str_sub(Food_code, 1, 1))
 
@@ -47,8 +45,7 @@ total_per_group <- fgrps_df %>%
     fgrp1 == '6' ~ 'fg_fruit',
     fgrp1 == '7' ~ 'fg_veggie',
     fgrp1 == '8' ~ 'fg_oils', 
-    fgrp1 == '9' ~ 'fg_sweets',
-    fgrp1 == 'F' ~ 'fg_fakefruits'
+    fgrp1 == '9' ~ 'fg_sweets'
   ))
 ```
 ```{r}
@@ -79,7 +76,7 @@ mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
                select(-starts_with('fg')), by = "sampleid") 
 
 
-meta_f <- mean_p2d_df %>% 
+meta_2 <- mean_p2d_df %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn)) %>% 
@@ -91,10 +88,9 @@ meta_f <- mean_p2d_df %>%
          fg_milk = fg_milk/100,
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100,
-         fg_fakefruits = fg_fakefruits/100)
+         fg_veggie = fg_veggie/100)
 
-model_f <- log(simpson_reciprocal) ~ 0 + 
+model_2 <- log(simpson_reciprocal) ~ 0 + 
                 fg_fruit+
                fg_meat+
                fg_milk+
@@ -104,7 +100,6 @@ model_f <- log(simpson_reciprocal) ~ 0 +
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-                fg_fakefruits +
                intensity +
                empirical+
                 TPN+
@@ -112,8 +107,7 @@ model_f <- log(simpson_reciprocal) ~ 0 +
                (1 | mrn) +
                 (1 | timebin)
 
-get_prior( model_f,  
-              data = meta_f)
+
 
 priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_egg"),
@@ -125,7 +119,6 @@ priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_oils"),
             prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
             prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
-            prior(normal(0, 1), class = 'b', coef = "fg_fakefruits"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -137,19 +130,19 @@ priors <- c(# for the food group variables
             prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"),
             prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"))
 
-model_fake_fruits <- brm( model_f,  
-              data = meta_f, 
+model_new_sweets <- brm( model_2,  
+              data = meta_2, 
               warmup = 1000, iter = 3000, 
               prior = priors,
               cores = ncores, 
               chains = 2, 
               seed = 123, sample_prior = T) 
 
-post_res <- suppressWarnings(posterior_samples(model_fake_fruits)) 
-post_res %>%  write_csv('../data/109_div_model_fg_post_fake_fruits.csv')
+post_res <- suppressWarnings(posterior_samples(model_new_sweets)) 
+post_res %>%  write_csv('../data/110_div_model_fg_post_new_sweets.csv')
 ```
 ```{r}
-post_samples  <- read_csv('../data/109_div_model_fg_post_fake_fruits.csv')
+post_samples  <- read_csv('../data/110_div_model_fg_post_new_sweets.csv')
 
 post_coeff <- post_samples %>% 
   select(starts_with('b_fg')) %>% 
@@ -164,8 +157,7 @@ post_coeff <- post_samples %>%
     item == 'fruit' ~ '6',
     item == 'veggie' ~ '7',
     item ==  'oils' ~ '8', 
-    item ==  'sweets' ~ '9',
-    item ==  'fakefruits' ~ 'F'
+    item ==  'sweets' ~ '9'
   ))  %>% 
   mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
 
@@ -175,7 +167,7 @@ cross0 <- post_coeff %>%
             q97.5 = quantile(coeff, probs = 0.975)) %>% 
   mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
 
-div_post_f <- post_coeff %>% 
+div_post_2 <- post_coeff %>% 
   left_join(cross0) %>% 
   ggplot(aes(x = coeff, y = item, col = Cross)) +
   stat_pointinterval(.width = c(.66, .95)) +
@@ -190,9 +182,8 @@ div_post_f <- post_coeff %>%
         axis.title=element_text(size=8),
         aspect.ratio=1)
 
-
-ggsave('../data/109_fake_fruits_main_model.jpg', plot = div_post_f,
-       width = 80,
+ggsave('../data/110_new_sweets_main_model.jpg', plot = div_post_2,
+       width =80,
        height = 60, 
          #height = 60,
          units = c("mm"))
