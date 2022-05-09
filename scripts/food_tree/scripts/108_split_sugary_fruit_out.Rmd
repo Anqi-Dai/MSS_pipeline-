@@ -1,0 +1,26 @@
+---
+title: "Splitting the sugary fruit out of the fruit group"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+fruits <- dtb %>% 
+  mutate(fgrp1 = str_sub(as.character(Food_code), 1, 1)) %>% 
+  filter(fgrp1 == '6') %>% 
+  distinct(Food_code, description, .keep_all = T) %>% 
+  select(Food_code, description, Unit:Sodium_g)
+
+fruits %>% 
+  write_csv('../data/108_unique_fruits.csv')
+```
+

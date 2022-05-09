@@ -271,3 +271,13 @@ huge_all %>%
   save_kable(file = "../output/sample_run_metric.html", self_contained = T)
 
 ```
+
+```{r}
+df <- readxl::read_excel('~/Desktop/11-15-21 Final MSK ES (3).xlsx') %>% 
+  mutate(sampleid = str_replace_all(`Sample Label on Aliquoted Vial`, '-','\\.'))
+got <- read_csv('~/pipeline/scripts/dada2_pipeline/data/hackensack/hackensack_ASV_alpha.csv') %>% 
+  filter(!str_detect(sampleid, 'MB'))
+
+setdiff(df$sampleid, got$sampleid)
+```
+

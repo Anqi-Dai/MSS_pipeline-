@@ -1,0 +1,68 @@
+---
+title: "The shotgun pipeline QC metrics"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+qc_log_folder <- '../data/pipeline_qc_metrics/'
+```
+
+```{r}
+bbmap_logs <- list.files(qc_log_folder, '_trimmingAQ.txt$', full.names = T)
+
+# trim_Num is the reads that matched to adapters
+bb <- bbmap_logs %>% 
+  set_names(bbmap_logs) %>% 
+  map(~ suppressWarnings(read_tsv(., col_names = F, col_types = 'cdc')) %>% 
+        head(3) %>% 
+        rename(content = names(.)[1],
+               trim_Num = names(.)[2]) %>% 
+        filter(str_detect(content, 'Match')) %>% 
+        select(trim_Num) ) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/pipeline_qc_metrics//',''),
+         sampleid = str_replace(sampleid, '_trimmingAQ.txt',''))
+```
+
+```{r}
+kneaddata_logs <- list.files(qc_log_folder, '_knead.log$', full.names = T)
+
+# knead_num are host reads
+knead <- kneaddata_logs %>% 
+  set_names(kneaddata_logs) %>% 
+  map(~ suppressWarnings(read_delim(., col_names = F, col_types = 'c', delim = ',')) %>% 
+        rename(content = names(.)[1]) %>% 
+        filter(str_detect(content, 'Total contaminate sequences in file')) %>% 
+        transmute(knead_num = str_extract(content, 'Total contaminate sequences in file.+$')) %>% 
+        mutate(knead_num = as.numeric(str_replace(knead_num,'^.+: ',''))) %>% 
+        head(1)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/pipeline_qc_metrics//',''),
+         sampleid = str_replace(sampleid, '_knead.log',''))
+```
+
+```{r}
+hm3 <- list.files(qc_log_folder, '_humann3.log$', full.names = T)
+
+hm3_metric <- hm3 %>% 
+  set_names(hm3) %>% 
+  map(~ suppressWarnings(read_delim(., col_names = F, col_types = 'c', delim = ',')) %>% 
+  rename(content = names(.)[1]) %>% 
+  filter(str_detect(content, 'INFO: Unaligned')) %>% 
+  transmute(hm_perc = str_extract(content, 'after.+$')) %>% 
+  mutate(hm_perc = str_replace(hm_perc, 'after ','')) %>% 
+  separate(hm_perc, into = c('type','perc'), sep = ': ') %>% 
+  mutate(type = str_replace(type, ' ','_'),
+         perc = as.numeric(str_replace(perc, ' %',''))) %>% 
+  spread(key = 'type', value = 'perc')) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  # filter out the rows that have NA in translated column
+  filter(!is.na(translated_alignment)) %>% 
+  arrange(nucleotide_alignment)
+```
+
