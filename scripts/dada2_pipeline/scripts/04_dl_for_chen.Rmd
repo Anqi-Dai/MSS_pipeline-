@@ -36,5 +36,9 @@ found <- location %>%
    mutate(cmd = str_glue('rsync --progress --partial -avz daia1@lilac.mskcc.org:{value} .')) %>% 
    select(cmd) %>% 
    write_csv('/Volumes/castoricenter/Chen/raw_amplicon_found/dl_chen12729.sh', col_names = F)
+
+
+found %>% 
+  write_csv('../data/path_for_chen_samples.csv')
 ```
 

@@ -13,6 +13,7 @@ library(vdbR)
 connect_database()
 get_table_from_database('asv_alpha_diversity_ag')
 get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('asv_annotation_blast_ag')
 dat <- asv_alpha_diversity_ag %>% 
   distinct(oligos_id) %>% 
   mutate(poolid = str_extract(oligos_id, 'pool.+$')) %>% 
@@ -52,7 +53,7 @@ find %>%
 
 two <- asv_alpha_diversity_ag %>% 
   filter(str_detect(path_pool, 'pool1096\\+1097|pool1100')) %>% 
-  select(oligos_id, path_pool) %>% 
+  #select(oligos_id, path_pool) %>% 
   distinct(oligos_id, .keep_all = T) 
  
 length(intersect(two$sid, find$sid))
@@ -60,6 +61,8 @@ setdiff(two$sid, find$sid)
 
 two %>% 
   write_csv('../data/duke/two_pools_90_path.csv')
+
+
 ```
 
 
@@ -108,5 +111,61 @@ current %>%
   mutate(cmd = str_glue('cp {value} /home/daia1/my_workdir/samples/amplicon/duke')) %>% 
   select(cmd) %>% 
   write_csv('../data/cp_duke_1851.sh',col_names = F)
+```
+
+```{r}
+# find out the sampleids of those 1851 samples
+alpha_all <- asv_alpha_diversity_ag %>% 
+  distinct(sampleid, oligos_id, simpson_reciprocal, shannon)
+
+alpha <- alpha_all %>% 
+  filter(oligos_id %in% current$oligos_id)
+
+# the oligos ID are correct, the sampleid need some cleaning
+clean_sampleid <- alpha %>% 
+  mutate(sampleid = if_else(sampleid != oligos_id, str_replace(oligos_id, '\\.\\.pool.+$',''), sampleid))
+
+
+cts <- get_counts_subset(clean_sampleid$sampleid) %>% 
+  select(asv_key:count_total, count_relative)
+
+taxa <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  select(asv_key:blast_pass)
+
+list(alpha = alpha,
+     counts = cts,
+     taxa = taxa) %>% 
+  imap(function(.x, .y){
+    write_csv(.x, str_glue('../data/Duke_ASV_{.y}.csv'))
+  })
+
+```
+```{r}
+# for the table that match our sampleids to their sampleids:
+# first figure out what exactly is their sampleid
+see <- already %>% 
+  filter(!str_detect(oligos_id, '^blank')) %>% 
+  select(oligos_id:timepoint_int) %>% 
+  rename(dukeid = sampleid.x)
+see %>% 
+  write_csv('../data/what_is_duke_sampleid_1761.csv')
+```
+
+
+
+```{r}
+# the ones that need re-sequencing missing909 - two 90 + blank 8 = 827
+# the question is the two pools that Emily sequenced the latest
+two_cleaned <- two %>% 
+  mutate(sampleid_clean = str_replace_all(sampleid, '\\.','_'))
+length(intersect(two_cleaned$sampleid_clean, missing$sampleid_clean))
+two_cleaned$sampleid_clean
+setdiff(two_cleaned$sampleid_clean, missing$sampleid_clean)
+```
+
+```{r}
+missing %>% 
+  filter(str_detect(notes, 'Emily')) %>% pull(sampleid_clean)
 ```
 

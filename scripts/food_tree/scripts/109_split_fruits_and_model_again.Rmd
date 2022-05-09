@@ -76,7 +76,8 @@ mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'fg1_name', value = 'ave_fg', fill = 0) %>% 
   inner_join(meta %>% 
-               select(-starts_with('fg')), by = "sampleid") 
+               select(-starts_with('fg')), by = "sampleid") %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
 
 
 meta_f <- mean_p2d_df %>% 
@@ -93,7 +94,10 @@ meta_f <- mean_p2d_df %>%
          fg_sweets = fg_sweets/100,
          fg_veggie = fg_veggie/100,
          fg_fakefruits = fg_fakefruits/100)
+```
 
+
+```{r}
 model_f <- log(simpson_reciprocal) ~ 0 + 
                 fg_fruit+
                fg_meat+
@@ -227,5 +231,15 @@ diversity_factor <- coeff_factorial %>%
   theme_classic() +
   theme(legend.position = 'none',
         aspect.ratio=1)
+```
+```{r}
+#  could you plot a histogram of the fake fruit column, and also a boxplot of "fake fruits" on the y axis and "time bin" on the x axis? 
+mean_p2d_df %>% 
+  gghistogram(x = 'fg_fakefruits',
+              xlab = 'average fake fruits gram intake in the previous two days')
+
+mean_p2d_df %>% 
+  ggboxplot(x = 'timebin', y = 'fg_fakefruits') +
+  scale_y_sqrt()
 ```
 
