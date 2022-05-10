@@ -31,9 +31,6 @@ dtb %>%
   distinct(mrn) %>% 
   write_csv('../data/nutrition_patients_97_mrns.csv', col_names = T)
 ```
-
-
-
 ## Loading meta data table
 
 ```{r load_meta}
@@ -49,10 +46,7 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          fg_milk = fg_milk/100,
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100) %>% 
-  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
-         inten_ab = if_else(intensity == 'ablative', 1, 0),
-         inten_re = if_else(intensity == 'reduced', 1, 0)) 
+         fg_veggie = fg_veggie/100)
 
 
 ```
@@ -78,7 +72,7 @@ max_fg <- meta %>%
 
 ```{r get_prior}
 # what priors I can set 
-model_formular <- log(simpson_reciprocal) ~ 1 + 
+model_formular <- log(simpson_reciprocal) ~ 0 + 
                 fg_fruit+
                fg_meat+
                fg_milk+
@@ -88,7 +82,7 @@ model_formular <- log(simpson_reciprocal) ~ 1 +
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               inten_non + inten_ab + inten_re +
+               intensity +
                empirical+
                 TPN+
                 EN+
@@ -97,8 +91,6 @@ model_formular <- log(simpson_reciprocal) ~ 1 +
 get_prior( model_formular,  
               data = meta)
 ```
-
-
 
 
 ### Setting priors
@@ -121,10 +113,9 @@ priors <- c(# for the food group variables
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
-            prior(normal(2, 0.1), class = 'Intercept'))
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
 
 # samples are drawn solely from the priors ignoring the likelihood
 # model_wo_EN  means the usual model that the EN is still a binary variable and not ann inndivicual group
@@ -141,15 +132,14 @@ samples_prior <- prior_draws(model_div)
 
 
 # save it for future use
-post_res <- suppressWarnings(posterior_samples(model_div)) %>% 
-            select(-starts_with('r_'))
+post_res <- suppressWarnings(posterior_samples(model_div)) 
 post_res %>%  write_csv('../data/068_div_model_fg_post.csv')
 ```
 ```{r validate_prior}
 prior_div <- prior_draws(model_div) 
-
+colnames(prior_div)
 ave_each_fg_prior <- prior_div %>% 
-  mutate(mean_fg_prior_div = Intercept + 
+  mutate(mean_fg_prior_div = 
            b_fg_fruit*mean_fg$fg_fruit +
            b_fg_meat*mean_fg$fg_meat + 
            b_fg_milk*mean_fg$fg_milk + 
@@ -159,7 +149,7 @@ ave_each_fg_prior <- prior_div %>%
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
            b_fg_veggie*mean_fg$fg_veggie +
-           b_inten_re ) %>% 
+           b_intensityreduced ) %>% 
   select(mean_fg_prior_div) %>% 
   mutate(grp = 'ave_each')  %>% 
   mutate(within_range = if_else(mean_fg_prior_div >= min(log(meta$simpson_reciprocal)) &  mean_fg_prior_div <= max(log(meta$simpson_reciprocal)), T, F))
@@ -185,7 +175,7 @@ prior_diversity %>%
 
 ```{r all_params_csv}
 # make 
-post_all <- suppressWarnings(posterior_samples(model_div))
+post_all <-  read_csv('../data/068_div_model_fg_post.csv')
 colnames(post_all)
 # the mrn ones need to be anonymized
 
@@ -199,7 +189,9 @@ mrn_forest <- post_all %>%
          patient = as.numeric(factor(mrn)),
          pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
          pid = str_glue('P{pid}'),
-         key = str_glue('r_mrn[{pid},Intercept]')) %>% 
+         key = str_glue('r_mrn[{pid},Intercept]')) 
+
+mrn_figure <- mrn_forest %>% 
   ggplot(aes(x = value, y = pid)) +
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
@@ -220,14 +212,14 @@ ggsave('../figs/paper/S_mrn_intercepts_forest.pdf',
        height = 320, 
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'pdf', plot = mrn_forest)
+         dpi = 400, device = 'pdf', plot = mrn_figure)
 
 ggsave('../figs/paper/S_mrn_intercepts_forest.jpg',
        width = 280,
        height = 320, 
          #height = 60,
          units = c("mm"),
-         dpi = 400, device = 'jpg', plot = mrn_forest)
+         dpi = 400, device = 'jpg', plot = mrn_figure)
 ```
 
 
@@ -269,137 +261,9 @@ all_params %>%
   write_csv('../figs/paper/Supplementary_table1_main_model_all_params_coeff_068.csv')
 ```
 
-
-
-
-```{r}
-# create a df with max and min and ave in 9 groups
-# create a df with the corresponding value that the samples prior coeff can multiply
-max_ <- ave_fg %>%
-  rename(mean_ = value) %>%
-  mutate(max_fg_egg = if_else(key == 'fg_egg', max_fg$fg_egg, mean_),
-         max_fg_fruit = if_else(key == 'fg_fruit', max_fg$fg_fruit, mean_),
-         max_fg_grain = if_else(key == 'fg_grain', max_fg$fg_grain, mean_),
-         max_fg_legume = if_else(key == 'fg_legume', max_fg$fg_legume, mean_),
-         max_fg_meat = if_else(key == 'fg_meat', max_fg$fg_meat, mean_),
-         max_fg_milk = if_else(key == 'fg_milk', max_fg$fg_milk, mean_),
-         max_fg_oils = if_else(key == 'fg_oils', max_fg$fg_oils, mean_),
-         max_fg_sweets = if_else(key == 'fg_sweets', max_fg$fg_sweets, mean_),
-         max_fg_veggie = if_else(key == 'fg_veggie', max_fg$fg_veggie, mean_)) %>%
-  select(-mean_) %>%
-  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
-  arrange(key)
-
-
-
-values <- max_ %>%
-  select(-key) %>%
-  as.list()
-
-values <- values %>%
-  map(~ set_names(x = ., max_$key))
-
-# calculate the resulted prior log div
-vals <- names(values)
-```
-
-```{r}
-# calculate the min, 25, 50, 75  quantiles of each of the food groups
-min_fg <- meta %>% 
-  select(starts_with('fg')) %>% 
-  summarise_all(funs(min)) 
-
-
-
-min_ <- ave_fg %>%
-  rename(mean_ = value) %>%
-  mutate(min_fg_egg = if_else(key == 'fg_egg', min_fg$fg_egg, mean_),
-         min_fg_fruit = if_else(key == 'fg_fruit', min_fg$fg_fruit, mean_),
-         min_fg_grain = if_else(key == 'fg_grain', min_fg$fg_grain, mean_),
-         min_fg_legume = if_else(key == 'fg_legume', min_fg$fg_legume, mean_),
-         min_fg_meat = if_else(key == 'fg_meat', min_fg$fg_meat, mean_),
-         min_fg_milk = if_else(key == 'fg_milk', min_fg$fg_milk, mean_),
-         min_fg_oils = if_else(key == 'fg_oils', min_fg$fg_oils, mean_),
-         min_fg_sweets = if_else(key == 'fg_sweets', min_fg$fg_sweets, mean_),
-         min_fg_veggie = if_else(key == 'fg_veggie', min_fg$fg_veggie, mean_)) %>%
-  select(-mean_) %>%
-  mutate(key = if_else(str_detect(key, '^fg'), str_glue('b_{key}'), key))  %>%
-  arrange(key)
-
-```
-
-```{r}
-# the calculated ln(diversity) when the others are ave but one group is the min
-values_min <- min_ %>%
-  select(-key) %>%
-  as.list()
-
-values_min <- values_min %>%
-  map(~ set_names(x = ., min_$key))
-
-# calculate the resulted prior log div
-vals_min <- names(values_min)
-
-
-min_each_fg_post <- vals_min  %>%  
-  set_names(vals_min) %>% 
-  map(function(val) {
-    res =
-   post_coeffs$b_fg_egg$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_egg') +
-   post_coeffs$b_fg_fruit$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_fruit') +
-   post_coeffs$b_fg_grain$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_grain') +
-   post_coeffs$b_fg_legume$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_legume') +
-   post_coeffs$b_fg_meat$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_meat') +
-   post_coeffs$b_fg_milk$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_milk') +
-   post_coeffs$b_fg_oils$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_oils') +
-   post_coeffs$b_fg_sweets$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_sweets') +
-   post_coeffs$b_fg_veggie$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
-  }) %>% 
-  bind_rows(.id = 'grp')
-```
-
-
 ## Posterior
 
 ### Extract the posterior samples 
-
-```{r}
-# the full table of the posterior results
-full_post <- posterior_samples(model_div, '^b_|^r_')
-
-
-post_coeffs <- post_samples %>% 
-  select(b_Intercept, b_inten_re,  starts_with('b_fg')) %>% 
-  gather('term','post_coeff') %>% 
-  split(.$term) 
-
-
-
-
-revised_post <- bind_rows(
-  full_post %>% 
-    gather() %>% 
-    filter(!str_detect(key, 'mrn')),
-  mrn_part
-) %>% 
-  select(key, value) %>% 
-  group_by(key) %>% 
-  summarise(q2.5 = quantile(value, probs = 0.025),
-            q97.5 = quantile(value, probs = 0.975),
-            q17 = quantile(value, probs = 0.17),
-            q83 = quantile(value, probs = 0.83),
-            q50 = quantile(value, probs = 0.5)) %>% 
-  filter(str_detect(key, '^r')) %>% 
-  select(key, q2.5,q17, q50, q83,  q97.5)
-
-library(kableExtra) 
-
-kbl(revised_post) %>%
-  kable_classic(full_width = F, html_font = "Arial") %>%
-  save_kable(file = "../figs/paper/T2_main_model_random_effects.pdf")
-```
 
 
 ```{r post_sample}
@@ -499,9 +363,9 @@ coeff_bi <- post_samples %>%
   select(!starts_with('b_fg')) %>% 
   gather('item', 'coeff') %>% 
   mutate(item_name = case_when(
-    item ==  'b_inten_non' ~ 'Intensity: nonablative',
-    item == 'b_inten_ab' ~ 'Intensity: ablative',
-    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_intensitynonablative' ~ 'Intensity: nonablative',
+    item == 'b_intensityablative' ~ 'Intensity: ablative',
+    item ==  'b_intensityreduced' ~ 'Intensity: reduced',
     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure'
@@ -525,216 +389,10 @@ diversity_factor <- coeff_bi %>%
 diversity_factor %>% 
   write_rds('../data/068_diversity_factor_forest.rds')
 
-
-```
-
- 
-```{r post_sample_food_ave}
-# when the food intake is average mean
-
-###THE RESULTS IS THE LOG TRANSFORMED DIVERSITY !!!!##
-ave_each_fg_post <- post_samples %>% 
-  mutate(mean_fg = b_Intercept + 
-           b_fg_fruit*mean_fg$fg_fruit +
-           b_fg_meat*mean_fg$fg_meat + 
-           b_fg_milk*mean_fg$fg_milk + 
-           b_fg_oils*mean_fg$fg_oils + 
-           b_fg_egg*mean_fg$fg_egg + 
-           b_fg_grain*mean_fg$fg_grain +
-           b_fg_sweets*mean_fg$fg_sweets +
-           b_fg_legume*mean_fg$fg_legume +
-           b_fg_veggie*mean_fg$fg_veggie +
-           b_inten_re ) %>% 
-  select(mean_fg) %>% 
-  mutate(grp = 'ave_each') %>% 
-  rename(post_res = mean_fg) %>% 
-  select(grp, post_res)
-
-
-
-max_each_fg_post <- vals  %>%  
-  set_names(vals) %>% 
-  map(function(val) {
-    res =
-   post_coeffs$b_fg_egg$post_coeff * values %>% pluck(val) %>% pluck('b_fg_egg') +
-   post_coeffs$b_fg_fruit$post_coeff * values %>% pluck(val) %>% pluck('b_fg_fruit') +
-   post_coeffs$b_fg_grain$post_coeff * values %>% pluck(val) %>% pluck('b_fg_grain') +
-   post_coeffs$b_fg_legume$post_coeff * values %>% pluck(val) %>% pluck('b_fg_legume') +
-   post_coeffs$b_fg_meat$post_coeff * values %>% pluck(val) %>% pluck('b_fg_meat') +
-   post_coeffs$b_fg_milk$post_coeff * values %>% pluck(val) %>% pluck('b_fg_milk') +
-   post_coeffs$b_fg_oils$post_coeff * values %>% pluck(val) %>% pluck('b_fg_oils') +
-   post_coeffs$b_fg_sweets$post_coeff * values %>% pluck(val) %>% pluck('b_fg_sweets') +
-   post_coeffs$b_fg_veggie$post_coeff * values %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
-  }) %>% 
-  bind_rows(.id = 'grp')
-```
-
-```{r post_diff}
-# calculate the absolute difference between the max in each fg and the mean 
-# note the mean is from EN-free records.
-maxs <- max_each_fg_post %>% 
-  as.list()
-
-
-theme_set(theme_tidybayes() + cowplot::panel_border())
-
-post_diff_df <- maxs %>% 
-  map(function(vec) {
-    tibble(
-      max_=vec,
-      ave=ave_each_fg_post$post_res
-    ) %>% 
-      mutate(post_diff_original_scale = exp(max_) - exp(ave),
-             post_max_pred =  exp(max_),
-             post_ave_pred =  exp(ave))
-  }) %>% 
-  bind_rows(.id = 'term') %>% 
-  mutate(term = str_replace(term, 'max_','')) %>% 
-  left_join(key %>% 
-              select(term = fg1_name, color, shortname)) %>% 
-  mutate(shortname = fct_reorder(shortname, post_diff_original_scale, .fun=median, .desc = F))
-```
-```{r post_diff_3}
-# only plot the post diff forest in fruits and sweets
-only3 <- post_diff_df %>% 
-  filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie'))
 ```
 
 ```{r}
-# the version that doesn't show the difference but show the max and the ave one
-only3_two_df <- only3 %>% 
-  gather('grp','predicted', post_max_pred:post_ave_pred) %>% 
-  group_by(term, shortname, grp) %>% 
-  median_qi(predicted, .width = c(.95, .8, .5)) %>% 
-  mutate(feature = str_glue('{shortname} {grp}'))
-
-
-only3_two <- only3_two_df %>%
-  ggplot(aes(y = feature, x = predicted)) +
-  geom_interval(aes(xmin = .lower, xmax = .upper)) + 
-  #geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
-  scale_color_brewer(palette = 'Greys')+
-  facet_grid(feature~ ., scales = 'free') +
-  labs(x = expression(Predicted~alpha~diversity),
-       y = '', 
-       title = 'Diversity prediction') +
-  theme_classic() 
-  
-only3_two    
-```
-
-
-```{r post_diff_3}
-only3_sim <- only3 %>% 
-  group_by(term, shortname) %>% 
-  median_qi(post_diff_original_scale, .width = c(.95, .8, .5)) %>%
-  ggplot(aes(y = shortname, x = post_diff_original_scale)) +
-  geom_interval(aes(xmin = .lower, xmax = .upper)) + 
-  geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
-  labs(x = expression(Change~`in`~alpha~diversity),
-       y = '', 
-       title = 'Diversity prediction') +
-  theme_classic() + 
-  #scale_color_manual(values = key %>% select(fg1_name, color) %>% deframe()) +
-  scale_x_continuous(breaks = seq(-10, 20, 2)) +
-  scale_color_brewer(palette = 'Greys')+
-  xlim(-6, 4.5) +
-  guides(color = guide_legend(override.aes = list(size = 4),
-                              title = 'HDI'))+
-  theme(axis.text=element_text(size=8),
-       legend.position = c(0.87, 0.3),
-       legend.key.size = unit(2, 'mm'),
-       legend.title = element_text( size=6), 
-       legend.text=element_text(size=6),
-        axis.title=element_text(size=8),
-       legend.key = element_rect(fill = 'white', colour = NA),
-        aspect.ratio=1)
- 
-only3_sim  
- 
-only3_sim %>% 
-  write_rds('../data/068_only3_sim.rds')
+# modify it to be the look that we have discussed
 
 ```
-
-
-
-```{r post_diff}
-post_diff_df %>% 
-  ggplot(aes(y = term, x = post_diff_original_scale, col = term)) +
-  stat_halfeye() +
-  #scale_fill_manual(values = c("gray80", "skyblue")) +
-  geom_vline(xintercept = 0, linetype = "dashed", col = 'red') +
-  labs(x = "Difference in Simpson's reciprocal diversity",
-       y = '',
-       title = 'The diff in simpson reciprocal diversity if one food group is consumed\nat max amount than the average') +
-  theme(legend.position = 'none') +
-  scale_x_continuous(breaks = seq(-10, 20, 2)) +
-  scale_color_manual(values = key %>% 
-                       select(fg1_name, color) %>% deframe()) +
-  xlim(-4.1, 12)
-
-
-```
-
-## the forest plot with prior and post 
-
-```{r both}
-both <- bind_rows(
-  samples_prior %>% 
-    select(starts_with('b_fg')) %>% mutate(grp = 'prior'),
-  post_samples %>% 
-    select(starts_with('b_fg')) %>% mutate(grp = 'post')
-)  %>% 
-  gather('item', 'coeff', b_fg_fruit:b_fg_veggie) 
-
-summ <- both %>% 
-  group_by(grp, item) %>% 
-  summarise(q025 = quantile(coeff, 0.025),
-            q975 = quantile(coeff, 0.975),
-            q50 = quantile(coeff, 0.5)) %>% 
-  arrange(grp, q50) 
-
-fg_order <- summ %>%
-  filter(grp == 'post') %>%
-  arrange(-q50) %>%
-  pull(item)
-```
-
-
-```{r pinterval}
-pinterval <- both %>%  
-  #mutate(item = str_replace(item, 'b_','')) %>% 
-  left_join(key %>% 
-              select(item = fg1_name)) %>% 
-  mutate(item = factor(item, levels = fg_order)) %>% 
-  ggplot(aes(x = coeff, y = grp, color = grp)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'gray', linetype = 'dashed') +
-  facet_wrap(item ~ .) +
-  labs(x = 'Regression coefficients',
-       y = '') +
-  theme(legend.position = 'none')
- 
-pinterval
-ggsave('../figs/paper/prior_post_pinterval_coeff.pdf', width = 10, height = 4)
-```
-
-
-
-## Post_top_patients
-
-another thing to do is for both prior and posterior checks: use the ACTUAL diet from the 5 least fruit rich, and 5 most fruit rich diets.
-
-something like :
-for i in 5:
-    top = topdiets[i]
-    least = leastfruitdiets[i]
-    coeffs = sample_posterior(n=1000) // sample_prior
-    topdietdiversity_posterior = predict(top, coeffs)
-    leastdietdiversity_posterior = predict(least,coeffs)
-plot(topdietsdiversity_posterior) // prior 
 
