@@ -27,10 +27,7 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          fg_milk = fg_milk/100,
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100) %>% 
-  mutate(inten_non = if_else(intensity == 'nonablative', 1, 0),
-         inten_ab = if_else(intensity == 'ablative', 1, 0),
-         inten_re = if_else(intensity == 'reduced', 1, 0))
+         fg_veggie = fg_veggie/100) 
 axis_text_size <- 7
 axis_title_size <- 7
 ```
@@ -67,8 +64,6 @@ target_genera <-  cts %>%
   filter(perc > 10) %>% 
   pull(genus) 
 ```
-
-
 ```{r}
 gcts <- read_csv('../data/088_genus_relab_log10_wide.csv') %>% 
   select(sampleid, all_of(target_genera))
@@ -93,10 +88,9 @@ priors <- c(# for the food group variables
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
-            prior(normal(-3, 1), class = 'Intercept'))
+            prior(normal(-3, 1), class = 'b', coef = "intensityreduced"),
+            prior(normal(-3, 1), class = 'b', coef = "intensityablative"),
+            prior(normal(-3, 1), class = 'b', coef = "intensitynonablative"))
 ```
 
 
@@ -313,7 +307,7 @@ ggsave( '../figs/paper/S9_heatmap_fg_genus_087.pdf',
 
 ```{r}
 entero_genus <- brm( Enterococcus  ~ 
-               1 +
+               0 +
                 fg_fruit+
                 fg_meat+
                 fg_milk+
@@ -323,7 +317,7 @@ entero_genus <- brm( Enterococcus  ~
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               inten_non + inten_ab + inten_re +
+               intensity +
                 empirical+
                 TPN+
                 EN+
@@ -337,8 +331,7 @@ entero_genus <- brm( Enterococcus  ~
               control = list(adapt_delta = 0.99),
               seed = 456, sample_prior = T) 
 
-post_enterco <- suppressWarnings(posterior_samples(entero_genus)) %>% 
-            select(-starts_with('r_'))
+post_enterco <- suppressWarnings(posterior_samples(entero_genus))
 post_enterco %>%  write_csv('../data/087_Enterococcus_model_fg_post.csv')
 ```
 
@@ -423,20 +416,21 @@ Enterococcaceae_model_coeff
 
 ```{r enterococcus_factor}
 coeff_bi <- post_samples %>% 
+  select(starts_with('b_')) %>% 
   select(!starts_with('b_fg')) %>% 
-  select(-b_Intercept) %>% 
   gather('item', 'coeff') %>% 
   mutate(item_name = case_when(
-    item ==  'b_inten_non' ~ 'Intensity: nonablative',
-    item == 'b_inten_ab' ~ 'Intensity: ablative',
-    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_intensitynonablative' ~ 'Intensity: nonablative',
+    item == 'b_intensityablative' ~ 'Intensity: ablative',
+    item ==  'b_intensityreduced' ~ 'Intensity: reduced',
     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure'
   )) %>% 
   mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
                                                   'Intensity: ablative', 'TPN exposure','EN exposure',
-                                                  'Empirical abx exposure'))) 
+                                                  'Empirical abx exposure'))) %>% 
+  mutate(grp = if_else(str_detect(item_name, 'Intensity'), 'Patient level', 'Sample level'))
 
 
 entero_genus_factor <- coeff_bi %>% 
@@ -444,12 +438,15 @@ entero_genus_factor <- coeff_bi %>%
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  facet_wrap(grp~ . , scales = 'free', dir = 'v') +
   labs(x = 'Coefficients',
        y = 'Factor variables',
        title = 'Enterococcus') +
   theme_classic() +
   theme(legend.position = 'none',
-        aspect.ratio=1)
+         strip.background = element_blank(),
+        strip.text = element_blank(),
+        aspect.ratio=1/2)
  
 entero_genus_factor %>% write_rds('../data/087_entero_genus_factor_forest.rds')
 ```
@@ -458,7 +455,7 @@ entero_genus_factor %>% write_rds('../data/087_entero_genus_factor_forest.rds')
 prior_entero <- prior_draws(entero_genus) 
 
 ave_each_fg_prior <- prior_entero %>% 
-  mutate(mean_fg_prior_entero = Intercept + 
+  mutate(mean_fg_prior_entero = 
            b_fg_fruit*mean_fg$fg_fruit +
            b_fg_meat*mean_fg$fg_meat + 
            b_fg_milk*mean_fg$fg_milk + 
@@ -468,7 +465,7 @@ ave_each_fg_prior <- prior_entero %>%
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
            b_fg_veggie*mean_fg$fg_veggie +
-           b_inten_re ) %>% 
+           b_intensityreduced ) %>% 
   select(mean_fg_prior_entero) %>% 
   mutate(grp = 'ave_each')  %>% 
   mutate(within_range = if_else(mean_fg_prior_entero >= min(full$Enterococcus) &  mean_fg_prior_entero <= max(full$Enterococcus), T, F))

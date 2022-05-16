@@ -153,7 +153,6 @@ see %>%
 ```
 
 
-
 ```{r}
 # the ones that need re-sequencing missing909 - two 90 + blank 8 = 827
 # the question is the two pools that Emily sequenced the latest
@@ -162,6 +161,11 @@ two_cleaned <- two %>%
 length(intersect(two_cleaned$sampleid_clean, missing$sampleid_clean))
 two_cleaned$sampleid_clean
 setdiff(two_cleaned$sampleid_clean, missing$sampleid_clean)
+
+# send the sampleid of the "two " to lauren and John for identifying anything
+two %>% 
+  select(sampleid) %>% 
+  write_csv('../data/duke_two_pools_90.csv')
 ```
 
 ```{r}

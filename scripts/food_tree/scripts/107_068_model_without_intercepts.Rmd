@@ -1,18 +1,11 @@
 ---
-title: "The model re-done with Bayesian"  
-author: "Anqi Dai"
-date: "`r Sys.Date()`"
-output:
-  html_document:
-    toc: true
-    toc_float: true
-    toc_depth: 3
+title: "068 main model without intercepts"
+output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = F)
+knitr::opts_chunk$set(echo = TRUE)
 ```
-
 
 ```{r}
 library(tidyverse)
@@ -27,13 +20,7 @@ key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_
 axis_text_size <- 10
 axis_title_size <- 10
 
-dtb %>% 
-  distinct(mrn) %>% 
-  write_csv('../data/nutrition_patients_97_mrns.csv', col_names = T)
-```
-## Loading meta data table
 
-```{r load_meta}
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
@@ -46,32 +33,27 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          fg_milk = fg_milk/100,
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100)
-
-```
+         fg_veggie = fg_veggie/100) 
 
 
-```{r }
-# the mean food group intake from our data 
 ave_fg <- meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean)) %>% 
   gather
-
 mean_fg <-  meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean))
-
 max_fg <- meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(max)) 
 ```
 
-## Priors 
 
-```{r get_prior}
-# what priors I can set 
-model_formular <- log(simpson_reciprocal) ~ 0 + 
+# model
+
+```{r}
+# how to get rid of the intercept 
+model_formular_no_intercept <- log(simpson_reciprocal) ~ 0 + 
                 fg_fruit+
                fg_meat+
                fg_milk+
@@ -87,14 +69,9 @@ model_formular <- log(simpson_reciprocal) ~ 0 +
                 EN+
                (1 | mrn) +
                 (1 | timebin)
-get_prior( model_formular,  
+get_prior( model_formular_no_intercept,  
               data = meta)
-```
 
-
-### Setting priors
-
-```{r set_prior}
 priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_egg"),
             prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
@@ -112,13 +89,12 @@ priors <- c(# for the food group variables
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
             prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
-            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"))
 
-# samples are drawn solely from the priors ignoring the likelihood
-# model_wo_EN  means the usual model that the EN is still a binary variable and not ann inndivicual group
-model_div <- brm( model_formular,  
+
+model_div <- brm( model_formular_no_intercept,  
               data = meta, 
               warmup = 1000, iter = 3000, 
               prior = priors,
@@ -126,17 +102,14 @@ model_div <- brm( model_formular,
               chains = 2, 
               seed = 123, sample_prior = T) 
 
-# actually draw samples from the priors 
-samples_prior <- prior_draws(model_div)
 
-
-# save it for future use
 post_res <- suppressWarnings(posterior_samples(model_div)) 
-post_res %>%  write_csv('../data/068_div_model_fg_post.csv')
+post_res %>%  write_csv('../data/107_div_model_fg_post_without_intercept.csv')
 ```
-```{r validate_prior}
+
+```{r}
 prior_div <- prior_draws(model_div) 
-colnames(prior_div)
+
 ave_each_fg_prior <- prior_div %>% 
   mutate(mean_fg_prior_div = 
            b_fg_fruit*mean_fg$fg_fruit +
@@ -153,136 +126,15 @@ ave_each_fg_prior <- prior_div %>%
   mutate(grp = 'ave_each')  %>% 
   mutate(within_range = if_else(mean_fg_prior_div >= min(log(meta$simpson_reciprocal)) &  mean_fg_prior_div <= max(log(meta$simpson_reciprocal)), T, F))
 
-prior_diversity <- ave_each_fg_prior %>% 
-  gghistogram(x = 'mean_fg_prior_div', fill = 'within_range', color = 'white',
-              xlab = 'Predicted ln(diversity)\nwith prior distribution',
-              title = 'Diversity') +
-  geom_vline(xintercept = min(log(meta$simpson_reciprocal)), linetype = 'dashed') +
-  geom_vline(xintercept = max(log(meta$simpson_reciprocal)), linetype = 'dashed')  +
-  theme(legend.position = 'none')
-
 ave_each_fg_prior %>% 
   count(within_range) %>% 
   mutate(perc = n/(sum(n))*100)
-
-
-prior_diversity %>% 
-  write_rds('../data/068_prior_diversity_hist.rds'
-  )
-``` 
-
-
-```{r all_params_csv}
-# make 
-post_all <-  read_csv('../data/068_div_model_fg_post.csv')
-colnames(post_all)
-# the mrn ones need to be anonymized
-
-# make  a forest  plot of the mrn intercepts
-mrn_forest <- post_all %>% 
-  gather() %>% 
-  filter(str_detect(key, 'r_mrn')) %>% 
-  mutate(mrn = str_extract(key, '\\[.+,'),
-         mrn = str_replace(mrn, '\\[', ''),
-         mrn = str_replace(mrn, ',', ''),
-         patient = as.numeric(factor(mrn)),
-         pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
-         pid = str_glue('P{pid}'),
-         key = str_glue('r_mrn[{pid},Intercept]')) 
-
-mrn_figure <- mrn_forest %>% 
-  ggplot(aes(x = value, y = pid)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
-  labs(x = '',
-       y = '', 
-       title = '') +
-  theme_classic() +
-  theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=11),
-        axis.title=element_text(size=11),
-        aspect.ratio=1)
 ```
 
-
-```{r all_params_csv}
-ggsave('../figs/paper/S_mrn_intercepts_forest.pdf',
-       width = 280,
-       height = 320, 
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf', plot = mrn_figure)
-
-ggsave('../figs/paper/S_mrn_intercepts_forest.jpg',
-       width = 280,
-       height = 320, 
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'jpg', plot = mrn_figure)
-```
-
+# post coeff plot
 
 ```{r}
-# make a table with the median , thinner interval two sides, thicker interval two sides for all of the parameters. 
-mrn_part <- post_all %>% 
-  gather() %>% 
-  filter(str_detect(key, 'r_mrn')) %>% 
-  mutate(mrn = str_extract(key, '\\[.+,'),
-         mrn = str_replace(mrn, '\\[', ''),
-         mrn = str_replace(mrn, ',', ''),
-         patient = as.numeric(factor(mrn)),
-         pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
-         pid = str_glue('P{pid}'),
-         key = str_glue('r_mrn[{pid},Intercept]')) %>% 
-  group_by(key) %>% 
-  tidybayes::median_qi(value , .width = c( .66, .95))
-
-others <-  post_all %>% 
-  gather() %>% 
-  filter(!str_detect(key, 'r_mrn')) %>% 
-  group_by(key) %>% 
-  tidybayes::median_qi(value , .width = c( .66, .95))
-```
-
-
-```{r}
-all_params <- bind_rows(mrn_part, others) %>% 
-  rename(median = value) %>% 
-  gather('side', 'value', median:.upper) %>% 
-  mutate(name = str_glue('{side}{.width}')) %>% 
-  mutate(name = str_replace(name, '^\\.','')) %>% 
-  select(key, name, value) %>% 
-  spread('name','value') %>% 
-  select(-median0.66) %>% 
-  rename(median = median0.95,
-         param = key) 
-all_params %>% 
-  write_csv('../figs/paper/Supplementary_table1_main_model_all_params_coeff_068.csv')
-```
-
-## Posterior
-
-### Extract the posterior samples 
-
-
-```{r post_sample}
-# extract posterior samples for the coeff
-post_samples  <- read_csv('../data/068_div_model_fg_post.csv')
-
-# save it out for the forest plot of the coeff
-post_fg_coeff <- post_samples %>% 
-  select(starts_with('b_fg')) %>% 
-  gather('item', 'value')
-
-post_fg_coeff_mean <- post_fg_coeff  %>% 
-  group_by(item) %>% 
-  summarise(meanperitem = mean(value))
-
-```
-
-```{r post_coeff_forest}
-# make the forest plot of the post coeff 
-# like the one on the ash abstract
+post_samples  <- read_csv('../data/107_div_model_fg_post_without_intercept.csv')
 
 post_coeff <- post_samples %>% 
   select(starts_with('b_fg')) %>% 
@@ -302,37 +154,11 @@ post_coeff <- post_samples %>%
   left_join(key %>% select(fgrp1, color, shortname))  %>% 
   mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
 
-fg_labels <- levels(post_coeff$shortname)
-
-
 cross0 <- post_coeff %>%
   group_by(item) %>% 
   summarise(q2.5 = quantile(coeff, probs = 0.025),
             q97.5 = quantile(coeff, probs = 0.975)) %>% 
   mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
-
-# to find the quantiles of the post_coeff
-post_coeff %>% 
-  group_by(item) %>% 
-  tidybayes::median_qi(coeff, .width = c( .66, .95))
-
-post_coeff %>% 
-  group_by(item) %>% 
-  summarise(q50 = median(coeff))
-
-post_coeff %>%  
-  filter(item == 'fruit') %>% 
-  count(coeff < 0) %>% 
-  mutate(perc = n/sum(n)*100)
-```
-
-```{r}
-fg_colors <- post_coeff %>% 
-  distinct(shortname, color) %>% 
-  select(shortname, color) %>% 
-  deframe()
-
-title1 <- bquote(Outcome: log[e]~(Simpsons~reciprocal))
 
 div_post <- post_coeff %>% 
   left_join(cross0) %>% 
@@ -348,15 +174,9 @@ div_post <- post_coeff %>%
   theme(axis.text=element_text(size=8),
         axis.title=element_text(size=8),
         aspect.ratio=1)
-
-div_post %>% 
-  write_rds('../data/068_div_post.rds')
-
-div_post
 ```
 
-
-```{r post_coeff_binary}
+```{r}
 coeff_bi <- post_samples %>% 
   select(starts_with('b_')) %>% 
   select(!starts_with('b_fg')) %>% 
@@ -371,26 +191,25 @@ coeff_bi <- post_samples %>%
   )) %>% 
   mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
                                                   'Intensity: ablative', 'TPN exposure','EN exposure',
-                                                  'Empirical abx exposure'))) %>% 
+                                                  'Empirical abx exposure')))  %>% 
   mutate(grp = if_else(str_detect(item_name, 'Intensity'), 'Patient level', 'Sample level'))
+```
 
-# modify it to be the look that we have discussed
+
+```{r}
 diversity_factor <- coeff_bi %>% 
   ggplot(aes(x = coeff, y = item_name)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+  #geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  facet_grid(.~ grp , scales = 'free') +
   labs(x = 'Coefficients',
        y = 'Factor variables',
        title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none',
-        strip.background = element_blank(),
-        strip.text = element_blank(),
-        aspect.ratio=1/2) 
+        aspect.ratio=1)
 
-diversity_factor %>% 
-  write_rds('../data/068_diversity_factor_forest.rds')
+
+ggsave('../data/107_factor_coeff_model_without_intercept.jpg', device = 'jpg')
 ```
-

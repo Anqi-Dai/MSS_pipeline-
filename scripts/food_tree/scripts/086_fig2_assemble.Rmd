@@ -115,12 +115,19 @@ enter_fac <- read_rds('../data/087_entero_genus_factor_forest.rds')
 fac2 <- plot_grid(  div_fac,enter_fac,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
-ggsave('../figs/paper/S6_div_entero_factor_086.pdf',
+ggsave('../figs/paper/S5_div_entero_factor_086.pdf',
        width = 170,
        height = 60, 
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'pdf', plot = fac2)
+
+ggsave('../figs/paper/S5_div_entero_factor_086.jpg',
+       width = 170,
+       height = 60, 
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'jpg', plot = fac2)
 ```
 
 # accompanying supp figures of the prior simulation of the div and enterococcus model

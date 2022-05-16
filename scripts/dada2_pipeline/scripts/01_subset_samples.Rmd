@@ -78,7 +78,7 @@ A total of 122 samples, 15 failed at the lib prep. 107 succeeded from 27 patient
 
 ```{r}
 alpha <- asv_alpha_diversity_ag %>% 
-  filter(str_detect(oligos_id, 'pool1126|pool1127|pool1129|pool_1128')) %>% 
+  filter(str_detect(oligos_id, 'pool1126|pool1127|pool1129|pool1128')) %>% 
   select(sampleid:shannon)  
 dir.create('../data/hackensack')
 alpha %>% write_csv('../data/hackensack/samples_alpha_diversity.csv')
