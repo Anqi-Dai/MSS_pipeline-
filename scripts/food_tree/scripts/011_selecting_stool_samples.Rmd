@@ -170,6 +170,26 @@ stb6 <- qual_stool2 %>%
   select(-id, -num_d_records, -count_total)
 ```
  
+ 
+```{r}
+# so what happened to those 33 stool samples.
+# the patient had bowl movements but no eating in the previous two days?
+
+poor33 <-  qual_stool2 %>% 
+  filter(num_d_records == 0)  %>% 
+  select(mrn, sampleid, sdrt) %>% 
+  left_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(p1d = sdrt - 1,
+         p2d = sdrt - 2)  %>% 
+  mutate(p1date = hct + p1d,
+         p2date = hct + p2d) %>% 
+  select(mrn, p1date, p2date)
+
+poor33 %>% 
+  write_csv('../data/011_no_eating_in_two_days_before_bowl_movement.csv')
+  
+```
+ 
 
 ```{r}
 # to classify the stool samples as having been affected by empirical abx or not. 

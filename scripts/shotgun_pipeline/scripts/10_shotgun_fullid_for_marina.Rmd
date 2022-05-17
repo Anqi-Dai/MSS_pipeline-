@@ -1,0 +1,37 @@
+---
+title: "Figure out the samples I need to run for Marina"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This is for Marina's shotgun samples : for the ones in her paper; for the ones that need strainphlan results.
+Figure out what's the full ID for these samples and run them thru the pipeline right now
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+arch <- read_excel('../data/archaea sampleids sent to Austria 2022.xlsx')
+shotg <- read_csv('../data/shotgun samples and collection date relative to HCT_4_13_22.csv')
+length(intersect(arch$sampleid, shotg$sampleid))
+both <- union(arch$sampleid, shotg$sampleid)
+df <- shotgun_lookup_ad %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(sampleid %in% both) %>% 
+  mutate(full_id = str_extract(directory, 'Sample_.+$'))
+
+df %>% 
+  select(full_id)  %>% 
+  write_csv('../data/marina_both_full_id.csv', col_names = F)
+
+
+```
+
