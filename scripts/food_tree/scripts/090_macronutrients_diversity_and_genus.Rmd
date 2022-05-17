@@ -83,11 +83,11 @@ full %>%
 ### simpson reciprocal ~ ave_fiber + ave_fat + ave_Sugars + empirical + intensity + TPN + EN + ...
 
 ```{r}
-alpha_macro_fat <- log(simpson_reciprocal) ~ 1 +
+alpha_macro_fat <- log(simpson_reciprocal) ~ 0 +
                 ave_fiber +
                 ave_fat +
                 ave_Sugars +
-               inten_non + inten_ab + inten_re +
+               intensity +
                EN +
                 TPN +
                 empirical +
@@ -106,11 +106,9 @@ priors_alpha_macro_fat <- c(
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
-            # for the intercept
-            prior(normal(2, 0.5), class = 'Intercept'))
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
 
 # vet the prior 
 model_alpha_macro_fat  <- brm( alpha_macro_fat,  
@@ -123,8 +121,7 @@ model_alpha_macro_fat  <- brm( alpha_macro_fat,
               seed = 123, sample_prior = T)
 
 
-post_res <- suppressWarnings(posterior_samples(model_alpha_macro_fat)) %>% 
-            select(-starts_with('r_'))
+post_res <- suppressWarnings(posterior_samples(model_alpha_macro_fat))
 post_res %>%  write_csv('../data/090_model_alpha_macro_fat_post.csv')
 ```
 
@@ -172,7 +169,6 @@ macronutrients_alpha_main <- post_coeff %>%
   labs(x = 'Coefficients',
        y = 'Macronutrients',
        title = expression(Microbiome~alpha~diversity)) +
-  xlim(-1.5, 1.1) +
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text=element_text(size=axis_text_size),
@@ -192,27 +188,29 @@ post_coeff %>%
 
 ```{r}
 # the binary vars
-coeff_bi <- posterior_samples(model_alpha_macro_fat, '^b_')  %>% 
+coeff_bi <- read_csv('../data/090_model_alpha_macro_fat_post.csv')   %>% 
+  select(starts_with('b_')) %>% 
   select(!starts_with('b_ave')) %>% 
-  select(-b_Intercept) %>% 
   gather('item', 'coeff') %>% 
   mutate(item_name = case_when(
-    item ==  'b_inten_non' ~ 'Intensity: nonablative',
-    item == 'b_inten_ab' ~ 'Intensity: ablative',
-    item ==  'b_inten_re' ~ 'Intensity: reduced',
+    item ==  'b_intensitynonablative' ~ 'Intensity: nonablative',
+    item == 'b_intensityablative' ~ 'Intensity: ablative',
+    item ==  'b_intensityreduced' ~ 'Intensity: reduced',
     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure'
   )) %>% 
   mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
                                                   'Intensity: ablative', 'TPN exposure','EN exposure',
-                                                  'Empirical abx exposure'))) 
+                                                  'Empirical abx exposure'))) %>% 
+  mutate(grp = if_else(str_detect(item_name, 'Intensity'), 'Patient level', 'Sample level'))
 
 macronutrients_alpha_factor <- coeff_bi %>% 
   ggplot(aes(x = coeff, y = item_name)) +
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+   facet_wrap(grp~ . , scales = 'free', dir = 'v') +
   labs(x = 'Coefficients',
        y = 'Factor variables',
        title = expression(Microbiome~alpha~diversity)) +
@@ -220,7 +218,9 @@ macronutrients_alpha_factor <- coeff_bi %>%
   theme(legend.position = 'none',
         axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        aspect.ratio=1/2)
 
 
 macronutrients_alpha_factor %>% 
@@ -261,11 +261,9 @@ priors_genus_macro_fat <- c(
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(0, 0.1), class = 'b', coef = "inten_re"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_ab"),
-            prior(normal(0, 0.1), class = 'b', coef = "inten_non"),
-            # for the intercept
-            prior(normal(-3, 1), class = 'Intercept'))
+            prior(normal(-3, 1), class = 'b', coef = "intensityreduced"),
+            prior(normal(-3, 1), class = 'b', coef = "intensityablative"),
+            prior(normal(-3, 1), class = 'b', coef = "intensitynonablative"))
 
 
 Enterococcus_model <- brm( Enterococcus_mod,  
@@ -361,19 +359,18 @@ ggsave('../figs/paper/090_macro_fat_Enterococcus_model.eps' ,width = 80,
 
 ```
 
-
 #### All genera
-
+ 
 ```{r}
 ret_genus_macro_fat <- target_genera %>% 
   set_names(target_genera) %>% 
   purrr::map(function(genus) {
     mod =  brm( as.formula(str_glue('{genus}  ~ 
-               1 +
-                 ave_fiber +
-                ave_fat +
-                ave_Sugars +
-               inten_non + inten_ab + inten_re +
+               0 +
+               ave_fiber +
+               ave_fat +
+               ave_Sugars +
+               intensity +
                 empirical+
                 TPN+
                 EN+
@@ -396,8 +393,7 @@ prior_df %>%
   write_csv('../data/078_genus_macro_fat_model_prior.csv') 
 
 post_df <- ret_genus_macro_fat %>% 
-  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
-            select(-starts_with('r_'))))  %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x))))  %>% 
   bind_rows(.id = 'genus')  
 
 post_df %>% 
@@ -408,11 +404,11 @@ post_df %>%
 ## look at the all genera priors
 valid_interval_perc <- ret_genus_macro_fat %>% 
   imap(~ prior_draws(.x) %>% 
-            mutate(mean_genera = Intercept + 
+            mutate(mean_genera =
                     b_ave_fiber * mean_macro$ave_fiber+
                      b_ave_fat * mean_macro$ave_fat+
                      b_ave_Sugars * mean_macro$ave_Sugars+
-                     b_inten_re ) %>% 
+                     b_intensityreduced ) %>% 
             select(mean_genera) %>% 
             mutate(grp = 'ave_each') %>% 
             rename(prior_res = mean_genera) %>% 
@@ -429,7 +425,7 @@ valid_interval_perc <- ret_genus_macro_fat %>%
 ```
 
 ```{r}
-post_df <- read_csv('../data/078_genus_macro_fat_model_post.csv')
+post_df <- read_csv('../data/078_genus_macro_fat_model_post.csv', col_select = c('genus','b_ave_fiber','b_ave_fat','b_ave_Sugars'))
   
 post_res_genera <- post_df %>% 
   select(genus, starts_with('b_ave')) %>% 
@@ -488,7 +484,7 @@ col_key <- post_res_genera %>%
   pull(color)
 names(col_key) <- col_key
 
-genus_text_color <- ifelse(sort(target_genera, decreasing = F) %in% c('Blautia','Enterococcus'), 'red', 'black')
+
  
 genus_macro_fat_main <- ggplot(post_res_genera, aes(x = genus, y = item)) +
   geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
@@ -514,10 +510,17 @@ genus_macro_fat_main %>% write_rds('../data/090_genus_macro_fat_main.rds')
 ```
 
 ```{r}
+coeff_bi %>% 
+  distinct(item)
+```
+
+
+```{r}
 # the factor variables for the genus macro fat
+# doesn't need to include the intensity ones since they are the intercepts
+post_df <- read_csv('../data/078_genus_macro_fat_model_post.csv', col_select = c('genus', 'b_ENTRUE', 'b_TPNTRUE', 'b_empiricalTRUE'))
+
 post_bi_res <- post_df %>% 
-  select(genus, starts_with('b_')) %>% 
-  select(-starts_with('b_ave'), -b_Intercept) %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   group_by(genus, item) %>% 
   summarise(q50 = median(coeff),
@@ -534,13 +537,12 @@ post_bi_res <- post_df %>%
   mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
   mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(item_name = case_when(
-    item ==  'b_inten_non' ~ 'Intensity: nonablative',
-    item == 'b_inten_ab' ~ 'Intensity: ablative',
-    item ==  'b_inten_re' ~ 'Intensity: reduced',
     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
     item == 'b_TPNTRUE' ~ 'TPN exposure',
     item ==  'b_ENTRUE' ~ 'EN exposure'
   )) 
+
+
 genus_macro_fat_factor <- ggplot(post_bi_res, aes(x = genus, y = item_name)) +
   geom_tile(aes(fill = color,  x = genus, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
   geom_text(aes(label = mark, x = genus,y =  item_name),

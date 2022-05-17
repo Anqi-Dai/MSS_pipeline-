@@ -99,7 +99,7 @@ ret_genus <- target_genera %>%
   set_names(target_genera) %>% 
   purrr::map(function(genus) {
     mod =  brm( as.formula(str_glue('{genus}  ~ 
-               1 +
+               0 +
                 fg_fruit+
                 fg_meat+
                 fg_milk+
@@ -109,7 +109,7 @@ ret_genus <- target_genera %>%
                 fg_sweets+  
                 fg_legume+
                 fg_veggie+
-               inten_non + inten_ab + inten_re +
+               intensity +
                 empirical+
                 TPN+
                 EN+
@@ -134,8 +134,7 @@ prior_df %>%
   write_csv('../data/087_genus_foodgroup_model_prior.csv')
 
 post_df <- ret_genus %>% 
-  imap(~ (suppressWarnings(posterior_samples(.x)) %>% 
-            select(-starts_with('r_'))))  %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) ))  %>% 
   bind_rows(.id = 'genus')  
 post_df %>% 
   write_csv('../data/087_genus_foodgroup_model_post.csv')
