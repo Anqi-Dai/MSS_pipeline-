@@ -49,26 +49,7 @@ length(intersect(new, dtb$Food_NSC))
 # new 4 
 setdiff(new, dtb$Food_NSC)
 
-unique(fix$fdrt)
-
-unique(dtb %>% 
-         filter(mrn == 35594872) %>% 
-         distinct(fdrt) %>% pull(fdrt))
 ```
-
-
-```{r}
-temp_dtb1 <- dtb %>% 
-  select(mrn:Sodium_g,fdrt ) %>% 
-  filter(mrn != 35594872) 
-
-temp_dtb2 <- fix %>% 
-  select(colnames(temp_dtb1))
-
-temp_dtb <- bind_rows(temp_dtb1, temp_dtb2) 
-
-```
-
 
 ```{r}
 # find the 800 stool samples unique p2d
