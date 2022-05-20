@@ -15,24 +15,62 @@ get_table_from_database('shotgun_lookup_ad')
 ```
 
 ```{r}
+#YOU CAN UPLOAD FROM LILAC DIRECTLY!!!!!
 # download the preprocessed shotgun samples from cluster to local
-shotg <- read_csv('~/pipeline/scripts/shotgun_pipeline/data/shotgun samples and collection date relative to HCT_4_13_22.csv') %>% 
+shotg <- read_csv('~/pipeline/scripts/shotgun_pipeline/data/shotgun samples and collection date relative to HCT_4_13_22.csv') %>%
   left_join(
-    shotgun_lookup_ad %>% 
-      mutate(full_id = str_extract(directory, 'Sample_.+$')) %>% 
-      select(sampleid, full_id) %>% 
-      arrange(desc(full_id)) %>% 
+    shotgun_lookup_ad %>%
+      mutate(full_id = str_extract(directory, 'Sample_.+$')) %>%
+      select(sampleid, full_id) %>%
+      arrange(desc(full_id)) %>%
       distinct(sampleid, .keep_all = T)
-) %>% 
-  mutate(full_id = if_else(sampleid == '671N', 'Sample_671N_IGO_08788_C_45', full_id))
+) %>%
+  mutate(full_id = if_else(sampleid == '671N', 'Sample_671N_IGO_08788_C_45', full_id),
+         R1 = str_glue('{full_id}_knead_paired_1.fastq.gz'),
+             R2 = str_glue('{full_id}_knead_paired_2.fastq.gz')) %>% 
+  mutate(full_id = if_else(sampleid == '1179Q', 'Sample_1179Q_IGO_08463_63', full_id), 
+         full_id = if_else(sampleid == 'FMT0066X', 'Sample_FMT0066X_IGO_08725_20', full_id))
 
-shotg %>% 
+shotg %>%
   transmute(R1 = str_glue('/home/daia1/my_workdir/samples/kneaddata/{full_id}_knead_paired_1.fastq.gz'),
-            R2 = str_glue('/home/daia1/my_workdir/samples/kneaddata/{full_id}_knead_paired_2.fastq.gz')) %>% 
-  gather() %>% 
-  select(value) %>% 
-  transmute(cmd = str_glue('rsync --progress --partial -avz daia1@lilac.mskcc.org:{value} /Users/daia1/pipeline/scripts/shotgun_pipeline/data/marina_shotgun')) %>% 
-  write_csv('../data/dl_marina_shotgun.sh', col_names = F)
+            R2 = str_glue('/home/daia1/my_workdir/samples/kneaddata/{full_id}_knead_paired_2.fastq.gz')) %>%
+  gather() %>%
+  select(value) %>%
+  transmute(cmd = str_glue('cp {value} /home/daia1/my_workdir/samples/submit_ncbi/marina_shotgun_280')) %>%
+  write_csv('../data/cp_marina_shotgun.sh', col_names = F)
   
+```
+
+```{r}
+# find out if the biosamples of marina shotgun all exist
+total <- read_csv('../data/save/all_biosample_table_20220226.csv')
+length(intersect(total$BioSample.name, shotg$sampleid))
+# yeah all exist!!# only need to submit the shotgun sra files then
+
+# find the accession of the biosamples
+sub <- total %>% 
+  distinct(BioSample.name, .keep_all = T) %>% 
+  filter(BioSample.name %in% shotg$sampleid) %>% 
+  select(Accession, BioSample.name) %>% 
+  rename(sampleid = BioSample.name) %>% 
+  full_join(shotg)
+
+sra_marina <- tibble(
+  biosample_accession = sub$Accession,
+  library_ID = sub$sampleid,
+  title = 'Stool sample of allo-HCT patient',
+  library_strategy = 'WGS',
+  library_source = 'GENOMIC',
+  library_selection = 'RANDOM',
+  library_layout ='paired',
+  platform= 'ILLUMINA',
+  instrument_model= 'Illumina HiSeq 4000',
+  design_description='Extracted DNA was sheared to a target size of 650 base pairs (bp) using a Covaris ultrasonicator. DNA was then prepared for sequencing using the Illumina TruSeq DNA library preparation kit and sequenced using the Illumina HiSeq system targeting approximately 10–20 million reads per sample with 100-bp paired-end reads',
+  filetype= 'fastq',
+  filename=sub$R1,
+  filename2=sub$R2
+)
+sra_marina %>% 
+  write_tsv('../data/marina/shotgun280_sra.tsv')
 ```
 
