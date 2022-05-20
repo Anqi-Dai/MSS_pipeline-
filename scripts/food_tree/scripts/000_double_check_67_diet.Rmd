@@ -41,6 +41,10 @@ all <- read_excel('../data/source/new_list.xls') %>%
            Fibers_g = as.numeric(Fibers_g),
            Sugars_g = as.numeric(Sugars_g),
            Sodium_mg = as.numeric(Sodium_mg)) 
+
+all %>% 
+  distinct(MRN, Name) %>% 
+  write_csv('../data/000_67_names.csv')
 ```
 
 ## correct the outliers

@@ -37,6 +37,10 @@ unknown <- new %>%
 unknown %>% 
   write_csv('../data/source/new30_unknown_food_nsc.csv')
 
+new %>% 
+  distinct(MRN, Name) %>% 
+  write_csv('../data/001_30_names.csv')
+
 ```
 ```{r}
 # 
