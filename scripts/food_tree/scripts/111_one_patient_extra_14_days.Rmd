@@ -1,0 +1,44 @@
+---
+title: "One patient with extra 14 days records"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+colnames(dtb)
+```
+
+```{r}
+# the below file is a copy of the file /Volumes/vandenBrinkLab/Peter/COMPUTRITION OUTPUTS/GUPTA_fixed.XLS
+# manually cleaned the file ...
+fix <- read_excel('../data/GUPTA_fixed.xlsx', col_names = c('Food_NSC','Meal', 'portion_consumed','Calories_kcal','Protein_g','Fat_g','Carbohydrates_g','Fibers_g','Sugars_g','Sodium_mg','date','mrn')) %>% 
+  separate(portion_consumed, into = c('Por_eaten','Unit'), sep = ' ') %>% 
+  mutate(Por_eaten = as.numeric(Por_eaten)) %>% 
+  mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$',''),
+           Protein_g = str_replace_all(Protein_g, '\\+$',''),
+           Fat_g = str_replace_all(Fat_g, '\\+$',''),
+           Carbohydrates_g = str_replace_all(Carbohydrates_g, '\\+$',''),
+           Fibers_g = str_replace_all(Fibers_g, '\\+$',''),
+           Sugars_g = str_replace_all(Sugars_g, '\\+$',''),
+           Sodium_mg = str_replace_all(Sodium_mg, '\\+$','')) %>% 
+  mutate_at(vars(ends_with('g')), funs(as.numeric)) %>% 
+  mutate(Calories_kcal = as.numeric(Calories_kcal)) 
+
+# how many distinct food_nsc
+new <- fix %>% 
+  distinct(Food_NSC) %>% 
+  pull(Food_NSC)
+
+length(intersect(new, dtb$Food_NSC))
+# new 4 
+setdiff(new, dtb$Food_NSC)
+
+
+
+```
+

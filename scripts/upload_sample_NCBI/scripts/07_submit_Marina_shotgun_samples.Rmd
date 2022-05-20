@@ -1,0 +1,33 @@
+---
+title: "Upload Marina's shotgun samples"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+# download the preprocessed shotgun samples from cluster to local
+shotg <- read_csv('~/pipeline/scripts/shotgun_pipeline/data/shotgun samples and collection date relative to HCT_4_13_22.csv') %>% 
+  left_join(
+    shotgun_lookup_ad %>% 
+      mutate(full_id = str_extract(directory, 'Sample_.+$')) %>% 
+      select(sampleid, full_id) %>% 
+      arrange(desc(full_id)) %>% 
+      distinct(sampleid, .keep_all = T)
+) %>% 
+  mutate(full_id = if_else(sampleid == '671N', 'Sample_671N_IGO_08788_C_45', full_id))
+
+shotg %>% 
+  transmute(R1 = str_glue('/home/daia1/my_workdir/samples/kneaddata/{full_id}_knead_paired_1.fastq.gz'))
+  
+```
+
