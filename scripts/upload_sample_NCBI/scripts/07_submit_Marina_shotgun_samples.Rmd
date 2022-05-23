@@ -25,11 +25,12 @@ shotg <- read_csv('~/pipeline/scripts/shotgun_pipeline/data/shotgun samples and 
       arrange(desc(full_id)) %>%
       distinct(sampleid, .keep_all = T)
 ) %>%
-  mutate(full_id = if_else(sampleid == '671N', 'Sample_671N_IGO_08788_C_45', full_id),
-         R1 = str_glue('{full_id}_knead_paired_1.fastq.gz'),
-             R2 = str_glue('{full_id}_knead_paired_2.fastq.gz')) %>% 
+  mutate(full_id = if_else(sampleid == '671N', 'Sample_671N_IGO_08788_C_45', full_id)) %>% 
   mutate(full_id = if_else(sampleid == '1179Q', 'Sample_1179Q_IGO_08463_63', full_id), 
-         full_id = if_else(sampleid == 'FMT0066X', 'Sample_FMT0066X_IGO_08725_20', full_id))
+         full_id = if_else(sampleid == 'FMT.0066X', 'Sample_FMT0066X_IGO_08725_20', full_id),
+         full_id = if_else(sampleid == '1221U', 'Sample_1221U_IGO_09050_2', full_id),
+         R1 = str_glue('{full_id}_knead_paired_1.fastq.gz'),
+         R2 = str_glue('{full_id}_knead_paired_2.fastq.gz'))
 
 shotg %>%
   transmute(R1 = str_glue('/home/daia1/my_workdir/samples/kneaddata/{full_id}_knead_paired_1.fastq.gz'),

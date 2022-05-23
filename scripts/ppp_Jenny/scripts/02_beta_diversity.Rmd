@@ -1,0 +1,135 @@
+---
+title: "Beta diversity"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+meta_mouse <- read_csv(file.path(dir, 'Mouse/pheno_with_alpha_diversity.csv'))
+dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun Data/'
+```
+
+```{r}
+# look at the bar stacked plots at genus level
+spp <- read_csv(file.path(dir, 'Mouse/metaphlan_results_fraction.csv'))
+
+genera <- spp %>% 
+  mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(relative_abundance)) %>% 
+  ungroup() %>% 
+  mutate(ge = str_extract(genus, 'g__.+$')) %>% 
+  #mutate(ge = fct_reorder(ge, genus, )) %>%
+  left_join(meta_mouse, by = "sampleid") %>% 
+  mutate(Day = factor(Day, levels = c(1, 7, 14)),
+         fiber = factor(fiber, c('0%','12%','40%'))) %>% 
+  arrange(Day, grp, fiber, Box_number) %>% 
+  mutate(sid = str_glue('Day {Day}: {grp}: {fiber}:Box {Box_number}')) 
+  
+genera %>% 
+  ungroup() %>% 
+  distinct(genus) %>% nrow
+```
+
+```{r}
+# find the genera > 0.1% in more than 20% samples
+#  17/47 left 
+keepgenera <- genera %>% 
+  filter(relab > 0.001) %>% 
+  count(genus) %>% 
+  filter(n > floor(nrow(meta_mouse) * 0.2)) %>% 
+  pull(genus)
+```
+
+
+```{r}
+# to find colors for these features
+# library(randomcoloR)
+# n <- length(keepgenera)
+# palette <- distinctColorPalette(n)
+# pie(rep(1, n), col=palette)
+# 
+# # output this palette otherwise another random generated ...
+# 
+# bar_palette <- genera %>% 
+#   filter(genus %in% keepgenera) %>% 
+#   distinct(ge) %>% 
+#   arrange(ge) %>% 
+#   mutate(color = palette)
+# 
+# bar_palette %>% write_csv('../data/bar_palette.csv')
+
+bar_palette <-  read_csv('../data/bar_palette.csv')
+
+bar_plot_pal <- deframe(bar_palette)
+
+# all samples
+genera %>% 
+  filter(genus %in% keepgenera) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'ge', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  #facet_wrap(Day ~ fiber, scales = 'free') +
+  scale_fill_manual(values = bar_plot_pal) +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+
+ggsave('../data/bar_all.jpg', width = 14, height = 7)
+```
+
+```{r}
+# split by group: BM only or BMT
+genera %>% 
+  filter(genus %in% keepgenera) %>% 
+  split(.$grp) %>% 
+  imap(function(.x, .y){
+    ggbarplot(data = .x,x = 'sid', y = 'relab', fill = 'ge', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  #facet_wrap(Day ~ fiber, scales = 'free') +
+  scale_fill_manual(values = bar_plot_pal) +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+    
+    ggsave(str_glue('../data/bar_split_by_grp_{.y}.jpg'))
+  })
+```
+
+
+```{r}
+# split by day
+genera %>% 
+  filter(genus %in% keepgenera) %>% 
+  split(.$Day) %>% 
+  imap(function(.x, .y){
+    ggbarplot(data = .x,x = 'sid', y = 'relab', fill = 'ge', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  #facet_wrap(Day ~ fiber, scales = 'free') +
+  scale_fill_manual(values = bar_plot_pal) +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+    
+    ggsave(str_glue('../data/bar_split_by_Day_{.y}.jpg'))
+  })
+  
+```
+
+
+```{r}
+# split by fiber
+genera %>% 
+  filter(genus %in% keepgenera) %>% 
+  split(.$fiber) %>% 
+  imap(function(.x, .y){
+    ggbarplot(data = .x,x = 'sid', y = 'relab', fill = 'ge', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  #facet_wrap(Day ~ fiber, scales = 'free') +
+  scale_fill_manual(values = bar_plot_pal) +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+    
+    ggsave(str_glue('../data/bar_split_by_fiber_{.y}.jpg'))
+  })
+  
+```
+
+

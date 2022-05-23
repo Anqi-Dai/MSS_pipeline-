@@ -1,0 +1,91 @@
+---
+title: "alpha diversity"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun Data/'
+```
+
+```{r}
+# organize the meta table
+# AVOID ALL SPACES. replace the space with underscores
+meta <- read_csv('../data/Stool_mice_Fiber_Days1.7.14_JP_VDB_1.26.22.csv') %>% 
+  rename(sampleid = `Tube ID`) %>% 
+  separate(`Mice group`, into = c('grp','fiber'), sep = ' \\+ ') %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  mutate(fiber = str_replace(fiber, ' fiber',''),
+         grp = str_replace(grp, ' ','_'))
+```
+
+```{r}
+# grab the metaphlan results for this project
+fns <- list.files('../data/shotgun_output/', pattern = '12898', full.names = T)
+
+taxa <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., skip = 4, col_types = 'ccddd') %>% 
+          rename(clade_name = names(.)[1]) %>% 
+          select(clade_name, relative_abundance) %>% 
+          filter(str_detect(clade_name, 's__')) %>% 
+  mutate(relative_abundance = relative_abundance/100)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/shotgun_output//Sample_',''),
+         sampleid = str_replace(sampleid, '_IGO_12898.+$',''))
+
+
+taxa %>% write_csv(file.path(dir, 'Mouse/metaphlan_results_fraction.csv'))
+
+cts <- taxa %>% 
+  spread(key = 'clade_name', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+meta_mouse <- diversity(cts, index = 'inv') %>% 
+  enframe(name = 'sampleid', value = 'inv') %>% 
+  inner_join(meta)  %>% 
+  mutate(fiber = factor(fiber, levels = c('0%','12%','40%')))
+
+meta_mouse %>% 
+  write_csv(file.path(dir, 'Mouse/pheno_with_alpha_diversity.csv'))
+```
+```{r}
+# visualize the diversity comparison in different groups
+all_alpha <- meta_mouse %>% 
+  ggboxplot(x = 'fiber', y = 'inv', add = 'dotplot', ylab = 'inverse simpson',
+            add.params = list(color = 'forestgreen', size = 2, alpha = 1, shape = 20)) +
+  facet_grid(Day ~ grp)  +
+  stat_compare_means(comparisons= list(c('12%', '40%'),
+                                       c('0%', '12%'),
+                                       c('40%', '0%')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE) +
+  theme_bw()
+
+
+ggsave(file.path(dir, 'Mouse/results/alpha_comparison.jpg'), width = 5, height = 8, plot = all_alpha)
+
+
+# for the BM only group what is the p value
+bm_alpha <- meta_mouse %>% 
+  filter(grp == 'BM_only') %>% 
+  ggboxplot(x = 'fiber', y = 'inv', add = 'dotplot', ylab = 'inverse simpson',
+            add.params = list(color = 'forestgreen', size = 2, alpha = 1, shape = 20)) +
+  facet_grid(Day ~ grp)  +
+  stat_compare_means(comparisons= list(
+                                       c('12%', '40%')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE) +
+  theme_bw()
+
+ggsave(file.path(dir, 'Mouse/results/alpha_comparison_BM_only.jpg'), width = 2.5, height = 8, plot = bm_alpha)
+```
+
