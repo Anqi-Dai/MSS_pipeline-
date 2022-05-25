@@ -23,6 +23,8 @@ dat <- asv_alpha_diversity_ag %>%
 #pool1109
 asv_alpha_diversity_ag %>% 
   write_csv('../data/asv_alpha_diversity_ag.csv')
+
+
 ```
 
 ```{r}
