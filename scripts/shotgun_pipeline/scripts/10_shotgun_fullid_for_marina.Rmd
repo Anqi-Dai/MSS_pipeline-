@@ -33,5 +33,39 @@ df %>%
   write_csv('../data/marina_both_full_id.csv', col_names = F)
 
 
+# only archaea samples
+archaea <- shotgun_lookup_ad %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(sampleid %in% arch$sampleid) %>% 
+  mutate(full_id = str_extract(directory, 'Sample_.+$')) %>% 
+  select(sampleid, full_id) %>% 
+  mutate(full_id = if_else(sampleid == '772H', 'Sample_772H_IGO_10363_4', full_id))
+
+archaea %>% 
+  select(full_id) %>% 
+  write_csv('../data/marina_archaea.csv', col_names = F)
 ```
+
+```{r}
+# find the two speacies abundance in those samples from metaphlan
+fns <- archaea %>% 
+  mutate(fns = str_glue('/Users/daia1/pipeline/scripts/ppp_Jenny/data/shotgun_output/{full_id}_metaphlan3_profile.txt')) %>% 
+  filter(sampleid != '772H') %>% 
+  pull(fns)
+
+
+
+taxa <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., skip = 4, col_types = 'ccddd') %>% 
+          rename(clade_name = names(.)[1]) %>% 
+          select(clade_name, relative_abundance) %>% 
+  mutate(relative_abundance = relative_abundance/100)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '/Users/daia1/pipeline/scripts/ppp_Jenny/data/shotgun_output/',''),
+         sampleid = str_replace(sampleid, '_metaphlan3_profile.txt','')) %>% 
+  filter(str_detect(clade_name, 'k__Archaea')) %>% 
+  filter(str_detect(clade_name, 's__'))
+```
+
 

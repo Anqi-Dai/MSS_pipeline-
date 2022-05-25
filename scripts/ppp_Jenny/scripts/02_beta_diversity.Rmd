@@ -10,8 +10,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
-meta_mouse <- read_csv(file.path(dir, 'Mouse/pheno_with_alpha_diversity.csv'))
 dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun Data/'
+meta_mouse <- read_csv(file.path(dir, 'Mouse/pheno_with_alpha_diversity.csv'))
 ```
 
 ```{r}
@@ -56,15 +56,15 @@ keepgenera <- genera %>%
 # 
 # # output this palette otherwise another random generated ...
 # 
-# bar_palette <- genera %>% 
-#   filter(genus %in% keepgenera) %>% 
-#   distinct(ge) %>% 
-#   arrange(ge) %>% 
+# bar_palette <- genera %>%
+#   filter(genus %in% keepgenera) %>%
+#   distinct(ge) %>%
+#   arrange(ge) %>%
 #   mutate(color = palette)
 # 
 # bar_palette %>% write_csv('../data/bar_palette.csv')
 
-bar_palette <-  read_csv('../data/bar_palette.csv')
+bar_palette <-  read_csv(file.path(dir, 'Mouse/bar_palette.csv'))
 
 bar_plot_pal <- deframe(bar_palette)
 
@@ -77,7 +77,7 @@ genera %>%
   theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
          legend.position = 'bottom') 
 
-ggsave('../data/bar_all.jpg', width = 14, height = 7)
+ggsave(file.path(dir, 'Mouse/results/bar_all.jpg'), width = 14, height = 7)
 ```
 
 ```{r}
@@ -92,7 +92,7 @@ genera %>%
   theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
          legend.position = 'bottom') 
     
-    ggsave(str_glue('../data/bar_split_by_grp_{.y}.jpg'))
+    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_grp_{.y}.jpg')))
   })
 ```
 
@@ -109,7 +109,7 @@ genera %>%
   theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
          legend.position = 'bottom') 
     
-    ggsave(str_glue('../data/bar_split_by_Day_{.y}.jpg'))
+    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_Day_{.y}.jpg')))
   })
   
 ```
@@ -119,6 +119,7 @@ genera %>%
 # split by fiber
 genera %>% 
   filter(genus %in% keepgenera) %>% 
+  mutate(fiber = str_replace(fiber, '%$','perc')) %>% 
   split(.$fiber) %>% 
   imap(function(.x, .y){
     ggbarplot(data = .x,x = 'sid', y = 'relab', fill = 'ge', color = 'white' , xlab = '', ylab = 'Relative abundance') +
@@ -127,7 +128,7 @@ genera %>%
   theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
          legend.position = 'bottom') 
     
-    ggsave(str_glue('../data/bar_split_by_fiber_{.y}.jpg'))
+    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_fiber_{.y}.jpg')))
   })
   
 ```
