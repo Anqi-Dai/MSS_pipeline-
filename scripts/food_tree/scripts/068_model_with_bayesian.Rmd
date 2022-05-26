@@ -34,7 +34,10 @@ dtb %>%
 ## Loading meta data table
 
 ```{r load_meta}
+tb_rm <- read_csv('../data/112_has_missing_to_be_removed.csv')
+
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  filter(!sampleid %in% tb_rm$sampleid) %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn)) %>% 

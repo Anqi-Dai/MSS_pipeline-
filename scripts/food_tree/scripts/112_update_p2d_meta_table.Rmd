@@ -1,0 +1,62 @@
+---
+title: "Update the previous two days meta table"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# find out how many stool samples out of 833 need to be removed because there is at least one day with missing data in the previous two days
+check2 <- read_csv('../data/111_800_stool_samples_check_PAAannotated.csv')
+
+missing_data_dates <- check2 %>% 
+  filter(diet_data_status == 'missing') %>% 
+  mutate(date = lubridate::mdy(date)) %>% 
+  mutate(missing_pt_date = str_glue('{mrn}__{date}')) %>% 
+  pull(missing_pt_date)
+
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+all_800_dates <-  read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  select(mrn, sampleid, sdrt) %>% 
+  left_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(p1d = sdrt - 1,
+         p2d = sdrt - 2)  %>% 
+  mutate(p1date = hct + p1d,
+         p2date = hct + p2d) %>% 
+  select(mrn, sampleid, p1date, p2date) %>% 
+  mutate(p1date = as.character(p1date),
+         p2date = as.character(p2date)) %>% 
+  mutate(pt_p1date = str_glue('{mrn}__{p1date}'),
+         pt_p2date = str_glue('{mrn}__{p2date}')) %>% 
+  mutate(has_missing = if_else(pt_p1date %in% missing_data_dates | pt_p2date %in% missing_data_dates, T, F))
+
+all_800_dates %>% 
+  count(has_missing)
+
+# what about the two samples that were in the original "no eating in p2d" 33 ones
+# do those two samples eligible for inclusion?
+# well I sorta need Peter to confirm it for me
+two <- read_csv('../data/011_no_eating_in_two_days_before_bowl_movement_PAAannotated.csv') %>% 
+  filter(str_detect(p1date_status, 'fixed')) %>% 
+  select(-p1date_status, -p2date_status)
+
+two %>% 
+  write_csv('../data/112_two_samples_check.csv')
+```
+
+
+```{r}
+# now if those two samples have missing data in the p2d, then I don't need to add them
+# I just need to remove the 59 samples that have the missing data
+all_800_dates %>% 
+  filter(has_missing == 'TRUE') %>% 
+  select(sampleid) %>% 
+  write_csv('../data/112_has_missing_to_be_removed.csv')
+```
+
