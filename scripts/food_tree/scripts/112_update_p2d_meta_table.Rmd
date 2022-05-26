@@ -48,6 +48,8 @@ two <- read_csv('../data/011_no_eating_in_two_days_before_bowl_movement_PAAannot
 
 two %>% 
   write_csv('../data/112_two_samples_check.csv')
+
+# the two samples need to be included cuz the 4 prior eating days should be included 
 ```
 
 

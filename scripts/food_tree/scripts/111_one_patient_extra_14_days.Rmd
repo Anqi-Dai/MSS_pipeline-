@@ -7,21 +7,22 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+THIS SCRIPT WAS ONLY TO RUN ONCE SINCE THE CURRENT DTB CSV TABLE IS THE UPDATED FROM THIS SCRIPT
+
 ```{r}
 library(tidyverse)
 library(readxl)
 library(lubridate)
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 colnames(dtb)
-```
-
-```{r}
-colnames(fix)
 ```
 
 ```{r}
 # the below file is a copy of the file /Volumes/vandenBrinkLab/Peter/COMPUTRITION OUTPUTS/GUPTA_fixed.XLS
 # manually cleaned the file ...
+# 2022-5-26 now this GUPTA_fixed.xlsx has the added March 17 entries
 fix <- read_excel('../data/GUPTA_fixed.xlsx', col_names = c('Food_NSC','Meal', 'portion_consumed','Calories_kcal','Protein_g','Fat_g','Carbohydrates_g','Fibers_g','Sugars_g','Sodium_mg','date','mrn')) %>% 
   separate(portion_consumed, into = c('Por_eaten','Unit'), sep = ' ') %>% 
   mutate(Por_eaten = as.numeric(Por_eaten),
@@ -38,8 +39,29 @@ fix <- read_excel('../data/GUPTA_fixed.xlsx', col_names = c('Food_NSC','Meal', '
   left_join(ptb %>% select(mrn, hct)) %>% 
   mutate(fdrt = date - hct,
          Sodium_g = Sodium_mg/1000,
-         fdrt = as.numeric(fdrt))
+         fdrt = as.numeric(fdrt)) %>% 
+  select(-Sodium_mg, -date, -hct) %>% 
+  left_join(dtb %>% 
+              distinct(Food_NSC, Food_code, description)) %>% 
+  # add the food code for the 4 new items
+  mutate(Food_code = case_when(
+     Food_NSC == '2017 Fruit, Melon Cup (1) BR' ~ 63127010,
+     Food_NSC == '2017 Pasta, Penne' ~ 56130000,
+     Food_NSC == '2017 Sauce, Alfredo (0)' ~ 14650160,
+     Food_NSC == '2017 Cheese, Cheddar for Grilled Cheese' ~ 14104100,
+     TRUE ~ Food_code
+  )) %>% 
+  # find the description for the 4 new items using the food_code
+  mutate(description = case_when(
+     Food_code == 63127010 ~ 'Honeydew melon, raw',
+     Food_code == 56130000 ~ 'Pasta, cooked',
+     Food_code == 14650160 ~ 'Alfredo sauce',
+     Food_code == 14104100 ~ 'Cheese, Cheddar',
+     TRUE ~ description
+  ))
+```
 
+```{r}
 # how many distinct food_nsc
 new <- fix %>% 
   distinct(Food_NSC) %>% 
@@ -49,7 +71,129 @@ length(intersect(new, dtb$Food_NSC))
 # new 4 
 setdiff(new, dtb$Food_NSC)
 
+# the table with the new 4 that peter needs to check
+new4 <- fix %>% 
+  filter(Food_NSC %in% setdiff(new, dtb$Food_NSC)) %>%
+  distinct(Food_NSC, Por_eaten, Unit, .keep_all = T) %>% 
+  select(Food_NSC:Sugars_g, Sodium_g,Food_code, description ) %>% 
+  ungroup() %>% 
+  distinct(Food_NSC, .keep_all = T)
+
+new4 %>% 
+  write_csv('../data/111_new4_Food_NSC_check.csv')
+
+current_reference <- dtb %>% 
+  distinct(Food_NSC, .keep_all = T) %>% 
+  filter(str_detect(Food_NSC, '2017 Fruit, Melon Cup|2017 Pasta, Penne|Alfredo|Cheddar'))
+
+current_reference %>% 
+  write_csv('../data/111_current_reference.csv')
+
 ```
+
+
+
+```{r}
+# find how many food nsc and unit combination already exist in the current dtb
+current_dtb_combo <- dtb %>% 
+  distinct(Food_NSC,  Unit ) %>% 
+  mutate(current = str_glue('{Food_NSC}__{Unit}'))
+
+new_combo <- fix %>% 
+  filter(!Food_NSC %in% setdiff(new, dtb$Food_NSC)) %>% 
+  distinct(Food_NSC,  Unit ) %>% 
+  mutate(new = str_glue('{Food_NSC}__{Unit}'))
+
+length(intersect(current_dtb_combo$current, new_combo$new))
+
+# all the others already exist so I can use the ratio to scale using the current cleaned dtb data!
+already <- dtb %>% 
+  filter(Meal!= 'EN') %>% 
+  distinct(Food_NSC, Unit, Por_eaten, .keep_all = T) %>% 
+  select(Food_NSC: Sodium_g) %>% 
+  mutate(item = str_glue('{Food_NSC}__{Unit}')) %>% 
+  arrange(Food_NSC, Unit, Por_eaten)
+
+
+# the ones in fix that have exact (Food_NSC, Unit, Por_eaten) in the dtb already
+exact <- fix %>% 
+  select(-ends_with('_g'), -Calories_kcal) %>% 
+  left_join(already)
+
+
+# the ones that have the food_nsc but different portion eaten
+scale_ <- exact %>% 
+  filter(!Food_NSC %in% setdiff(new, dtb$Food_NSC)) %>% 
+  filter(is.na(Calories_kcal)) %>% 
+  arrange(Food_NSC) %>% 
+  select(-ends_with('_g'), -Calories_kcal) %>% 
+  mutate(item = str_glue('{Food_NSC}__{Unit}')) %>% 
+  rename(target_portion = Por_eaten) %>% 
+  inner_join(already %>% 
+               distinct(item, .keep_all = T) %>% 
+               select(item, Por_eaten:Sodium_g)) %>% 
+  mutate(scale_ratio = target_portion/Por_eaten) %>% 
+  mutate(Calories_kcal = Calories_kcal*scale_ratio,
+         Carbohydrates_g = Carbohydrates_g*scale_ratio,
+         Fibers_g = Fibers_g*scale_ratio,
+         Sugars_g = Sugars_g*scale_ratio,
+         Sodium_g = Sodium_g*scale_ratio,
+         Protein_g = Protein_g*scale_ratio,
+         Fat_g = Fat_g*scale_ratio) %>% 
+  select(-Por_eaten ) %>% 
+  rename(Por_eaten = target_portion) %>% 
+  select(-item, -scale_ratio) 
+```
+
+```{r}
+# to look at the 4 new items related entries
+# manually cross checked with the dtb no problem!!!!
+new_food_nsc <- setdiff(new, dtb$Food_NSC) 
+```
+
+```{r}
+# to combine all the fixed/double checked entries 
+checked1 <- fix %>% 
+  select(-ends_with('_g'), -Calories_kcal) %>% 
+  left_join(already) %>% 
+  filter(!is.na(Calories_kcal)) 
+
+checked2 <- scale_
+
+checked3 <- fix %>% 
+  filter(Food_NSC %in% new_food_nsc)
+
+checked_all <- bind_rows(checked1, checked2, checked3) %>% 
+  select(colnames(fix))
+```
+
+```{r}
+# calculate the dehydrated weight for the entries
+engy <- read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  select(Food_code, Energy_kcal, Water_g) %>% 
+  mutate(Energy_kcal = as.numeric(Energy_kcal),
+         Water_g = as.numeric(Water_g),
+         Food_code = as.numeric(Food_code))
+
+checked_need_conversion <-  checked_all %>% 
+  left_join(engy, by  = 'Food_code')  %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0.0001, total_weight*(1 - Water_g/100))) %>% 
+  select(colnames(dtb))
+```
+
+
+```{r}
+# merge it back into the original dtb
+# the below code will only be run locally and will not be sync to the github since it contains MRN
+
+
+ 
+new_dtb %>% write_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+```
+
 
 ```{r}
 # find the 800 stool samples unique p2d
@@ -78,4 +222,3 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
 meta %>% 
   write_csv('../data/111_800_stool_samples_check.csv')
 ```
-
