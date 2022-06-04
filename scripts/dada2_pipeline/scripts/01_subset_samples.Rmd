@@ -79,7 +79,7 @@ A total of 122 samples, 15 failed at the lib prep. 107 succeeded from 27 patient
 ```{r}
 alpha <- asv_alpha_diversity_ag %>% 
   filter(str_detect(oligos_id, 'pool1126|pool1127|pool1129|pool1128')) %>% 
-  select(sampleid:shannon)  
+  select(sampleid:shannon, path_pool)  
 dir.create('../data/hackensack')
 alpha %>% write_csv('../data/hackensack/samples_alpha_diversity.csv')
 
@@ -99,6 +99,34 @@ list(alpha = alpha,
 
 
 # check the meta table they sent us
-meta <- readxl::read_excel('../data/3-1-22 Metadata MSK incl Abx.xlsx')
+meta <- readxl::read_excel('../data/')
+```
+
+```{r}
+# downloading the 153 hackensack samples to local 
+alpha %>% 
+  select(oligos_id, path_pool) %>% 
+   mutate(R1 = str_glue('{oligos_id}_R1.fastq.gz'),
+         R2 = str_glue('{oligos_id}_R2.fastq.gz')) %>% 
+  mutate(p1 = str_glue('{path_pool}/{R1}'),
+         p2 = str_glue('{path_pool}/{R2}')) %>% 
+   select(p1, p2) %>% 
+   gather() %>% 
+   mutate(cmd = str_glue('rsync --progress --partial -avz daia1@lilac.mskcc.org:{value} .')) %>% 
+   select(cmd) %>% 
+   write_csv('../data/hackensack/dl153.sh', col_names = F)
+```
+
+```{r}
+# find the oligos of the samples from Emily's file
+fns <- list.files('../data/hackensack/', pattern = '^pool', full.names = T)
+
+
+all_oligos <- fns %>% 
+  set_names(fns) %>% 
+  map( ~ read_tsv(., skip = 2, comment = '#', col_names = F)) %>% 
+  bind_rows(.id = 'pool') %>% 
+  filter(!str_detect(X4, 'MB'))
+
 ```
 

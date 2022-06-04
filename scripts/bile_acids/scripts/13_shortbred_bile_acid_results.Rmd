@@ -1,0 +1,28 @@
+---
+title: "What exactly was the results from shortbred about the bile acid"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(seqinr)
+```
+
+```{r}
+# look at what is in that bile acid genes IMG fasta file
+bile <- read.fasta('../data/bile_acid_genes_IMG.fa', seqtype = 'AA', as.string = T, whole.header = T)
+
+headers <- tibble(header = names(bile) ) %>% 
+  mutate(header = str_replace(header, " ", "||"))  %>% 
+  separate(header, into = c("first", "rest"), sep = "\\|\\|") %>% 
+  rename(Family = first)
+
+res <- read_tsv('~/222_short_bile.txt', col_types = 'cddd') %>% 
+  inner_join(headers)
+```
+
