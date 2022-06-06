@@ -1,0 +1,41 @@
+---
+title: "The functional results"
+author: "Angel"
+date: '2022-05-29'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggpubr)
+library(tidyverse)
+```
+
+```{r}
+# look at the pathway results the stratified version
+pws <- read_tsv('../humann3_pathabundance_cpm_joined_stratified.tsv') %>% 
+  gather('sampleid', 'cpm', names(.)[2]:names(.)[ncol(.)]) %>% 
+  separate(`# Pathway`, into = c('pathway','species'),  sep = '\\|') %>% 
+  mutate(sampleid = str_replace(sampleid, 'Sample_',''),
+         sampleid = str_replace(sampleid, '_IGO_12898.+$',''))
+```
+
+
+```{r}
+meta <- read_csv('../pheno_with_alpha_diversity.csv')
+
+bifido <- meta %>% 
+  filter(fiber == '40%' & Day  == 14)
+
+bifido_pw <- pws %>% 
+  filter(sampleid %in% bifido$sampleid) %>% 
+  filter(str_detect(species, 'Bifidobacterium'))
+
+bifido_pw %>% 
+  mutate(pathway = fct_reorder(pathway, cpm, .fun=median, .desc = T)) %>%
+  ggboxplot(x = 'pathway', y = 'cpm', orientation = "horizontal", add = 'jitter', add.params = list(color = 'forestgreen')) 
+```
+

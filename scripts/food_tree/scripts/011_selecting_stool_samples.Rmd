@@ -197,19 +197,31 @@ stb7 <- stb6 %>%
   mutate(empirical = if_else(sampleid %in% abx_this_censor_samples, T, F))
 
 stb7 %>% 
-  count(empirical) 
+  distinct(sampleid) 
 ```
 
 ```{r}
 # add the simpson_reciprocal diversity
 stb8 <- stb7 %>% 
-  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))  %>% 
+  inner_join(asv_alpha_diversity_ag %>% distinct(sampleid, simpson_reciprocal) %>% 
+    distinct(sampleid, .keep_all = T))  %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
+  
+  
+
+```
+
+```{r}
+# get rid of the 59 stool samples that had missing data in the previous two days
+missing <- read_csv('../data/112_has_missing_to_be_removed.csv')
+
+stb9 <- stb8 %>% 
+  filter(!sampleid %in% missing$sampleid)
 ```
 
  
 ```{r}
-stb8 %>% 
+stb9 %>% 
   write_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```
  

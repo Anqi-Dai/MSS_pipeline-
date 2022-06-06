@@ -1,0 +1,103 @@
+---
+title: "beta diversity PCoA"
+author: "Angel"
+date: '2022-05-29'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+```
+
+```{r}
+# load the spp abundance table
+spp <- read_csv('../metaphlan_results_fraction.csv')
+meta_mouse <- read_csv('../pheno_with_alpha_diversity.csv')
+
+# find the spp > 0.01% in more than 20% samples
+keep_spp <- spp %>% 
+  filter(relative_abundance > 0.0001) %>% 
+  count(clade_name) %>% 
+  filter(n > floor(nrow(meta_mouse) * 0.2)) %>% 
+  pull(clade_name)
+
+# calculate the Bray curtis beta diversity 
+cts_fil <- spp %>% 
+  filter(clade_name %in% keep_spp) %>% 
+  select(sampleid, clade_name,relative_abundance ) %>% 
+  spread(key = 'clade_name', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+dist_ <- vegdist(cts_fil, method = 'bray')
+eigen <- cmdscale(dist_, eig = T)$eig
+percent_var <- signif(eigen/sum(eigen), 3)*100
+bc <- cmdscale(dist_, k = 2)
+beta_df <- bc %>%
+  as.data.frame() %>%
+  rownames_to_column('sampleid')  %>% 
+  full_join(meta_mouse) %>% 
+  mutate(Day = factor(Day, levels = c(1, 7, 14)),
+         fiber = factor(fiber, c('0%','12%','40%'))) 
+```
+
+```{r}
+# plotting
+pcoa_gvhd_all <- beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'grp', palette = 'lancet', size = 'Day', alpha = 0.5, shape = 'fiber') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'right')
+pcoa_gvhd_all
+```
+
+-   The day 14 40% fiber data is so different from anything else
+
+```{r}
+pcoa_gvhd <- beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'grp', palette = 'lancet', size = 'Day', alpha = 0.5,
+            shape = 'fiber') +
+  facet_grid(fiber ~ Day) +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'right')
+pcoa_gvhd
+```
+
+-   Day 14 data is only on the right side of the space.
+
+-   No 0% BM only data so the first row doesn't have blue dots
+
+-   The samples are very uncommonly similar in composition on day 14 for 0% and 40% groups
+
+```{r}
+# color by alpha diversity
+pcoa_alpha_all <- beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'inv', alpha = 0.8, point = 15, shape = 'grp') +
+  labs(title = '') +
+  paletteer::scale_color_paletteer_c("viridis::plasma") +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'right')
+pcoa_alpha_all
+```
+```{r}
+pcoa_alpha <- beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'inv', alpha = 0.8, point = 15, shape = 'grp') +
+  labs(title = '') +
+  facet_grid(fiber ~ Day) +
+  paletteer::scale_color_paletteer_c("viridis::plasma") +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'right')
+pcoa_alpha
+```
+
+- Interestingly, the 12% mice have more diverse microbiome by day 14, especially the BMT group.

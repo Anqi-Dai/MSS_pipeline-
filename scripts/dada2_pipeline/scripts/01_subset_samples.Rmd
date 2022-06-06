@@ -79,7 +79,8 @@ A total of 122 samples, 15 failed at the lib prep. 107 succeeded from 27 patient
 ```{r}
 alpha <- asv_alpha_diversity_ag %>% 
   filter(str_detect(oligos_id, 'pool1126|pool1127|pool1129|pool1128')) %>% 
-  select(sampleid:shannon, path_pool)  
+  select(sampleid:shannon, path_pool)  %>% 
+  filter(!str_detect(sampleid, 'MB'))
 dir.create('../data/hackensack')
 alpha %>% write_csv('../data/hackensack/samples_alpha_diversity.csv')
 
@@ -98,8 +99,7 @@ list(alpha = alpha,
   })
 
 
-# check the meta table they sent us
-meta <- readxl::read_excel('../data/')
+
 ```
 
 ```{r}
@@ -126,7 +126,20 @@ all_oligos <- fns %>%
   set_names(fns) %>% 
   map( ~ read_tsv(., skip = 2, comment = '#', col_names = F)) %>% 
   bind_rows(.id = 'pool') %>% 
-  filter(!str_detect(X4, 'MB'))
+  filter(!str_detect(X4, 'MB')) %>% 
+  mutate(sampleid = str_replace_all(X4, '-','\\.'))
 
+
+# what happened to the missing 163-151 = 12 samples 
+missing <- all_oligos %>% 
+  filter(!sampleid %in% alpha$sampleid)
+
+missing %>% 
+  select(sampleid) %>% 
+  write_csv('../data/missing12_hackensack.csv')
+```
+
+```{r}
+get_counts_subset(c('ENG1080.2.4M'))
 ```
 
