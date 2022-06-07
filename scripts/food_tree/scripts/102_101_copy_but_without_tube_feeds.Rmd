@@ -102,7 +102,7 @@ q80_fg <- meta %>%
 post_samples  <- read_csv('../data/068_div_model_fg_post.csv')
 
 post_coeffs <- post_samples %>% 
-  select(b_Intercept, b_inten_re,  starts_with('b_fg')) %>% 
+  select(b_intensityreduced,  starts_with('b_fg')) %>% 
   gather('term','post_coeff') %>% 
   split(.$term) 
 ```
@@ -249,8 +249,7 @@ max_each_fg_post <- vals  %>%
    post_coeffs$b_fg_oils$post_coeff * values %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
+   post_coeffs$b_intensityreduced$post_coeff  
   }) %>% 
   bind_rows(.id = 'grp')
 ```
@@ -282,8 +281,7 @@ min_each_fg_post <- vals_min  %>%
    post_coeffs$b_fg_oils$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values_min %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
+   post_coeffs$b_intensityreduced$post_coeff 
   }) %>% 
   bind_rows(.id = 'grp')
 ```
@@ -314,8 +312,7 @@ q25_each_fg_post <- vals_q25  %>%
    post_coeffs$b_fg_oils$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values_q25 %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
+   post_coeffs$b_intensityreduced$post_coeff  
   }) %>% 
   bind_rows(.id = 'grp')
 ```
@@ -347,8 +344,7 @@ q50_each_fg_post <- vals_q50  %>%
    post_coeffs$b_fg_oils$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values_q50 %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
+   post_coeffs$b_intensityreduced$post_coeff  
   }) %>% 
   bind_rows(.id = 'grp')
 ```
@@ -379,8 +375,7 @@ q80_each_fg_post <- vals_q80  %>%
    post_coeffs$b_fg_oils$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values_q80 %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
+   post_coeffs$b_intensityreduced$post_coeff  
   }) %>% 
   bind_rows(.id = 'grp')
 ```
@@ -412,8 +407,7 @@ q90_each_fg_post <- vals_q90  %>%
    post_coeffs$b_fg_oils$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values_q90 %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
+   post_coeffs$b_intensityreduced$post_coeff  
   }) %>% 
   bind_rows(.id = 'grp')
 ```
@@ -444,15 +438,14 @@ q75_each_fg_post <- vals_q75  %>%
    post_coeffs$b_fg_oils$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_oils') +
    post_coeffs$b_fg_sweets$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_sweets') +
    post_coeffs$b_fg_veggie$post_coeff * values_q75 %>% pluck(val) %>% pluck('b_fg_veggie') +
-   post_coeffs$b_inten_re$post_coeff  +
-   post_coeffs$b_Intercept$post_coeff 
+   post_coeffs$b_intensityreduced$post_coeff 
   }) %>% 
   bind_rows(.id = 'grp')
 ```
 
 ```{r}
 ave_each_fg_post <- post_samples %>% 
-  mutate(mean_fg = b_Intercept + 
+  mutate(mean_fg = 
            b_fg_fruit*mean_fg$fg_fruit +
            b_fg_meat*mean_fg$fg_meat + 
            b_fg_milk*mean_fg$fg_milk + 
@@ -462,7 +455,7 @@ ave_each_fg_post <- post_samples %>%
            b_fg_sweets*mean_fg$fg_sweets +
            b_fg_legume*mean_fg$fg_legume +
            b_fg_veggie*mean_fg$fg_veggie +
-           b_inten_re ) %>% 
+           b_intensityreduced ) %>% 
   select(mean_fg) %>% 
   mutate(grp = 'ave_each') %>% 
   rename(post_res = mean_fg) %>% 

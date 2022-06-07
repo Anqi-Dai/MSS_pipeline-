@@ -94,7 +94,6 @@ priors <- c(# for the food group variables
             prior(normal(-3, 1), class = 'b', coef = "intensitynonablative"))
 ```
 
-
 ```{r}
 ret_genus <- target_genera %>% 
   set_names(target_genera) %>% 
@@ -149,7 +148,7 @@ mean_fg <-  meta %>%
   
 valid_interval_perc <- ret_genus %>% 
   imap(~ prior_draws(.x) %>% 
-            mutate(mean_genera = Intercept + 
+            mutate(mean_genera = 
                      b_fg_fruit*mean_fg$fg_fruit +
                      b_fg_meat*mean_fg$fg_meat + 
                      b_fg_milk*mean_fg$fg_milk + 
@@ -159,7 +158,7 @@ valid_interval_perc <- ret_genus %>%
                      b_fg_sweets*mean_fg$fg_sweets +
                      b_fg_legume*mean_fg$fg_legume +
                      b_fg_veggie*mean_fg$fg_veggie +
-                     b_inten_re ) %>% 
+                     b_intensityreduced ) %>% 
             select(mean_genera) %>% 
             mutate(grp = 'ave_each') %>% 
             rename(prior_res = mean_genera) %>% 
@@ -217,7 +216,6 @@ post_res_genera %>%
 
 ```
 
-
 ```{r}
 genus_fg_main <- ggplot(post_res_genera, aes(x = genus, y = shortname)) +
   geom_tile(aes(fill = color,  x = genus, y =  shortname), alpha = 0.5, color='white', width=0.95, height=0.95) +
@@ -238,6 +236,7 @@ genus_fg_main <- ggplot(post_res_genera, aes(x = genus, y = shortname)) +
 genus_fg_main 
 
 ```
+
 ```{r}
 # the factors for the genus-fg
 post_df <- read_csv('../data/087_genus_foodgroup_model_post.csv', col_select = c(1, 14:16))
@@ -297,7 +296,6 @@ ggsave( '../figs/paper/S8_heatmap_fg_genus_087.pdf',
          units = c("mm"),
          dpi = 400, device = 'pdf', plot = heatmap)
 ```
-
 
 ## The Enterococcus genus as outcome
 
@@ -373,7 +371,6 @@ post_coeff %>%
   group_by(item) %>% 
   summarise(ave = mean(coeff))
 ```
-
 
 ```{r Enterococcus}
 fg_colors <- post_coeff %>% 
@@ -481,4 +478,117 @@ ave_each_fg_prior %>%
 prior_enterococcus %>% 
   write_rds('../data/087_prior_enterococcus_hist.rds'
   )
-``` 
+```
+
+# Klebsiella as outcome  
+
+```{r}
+gcts_kle <- read_csv('../data/088_genus_relab_log10_wide.csv') %>% 
+  select(sampleid, Klebsiella)
+
+full_kle <- meta %>% 
+  inner_join(gcts_kle)
+
+kle_genus <- brm( Klebsiella  ~ 
+               0 +
+                fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               intensity +
+                empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin),  
+                data = full_kle, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = ncores, 
+              chains = 2, 
+              control = list(adapt_delta = 0.99),
+              seed = 456, sample_prior = T) 
+
+post_kle <- suppressWarnings(posterior_samples(kle_genus))
+post_kle %>%  write_csv('../data/087_Klebsiella_model_fg_post.csv')
+
+```
+
+```{r}
+post_samples  <- read_csv('../data/087_Klebsiella_model_fg_post.csv')
+nodes <- read_tsv('../data/source/NodeLabels_withcomma.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description) 
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') 
+post_coeff <- post_samples %>% 
+  select(starts_with('b_fg')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(key) %>% 
+  mutate(fdesc = str_replace_all(fdesc, '_',' ')) %>% 
+  mutate(fdesc = str_wrap(fdesc, width = 28, indent = 2, exdent = 0)) %>% 
+  mutate(fdesc = str_replace(fdesc, 'and','&')) %>% 
+  left_join(key %>% select(fgrp1, color, shortname))  %>% 
+  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F))  %>% 
+  mutate(shortname = factor(shortname, levels = c("Fruits"  , "Sweets"  ,  "Vegetables", "Grains"    , "Milk"   ,    "Meats"    ,   "Eggs"      , "Legumes" ,   "Oils" )))
+
+```
+```{r}
+fg_colors <- post_coeff %>% 
+  distinct(shortname, color) %>% 
+  select(shortname, color) %>% 
+  deframe()
+# to find out if the group crosses zero or not
+cross0 <- post_coeff %>%
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+# plotting the forest
+kle_model_coeff <- post_coeff %>% 
+  left_join(cross0) %>% 
+  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
+  tidybayes::stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = expression(paste(log[10], '(abundance) change', ' per 100g of food')),
+       y = '',
+       title = 'Klebsiella') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c("gray40", "#EC0000")) +
+  theme(axis.text=element_text(size=8),
+        axis.title=element_text(size=8),
+        aspect.ratio=1) 
+# kle_model_coeff %>% 
+#   write_rds('../data/087_entero_genus_fg_main.rds')
+kle_model_coeff
+
+# plot the distribution of the relab of kle
+cts %>% 
+  filter(genus == 'Klebsiella') %>% 
+  ggboxplot(y = 'relab', add = 'jitter', add.params = list(color  = 'forestgreen', alpha = 0.5)) +
+  scale_y_log10()
+
+kle <- cts %>% 
+  filter(genus == 'Klebsiella')
+
+quantile(kle$relab, 0.7 )
+```
+

@@ -1,5 +1,5 @@
 ---
-title: "Figure S7 fiber versus sugar"
+title: "Figure S10 fiber versus sugar"
 output: html_document
 ---
 
@@ -48,26 +48,7 @@ top3grp <- dtb %>%
 
 x_txt_col <- c(rep('#7D3C98', 10), rep('#db2589', 10), rep('#229954', 10))
 
- 
-ggdotchart(top3grp, x = "description", y = "gram_per_meal",
-           xlab = '', 
-           ylab = 'Per meal average consumption (gram)',
-           add = "segments",        
-   group = "fg1_full_name", color = "fg1_full_name",
-   palette = c('#7D3C98','#db2589', '#229954'),
-   rotate = TRUE,
-   sorting = "none", 
-  #y.text.col = TRUE ,
-  ggtheme = theme_pubr()  
-  ) +
-  theme(legend.position = 'bottom',
-        axis.text.y = element_text(size=11, colour = x_txt_col),
-        legend.title = element_blank())
 
-
-```
-
-```{r}
 # or I just calculate the sugar in percent in those food code
 top3grp_sugar <- dtb %>% 
   mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
@@ -116,23 +97,63 @@ fix %>%
 ```
 
 
-```{r}
-#think about a way to depict the fiber sugar ratio in the top 10 foods   
-unique <- dtb %>% 
-  distinct(Food_code, description, .keep_all = T) %>% 
-  #inner_join(top3grp) %>% 
-  mutate(fs_ratio = if_else(Sugars_g == 0, 0, Fibers_g/Sugars_g)) %>% 
-  select(Food_code, Food_NSC, Fibers_g:Sugars_g, fs_ratio ) %>% 
-  mutate(if_top10 = if_else(Food_code %in% top3grp$Food_code, T, F))
+# what about adding egg into the picture
 
-unique %>% 
-  ggboxplot(x = 'if_top10', y = 'fs_ratio') +
-  scale_y_sqrt() +
-  stat_compare_means(comparisons= list(c('FALSE', 'TRUE')),
-										label= "p.signif",
-										method= 'wilcox.test',
-										correct=FALSE)
+```{r}
+top4grp <- dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  filter(fgrp1 %in% c('9','6','7','3')) %>% 
+  group_by(Food_code, description, fgrp1) %>% 
+  summarise(total_per_code = sum(dehydrated_weight)) %>% 
+  group_by(fgrp1) %>% 
+  arrange(desc(total_per_code), .by_group = T)  %>% 
+  top_n(10) %>% 
+  left_join(key) %>% 
+  ungroup() %>% 
+  mutate(gram_per_meal = total_per_code/n_meal) %>% 
+  mutate(fg1_full_name = case_when(
+    fgrp1 == '6' ~ 'Fruits',
+    fgrp1 == '7' ~ 'Vegetables',
+    fgrp1 == '9' ~ 'Sugars, Sweets & Beverages',
+    fgrp1 == '3' ~ 'Eggs'
+  )) %>% 
+  mutate(fg1_full_name = factor(fg1_full_name, levels = c('Fruits','Sugars, Sweets & Beverages', 'Vegetables', 'Eggs'))) %>% 
+  group_by(fg1_full_name) %>% 
+  arrange(gram_per_meal, .by_group = T)
+
+top4grp_sugar <- dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  filter(fgrp1 %in% c('9','6','7','3')) %>% 
+  group_by(Food_code, description, fgrp1) %>% 
+  summarise(total_sugar_per_code = sum(Sugars_g)) %>% 
+  ungroup() %>% 
+  mutate(gram_sugar_per_meal = total_sugar_per_code/n_meal) %>% 
+  inner_join(top4grp) %>% 
+  mutate(sugar_perc_per_meal = gram_sugar_per_meal/gram_per_meal*100) %>% 
+  mutate(description = factor(description, levels = top4grp$description))
+
+
+bars <- top4grp_sugar %>% 
+  select(description, fg1_full_name,gram_sugar_per_meal, gram_per_meal ) %>% 
+  gather('grp','gram',gram_sugar_per_meal: gram_per_meal) %>% 
+  mutate(grp = if_else(grp == 'gram_sugar_per_meal', 'Sugar fraction', 'Total') ) %>% 
+  mutate(grp = factor(grp, levels = c('Sugar fraction','Total'))) 
+  
+
+x_txt_col <- c(rep('#7D3C98', 10), rep('#db2589', 10), rep('#229954', 10), rep('#F1C40F', 10))
+
+ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consumption (gram)',
+  fill = "grp", color = "grp", palette = c("#FB9A99" ,"gray"),
+  width = 0.7, 
+  position = position_dodge(0.8)) +
+  coord_flip() +
+  theme(legend.position = 'bottom',
+        axis.text.y = element_text(size=11, colour = x_txt_col),
+        legend.title= element_blank())
+
+ggsave('../figs/paper/099_top10_eaten_foods_of_4__and_sugar_099.jpg', width = 8.3, height = 9)
 ```
+
 
 
 

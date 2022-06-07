@@ -178,7 +178,7 @@ prior_diversity %>%
 ```{r all_params_csv}
 # make 
 post_all <-  read_csv('../data/068_div_model_fg_post.csv')
-colnames(post_all)
+
 # the mrn ones need to be anonymized
 
 # make  a forest  plot of the mrn intercepts
@@ -209,14 +209,14 @@ mrn_figure <- mrn_forest %>%
 
 
 ```{r all_params_csv}
-ggsave('../figs/paper/S_mrn_intercepts_forest.pdf',
+ggsave('../figs/paper/S6_mrn_intercepts_forest.pdf',
        width = 280,
        height = 320, 
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'pdf', plot = mrn_figure)
 
-ggsave('../figs/paper/S_mrn_intercepts_forest.jpg',
+ggsave('../figs/paper/S6_mrn_intercepts_forest.jpg',
        width = 280,
        height = 320, 
          #height = 60,
