@@ -27,8 +27,11 @@ total %>%
 total %>% 
   filter(Enterococcus == 0) %>% 
   select(Enterococcus, Enterococcaceae, sampleid)
+```
 
-gcts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')
+
+```{r}
+gcts <- read_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv')
 
 fcts <- read_csv('../data/cleaned_stool/ALL_stool_samples_family_counts.csv') %>% 
   mutate(taxa_family = str_extract(taxa_family, 'f__.+$')) %>% 

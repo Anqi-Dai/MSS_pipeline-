@@ -35,7 +35,7 @@ axis_title_size <- 7
 # The food group predictors with genus as the outcome
 
 ```{r}
-cts <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+cts <- read_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) 
 thre <- seq(0.0001, 0.002, 0.0001)
 thre %>% 
@@ -64,12 +64,13 @@ target_genera <-  cts %>%
   filter(perc > 10) %>% 
   pull(genus) 
 ```
+
 ```{r}
 gcts <- read_csv('../data/088_genus_relab_log10_wide.csv') %>% 
   select(sampleid, all_of(target_genera))
 
 full <- meta %>% 
-  full_join(gcts)
+  inner_join(gcts)
 
 priors <- c(# for the food group variables
             prior(normal(0, 1.2), class = 'b', coef = "fg_egg"),
@@ -391,7 +392,7 @@ cross0 <- post_coeff %>%
 Enterococcaceae_model_coeff <- post_coeff %>% 
   left_join(cross0) %>% 
   ggplot(aes(x = coeff, y = shortname, col = Cross)) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  tidybayes::stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = expression(paste(log[10], '(abundance) change', ' per 100g of food')),
        y = '',
@@ -430,7 +431,7 @@ coeff_bi <- post_samples %>%
 
 entero_genus_factor <- coeff_bi %>% 
   ggplot(aes(x = coeff, y = item_name)) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  tidybayes::stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   facet_wrap(grp~ . , scales = 'free', dir = 'v') +

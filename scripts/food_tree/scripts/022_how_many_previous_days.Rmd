@@ -154,15 +154,15 @@ cts_genus <- cts %>%
   summarise(relab = sum(count_relative)) 
 
 cts_genus %>% 
-  write_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')
+  write_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv')
 
-tb <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv')
+
 ```
 
 
 ```{r}
 # the genus counts data would be :
-cts_long <- read_csv('../data/cleaned_stool/ALL_stool_samples_genus_counts.csv') %>% 
+cts_long <- read_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% p5d_samples) 
 
 # since the samples in the diet counts are different so need to subset according to each

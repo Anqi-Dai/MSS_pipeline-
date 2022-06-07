@@ -138,11 +138,11 @@ enter_prior <- read_rds('../data/087_prior_enterococcus_hist.rds')
 prior <- plot_grid(  div_prior,enter_prior,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
-ggsave('../figs/paper/S_div_entero_prior_086.pdf',
+ggsave('../figs/paper/S4_div_entero_prior_086.pdf',
        width = 170, height = 60, units = c("mm"),
          dpi = 400, device = 'pdf', plot = prior)
 
-ggsave('../figs/paper/S_div_entero_prior_086.jpg',
+ggsave('../figs/paper/S4_div_entero_prior_086.jpg',
        width = 170, height = 60, units = c("mm"),
          dpi = 400, device = 'jpg', plot = prior)
 ```
