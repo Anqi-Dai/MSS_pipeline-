@@ -1,0 +1,67 @@
+---
+title: "Figure out the shotgun samples for Melody's CART paper"
+author: "Angel"
+date: '2022-06-08'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+
+
+
+
+```{r}
+# To send the CART preprocessed shotgun samples file to Jonas
+# figure out what samples I used for that
+stb <- read_csv('~/Work/projects/CART_microbiome/data/shotgun_pheno/final_comprehensive_UPDATED_simple.csv')
+
+folders <- shotgun_lookup_ad %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(fid %in% stb$fid) %>% 
+  mutate(folder  = str_extract(directory, 'Sample.+$')) %>% 
+  mutate(path = str_glue('/home/daia1/my_workdir/samples/{folder}'))
+```
+
+```{r}
+# also find the samples I used for the irep (156)
+growth <- read_csv('../data/nutrition_growth_rate_complete_samples.csv') %>% 
+  mutate(sampleid = str_replace(sampleid, 'FMT_','FMT.'))
+growth_samples <- shotgun_lookup_ad %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  filter(sampleid %in% growth$sampleid) %>% 
+  mutate(folder  = str_extract(directory, 'Sample.+$')) %>% 
+  mutate(path = str_glue('/home/daia1/my_workdir/samples/{folder}'))
+```
+
+
+```{r}
+# also the samples for Oriana's cohort project 12652
+# after connecting smb://igo-share04.mskcc.org/igo_delivery/share/vandenbm
+bile <- tibble(
+  folder = list.files('/Volumes/vandenbm/Project_12652/DIANA_0424/')
+) %>% 
+  mutate(path = str_glue('/home/daia1/my_workdir/samples/{folder}'))
+
+```
+
+```{r}
+# combine all of these samples
+run3 <- bind_rows(
+  bile %>% select(path),
+  growth_samples %>% select(path),
+  folders %>% select(path)
+)
+
+run3 %>% write_csv('../data/three_samples.csv', col_names = F)
+```
+

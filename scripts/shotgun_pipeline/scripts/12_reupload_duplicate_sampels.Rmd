@@ -1,0 +1,62 @@
+---
+title: "Upload again my previously deleted duplicate samples ..."
+author: "Angel"
+date: '2022-06-08'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+```{r}
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+Sometimes you just need to make mistakes you know ...
+
+```{r}
+# find out the current samples that are in the cluster samples folder
+current <- read_csv('../data/current_samples.txt',col_names = F) %>% 
+  transmute(folder = str_extract(X1, 'Sample.+$'))
+
+# what samples that are in the shotgun lookup table but not in current
+exist <- shotgun_lookup_ad %>% 
+  mutate(folder = str_extract(directory, 'Sample.+$'))
+
+need <- tibble(folder = setdiff(exist$folder, current$folder)) %>% 
+  mutate(project = str_extract(folder, 'IGO_\\d\\d\\d\\d\\d')) %>% 
+  mutate(special = if_else(str_detect(folder, '_B|_C'), T,F)) %>% 
+  filter(project != 'IGO_09099' & project != 'IGO_11038' & project != 'IGO_11453' )
+
+
+which_folder <- shotgun_lookup_ad %>% 
+  group_by(projectid) %>% 
+  slice(1) %>% 
+  mutate(project = str_replace(projectid, 'Project','IGO')) %>% 
+  filter(project %in% need$project) %>% 
+  full_join(need %>% 
+  count(project))
+
+# the folders that I need to upload at msk from deep sequencing folder
+deep_folders <- which_folder %>% 
+  filter(!str_detect(directory, 'vanden'))
+
+deep_samples <- need %>% 
+  filter(project %in% deep_folders$project & special == FALSE) %>% 
+  select(folder) %>% 
+  add_row(folder = c('Sample_FMT0066X_IGO_08788_C_20','Sample_772E_IGO_08788_C_33'))  %>% 
+  inner_join(exist) %>% 
+  mutate(directory = str_replace(directory, 'FASTQ//','FASTQ/')) %>% 
+  mutate(path = str_replace(directory, '/Volumes.+FASTQ','/Volumes/vandenBrinkLab/deep_sequencing')) %>% 
+  mutate(path = if_else(sampleid == '1564N', str_replace(path , 'DIANA_0038','PITT_0268'),path )) %>% 
+  mutate(cmd = str_glue('rsync --progress --partial -avz  {path} daia1@lilac.mskcc.org:~/my_workdir/samples')) %>% 
+  select(cmd) %>% 
+  write_csv('../upload_from_deep_80.csv', col_names = F)
+
+```
+
+

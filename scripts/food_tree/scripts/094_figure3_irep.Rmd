@@ -56,24 +56,7 @@ tbt_ent <- bind_rows(
 tbt_ent_f <- tbt_ent %>% filter(shortname == 'Fruits') %>% 
   mutate(tier = if_else(gram >= median6, 'higher', 'lower'))
 
-t3a_box <- tbt_ent_f  %>%
-  ggboxplot(x = 'tier', y = 'ave_irep', alpha = scatter_alpha,
-            xlab = 'Fruits intake in previous 2 days (g)',
-            ylab = 'Average growth rate\n(iRep estimation)') +
-  facet_grid(. ~ grp) +
- theme_classic() +
-stat_compare_means(comparisons= list(c('higher', 'lower')),
-										label= "p.signif",
-										method= 'wilcox.test',
-										correct=FALSE) +
-  theme(plot.background = element_blank(),
-        aspect.ratio = 1,
-           axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-    panel.grid.major = element_blank(),
-    panel.grid.minor = element_blank(),
-        strip.text.x = element_text(size = 8))
+
 ```
 
 
@@ -86,8 +69,7 @@ t3a <- tbt_ent_f  %>%
              add = "reg.line", 
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
-           cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep = ",   ", size = cor_text_size)) +
+           cor.coef = TRUE) +
   facet_grid(. ~ grp) +
  theme_classic() +
   theme(plot.background = element_blank(),
@@ -106,8 +88,7 @@ b3a <- tbt_ent %>% filter(shortname == 'Sweets') %>%
              add = "reg.line", 
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE,
-           cor.coef = TRUE, 
-           cor.coeff.args = list(method = "spearman",  label.sep =",   ", size = cor_text_size)) +
+           cor.coef = TRUE) +
   facet_grid(. ~ grp) +
  theme_classic() +
   theme( plot.background = element_blank(),
@@ -119,6 +100,9 @@ b3a <- tbt_ent %>% filter(shortname == 'Sweets') %>%
     panel.grid.minor = element_blank(),
         strip.text.x = element_text(size = 8))
 
+f3a <- plot_grid(t3a, b3a,
+                     byrow = T,
+          ncol = 1, axis = 'ltbr', align = 'hv', rel_widths = c(1, 1))
 ```
 
 # kle
@@ -282,5 +266,38 @@ kle_sweet %>%
   count(pid)
 ```
 
+```{r}
+# what about summing up the fruits and sweets intake for the X axis
+both2 <- bind_rows(
+  tbt_ent,
+  tbt_kle
+) %>% 
+  filter(!str_detect(grp, 'taxa')) %>% 
+  select(-shortname) %>% 
+  spread('fg', 'gram') %>% 
+  mutate(fg_both = fg_fruit + fg_sweets) %>% 
+  mutate(grp = as.character(grp))
+
+both2 %>% 
+  ggscatter(x = 'fg_both', y = 'ave_irep', xlab = 'Both fruits and sweets intake in the previous 2 days',
+            add = "reg.line", ylab = 'Growth rate',
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)  +
+  facet_grid(~grp, scales = 'free')
+
+ggsave('../figs/paper/094_Both fruits and sweets intake in the previous 2 days_irep_regression.pdf', height  = 4)
+```
+
+
+```{r}
+# calculate the p value for the regression
+p_regression <- both2 %>% 
+  split(.$grp) %>% 
+  map(function(df_){
+    regression = summary(lm(ave_irep ~ fg_both, data = df_ ))
+    pval =  round(regression$coefficients[2, 'Pr(>|t|)'], 2)
+    return(pval)
+  } )
+```
 
 

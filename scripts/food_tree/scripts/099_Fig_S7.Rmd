@@ -82,18 +82,18 @@ ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consump
         legend.title= element_blank())
 
  
-ggsave('../figs/paper/S7_top10_eaten_foods_of_3__and_sugar_099.pdf', width = 8.3, height = 7)
-ggsave('../figs/paper/S7_top10_eaten_foods_of_3__and_sugar_099.jpg', width = 8.3, height = 7)
+ggsave('../figs/paper/S10_top10_eaten_foods_of_3__and_sugar_099.pdf', width = 8.3, height = 7)
+ggsave('../figs/paper/S10_top10_eaten_foods_of_3__and_sugar_099.jpg', width = 8.3, height = 7)
 ```
 
 ```{r}
 # the Soft drink, cola thing
-fix <- dtb %>% 
-  filter(description == 'Soft drink, cola') %>% 
-  filter(Sugars_g > dehydrated_weight)
-
-fix %>% 
-  write_csv('../data/099_soft_drink_cola.csv')
+# fix <- dtb %>% 
+#   filter(description == 'Soft drink, cola') %>% 
+#   filter(Sugars_g > dehydrated_weight)
+# 
+# fix %>% 
+#   write_csv('../data/099_soft_drink_cola.csv')
 ```
 
 

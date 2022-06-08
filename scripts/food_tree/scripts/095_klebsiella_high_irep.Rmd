@@ -53,6 +53,9 @@ target <- combined %>%
   slice(1) %>% 
   select(mrn) %>% 
   pull(mrn)
+
+tibble(mrn = target) %>% 
+  write_csv('../data/095_Klebsiella-patient.csv')
 ```
 
 
