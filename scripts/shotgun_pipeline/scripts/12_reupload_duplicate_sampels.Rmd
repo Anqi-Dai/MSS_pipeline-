@@ -55,7 +55,20 @@ deep_samples <- need %>%
   mutate(path = if_else(sampleid == '1564N', str_replace(path , 'DIANA_0038','PITT_0268'),path )) %>% 
   mutate(cmd = str_glue('rsync --progress --partial -avz  {path} daia1@lilac.mskcc.org:~/my_workdir/samples')) %>% 
   select(cmd) %>% 
-  write_csv('../upload_from_deep_80.csv', col_names = F)
+  write_csv('../data/upload_from_deep_80.csv', col_names = F)
+
+```
+```{r}
+# the remaining samples are in vandenbm so I can upload them right now
+now <- need %>% 
+  filter(!project %in% deep_folders$project) %>% 
+  select(folder, project) %>% 
+  add_row(folder = c('Sample_1044A_IGO_08788_B_9'), project = 'IGO_08788_B') 
+
+
+# the ones I have a problem: Sample_1044A_IGO_08788_B_9
+# Sample_2293B_IGO_10754_4 is it 2293B or 2239B?
+# Sample_2320B_IGO_10754_7 is it 2320B or 2320C?
 
 ```
 
