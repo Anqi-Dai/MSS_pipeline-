@@ -31,8 +31,11 @@ tb <- read_csv('../data/069_tb.csv') %>%
 combined <- tb %>% 
   inner_join(older802 %>% select(sampleid, mrn, sdrt)) 
 # finally after sorting out the mess in my head I'm able to see this familiar number, I'm so glad!!!!!
-
+combined %>% 
+  write_csv('../data/114_combined_irep_650.csv')
 ```
+
+# the kle patient
 
 ```{r}
 # for the klebsiella patient
@@ -70,10 +73,7 @@ kle_entries <- bind_rows(
 kle_unsure <- kle_entries %>% 
   filter(fdrt %in% lowerday:highday) %>% 
   right_join(tibble(fdrt = seq(lowerday, highday, 1)))
-```
 
-
-```{r}
 # find the dates of those days
 hct_date <- kle_unsure %>% 
   select(hct) %>% 
@@ -90,3 +90,58 @@ check_k <- kle_unsure %>%
 check_k %>% 
   write_csv('../data/113_check_2_patients_diet.csv', na = '')
 ```
+
+# the enterococcus patient 
+
+```{r}
+ent_pt <- read_csv('../data/075_entero_pt.csv')
+growth <- combined %>% 
+  filter(mrn == ent_pt$mrn & str_detect(best_species, 'Enterococcus'))
+
+lowerday <- -2
+highday <- 12
+
+ent_entries <- bind_rows(
+  check800 %>% 
+    select(mrn, date:diet_data_status) %>% 
+    mutate(date = lubridate::mdy(date)) %>% 
+    filter(mrn == ent_pt$mrn) %>% 
+    mutate(mrn = as.numeric(mrn)),
+  check33 %>% 
+    filter(mrn == ent_pt$mrn) %>% 
+    select(mrn, p1date, p1date_status) %>% 
+    rename(date = p1date,
+           diet_data_status = p1date_status) %>% 
+    mutate(date = lubridate::mdy(date)) %>% 
+    mutate(diet_data_status = 'ok')
+) %>% 
+  left_join(ptb %>% 
+              select(mrn, hct)) %>% 
+  mutate(fdrt = date - hct) %>% 
+  mutate(fdrt = as.numeric(fdrt))
+
+# which days am I not sure in this range?
+ent_unsure <- ent_entries %>% 
+  filter(fdrt %in% lowerday:highday) %>% 
+  right_join(tibble(fdrt = seq(lowerday, highday, 1)))
+
+# find the dates of those days
+hct_date <- ent_unsure %>% 
+  select(hct) %>% 
+  slice(1)
+
+check_e <- ent_unsure %>% 
+  mutate(hct = hct_date$hct) %>% 
+  mutate(date = hct + fdrt) %>% 
+  mutate(mrn = ent_pt$mrn) %>% 
+  inner_join(patient_allo_ag %>% select(mrn, last, first)) %>% 
+  filter(is.na(diet_data_status)) %>% 
+  select(mrn, last, first, date,diet_data_status )
+
+check2  <- bind_rows(
+  check_e, check_k
+)
+
+check2 %>% write_csv('../data/114_timeline_2_pt_check.csv')
+```
+

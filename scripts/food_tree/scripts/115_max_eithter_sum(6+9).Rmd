@@ -1,0 +1,93 @@
+---
+title: "max(each of p2d (sweets + fruits))"
+author: "Angel"
+date: '2022-06-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+older802 <- read_csv('../data/011_802_total_stool_samples.csv')
+scatter_alpha <- 0.35
+cor_text_size <- 3
+axis_text_size <- 11
+axis_title_size <- 11
+```
+
+```{r}
+# calculate the daily sum of each food group
+daily <- dtb %>% 
+  mutate(Food_code = as.character(Food_code),
+    fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(dailysum = sum(dehydrated_weight)) %>% 
+  filter(fgrp1 %in% c("6", "9")) %>% 
+  spread('fgrp1', 'dailysum', fill = 0) %>% 
+  mutate(total69 = `6` + `9`)
+
+combined <- read_csv('../data/114_combined_irep_650.csv')
+
+ent <- combined %>% 
+    filter(str_detect(best_species, 'Enterococcus')) %>% 
+    group_by(sampleid) %>% 
+    summarise(ave_irep = mean(aveirep)) %>% 
+    mutate(grp = 'Enterococcus only') %>% 
+    inner_join(older802 %>% select(sampleid, mrn, sdrt))
+
+
+stb_pair <- ent %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+max_p2d_69 <-  function(mrn_, p1d_, p2d_){
+  df = daily %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(mrn) %>% 
+    summarise(bigger69 = max(total69, na.rm = T))
+  return(df)
+}
+
+max69_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    max_p2d_69(mrn, p1d, p2d)
+  }) %>% 
+  set_names(ent %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  inner_join(ent)
+
+# the newer version of fig3 A
+res_ent_max69 <- summary(lm(ave_irep ~ bigger69, data = max69_p2d_df ))
+ent_max69_p <- round(res_ent_max69$coefficients[2, 'Pr(>|t|)'], 2)
+
+max69_p2d_df %>% 
+   ggscatter(x = 'bigger69', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
+            xlab = 'max(69) in\nprevious 2 days (g)',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line", 
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE) +
+  annotate("text", x = 40, y = 1, label = str_glue("paste(italic(p), \" = {ent_max69_p}\")"), parse = TRUE) +
+  theme_classic() +
+  theme( 
+    plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    aspect.ratio = 1,
+       axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+    strip.text.x = element_text(size = 8))
+
+
+```
+
+
+

@@ -140,6 +140,10 @@ irep_q50 <- quantile(x = entero$ave_irpe, 0.5)
 irep_q75 <- quantile(x = entero$ave_irpe, 0.75)
 
 p11 <- names(absl)[11]
+tibble(
+  mrn = p11
+) %>% 
+  write_csv('../data/075_entero_pt.csv')
 xmax = 15
 
 xmin = -5
