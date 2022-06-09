@@ -67,10 +67,14 @@ tb %>%
 #   mutate(gt15 = if_else(iRep > 1.5, T, F)) %>% 
 #   count(gt15) %>% 
 #   mutate(perc = n/sum(n)*100)
+```
 
+
+```{r}
 tb %>% ungroup %>% distinct(Sample)
 irep %>% ungroup %>% distinct(sampleid) %>% 
   write_csv('../../shotgun_pipeline/data/nutrition_growth_rate_complete_samples.csv')
+tb %>% write_csv('../data/069_tb.csv')
 ```
 
 

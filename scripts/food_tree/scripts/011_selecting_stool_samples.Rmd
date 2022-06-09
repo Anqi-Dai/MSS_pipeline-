@@ -208,7 +208,8 @@ stb8 <- stb7 %>%
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) 
   
   
-
+stb8 %>% 
+  write_csv('../data/011_802_total_stool_samples.csv')
 ```
 
 ```{r}

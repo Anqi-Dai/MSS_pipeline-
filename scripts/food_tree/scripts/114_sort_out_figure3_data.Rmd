@@ -1,0 +1,92 @@
+---
+title: "Sort out the data for Fig3"
+author: "Angel"
+date: '2022-06-09'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('samples_castori_ag')
+get_table_from_database('patient_allo_ag')
+```
+
+Honestly this is so confusing. But we don't wanna remove all of those samples because of the missing data situation. So I only need to find the list of the original 800 samples. 
+
+```{r} 
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+missing <- read_csv('../data/112_has_missing_to_be_removed.csv')
+klept <- read_csv('../data/095_Klebsiella-patient.csv')
+older802 <- read_csv('../data/011_802_total_stool_samples.csv')
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+tb <- read_csv('../data/069_tb.csv') %>% 
+  rename(sampleid = Sample)
+
+combined <- tb %>% 
+  inner_join(older802 %>% select(sampleid, mrn, sdrt)) 
+# finally after sorting out the mess in my head I'm able to see this familiar number, I'm so glad!!!!!
+
+```
+
+```{r}
+# for the klebsiella patient
+growth <- combined %>% 
+  filter(mrn == klept$mrn & str_detect(best_species, 'Klebsiella'))
+
+lowerday <- min(growth$sdrt)
+highday <- max(growth$sdrt)
+
+# to check if there is missing data or data I'm not sure within this range
+check33 <- read_csv('../data/011_no_eating_in_two_days_before_bowl_movement_PAAannotated.csv')
+check800 <- read_csv('../data/111_800_stool_samples_check_PAAannotated.csv')
+
+# to make a clear data frame for the check of this patient
+kle_entries <- bind_rows(
+  check800 %>% 
+    select(mrn, date:diet_data_status) %>% 
+    mutate(date = lubridate::mdy(date)) %>% 
+    filter(mrn == klept$mrn) %>% 
+    mutate(mrn = as.numeric(mrn)),
+  check33 %>% 
+    filter(mrn == klept$mrn) %>% 
+    select(mrn, p1date, p1date_status) %>% 
+    rename(date = p1date,
+           diet_data_status = p1date_status) %>% 
+    mutate(date = lubridate::mdy(date)) %>% 
+    mutate(diet_data_status = 'ok')
+) %>% 
+  left_join(ptb %>% 
+              select(mrn, hct)) %>% 
+  mutate(fdrt = date - hct) %>% 
+  mutate(fdrt = as.numeric(fdrt))
+
+# which days am I not sure in this range?
+kle_unsure <- kle_entries %>% 
+  filter(fdrt %in% lowerday:highday) %>% 
+  right_join(tibble(fdrt = seq(lowerday, highday, 1)))
+```
+
+
+```{r}
+# find the dates of those days
+hct_date <- kle_unsure %>% 
+  select(hct) %>% 
+  slice(1)
+
+check_k <- kle_unsure %>% 
+  mutate(hct = hct_date$hct) %>% 
+  mutate(date = hct + fdrt) %>% 
+  mutate(mrn = klept$mrn) %>% 
+  inner_join(patient_allo_ag %>% select(mrn, last, first)) %>% 
+  filter(is.na(diet_data_status)) %>% 
+  select(mrn, last, first, date,diet_data_status )
+
+check_k %>% 
+  write_csv('../data/113_check_2_patients_diet.csv', na = '')
+```
