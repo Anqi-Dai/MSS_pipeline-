@@ -11,13 +11,18 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(cowplot) 
 library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
 ```
 
 # Scatter two by two  
 
 ```{r} 
 combined <- read_csv('../data/growth/069_irep_combined_res.csv')
+combined <- read_csv('../data/114_combined_irep_650.csv') # use my old "combined" data
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+meta <- read_csv('/Volumes/vandenBrinkLab/Angel_Dai/Nutrition_project/data/all_samples_meta_p2d_fg9_updated.csv')
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
   select(fg = fg1_name,shortname )
 scatter_alpha <- 0.35

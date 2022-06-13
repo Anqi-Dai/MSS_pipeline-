@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 older802 <- read_csv('../data/011_802_total_stool_samples.csv')
 scatter_alpha <- 0.35
@@ -68,7 +69,7 @@ ent_max69_p <- round(res_ent_max69$coefficients[2, 'Pr(>|t|)'], 2)
 
 max69_p2d_df %>% 
    ggscatter(x = 'bigger69', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
-            xlab = 'max(69) in\nprevious 2 days (g)',
+            xlab = 'max(sweets+fruits) in\nprevious 2 days (g)',
             ylab = 'Growth rate',
             title = 'Enterococcus',
              add = "reg.line", 
@@ -85,9 +86,53 @@ max69_p2d_df %>%
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
     strip.text.x = element_text(size = 8))
-
-
 ```
 
+```{r}
+kle <- combined %>% 
+    filter(str_detect(best_species, 'Klebsiella')) %>% 
+    group_by(sampleid) %>% 
+    summarise(ave_irep = mean(aveirep)) %>% 
+    mutate(grp = 'Klebsiella only') %>% 
+    inner_join(older802 %>% select(sampleid, mrn, sdrt))
+
+stb_pair <- kle %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+
+max69_p2d_df_kle <- pmap(stb_pair, function(mrn, p1d, p2d){
+    max_p2d_69(mrn, p1d, p2d)
+  }) %>% 
+  set_names(kle %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  inner_join(kle)
+
+# the newer version of fig3 B 
+res_kle_max69 <- summary(lm(ave_irep ~ bigger69, data = max69_p2d_df_kle ))
+kle_max69_p <- round(res_kle_max69$coefficients[2, 'Pr(>|t|)'], 2)
+
+max69_p2d_df_kle %>% 
+   ggscatter(x = 'bigger69', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
+            xlab = 'max(sweets+fruits) in\nprevious 2 days (g)',
+            ylab = 'Growth rate',
+            title = 'Klebsiella',
+             add = "reg.line", 
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE) +
+  annotate("text", x = 40, y = 1, label = str_glue("paste(italic(p), \" = {kle_max69_p}\")"), parse = TRUE) +
+  theme_classic() +
+  theme( 
+    plot.background = element_blank(),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    aspect.ratio = 1,
+       axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+    strip.text.x = element_text(size = 8))
+```
 
 

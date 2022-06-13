@@ -1,0 +1,19 @@
+---
+title: "Figure 3 two patients timecouse"
+author: "Angel"
+date: '2022-06-13'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+Now I'm gonna really clean out the scripts that makes the figure 3 timecourse, and also add the egg intake data.
+
+
