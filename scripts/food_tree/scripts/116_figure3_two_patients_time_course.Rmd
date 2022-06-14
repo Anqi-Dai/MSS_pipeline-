@@ -13,9 +13,11 @@ knitr::opts_chunk$set(echo = TRUE)
 axis_text_size <- 11
 axis_title_size <- 11
 plot_ratio <-1.5/2
+shorter_ratio <- 1/2
 library(tidyverse)
 library(ggpubr)
 library(vdbR)
+library(cowplot)
 connect_database('~/dbConfig.txt')
 get_table_from_database('qpcr_16s_ag')
 get_table_from_database('antibiotics_antibacterial_multicenter_ag')
@@ -127,7 +129,7 @@ abx_ent <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yv
        y = '',
        title = 'Antibiotics') + 
   theme_classic() +
-  theme(aspect.ratio=plot_ratio,axis.ticks.y=element_blank(), axis.text.y=element_blank(),line = element_blank(),axis.text=element_blank(),axis.title=element_blank(),plot.title = element_blank(),panel.grid.major.x = element_blank())
+  theme(aspect.ratio=shorter_ratio,axis.ticks.y=element_blank(), axis.text.y=element_blank(),line = element_blank(),axis.text=element_blank(),axis.title=element_blank(),plot.title = element_blank(),panel.grid.major.x = element_blank())
 ```
 
 ## the sweets p11
@@ -164,7 +166,7 @@ sweets_ent <- p11_sweets %>%
        title = '') +
   theme_classic() + 
   ylim(0, max(p11_sweets$sweetsum))+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -205,7 +207,7 @@ fruits_ent <- p11_fruits %>%
        title = '') +
   theme_classic() + 
   ylim(0, max(p11_fruits$fruitsum))+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -246,7 +248,7 @@ eggs_ent <- p11_eggs %>%
        title = '') +
   theme_classic() + 
   ylim(0, max(p11_eggs$eggsum))+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -287,7 +289,7 @@ p11_irep <-  entero_irep_all %>%
        y = 'Enterococcus\ngrowth rate',
        title = '')+
   theme_classic()+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         axis.text=element_text(size=axis_text_size),
@@ -343,7 +345,7 @@ p11_copies <- cts_entero %>%
        y = 'Enterococcus\ncopies X 108/g',
        title = '') +
   theme_classic() +
-  theme(aspect.ratio=plot_ratio,legend.position = 'none',
+  theme(aspect.ratio=shorter_ratio,legend.position = 'none',
         plot.margin = margin(l=-0.8,unit="cm"),
             axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
@@ -386,7 +388,7 @@ abx_kle <- ggplot(kle_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yv
        y = '',
        title = '') + 
   theme_classic() +
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=shorter_ratio,
         axis.ticks.y=element_blank(),
         axis.text.y=element_blank(),
         line = element_blank(),
@@ -430,7 +432,7 @@ sweets_kle <- kle_sweets %>%
        title = '') +
   theme_classic() + 
   ylim(0, max(kle_sweets$sweetsum))+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -469,7 +471,7 @@ fruits_kle <- kle_fruits %>%
        title = '') +
   theme_classic() + 
   ylim(0, max(kle_fruits$fruitsum))+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -509,7 +511,7 @@ eggs_kle <- kle_eggs %>%
        title = '') +
   theme_classic() + 
   ylim(0, max(kle_eggs$eggsum))+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -549,7 +551,7 @@ kle_irep <-  kle_irep_all %>%
        y = 'Klebsiella\ngrowth rate',
        title = '')+
   theme_classic()+
-  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         axis.text=element_text(size=axis_text_size),
@@ -603,7 +605,7 @@ kle_copies <- cts_kle %>%
        y = 'Klebsiella\ncopies X 107/g',
        title = '') +  
   theme_classic() +
-  theme(aspect.ratio=plot_ratio,legend.position = 'none',
+  theme(aspect.ratio=shorter_ratio,legend.position = 'none',
         plot.margin = margin(l=-0.8,unit="cm"),
             axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
@@ -617,6 +619,17 @@ kle_copies
 
 # assemble the figures together
 ```{r}
-
+f3c <- plot_grid(abx_ent, sweets_ent, fruits_ent, p11_irep, p11_copies ,
+                  ncol = 1,axis = 'lbrt', align = 'hv') 
+f3d <- plot_grid(abx_kle, sweets_kle, fruits_kle, kle_irep, kle_copies ,
+                  ncol = 1,axis = 'lbrt', align = 'hv') 
+f3_bottom <- plot_grid(f3c, f3d, ncol = 2)
+ggsave('../figs/paper/116_f3bottom.pdf',
+       width = 200,
+       height = 260,
+         #height = 60,  
+         units = c("mm"),
+         dpi = 400, plot = f3_bottom)
 ```
+
 
