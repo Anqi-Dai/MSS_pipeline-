@@ -96,6 +96,7 @@ lowest_daily_egg_intake <- floor( min(all3$eggdaily))
 # the Enterococcus patient
 
 ## the abx p11
+
 ```{r}
 p11_abx <- antibiotics_antibacterial_multicenter_ag %>% 
   filter(patient_id == ent_pt$mrn ) %>% 
@@ -130,6 +131,7 @@ abx_ent <- ggplot(p11_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yv
 ```
 
 ## the sweets p11
+
 ```{r}
 missing_days_p11 <- missing %>% 
   filter(mrn == ent_pt$mrn & diet_data_status == 'missing' ) %>% 
@@ -174,6 +176,7 @@ sweets_ent
 ```
 
 # the fruits p11
+
 ```{r}
 p11_fruits <- dtb %>%  
   filter(mrn == ent_pt$mrn & fdrt %in% -4:15) %>% 
@@ -214,6 +217,7 @@ fruits_ent
 ```
 
 # the eggs p11
+
 ```{r}
 p11_eggs <- dtb %>%  
   filter(mrn == ent_pt$mrn & fdrt %in% -4:15) %>% 
@@ -227,7 +231,7 @@ p11_eggs <- dtb %>%
   mutate(eggsum = if_else(is.na(eggsum), 0, eggsum)) %>% 
   # there are days that are actually missing
   filter(! fdrt %in% missing_days_p11) %>% 
-  mutate(p_size  = if_else(eggsum > f_q75, 3, 1)) 
+  mutate(p_size  = if_else(eggsum > e_q75, 3, 1)) 
 
 eggs_ent <- p11_eggs %>%    
   ggplot(aes(x = fdrt, y = eggsum )) +
@@ -253,9 +257,8 @@ eggs_ent <- p11_eggs %>%
 eggs_ent 
 ```
 
-
-
 # enterococcus growth rate
+
 ```{r}
 entero_irep_all <- combined %>%  
   filter(str_detect(best_species, 'Enterococcus')) %>% 
@@ -295,6 +298,7 @@ p11_irep
 ```
 
 # enterococcus copy numbers
+
 ```{r}
 
 sam <- samples_castori_ag %>% 
@@ -323,25 +327,296 @@ cts_entero <- cts %>%
   inner_join(ptb %>% 
                select(mrn, hct)) %>% 
   mutate(sdrt = datecollection - hct) %>% 
-  filter(sdrt < 54)
+  filter(sdrt < 54) %>% 
+  mutate(max_pt = if_else(entero_copy == max(cts_entero$entero_copy), T, F))
 
 p11_copies <- cts_entero %>% 
   filter(sdrt %in% -5:15) %>% 
   mutate(entero_copy = entero_copy/1e8) %>% 
   ggplot(aes(x = sdrt, y = entero_copy )) +
-  geom_point() +
   geom_line(aes(x = sdrt, y = entero_copy), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = max_pt, col = max_pt)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
   xlim(xmin, xmax) +
   labs(x = 'Transplant day',
        y = 'Enterococcus\ncopies X 108/g',
        title = '') +
   theme_classic() +
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=plot_ratio,legend.position = 'none',
         plot.margin = margin(l=-0.8,unit="cm"),
             axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
 p11_copies
+```
+
+# kle abx
+
+```{r}
+kle_irep <- combined %>% 
+  filter(mrn == klept$mrn & str_detect(best_species, 'Klebsiella'))
+lowerday <- min(kle_irep$sdrt)
+highday <- max(kle_irep$sdrt)
+xmin <- lowerday - 1 
+xmax <- highday + 1  
+
+kle_abx <- antibiotics_antibacterial_multicenter_ag %>% 
+  filter(patient_id == as.character(klept$mrn) ) %>% 
+  rename(mrn = patient_id) %>% 
+  mutate(mrn = as.numeric(mrn)) %>% 
+  left_join(ptb %>% 
+              select(mrn, hct)) %>% 
+  mutate(startdrt = start - hct,
+         stopdrt = stop - hct) %>% 
+  # only select the days relevant
+  filter(startdrt %in% -2:4) %>% 
+  mutate(drugfull = str_glue('{drug_name_clean} ({route_simple})')) %>% 
+  arrange(startdrt, stopdrt) %>% 
+  mutate(yval = seq(1, nrow(.)))
+  
+abx_kle <- ggplot(kle_abx, aes(x = startdrt, y = yval, xend = stopdrt, yend = yval, label = drugfull )) +
+  geom_segment(
+     size = 2, lineend = 'square', alpha = 0.5
+  ) +
+  geom_text(hjust = 'outside', nudge_y = -0.1, nudge_x = 5, size = 1.3) +
+   xlim(xmin, xmax) +
+  labs(x = '',
+       y = '',
+       title = '') + 
+  theme_classic() +
+  theme(aspect.ratio=plot_ratio,
+        axis.ticks.y=element_blank(),
+        axis.text.y=element_blank(),
+        line = element_blank(),
+        axis.text=element_blank(),
+        axis.title=element_blank(),
+        plot.title = element_blank(),
+        panel.grid.major.x = element_blank())
+abx_kle
+```
+
+# kle sweets
+```{r}
+missing_days_kle <- missing %>% 
+  filter(mrn == klept$mrn & diet_data_status == 'missing' ) %>% 
+  pull(fdrt)
+
+kle_sweets <- dtb %>%  
+  filter(mrn == klept$mrn & fdrt %in% lowerday:highday) %>% 
+  mutate(Food_code = as.character(Food_code) ) %>% 
+  filter(str_detect(Food_code, '^9')) %>% 
+  group_by(fdrt) %>% 
+  summarise(sweetsum = sum(dehydrated_weight)) %>% 
+  full_join(tibble(
+    fdrt = seq(lowerday, highday, 1)
+  )) %>% 
+  mutate(sweetsum = if_else(is.na(sweetsum), 0, sweetsum)) %>% 
+  # there are days that are actually missing
+  filter(! fdrt %in% missing_days_kle) %>% 
+  mutate(p_size  = if_else(sweetsum > s_q75, 3, 1)) 
+
+sweets_kle <- kle_sweets %>%    
+  ggplot(aes(x = fdrt, y = sweetsum )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = s_q25, ymax = s_q75, fill='gray',  alpha=0.3) +
+  geom_line(aes(x = fdrt, y = sweetsum), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = sweetsum > s_q75, col = sweetsum > s_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Sweets(g)',
+       title = '') +
+  theme_classic() + 
+  ylim(0, max(kle_sweets$sweetsum))+
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+sweets_kle 
+```
+
+# kle fruits
+```{r}
+kle_fruits <- dtb %>%  
+  filter(mrn == klept$mrn & fdrt %in% lowerday:highday) %>% 
+  mutate(Food_code = as.character(Food_code) ) %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  group_by(fdrt) %>% 
+  summarise(fruitsum = sum(dehydrated_weight)) %>% 
+  full_join(tibble(
+    fdrt = seq(lowerday, highday, 1)
+  )) %>% 
+  mutate(fruitsum = if_else(is.na(fruitsum), 0, fruitsum)) %>% 
+  filter(! fdrt %in% missing_days_kle) %>% 
+  mutate(p_size  = if_else(fruitsum > f_q75, 3, 1)) 
+
+fruits_kle <- kle_fruits %>%    
+  ggplot(aes(x = fdrt, y = fruitsum )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = f_q25, ymax = f_q75, fill='gray',  alpha=0.3) +
+  geom_line(aes(x = fdrt, y = fruitsum), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = fruitsum > f_q75, col = fruitsum > f_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Fruits(g)',
+       title = '') +
+  theme_classic() + 
+  ylim(0, max(kle_fruits$fruitsum))+
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+fruits_kle 
+```
+
+# kle eggs
+```{r}
+kle_eggs <- dtb %>%  
+  filter(mrn == klept$mrn & fdrt %in% lowerday:highday) %>% 
+  mutate(Food_code = as.character(Food_code) ) %>% 
+  filter(str_detect(Food_code, '^3')) %>% 
+  group_by(fdrt) %>% 
+  summarise(eggsum = sum(dehydrated_weight)) %>% 
+  full_join(tibble(
+    fdrt = seq(lowerday, highday, 1)
+  )) %>% 
+  mutate(eggsum = if_else(is.na(eggsum), 0, eggsum)) %>% 
+  # there are days that are actually missing
+  filter(! fdrt %in% missing_days_p11) %>% 
+  mutate(p_size  = if_else(eggsum > e_q75, 3, 1)) 
+
+eggs_kle <- kle_eggs %>%    
+  ggplot(aes(x = fdrt, y = eggsum )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = e_q25, ymax = e_q75, fill='gray',  alpha=0.3) +
+  geom_line(aes(x = fdrt, y = eggsum), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = eggsum > e_q75, col = eggsum > e_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Eggs(g)',
+       title = '') +
+  theme_classic() + 
+  ylim(0, max(kle_eggs$eggsum))+
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+eggs_kle 
+```
+
+# kle irep
+```{r}
+kle_irep_all <- combined %>%  
+  filter(str_detect(best_species, 'Klebsiella')) %>% 
+  group_by(sampleid, mrn) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(all802 %>% 
+               select(sampleid, sdrt))
+k_irep_q25 <- quantile(x = kle_irep_all$ave_irep, 0.25)
+k_irep_q50 <- quantile(x = kle_irep_all$ave_irep, 0.5)
+k_irep_q75 <- quantile(x = kle_irep_all$ave_irep, 0.75)
+k_irep_highest <- max(kle_irep_all$ave_irep) + 0.05
+
+
+kle_irep <-  kle_irep_all %>% 
+  #filter(sdrt %in% -5:15) %>% 
+  filter(mrn == klept$mrn) %>%
+  ggplot(aes(x = sdrt, y = ave_irep )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = k_irep_q25, ymax = k_irep_q75, fill='gray',  alpha=0.3) +
+  geom_point(aes(size = ave_irep > k_irep_q75, col = ave_irep > k_irep_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  labs(title = str_glue('{}')) +
+  xlim(xmin, xmax) +
+  ylim(1, k_irep_highest) +
+  labs(x = '', 
+       y = 'Klebsiella\ngrowth rate',
+       title = '')+
+  theme_classic()+
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(color = "grey85"))
+kle_irep
+```
+
+# kle copies 
+```{r}
+sam <- samples_castori_ag %>% 
+  filter(mrn %in% klept$mrn) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+
+samps <- samples_castori_ag %>% 
+  filter(mrn %in% klept$mrn) %>% 
+  distinct(sampleid, mrn)
+
+cts <- get_counts_subset(sam)
+
+cts_kle <- cts %>% 
+  left_join(asv_annotation_blast_ag %>% 
+              select(asv_key, genus)) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>% 
+  filter(genus == 'Klebsiella')  %>% 
+  inner_join(updated_qPCR %>% 
+               select(sampleid , copies_16s_per_g)) %>% 
+  mutate(kle_copy = copies_16s_per_g*relab) %>% 
+  inner_join(samples_castori_ag %>% 
+               select(sampleid, datecollection)) %>% 
+  inner_join(samps) %>% 
+  inner_join(ptb %>% 
+               select(mrn, hct)) %>% 
+  mutate(sdrt = datecollection - hct) %>% 
+  mutate(max_pt = if_else(kle_copy == max(cts_kle$kle_copy), T, F))
+ 
+
+kle_copies <- cts_kle %>% 
+  #filter(sdrt %in% -5:15) %>% 
+  mutate(kle_copy = kle_copy/1e7) %>% 
+  ggplot(aes(x = sdrt, y = kle_copy )) +
+  geom_line(aes(x = sdrt, y = kle_copy), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = max_pt, col = max_pt)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  xlim(xmin, xmax) +
+  labs(x = 'Transplant day',
+       y = 'Klebsiella\ncopies X 107/g',
+       title = '') +  
+  theme_classic() +
+  theme(aspect.ratio=plot_ratio,legend.position = 'none',
+        plot.margin = margin(l=-0.8,unit="cm"),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+kle_copies
+
+
+  
+```
+
+# assemble the figures together
+```{r}
+
 ```
 
