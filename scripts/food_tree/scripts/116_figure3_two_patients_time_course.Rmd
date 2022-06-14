@@ -19,6 +19,8 @@ library(vdbR)
 connect_database('~/dbConfig.txt')
 get_table_from_database('qpcr_16s_ag')
 get_table_from_database('antibiotics_antibacterial_multicenter_ag')
+get_table_from_database('samples_castori_ag')
+get_table_from_database('asv_annotation_blast_ag')
 
 updated_qPCR <- qpcr_16s_ag %>%
   rename(sampleid=sample_id,
@@ -45,6 +47,8 @@ klept <- read_csv('../data/095_Klebsiella-patient.csv')
 ent_pt <- read_csv('../data/075_entero_pt.csv')
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+combined <- read_csv('../data/114_combined_irep_650.csv')
+all802 <- read_csv('../data/011_802_total_stool_samples.csv')
 # the table that Peter checked for me the real missing days in the timeline of these two patients
 missing <- read_csv('../data/114_timeline_2_pt_check_missing_6__PP_check.csv')
 
@@ -142,23 +146,23 @@ p11_sweets <- dtb %>%
   )) %>% 
   mutate(sweetsum = if_else(is.na(sweetsum), 0, sweetsum)) %>% 
   # there are days that are actually missing
-  filter(! fdrt %in% missing_days_p11)
-```
+  filter(! fdrt %in% missing_days_p11) %>% 
+  mutate(p_size  = if_else(sweetsum > s_q75, 3, 1)) 
 
-
-```{r}
 sweets_ent <- p11_sweets %>%    
   ggplot(aes(x = fdrt, y = sweetsum )) +
   annotate('rect', xmin = xmin, xmax = xmax, ymin = s_q25, ymax = s_q75, fill='gray',  alpha=0.3) +
-  geom_point(col = 'black') +
   geom_line(aes(x = fdrt, y = sweetsum), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = sweetsum > s_q75, col = sweetsum > s_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
   xlim(xmin, xmax) +
   labs(x = '',
        y = 'Sweets(g)',
        title = '') +
   theme_classic() + 
   ylim(0, max(p11_sweets$sweetsum))+
-  theme(aspect.ratio=plot_ratio,
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
         axis.ticks.x=element_blank(),
         axis.text.x=element_blank(),
         plot.margin = margin(l=-0.8,unit="cm"),
@@ -166,6 +170,178 @@ sweets_ent <- p11_sweets %>%
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         panel.grid.major.x = element_line(colour = "grey85"))
-sweets_ent
+sweets_ent 
+```
+
+# the fruits p11
+```{r}
+p11_fruits <- dtb %>%  
+  filter(mrn == ent_pt$mrn & fdrt %in% -4:15) %>% 
+  mutate(Food_code = as.character(Food_code) ) %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  group_by(fdrt) %>% 
+  summarise(fruitsum = sum(dehydrated_weight)) %>% 
+  full_join(tibble(
+    fdrt = seq(-2, 12, 1)
+  )) %>% 
+  mutate(fruitsum = if_else(is.na(fruitsum), 0, fruitsum)) %>% 
+  # there are days that are actually missing
+  filter(! fdrt %in% missing_days_p11) %>% 
+  mutate(p_size  = if_else(fruitsum > f_q75, 3, 1)) 
+
+fruits_ent <- p11_fruits %>%    
+  ggplot(aes(x = fdrt, y = fruitsum )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = f_q25, ymax = f_q75, fill='gray',  alpha=0.3) +
+  geom_line(aes(x = fdrt, y = fruitsum), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = fruitsum > f_q75, col = fruitsum > f_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Fruits(g)',
+       title = '') +
+  theme_classic() + 
+  ylim(0, max(p11_fruits$fruitsum))+
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+fruits_ent 
+```
+
+# the eggs p11
+```{r}
+p11_eggs <- dtb %>%  
+  filter(mrn == ent_pt$mrn & fdrt %in% -4:15) %>% 
+  mutate(Food_code = as.character(Food_code) ) %>% 
+  filter(str_detect(Food_code, '^3')) %>% 
+  group_by(fdrt) %>% 
+  summarise(eggsum = sum(dehydrated_weight)) %>% 
+  full_join(tibble(
+    fdrt = seq(-2, 12, 1)
+  )) %>% 
+  mutate(eggsum = if_else(is.na(eggsum), 0, eggsum)) %>% 
+  # there are days that are actually missing
+  filter(! fdrt %in% missing_days_p11) %>% 
+  mutate(p_size  = if_else(eggsum > f_q75, 3, 1)) 
+
+eggs_ent <- p11_eggs %>%    
+  ggplot(aes(x = fdrt, y = eggsum )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = e_q25, ymax = e_q75, fill='gray',  alpha=0.3) +
+  geom_line(aes(x = fdrt, y = eggsum), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = eggsum > e_q75, col = eggsum > e_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  xlim(xmin, xmax) +
+  labs(x = '',
+       y = 'Eggs(g)',
+       title = '') +
+  theme_classic() + 
+  ylim(0, max(p11_eggs$eggsum))+
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+        axis.ticks.x=element_blank(),
+        axis.text.x=element_blank(),
+        plot.margin = margin(l=-0.8,unit="cm"),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+eggs_ent 
+```
+
+
+
+# enterococcus growth rate
+```{r}
+entero_irep_all <- combined %>%  
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid, mrn) %>% 
+  summarise(ave_irep = mean(aveirep)) %>% 
+  inner_join(all802 %>% 
+               select(sampleid, sdrt))
+
+e_irep_q25 <- quantile(x = entero_irep_all$ave_irep, 0.25)
+e_irep_q50 <- quantile(x = entero_irep_all$ave_irep, 0.5)
+e_irep_q75 <- quantile(x = entero_irep_all$ave_irep, 0.75)
+irep_highest <- max(entero_irep_all$ave_irep) + 0.05
+
+p11_irep <-  entero_irep_all %>% 
+  filter(sdrt %in% -5:15) %>% 
+  filter(mrn == ent_pt$mrn) %>%
+  ggplot(aes(x = sdrt, y = ave_irep )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = e_irep_q25, ymax = e_irep_q75, fill='gray',  alpha=0.3) +
+  geom_point(aes(size = ave_irep > e_irep_q75, col = ave_irep > e_irep_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  labs(title = str_glue('{}')) +
+  xlim(xmin, xmax) +
+  ylim(1, irep_highest) +
+  labs(x = '', 
+       y = 'Enterococcus\ngrowth rate',
+       title = '')+
+  theme_classic()+
+  theme(aspect.ratio=plot_ratio, legend.position = 'none' ,
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(color = "grey85"))
+p11_irep
+```
+
+# enterococcus copy numbers
+```{r}
+
+sam <- samples_castori_ag %>% 
+  filter(mrn %in% ent_pt$mrn) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+
+samps <- samples_castori_ag %>% 
+  filter(mrn %in% ent_pt$mrn) %>% 
+  distinct(sampleid, mrn)
+
+cts <- get_counts_subset(sam)
+
+cts_entero <- cts %>% 
+  left_join(asv_annotation_blast_ag %>% 
+              select(asv_key, genus)) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>% 
+  filter(genus == 'Enterococcus')  %>% 
+  inner_join(updated_qPCR %>% 
+               select(sampleid , copies_16s_per_g)) %>% 
+  mutate(entero_copy = copies_16s_per_g*relab) %>% 
+  inner_join(samples_castori_ag %>% 
+               select(sampleid, datecollection)) %>% 
+  inner_join(samps) %>% 
+  inner_join(ptb %>% 
+               select(mrn, hct)) %>% 
+  mutate(sdrt = datecollection - hct) %>% 
+  filter(sdrt < 54)
+
+p11_copies <- cts_entero %>% 
+  filter(sdrt %in% -5:15) %>% 
+  mutate(entero_copy = entero_copy/1e8) %>% 
+  ggplot(aes(x = sdrt, y = entero_copy )) +
+  geom_point() +
+  geom_line(aes(x = sdrt, y = entero_copy), linetype = 'solid', size = 0.5, col = 'black') +
+  xlim(xmin, xmax) +
+  labs(x = 'Transplant day',
+       y = 'Enterococcus\ncopies X 108/g',
+       title = '') +
+  theme_classic() +
+  theme(aspect.ratio=plot_ratio,
+        plot.margin = margin(l=-0.8,unit="cm"),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+p11_copies
 ```
 
