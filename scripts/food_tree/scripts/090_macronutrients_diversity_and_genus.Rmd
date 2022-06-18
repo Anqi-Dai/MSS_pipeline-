@@ -21,22 +21,7 @@ rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn)) %>% 
-  mutate(fg_egg = fg_egg/100,
-         fg_fruit = fg_fruit/100,
-         fg_grain = fg_grain/100,
-         fg_legume = fg_legume/100,
-         fg_meat = fg_meat/100,
-         fg_milk = fg_milk/100,
-         fg_oils = fg_oils/100,
-         fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100) 
-
-
-
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') 
 ```
 ```{r}
 cts <- read_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv') %>% 
@@ -74,6 +59,148 @@ gcts <- read_csv('../data/088_genus_relab_log10_wide.csv') %>%
 full <- meta %>% 
   inner_join(gcts)
 ```
+## p2d average in macronutrients
+
+```{r}
+# the daily caloric intake :
+all_daily_pt <- dtb %>%
+  group_by(mrn, fdrt) %>%
+  summarise(total_daily = sum(Calories_kcal))
+
+# the previous two days average for each stool sample
+
+stb_pair <- meta %>%
+  select(mrn, sdrt) %>%
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2)
+
+mean_p2d_cal <-  function(mrn_, p1d_, p2d_){
+  df = all_daily_pt %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_cal = sum(total_daily)/2)
+  return(df)
+}
+
+mean_p2d_df_cal <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_cal(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+```
+
+```{r p2d_nutrients}
+# the daily total of each nutrients
+nutrients <- dtb %>%
+  select(mrn, fdrt, Protein_g:Sugars_g) %>%
+  gather('type','gram', Protein_g:Sugars_g) %>%
+  group_by(mrn, fdrt, type) %>%
+  summarise(total_daily = sum(gram)) %>%
+  split(.$type)
+
+mean_p2d_fiber <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Fibers_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_fiber = sum(total_daily)/2)
+  return(df)
+}
+mean_p2d_carb <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Carbohydrates_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_carb = sum(total_daily)/2)
+  return(df)
+}
+
+mean_p2d_fat <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Fat_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_fat = sum(total_daily)/2)
+  return(df)
+}
+mean_p2d_Protein <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Protein_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_Protein = sum(total_daily)/2)
+  return(df)
+}
+mean_p2d_Sugars <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Sugars_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_Sugars = sum(total_daily)/2)
+  return(df)
+}
+
+mean_p2d_fiber <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_fiber(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_fat <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_fat(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_Protein <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_Protein(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_Sugars <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_Sugars(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_carb <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_carb(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+p2d_diet <- mean_p2d_df_cal %>%
+  full_join(mean_p2d_fiber, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_fat, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_Protein, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_Sugars, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_carb, by = c("sampleid", "mrn"))
+```
+
+
+```{r p2d_nutrients}
+full <- meta %>%
+  full_join(p2d_diet, by = c("sampleid", "mrn")) %>%
+  full_join(gcts, by = "sampleid") %>%
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>%
+  mutate(mrn = factor(mrn)) %>%
+  mutate(ave_fiber = ave_fiber/100,
+         ave_fat = ave_fat/100,
+         ave_Protein = ave_Protein/100,
+         ave_Sugars = ave_Sugars/100,
+         ave_carb = ave_carb/100,
+         ave_cal = ave_cal/1000
+         ) 
+
+full %>%
+  write_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv')
+
+```
+
+
 
 ```{r}
 # the high correlation between fat and protein 
@@ -170,6 +297,10 @@ model_alpha_macro_fat  <- brm( alpha_macro_fat,
 
 post_res <- suppressWarnings(posterior_samples(model_alpha_macro_fat))
 post_res %>%  write_csv('../data/090_model_alpha_macro_fat_post.csv')
+
+prior_df <- prior_draws(model_alpha_macro_fat) 
+prior_df %>% 
+  write_csv('../data/090_model_alpha_macro_fat_prior.csv')
 ```
 
 
@@ -437,14 +568,14 @@ prior_df <- ret_genus_macro_fat %>%
   imap(~ prior_draws(.x) ) %>% 
   bind_rows(.id = 'genus')
 prior_df %>% 
-  write_csv('../data/078_genus_macro_fat_model_prior.csv') 
+  write_csv('../data/090_genus_macro_fat_model_prior.csv') 
 
 post_df <- ret_genus_macro_fat %>% 
   imap(~ (suppressWarnings(posterior_samples(.x))))  %>% 
   bind_rows(.id = 'genus')  
 
 post_df %>% 
-  write_csv('../data/078_genus_macro_fat_model_post.csv')
+  write_csv('../data/090_genus_macro_fat_model_post.csv')
 ```
 
 ```{r}

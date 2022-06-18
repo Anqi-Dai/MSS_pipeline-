@@ -623,7 +623,7 @@ f3c <- plot_grid(abx_ent, sweets_ent, fruits_ent, p11_irep, p11_copies ,
                   ncol = 1,axis = 'lbrt', align = 'hv') 
 f3d <- plot_grid(abx_kle, sweets_kle, fruits_kle, kle_irep, kle_copies ,
                   ncol = 1,axis = 'lbrt', align = 'hv') 
-f3_bottom <- plot_grid(f3c, f3d, ncol = 2)
+f3_bottom <- plot_grid(f3c, f3d, ncol = 2, labels = c('C', 'D'))
 ggsave('../figs/paper/116_f3bottom.pdf',
        width = 200,
        height = 260,

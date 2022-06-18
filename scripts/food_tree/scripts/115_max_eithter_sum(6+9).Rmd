@@ -63,16 +63,26 @@ max69_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   bind_rows(.id = 'sampleid') %>% 
   inner_join(ent)
 
+# the 2 samples left out is because there was no sweets or fruits intake in the previous 2 days
+# need to add them back manually since I don't have a way to do that programmatically
+add2 <- ent %>% 
+  filter(!sampleid %in% max69_p2d_df$sampleid) %>% 
+  mutate(bigger69 = 0) %>% 
+  select(colnames(max69_p2d_df))
+
+max69_p2d_df_all <- bind_rows(max69_p2d_df, add2)
+
+
 # the newer version of fig3 A
-res_ent_max69 <- summary(lm(ave_irep ~ bigger69, data = max69_p2d_df ))
+res_ent_max69 <- summary(lm(ave_irep ~ bigger69, data = max69_p2d_df_all ))
 ent_max69_p <- round(res_ent_max69$coefficients[2, 'Pr(>|t|)'], 2)
 
-max69_p2d_df %>% 
+f3a <- max69_p2d_df_all %>% 
    ggscatter(x = 'bigger69', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
             xlab = 'max(sweets+fruits) in\nprevious 2 days (g)',
             ylab = 'Growth rate',
             title = 'Enterococcus',
-             add = "reg.line", 
+             add = "reg.line",
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE) +
   annotate("text", x = 40, y = 1, label = str_glue("paste(italic(p), \" = {ent_max69_p}\")"), parse = TRUE) +
@@ -86,6 +96,13 @@ max69_p2d_df %>%
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
     strip.text.x = element_text(size = 8))
+
+ggsave('../figs/paper/115_f3a.pdf',
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = f3a)
 ```
 
 ```{r}
@@ -114,7 +131,7 @@ max69_p2d_df_kle <- pmap(stb_pair, function(mrn, p1d, p2d){
 res_kle_max69 <- summary(lm(ave_irep ~ bigger69, data = max69_p2d_df_kle ))
 kle_max69_p <- round(res_kle_max69$coefficients[2, 'Pr(>|t|)'], 2)
 
-max69_p2d_df_kle %>% 
+f3b <-max69_p2d_df_kle %>% 
    ggscatter(x = 'bigger69', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
             xlab = 'max(sweets+fruits) in\nprevious 2 days (g)',
             ylab = 'Growth rate',
@@ -133,6 +150,13 @@ max69_p2d_df_kle %>%
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
     strip.text.x = element_text(size = 8))
+
+ggsave('../figs/paper/115_f3b.pdf',
+       width = 80,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = f3b)
 ```
 
 

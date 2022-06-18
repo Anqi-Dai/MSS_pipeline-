@@ -67,6 +67,12 @@ tb %>%
 #   mutate(gt15 = if_else(iRep > 1.5, T, F)) %>% 
 #   count(gt15) %>% 
 #   mutate(perc = n/sum(n)*100)
+
+tb %>% 
+  ungroup %>% 
+  distinct(
+    Sample
+  )
 ```
 
 
