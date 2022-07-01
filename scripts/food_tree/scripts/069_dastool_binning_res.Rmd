@@ -12,7 +12,6 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-
 ```{r}
 # all the irep values I got
 fns <- list.files('../data/growth/irep/updated_irep/', full.names = T, pattern = '.tsv')

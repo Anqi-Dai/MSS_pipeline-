@@ -1,0 +1,28 @@
+---
+title: "figure out the seres data"
+author: "Angel"
+date: '2022-06-29'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fns <- list.files('~/Desktop/', pattern = '^md5', full.names = T)
+
+files <- fns %>% 
+  set_names(fns) %>% 
+  map_dfr(~ read_delim(., col_names = F, col_select = X3)) %>% 
+  mutate(sampleid = str_replace(X3, '_.+$','')) %>% 
+  distinct(sampleid)
+
+files %>% 
+  write_csv('../data/13_seres_unique_sampleids.csv')
+```
+

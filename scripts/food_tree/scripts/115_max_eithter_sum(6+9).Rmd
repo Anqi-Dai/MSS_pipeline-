@@ -35,13 +35,13 @@ combined <- read_csv('../data/114_combined_irep_650.csv')
 
 ent <- combined %>% 
     filter(str_detect(best_species, 'Enterococcus')) %>% 
-    group_by(sampleid) %>% 
-    summarise(ave_irep = mean(aveirep)) %>% 
+    #group_by(sampleid) %>% 
+    #summarise(ave_irep = mean(aveirep)) %>% 
     mutate(grp = 'Enterococcus only') %>% 
-    inner_join(older802 %>% select(sampleid, mrn, sdrt))
+    left_join(older802 %>% select(sampleid, mrn, sdrt))
 
 
-stb_pair <- ent %>%  
+stb_pair <- combined %>%  
   select(mrn, sdrt) %>% 
   transmute(mrn = mrn,
             p1d = sdrt-1,
@@ -52,16 +52,27 @@ max_p2d_69 <-  function(mrn_, p1d_, p2d_){
     filter(mrn == mrn_) %>% 
     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
     group_by(mrn) %>% 
-    summarise(bigger69 = max(total69, na.rm = T))
+    summarise(bigger69 = max(total69, na.rm = T),
+              bigger6 = max(`6`, na.rm = T),
+              bigger9 = max(`9`, na.rm = T),
+              ave6 = mean(`6`, na.rm = T),
+             ave9 = mean(`9`, na.rm = T),
+             ave69 = mean(total69, na.rm = T))
   return(df)
 }
 
 max69_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
     max_p2d_69(mrn, p1d, p2d)
   }) %>% 
-  set_names(ent %>% pull(sampleid)) %>% 
-  bind_rows(.id = 'sampleid') %>% 
-  inner_join(ent)
+  set_names(combined %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid')
+
+unique_df <- max69_p2d_df %>% 
+  distinct(sampleid, .keep_all = T)
+
+now <- combined %>% 
+  left_join(unique_df) %>% 
+  mutate(bigger69 = if_else(is.na(bigger69), 0,bigger69 ))
 
 # the 2 samples left out is because there was no sweets or fruits intake in the previous 2 days
 # need to add them back manually since I don't have a way to do that programmatically
@@ -74,11 +85,11 @@ max69_p2d_df_all <- bind_rows(max69_p2d_df, add2)
 
 
 # the newer version of fig3 A
-res_ent_max69 <- summary(lm(ave_irep ~ bigger69, data = max69_p2d_df_all ))
+res_ent_max69 <- summary(lm(aveirep ~ bigger69, data = now ))
 ent_max69_p <- round(res_ent_max69$coefficients[2, 'Pr(>|t|)'], 2)
 
-f3a <- max69_p2d_df_all %>% 
-   ggscatter(x = 'bigger69', y = 'ave_irep', alpha = scatter_alpha, shape = 16,
+f3a <- now %>% 
+   ggscatter(x = 'bigger69', y = 'aveirep', alpha = scatter_alpha, shape = 16,
             xlab = 'max(sweets+fruits) in\nprevious 2 days (g)',
             ylab = 'Growth rate',
             title = 'Enterococcus',
@@ -103,6 +114,8 @@ ggsave('../figs/paper/115_f3a.pdf',
          #height = 60,
          units = c("mm"),
          dpi = 400, plot = f3a)
+
+missing <- read_csv('../data/112_has_missing_to_be_removed.csv')
 ```
 
 ```{r}
@@ -157,6 +170,9 @@ ggsave('../figs/paper/115_f3b.pdf',
          #height = 60,
          units = c("mm"),
          dpi = 400, plot = f3b)
+
+combined %>% 
+  distinct(sampleid)
 ```
 
 
