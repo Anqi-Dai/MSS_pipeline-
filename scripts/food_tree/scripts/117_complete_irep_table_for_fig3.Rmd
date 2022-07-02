@@ -9,27 +9,153 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('samples_castori_ag')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+combined <- read_csv('../data/114_combined_irep_915.csv')
+check2 <- read_csv('../data/111_800_stool_samples_check_PAAannotated.csv')
+```
 irep
 stoolsampleid
 strain
 genus
 stoolsampleday
 patientid
-sum_sweets_dminus2,
-sum_fruits_dminus2…(all the other food groups)
-sum_sweets_dminus1…,
-sum_fruits_dminus1…,
-max_sweets_dminus2,
-max_sweets_dminus2,
-daym2_was_complete(as in, all meals confirmed recorded), daym1_was_complete
+----------------------
 
-```{r}
-library(tidyverse)
-```
+-----------------------
+daym2_was_complete(as in, all meals confirmed recorded), 
+daym1_was_complete
 
 ```{r}
 # to find out whether there is indeed no diet data for those 151-123=28 shotgun samples
 # do some spot-check first
+# I found it!!!! actually due to failed join between FMT_0237M and FMT.0237M
+# now this problem has been solved
+irep_portion <- combined %>% 
+  select(sampleid, sdrt, samplebin,  best_species, best_level, iRep,  mrn) %>% 
+  mutate(pid = str_glue('P{as.character(as.numeric(factor(mrn)))}')) %>% 
+  left_join(ptb %>% select(mrn, hct)) %>%
+  mutate(p1d = sdrt -1,
+         p2d = sdrt -2) %>% 
+  mutate(date_p1d = hct + p1d,
+         date_p2d = hct + p2d) %>% 
+  mutate(date_p1d = as.character(date_p1d),
+         date_p2d = as.character(date_p2d)) %>% 
+  mutate(pt_p1date = str_glue('{mrn}__{date_p1d}'),
+         pt_p2date = str_glue('{mrn}__{date_p2d}')) %>% 
+  mutate(p1date_missing = if_else(pt_p1date %in% missing_data_dates , T, F),
+         p2date_missing = if_else( pt_p2date %in% missing_data_dates, T, F)) %>% 
+  select(-hct, -date_p1d, -date_p2d, -pt_p1date, -pt_p2date) %>% 
+  mutate(pt_p1d = str_glue("{mrn}__{p1d}"),
+         pt_p2d = str_glue("{mrn}__{p2d}"))
 
+# double check on whether the missing_date_dates is complete for these irep samples
+length(intersect(irep_portion %>% distinct(mrn) %>% pull(mrn), check2 %>% distinct(mrn) %>% pull(mrn)))
+length(irep_portion %>% distinct(mrn) %>% pull(mrn))
+```
+sum_sweets_dminus2,
+sum_fruits_dminus2…(all the other food groups)
+sum_sweets_dminus1…,
+sum_fruits_dminus1…,
+
+
+max_sweets_dminus2,
+max_sweets_dminus2,
+
+```{r}
+# now finish the diet portion
+# first do the daily sum for each food group for each patient
+daily <- dtb %>% 
+  mutate(Food_code = as.character(Food_code),
+    fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(dailysum = sum(dehydrated_weight)) %>% 
+  left_join(key %>% select(fgrp1, shortname)) %>% 
+  select(-fgrp1) %>% 
+  spread('shortname', 'dailysum' , fill = 0) %>% 
+  mutate(pt_day = str_glue("{mrn}__{fdrt}"))
+
+# find the group sum of the previous two days
+# all the unique pt_p1d 
+all_pt_p1d <- irep_portion %>% 
+  distinct(pt_p1d) %>% 
+  left_join(daily %>% rename(pt_p1d = pt_day)) %>% 
+  rename(p1d_Eggs = Eggs,
+         p1d_Fruits = Fruits,
+         p1d_Grains = Grains,
+         p1d_Legumes = Legumes,
+         p1d_Meats = Meats,
+         p1d_Milk = Milk,
+         p1d_Oils = Oils,
+         p1d_Sweets = Sweets,
+         p1d_Vegetables = Vegetables) %>% 
+  select(-mrn, -fdrt)
+
+# all the unique pt_p2d
+all_pt_p2d <- irep_portion %>% 
+  distinct(pt_p2d) %>% 
+  left_join(daily %>% rename(pt_p2d = pt_day)) %>% 
+  rename(p2d_Eggs = Eggs,
+         p2d_Fruits = Fruits,
+         p2d_Grains = Grains,
+         p2d_Legumes = Legumes,
+         p2d_Meats = Meats,
+         p2d_Milk = Milk,
+         p2d_Oils = Oils,
+         p2d_Sweets = Sweets,
+         p2d_Vegetables = Vegetables) %>% 
+  select(-mrn, -fdrt)
+
+irep_p2dSum <- irep_portion %>% 
+  left_join(all_pt_p1d) %>% 
+  # I double checked the two patient days missing values they did indeed take 0 food.
+  mutate(p1d_Eggs = if_else(p1date_missing == "FALSE" & is.na(p1d_Eggs), 0, p1d_Eggs),
+         p1d_Fruits = if_else(p1date_missing == "FALSE" & is.na(p1d_Fruits), 0, p1d_Fruits),
+         p1d_Grains = if_else(p1date_missing == "FALSE" & is.na(p1d_Grains), 0, p1d_Grains),
+         p1d_Legumes = if_else(p1date_missing == "FALSE" & is.na(p1d_Legumes), 0, p1d_Legumes),
+         p1d_Meats = if_else(p1date_missing == "FALSE" & is.na(p1d_Meats), 0, p1d_Meats),
+         p1d_Milk = if_else(p1date_missing == "FALSE" & is.na(p1d_Milk), 0, p1d_Milk),
+         p1d_Oils = if_else(p1date_missing == "FALSE" & is.na(p1d_Oils), 0, p1d_Oils),
+         p1d_Sweets = if_else(p1date_missing == "FALSE" & is.na(p1d_Sweets), 0, p1d_Sweets),
+         p1d_Vegetables = if_else(p1date_missing == "FALSE" & is.na(p1d_Vegetables), 0, p1d_Vegetables))
+
+```
+```{r}
+# checking the p2d NA values, are they really missing or are they 0
+vetted <- check2 %>% 
+  mutate(mrn = as.numeric(mrn),
+         date = lubridate::mdy(date)) %>% 
+  left_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(fdrt = date - hct) %>% 
+  mutate(fdrt = as.numeric(fdrt),
+         pt_p2d = str_glue("{mrn}__{fdrt}")) %>% 
+  select(pt_p2d, date, diet_data_status) %>% 
+  inner_join(all_pt_p2d %>% filter(is.na(p2d_Eggs)))
+
+actual_0_days <- vetted %>% 
+  filter(diet_data_status == '0') %>% 
+  pull(pt_p2d)
+
+
+irep_p2dSum2 <- irep_p2dSum %>% 
+  left_join(all_pt_p2d, by = "pt_p2d") %>% 
+  # I double checked the two patient days missing values they did indeed take 0 food.
+  mutate(p2d_Eggs = if_else(pt_p2d %in% actual_0_days, 0, p2d_Eggs),
+         p2d_Fruits = if_else(pt_p2d %in% actual_0_days, 0, p2d_Fruits),
+         p2d_Grains = if_else(pt_p2d %in% actual_0_days, 0, p2d_Grains),
+         p2d_Legumes = if_else(pt_p2d %in% actual_0_days, 0, p2d_Legumes),
+         p2d_Meats = if_else(pt_p2d %in% actual_0_days, 0, p2d_Meats),
+         p2d_Milk = if_else(pt_p2d %in% actual_0_days, 0, p2d_Milk),
+         p2d_Oils = if_else(pt_p2d %in% actual_0_days, 0, p2d_Oils),
+         p2d_Sweets = if_else(pt_p2d %in% actual_0_days, 0, p2d_Sweets),
+         p2d_Vegetables = if_else(pt_p2d %in% actual_0_days, 0, p2d_Vegetables))
 ```
 
