@@ -67,8 +67,6 @@ sum_sweets_dminus1…,
 sum_fruits_dminus1…,
 
 
-max_sweets_dminus2,
-max_sweets_dminus2,
 
 ```{r}
 # now finish the diet portion
@@ -157,5 +155,71 @@ irep_p2dSum2 <- irep_p2dSum %>%
          p2d_Oils = if_else(pt_p2d %in% actual_0_days, 0, p2d_Oils),
          p2d_Sweets = if_else(pt_p2d %in% actual_0_days, 0, p2d_Sweets),
          p2d_Vegetables = if_else(pt_p2d %in% actual_0_days, 0, p2d_Vegetables))
+```
+
+max_sweets_dminus2,
+max_sweets_dminus2,
+
+```{r}
+# need to figure out what is the max of each group among the meals on each day 
+by_meal <- dtb %>% 
+  mutate(Food_code = as.character(Food_code),
+      fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  group_by(mrn, fdrt, Meal, fgrp1) %>% 
+  summarise(mealsum = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  left_join(key %>% select(fgrp1, shortname)) %>% 
+  select(-fgrp1) %>% 
+  relocate(shortname, .after = fdrt) %>% 
+  arrange(mrn, fdrt, shortname)  %>% 
+  ungroup() %>% 
+  group_by(mrn, fdrt, shortname) %>% 
+  summarise(max_fg = max(mealsum, na.rm = T)) %>% 
+  mutate(shortname = str_glue('fg_{shortname}')) %>% 
+  spread('shortname', 'max_fg', fill = 0 )  %>% 
+  mutate(pt_day = str_glue("{mrn}__{fdrt}"))
+  
+# max on day -1
+max_pt_p1d <- irep_p2dSum2 %>% 
+  distinct(pt_p1d) %>% 
+  left_join(by_meal %>% rename(pt_p1d = pt_day)) %>% 
+  rename_with( ~ if_else(str_detect(.x, '^fg_'), str_glue('max_p1d_{.x}'), .x)) %>% 
+  select(-mrn, -fdrt)
+
+irep_max1 <- irep_p2dSum2 %>% 
+  left_join(max_pt_p1d) %>% 
+  # I double checked the two patient days missing values they did indeed take 0 food.
+  mutate(max_p1d_fg_Eggs = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Eggs), 0, max_p1d_fg_Eggs),
+         max_p1d_fg_Fruits = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Fruits), 0, max_p1d_fg_Fruits),
+         max_p1d_fg_Grains = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Grains), 0, max_p1d_fg_Grains),
+         max_p1d_fg_Legumes = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Legumes), 0, max_p1d_fg_Legumes),
+         max_p1d_fg_Meats = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Meats), 0, max_p1d_fg_Meats),
+         max_p1d_fg_Milk = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Milk), 0, max_p1d_fg_Milk),
+         max_p1d_fg_Oils = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Oils), 0, max_p1d_fg_Oils),
+         max_p1d_fg_Sweets = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Sweets), 0, max_p1d_fg_Sweets),
+         max_p1d_fg_Vegetables = if_else(p1date_missing == "FALSE" & is.na(max_p1d_fg_Vegetables), 0, max_p1d_fg_Vegetables))
+
+# max on day -2
+max_pt_p2d <- irep_p2dSum2 %>% 
+  distinct(pt_p2d) %>% 
+  left_join(by_meal %>% rename(pt_p2d = pt_day)) %>% 
+  rename_with( ~ if_else(str_detect(.x, '^fg_'), str_glue('max_p2d_{.x}'), .x)) %>% 
+  select(-mrn, -fdrt)
+
+irep_max2 <- irep_max1 %>% 
+  left_join(max_pt_p2d, by = "pt_p2d") %>% 
+  # I double checked the two patient days missing values they did indeed take 0 food.
+  mutate(max_p2d_fg_Eggs = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Eggs),
+         max_p2d_fg_Fruits = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Fruits),
+         max_p2d_fg_Grains = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Grains),
+         max_p2d_fg_Legumes = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Legumes),
+         max_p2d_fg_Meats = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Meats),
+         max_p2d_fg_Milk = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Milk),
+         max_p2d_fg_Oils = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Oils),
+         max_p2d_fg_Sweets = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Sweets),
+         max_p2d_fg_Vegetables = if_else(pt_p2d %in% actual_0_days, 0, max_p2d_fg_Vegetables)) %>% 
+  select(-mrn, -pt_p1d, -pt_p2d)
+
+irep_max2 %>% write_csv('../data/117_irep_full_table.csv')
 ```
 
