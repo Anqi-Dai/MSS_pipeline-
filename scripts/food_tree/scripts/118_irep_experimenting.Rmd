@@ -1,0 +1,286 @@
+---
+title: "Experimenting with my newly sorted out irep tables"
+author: "Angel"
+date: '2022-07-06'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(lmerTest)
+```
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+meta %>% distinct(sampleid)
+older802 <- read_csv('../data/011_802_total_stool_samples.csv')
+df %>% distinct(sampleid)
+length(intersect(older802 %>% distinct(sampleid) %>% pull(sampleid), df %>% distinct(sampleid)%>% pull(sampleid)))
+df <- read_csv('../data/117_irep_full_table.csv') %>% 
+  left_join(older802 %>% select(sampleid, intensity, empirical))
+# how many values are for enterococcus
+df %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  # summarizing the diet data in various ways
+  filter(!is.na(p1d_Fruits) & !is.na(p1d_Sweets) & !is.na(p2d_Sweets)  & !is.na(p2d_Fruits) ) %>% 
+  mutate(sum2_69 = p1d_Fruits + p1d_Sweets + p2d_Fruits + p2d_Sweets,
+         sum2_6 = p1d_Fruits +  p2d_Fruits ,
+         sum2_9 =  p1d_Sweets + p2d_Sweets) %>% 
+   ggscatter(x = 'sum2_9', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE) 
+colnames(df)
+```
+
+```{r}
+# maybe do the sum of previous two days in each group and then use lme to model it?
+tb <- df %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  # summarizing the diet data in various ways
+  filter(p1date_missing == 'FALSE' & p2date_missing == 'FALSE' ) %>% 
+  mutate(sum2_69 = p1d_Fruits + p1d_Sweets + p2d_Fruits + p2d_Sweets,
+         sum2_fruit = p1d_Fruits +  p2d_Fruits ,
+         sum2_sweet =  p1d_Sweets + p2d_Sweets,
+         sum2_egg = p1d_Eggs +  p2d_Eggs ,
+         sum2_oil = p1d_Oils +  p2d_Oils ,
+         sum2_grain = p1d_Grains +  p2d_Grains ,
+         sum2_veggie = p1d_Vegetables +  p2d_Vegetables ,
+         sum2_legume = p1d_Legumes +  p2d_Legumes ,
+         sum2_milk = p1d_Milk +  p2d_Milk ,
+         sum2_meat = p1d_Meats +  p2d_Meats,
+         p1d_69 = p1d_Fruits + p1d_Sweets,
+         p2d_69 = p2d_Fruits + p2d_Sweets,
+         max_d_69 = pmax(p1d_69, p2d_69))%>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left'))
+colnames(tb)
+
+mod_e <-  lmer(iRep ~ 
+              sum2_fruit+
+               sum2_sweet+
+               sum2_egg+
+               sum2_oil+
+                sum2_grain+ 
+                sum2_veggie+
+                sum2_meat+
+                sum2_legume+
+                sum2_milk+
+               intensity +
+                empirical +
+                (1 | timebin)  +
+               (1 | pid), REML = F, data = tb )
+summary(mod_e)
+```
+
+```{r}
+# maybe do a scatter plot just to see the data first
+for_scatter <- tb %>% 
+  select(sampleid, sdrt, best_species, iRep, pid, starts_with('sum2')) %>% 
+  gather('grp','gram', sum2_fruit:sum2_meat)
+for_scatter %>% 
+   ggscatter(x = 'gram', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)  +
+  facet_wrap(~ grp, scales = 'free')
+# why is the egg intake negatively associated with the enterococcus irep
+
+tb %>% 
+  count(sampleid, best_species, sort = T)
+
+# what about the p1d only
+p1d_s <- df %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  # summarizing the diet data in various ways
+  filter(p1date_missing == 'FALSE'  ) %>% 
+  select(sampleid, sdrt, best_species, iRep, pid, intensity, empirical, starts_with('p1d')) %>% 
+  gather('grp','gram', p1d_Eggs:p1d_Vegetables)
+
+# fruits sig with enterococcus
+p1d_s %>% 
+  ggscatter(x = 'gram', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)  +
+  facet_wrap(~ grp, scales = 'free')
+
+
+
+# what about the p2d only
+p2d_s <- df %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  # summarizing the diet data in various ways
+  filter(p2date_missing == 'FALSE'  ) %>% 
+  select(sampleid, sdrt, best_species, iRep, pid, starts_with('p2d')) %>% 
+  gather('grp','gram', p2d_Eggs:p2d_Vegetables)
+
+p2d_s %>% 
+  ggscatter(x = 'gram', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)  +
+  facet_wrap(~ grp, scales = 'free')
+```
+
+
+```{r}
+# what is happening with the negative association with the eggs?
+p1deggs <- p1d_s %>% 
+  filter(grp == 'p1d_Eggs')
+p1deggs %>% 
+  ggscatter(x = 'gram', y = 'iRep', alpha = 0.4, shape = 16,label = 'sampleid',repel = T,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)
+
+tb %>% 
+  ggscatter(x = 'p1d_69', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)
+# I think the sweets isn't have much of a association with irep that is why the p value is not reaching significant
+
+# try the max of the sum of 6 and 9 on the p2 days
+tb %>% 
+  ggscatter(x = 'max_d_69', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)
+
+
+p1d_df <- p1d_s %>% 
+  spread('grp', 'gram')  %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left'))
+
+mod_p1d <-  lmer(iRep ~ 
+              p1d_Eggs+
+               p1d_Fruits+
+               p1d_Grains+
+               p1d_Legumes+
+                p1d_Meats+ 
+                p1d_Milk+
+                p1d_Oils+
+                p1d_Sweets+
+                p1d_Vegetables+
+                intensity +
+                empirical +
+                (1 | timebin)  +
+               (1 | pid) , REML = F, data = p1d_df )
+summary(mod_p1d)
+
+# current finding : if scatter plot simple spearman correlation the fruit positive  with enterococcus irep
+# if lme the egg negative wtih entercoccus irep
+
+```
+
+```{r}
+# what can I do with the max of the three meals on the p1d and p2d
+colnames(df)
+
+
+# what about the p1d only
+p1d_max <- df %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  # summarizing the diet data in various ways
+  filter(p1date_missing == 'FALSE'  ) %>% 
+  select(sampleid, sdrt, best_species, iRep, pid, intensity, empirical, starts_with('max_p1d')) %>% 
+  gather('grp','gram', max_p1d_fg_Eggs:max_p1d_fg_Vegetables)
+
+# fruits sig with enterococcus
+p1d_max %>% 
+  ggscatter(x = 'gram', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)  +
+  facet_wrap(~ grp, scales = 'free')
+
+
+
+p1d_df_max <- p1d_max %>% 
+  spread('grp', 'gram')  %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left'))
+
+mod_p1d_max <-  lmer(iRep ~ 
+              max_p1d_fg_Eggs+
+               max_p1d_fg_Fruits+
+               max_p1d_fg_Grains+
+               max_p1d_fg_Legumes+
+                max_p1d_fg_Meats+ 
+                max_p1d_fg_Milk+
+                max_p1d_fg_Oils+
+                max_p1d_fg_Sweets+
+                max_p1d_fg_Vegetables+
+                intensity +
+                empirical +
+                (1 | timebin)  +
+               (1 | pid) , REML = F, data = p1d_df_max )
+summary(mod_p1d_max)
+
+
+# what about the p2d only
+p2d_max <- df %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  # summarizing the diet data in various ways
+  filter(p2date_missing == 'FALSE'  ) %>% 
+  select(sampleid, sdrt, best_species, iRep, pid, intensity, empirical, starts_with('max_p2d')) %>% 
+  gather('grp','gram', max_p2d_fg_Eggs:max_p2d_fg_Vegetables)
+
+# fruits sig with enterococcus
+p2d_max %>% 
+  ggscatter(x = 'gram', y = 'iRep', alpha = 0.4, shape = 16,
+            xlab = '',
+            ylab = 'Growth rate',
+            title = 'Enterococcus',
+             add = "reg.line",  # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n"),
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE)  +
+  facet_wrap(~ grp, scales = 'free')
+```
+
