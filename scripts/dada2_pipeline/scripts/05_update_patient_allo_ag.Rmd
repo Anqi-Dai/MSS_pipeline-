@@ -18,5 +18,80 @@ get_table_from_database('patient_allo_ag')
 
 ```{r}
 new <- read_csv('../data/complete_yearly_pull_data_2022-05-12.csv')
+colnames(new)
+new %>% 
+  count(icu)
+# icu whether they were addmitted to the icu druing admission 
+new %>% 
+  count(icu_days)
+```
+```{r}
+setdiff( colnames(patient_allo_ag), colnames(new))
+patient_allo_ag %>% select(starts_with('gvhd')) %>% filter(!is.na(gvhd_ppx)) %>% glimpse()
+# what is the difference betweem gvhd_prophylaxis, gvhd_ppx and gvhd_ppx_group_molly? should we keep all of them
+patient_allo_ag %>% 
+  count(gvhd_type)
+# what's with the Overlap Syndrome
+```
+
+
+```{r}
+colnames(patient_allo_ag)
+patient_allo_ag %>% select(gvhd:overall_agvhd) %>% glimpse()
+patient_allo_ag$start == patient_allo_ag$admit
+patient_allo_ag %>% 
+  mutate(stay = as.numeric(discharge - start)) %>% 
+  mutate(same = if_else(stay == los, T, F)) %>% 
+  count(same)
+
+
+patient_allo_ag %>% 
+  count(source)
+
+new %>% count(type)
+# allo and cord belong to the patient allo ag
+# auto belong to auto 
+# admit means admission to the hospital , start the date when they wer admitted to the BMT
+# los is the time difference between discharge and start
+```
+
+
+```{r}
+length(intersect(colnames(patient_allo_ag), colnames(new)))
+setdiff(colnames(new), colnames(patient_allo_ag))
+new %>% 
+  select(starts_with('d100')) %>% 
+  glimpse
+setdiff( colnames(patient_allo_ag), colnames(new))
+patient_allo_ag %>% count(staging_system)
+patient_allo_ag %>% 
+  mutate()
+# older 
+# assessment_period :  0-100 days
+# length of stay : 
+# earlier to thru 2019: staging is IBMTR
+new %>% 
+  filter(!is.na(d100_przepiorka_highest_overall_grade))
+
+
+# a_gvhd : all of them acute gvhd? # do we keep the gvhd type column
+``` 
+
+
+```{r}
+# transplant_id the order for different transplants for same patient
+# race_dscrp, ethnicity   new 
+new %>% summary
+new %>% count(days_per_reason)
+# older tt_anc_500 == newer time_aneut_500
+patient_allo_ag %>% count(tt_anc_500)
+patient_allo_ag %>% count(anc_500)
+new %>% count(status)
+new %>% count(given_gvhd_prophy)
+# new <- rename(new, tt_anc_500 = time_aneut_500, anc_500 = aneut_500_date, tt_plt_20 = time_unvplt_20, plt_20 = unvplt_20_date)
+# get rid of "days_per_reason"
+# newer given_gvhd_prophy == older gvhd_prophylaxis
+# newer status == older vital_status
+
 ```
 
