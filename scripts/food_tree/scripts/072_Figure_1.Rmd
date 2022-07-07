@@ -49,6 +49,11 @@ The first 2 need to be redo, since the data has been updated.
 ```{r load_table}
 dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+
+# how many days of data among all of the patients?
+dtb %>% count(mrn,  fdrt) %>% 
+  count(mrn) %>% 
+  summarise(total_days = sum(n))
 ```
 
 

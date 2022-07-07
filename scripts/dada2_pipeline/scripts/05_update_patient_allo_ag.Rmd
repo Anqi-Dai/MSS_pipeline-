@@ -1,0 +1,22 @@
+---
+title: "Look at the patient allo ag table"
+author: "Angel"
+date: '2022-07-07'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('patient_allo_ag')
+```
+
+```{r}
+new <- read_csv('../data/complete_yearly_pull_data_2022-05-12.csv')
+```
+

@@ -603,7 +603,7 @@ valid_interval_perc <- ret_genus_macro_fat %>%
 ```
 
 ```{r}
-post_df <- read_csv('../data/078_genus_macro_fat_model_post.csv', col_select = c('genus','b_ave_fiber','b_ave_fat','b_ave_Sugars'))
+post_df <- read_csv('../data/090_genus_macro_fat_model_post.csv', col_select = c('genus','b_ave_fiber','b_ave_fat','b_ave_Sugars'))
   
 post_res_genera <- post_df %>% 
   select(genus, starts_with('b_ave')) %>% 
@@ -696,7 +696,7 @@ coeff_bi %>%
 ```{r}
 # the factor variables for the genus macro fat
 # doesn't need to include the intensity ones since they are the intercepts
-post_df <- read_csv('../data/078_genus_macro_fat_model_post.csv', col_select = c('genus', 'b_ENTRUE', 'b_TPNTRUE', 'b_empiricalTRUE'))
+post_df <- read_csv('../data/090_genus_macro_fat_model_post.csv', col_select = c('genus', 'b_ENTRUE', 'b_TPNTRUE', 'b_empiricalTRUE'))
 
 post_bi_res <- post_df %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 

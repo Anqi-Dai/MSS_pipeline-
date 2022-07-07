@@ -143,3 +143,26 @@ missing %>%
 get_counts_subset(c('ENG1080.2.4M'))
 ```
 
+```{r}
+# pool 1137 for Urvi
+alpha <- asv_alpha_diversity_ag %>% 
+  filter(uploaded_date == '2022-07-07') %>% 
+  select(sampleid:shannon)
+
+cts <- get_counts_subset(alpha$sampleid) %>% 
+  select(asv_key:count_total, count_relative)
+
+taxa <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  select(asv_key:blast_pass)
+
+list(alpha = alpha,
+     counts = cts,
+     taxa = taxa) %>% 
+  imap(function(.x, .y){
+    write_csv(.x, str_glue('../data/pool1137_Urvi_ASV_{.y}.csv'))
+  })
+
+cts %>% distinct(sampleid)
+```
+

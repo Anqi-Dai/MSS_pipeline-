@@ -40,21 +40,15 @@ genus
 ```{r}
 macro <- plot_grid(  alpha, genus,
                   nrow = 2,  
-                  rel_heights  = c(1, 2), 
+                  rel_heights  = c(1, 1), 
                   align = 'v', axis = 'tblr')
 
 ggsave('../figs/paper/S3_macronutrients_alpha_and_genus_093.pdf',
-        width = 240,
+        width = 260,
        height = 350,
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'pdf')
 
-ggsave('../figs/paper/S3_macronutrients_alpha_and_genus_093.jpg',
-        width = 240,
-       height = 350,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'jpg') 
 ```
 
