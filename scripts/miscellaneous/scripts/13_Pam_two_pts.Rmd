@@ -1,0 +1,139 @@
+---
+title: "For Pamela the two CART patients"
+author: "Angel"
+date: '2022-07-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This script is for Pamela that to show the alpha diversity and composition of two CART patients and the relab of several genera
+
+```{r}
+library(vdbR)
+connect_database()
+library(tidyverse)
+library(ggpubr)
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_annotation_blast_color_ag')
+```
+```{r}
+# the alpha diversity
+alpha <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% c('1964A','1943B'))
+```
+
+```{r}
+# the composition of the two samples 
+counts_data <- get_counts_subset(c('1964A','1943B'))
+
+dat <- counts_data %>% 
+  select(asv_key:count_total, count_relative) %>% 
+  left_join(asv_annotation_blast_color_ag %>% 
+              select(asv_key,color_label_group_distinct), by = "asv_key") %>% 
+  left_join(alpha %>% select(sampleid, simpson_reciprocal)) %>% 
+  mutate(simpson_reciprocal = round(simpson_reciprocal, digits = 1),
+         xlabel = str_glue('{sampleid}\ndiversity:{simpson_reciprocal}'))  %>% 
+  mutate(xlabel = factor(xlabel, levels = c('1964A\ndiversity:14.8','1943B\ndiversity:2.7')))
+```
+
+```{r}
+asv_color_set <- asv_annotation_blast_color_ag %>% 
+  distinct(color,color_label_group_distinct,color_label_group,color_base) %>% 
+  select(color_label_group_distinct, color) %>% 
+  deframe()
+
+cbd <- compute_beta_diversity_and_tsne(sampleid = dat$sampleid, 
+                                      taxonomy = dat$color_label_group_distinct,
+                                      count = dat$count);
+#compute beta diversity
+cbd$compute_beta_diversity()
+```
+
+
+```{r}
+stacked_bar <- ggplot(dat,aes(xlabel, count_relative, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  theme_classic() +
+  labs(title = '',
+       x = '',
+       y = 'Relative abundance') +
+  theme(
+        legend.position = "none") +
+  scale_fill_manual(values = asv_color_set)
+
+stacked_bar
+```
+
+
+```{r}
+library(cowplot)
+p <- '../data/composition_legend.png'
+legend <- ggdraw() +
+  draw_image(magick::image_read(p),   scale = 0.9) 
+legend 
+
+
+top <- plot_grid(stacked_bar, legend,rel_widths  = c(1, 2) )
+
+ggsave('../data/13_bar.pdf',
+       width = 190,
+       height = 80,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = top)  
+```
+```{r}
+# what are the others 
+dat %>% 
+  filter(str_detect(color_label_group_distinct, 'other')) %>% 
+  left_join(asv_annotation_blast_ag %>% select(asv_key, genus)) %>% 
+  filter(sampleid == '1943B') %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>% 
+  arrange(-relab) %>% 
+  write_csv('../data/13_other_genera.csv')
+```
+
+
+
+```{r}
+# to get the color of the three genera
+colors <- asv_color_set %>% 
+  filter(str_detect(color_label_group_distinct, 'Enterococcus|Actinobacteria|Ruminoco')) %>% 
+  mutate(taxa = str_replace(color_label_group_distinct, '\\..+$','')) %>% 
+  group_by(taxa) %>% 
+  sample_n(size = 1, replace = F) %>% 
+  ungroup() %>% 
+  mutate(genus = c('Ruminococcus','Enterococcus','Bifidobacterium'))
+
+# to get the relab of those genera: Akkermansia, Bifidobacterium, Burkholderia, Collinsella, Enterococcus, Ruminococcus
+genera <- counts_data %>% 
+  select(asv_key:count_total, count_relative) %>% 
+  left_join(asv_annotation_blast_ag %>% 
+              select(asv_key,genus), by = "asv_key") %>% 
+  filter(genus %in% c('Akkermansia','Bifidobacterium','Burkholderia','Collinsella','Enterococcus','Ruminococcus')) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab =  sum(count_relative)) %>% 
+  left_join(colors %>% select(genus, color)) %>% 
+  mutate(genus = fct_reorder(genus, relab, .fun=max, .desc = T)) %>% 
+  mutate(sampleid = factor(sampleid, levels = c('1964A','1943B')))
+
+colors_pal <- genera %>% 
+  ungroup() %>% 
+  distinct(genus, color) %>% 
+  deframe()
+
+genera %>% 
+  ggbarplot(y = 'relab', x = 'sampleid', facet.by = 'genus', fill = 'genus', color = 'genus',
+            ylab = 'Relative abundance') +
+  scale_fill_manual(values = colors_pal) +
+  scale_color_manual(values = colors_pal)
+
+ggsave('../data/13_genus.pdf', height = 3, width = 5)
+```
+
+
