@@ -27,8 +27,8 @@ new %>%
 ```
 ```{r}
 setdiff( colnames(patient_allo_ag), colnames(new))
-patient_allo_ag %>% select(starts_with('gvhd')) %>% filter(!is.na(gvhd_ppx)) %>% glimpse()
-# what is the difference betweem gvhd_prophylaxis, gvhd_ppx and gvhd_ppx_group_molly? should we keep all of them
+patient_allo_ag %>% select(starts_with('gvhd')) %>% filter(!is.na(gvhd_ppx)) %>%  select(-gvhd, -gvhd_type) %>% glimpse()
+# what is the difference between gvhd_prophylaxis, gvhd_ppx and gvhd_ppx_group_molly? should we keep all of them
 patient_allo_ag %>% 
   count(gvhd_type)
 # what's with the Overlap Syndrome
@@ -48,7 +48,7 @@ patient_allo_ag %>%
 patient_allo_ag %>% 
   count(source)
 
-new %>% count(type)
+patient_allo_ag %>% count(gvhd_type)
 # allo and cord belong to the patient allo ag
 # auto belong to auto 
 # admit means admission to the hospital , start the date when they wer admitted to the BMT
@@ -63,9 +63,10 @@ new %>%
   select(starts_with('d100')) %>% 
   glimpse
 setdiff( colnames(patient_allo_ag), colnames(new))
-patient_allo_ag %>% count(staging_system)
-patient_allo_ag %>% 
-  mutate()
+new %>% 
+  filter(type != 'auto') %>% 
+  count(d100_a_gvhd)
+
 # older 
 # assessment_period :  0-100 days
 # length of stay : 

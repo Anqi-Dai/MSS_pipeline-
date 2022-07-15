@@ -14,6 +14,7 @@ library(ggbeeswarm)
 
 ```{r}
 combined <- read_csv('../data/growth/069_irep_combined_res.csv')
+combined <- read_csv('../data/114_combined_irep_915.csv')
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
   select(fg = fg1_name,shortname )
@@ -41,25 +42,18 @@ genus_combined <- combined %>%
   # remove the genus as singletons
   filter(n > 1) %>% 
   mutate(xlabel = str_glue('{cleaned_genus} ({n})')) %>% 
-  mutate(xlabel = fct_reorder(xlabel, aveirep, .fun=median, .desc = T))
+  mutate(xlabel = fct_reorder(xlabel, iRep, .fun=median, .desc = T))
 ```
 
 
 ```{r}
-
+# plot in a horizontal way
 genus_combined %>% 
   ungroup() %>% 
-  ggboxplot(x = 'xlabel', y = 'aveirep', add = 'jitter',xlab = 'Genus',
-            ylab = 'Average irep value',
-            add.params = list(alpha = 0.4, size = 2, shape = 16)
-            #add.params = list(alpha = 0.5)
-           ) +
-  theme(
-     axis.text.x = element_text(angle=270, hjust=1),
-     axis.title.y = element_text(angle = 270)
-  )
+  ggboxplot(x = 'xlabel', y = 'iRep', orientation = "horizontal",add = 'jitter',xlab = 'Genus',
+            add.params = list(alpha = 0.4, size = 2, shape = 16))
  
-ggsave('../figs/paper/S10_genus_irep_histogram_106.pdf', width = 320, height = 120, units = 'mm', dpi = 400)
-ggsave('../figs/paper/S10_genus_irep_histogram_106.jpg', width = 320, height = 120, units = 'mm', dpi = 400)
+ggsave('../figs/paper/S11_genus_irep_boxplot_106.pdf', width = 150, height = 220, units = 'mm', dpi = 400)
+ggsave('../figs/paper/S11_genus_irep_boxplot_106.jpg', width = 150, height = 220, units = 'mm', dpi = 400)
 ```
 

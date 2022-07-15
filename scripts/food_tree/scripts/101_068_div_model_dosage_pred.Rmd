@@ -77,6 +77,8 @@ q80_fg <- meta %>%
   select(starts_with('fg')) %>% 
   summarise_all(funs(quantile(., probs = c( 0.8)))) 
 
+meta %>% 
+  summary
 ```
 ```{r}
 # when the intake is max
@@ -715,11 +717,21 @@ two_diff_plot <-  two_diff %>%
 
 two_diff_plot %>% write_rds('../data/101_f2d_diversity_pred_two_diff.rds')
 
-# median of the sweets red line
+# ave of the sweets red line
 two_diff %>% 
   filter(term %in% c('fg_sweets')) %>% 
   gather('grp', 'post_diff', diff_max_ave:diff_min_ave) %>% 
   filter(grp == 'diff_max_ave') %>% 
   summarise(ave_sweets = mean(post_diff))
+
+two_diff %>% 
+  group_by(term) %>% summarise(ave = mean(diff_max_ave))
+
+meta %>% summary
+
+two_diff %>% 
+  group_by(term) %>% 
+  count(diff_max_ave < 0) %>% 
+  mutate(perc = n/4000*100)
 ```
 

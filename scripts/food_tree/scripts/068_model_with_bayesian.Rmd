@@ -323,6 +323,10 @@ post_coeff %>%
   group_by(item) %>% 
   summarise(q50 = median(coeff))
 
+post_coeff %>% 
+  group_by(item) %>% 
+  summarise(ave = mean(coeff))
+
 post_coeff %>%  
   filter(item == 'fruit') %>% 
   count(coeff < 0) %>% 
@@ -395,5 +399,11 @@ diversity_factor <- coeff_bi %>%
 
 diversity_factor %>% 
   write_rds('../data/068_diversity_factor_forest.rds')
+
+coeff_bi %>% 
+  filter(item == 'b_ENTRUE') %>% 
+  count(coeff < 0) %>% 
+  mutate(perc = n / sum(n)*100)
+
 ```
 

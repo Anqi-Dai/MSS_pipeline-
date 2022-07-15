@@ -19,8 +19,8 @@ library(lmerTest)
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 meta %>% distinct(sampleid)
 older802 <- read_csv('../data/011_802_total_stool_samples.csv')
-df %>% distinct(sampleid)
-length(intersect(older802 %>% distinct(sampleid) %>% pull(sampleid), df %>% distinct(sampleid)%>% pull(sampleid)))
+
+#length(intersect(older802 %>% distinct(sampleid) %>% pull(sampleid), df %>% distinct(sampleid)%>% pull(sampleid)))
 df <- read_csv('../data/117_irep_full_table.csv') %>% 
   left_join(older802 %>% select(sampleid, intensity, empirical))
 # how many values are for enterococcus
@@ -77,7 +77,7 @@ mod_e <-  lmer(iRep ~
                 sum2_milk+
                intensity +
                 empirical +
-                (1 | timebin)  +
+               # (1 | timebin)  +
                (1 | pid), REML = F, data = tb )
 summary(mod_e)
 ```
@@ -204,7 +204,7 @@ mod_p1d <-  lmer(iRep ~
                 p1d_Vegetables+
                 intensity +
                 empirical +
-                (1 | timebin)  +
+               # (1 | timebin)  +
                (1 | pid) , REML = F, data = p1d_df )
 summary(mod_p1d)
 

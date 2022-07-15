@@ -407,6 +407,12 @@ macronutrients_alpha_factor %>%
 coeff_bi %>% 
   group_by(item) %>% 
   median_qi(coeff, .width = c(.66, .95)) 
+
+# find the perc of EN < 0
+coeff_bi %>% 
+  filter(item == 'b_ENTRUE') %>% 
+  count(coeff < 0) %>% 
+  mutate(perc = n / sum(n)*100)
 ```
 
 
@@ -625,6 +631,10 @@ post_res_genera <- post_df %>%
   mutate(item = str_replace(item, 'b_ave_','')) %>% 
   mutate(item = str_to_title(item)) %>% 
   mutate(item = if_else(item == 'Fiber', 'Fibers', item))
+
+post_df %>% 
+  group_by(genus) %>% 
+  median_qi(b_ave_Sugars, .width = c(.66, .95)) 
 ```
 ```{r}
 # trying to order the rows and the columns by similarity in euclidean distances
