@@ -1,0 +1,90 @@
+---
+title: "the egg experiment"
+author: "Angel"
+date: '2022-07-18'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+How many grams of eggs did it take in the analysis to see a measurable “effect” on Enterococcus. we are trying to pick a dose of eggs to feed the mice. One option is an amount isocaloric to the amount of smoothie we put in. Another approach would be to approximate the amount of eggs it took to see an effect in a 70kg person and translate that to 20g mouse.
+
+```{r}
+# I could do something similar to the dosage thing in diversity and the three food groups
+# only eggs and the enterococcus
+post_coeffs <- read_csv('../data/087_Enterococcus_model_fg_post.csv')
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100)
+
+mean_fg <-  meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean))
+```
+
+
+```{r}
+# find out a series of values for different amounts of egg consumption
+eggs <- meta %>% 
+  select(fg_egg) %>% 
+  summarise_all(funs(mean, max, min)) 
+
+eggs_quantiles <- meta %>% 
+  select(fg_egg) %>% 
+  summarise_all(funs( quantile(., probs = seq(0.1, 0.95, 0.05))))  %>% 
+  mutate(quants = seq(0.1, 0.95, 0.05)) %>% 
+  mutate(quants = str_glue('q{quants}')) %>% 
+  spread('quants', 'fg_egg')
+
+eggs_ <- bind_cols(eggs, eggs_quantiles)  %>%
+  as.list()
+
+dose_pred_eggs  <- eggs_ %>% 
+  map(function(val) {
+    res =
+   post_coeffs$b_fg_egg * val +
+   post_coeffs$b_fg_fruit * mean_fg$fg_fruit +
+   post_coeffs$b_fg_grain * mean_fg$fg_grain +
+   post_coeffs$b_fg_legume * mean_fg$fg_legume +
+   post_coeffs$b_fg_meat * mean_fg$fg_meat +
+   post_coeffs$b_fg_milk * mean_fg$fg_milk+
+   post_coeffs$b_fg_oils * mean_fg$fg_oils +
+   post_coeffs$b_fg_sweets * mean_fg$fg_sweets +
+   post_coeffs$b_fg_veggie * mean_fg$fg_veggie +
+   post_coeffs$b_intensityreduced 
+  }) %>% 
+  bind_rows()
+
+others <- dose_pred_eggs %>% 
+  select(-mean) %>% 
+  as.list()
+
+diffs <- others %>% 
+  map(function(column){
+    10^(column) - 10^(dose_pred_eggs$mean)
+  }) %>% bind_rows() %>% 
+  gather
+
+# plotting
+diffs %>% 
+  ggboxplot(x = 'value', y = 'key')
+```
+
