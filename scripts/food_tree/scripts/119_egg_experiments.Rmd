@@ -77,14 +77,31 @@ others <- dose_pred_eggs %>%
   select(-mean) %>% 
   as.list()
 
+eggs_quants <- meta %>% 
+  select(fg_egg) %>% 
+  summarise_all(funs( quantile(., probs = c(0, seq(0.1, 1, 0.05)))))  %>% 
+  mutate(quants = c(0, seq(0.1, 1, 0.05))) %>% 
+  mutate(fg_egg = round(fg_egg *100, 1)) %>% 
+  mutate(quants = str_glue('q{quants}')) %>% 
+  mutate(fg_egg = str_glue('{fg_egg}g'))
+
 diffs <- others %>% 
   map(function(column){
     10^(column) - 10^(dose_pred_eggs$mean)
   }) %>% bind_rows() %>% 
-  gather
+  gather %>% 
+  mutate(key = if_else(key == 'max', 'q1', key),
+         key = if_else(key == 'min', 'q0', key)) %>% 
+  left_join(eggs_quants %>% rename(key = quants)) %>% 
+  mutate(xlabel = str_glue('{key}({fg_egg})'))
 
 # plotting
 diffs %>% 
-  ggboxplot(x = 'value', y = 'key')
+  ggboxplot(x = 'xlabel', y = 'value', orientation = 'horizontal', xlab = 'different levels of egg intake in the previous two days',
+            ylab = 'predicted change in Enterococcus relab when eating different quantiles of eggs\ncompared to avg egg intake(the other food group kept at the avg)') 
+
+ggsave('../data/119_egg_enter_pred.png', width = 10)
+
+
 ```
 

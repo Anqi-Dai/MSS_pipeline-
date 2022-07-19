@@ -31,7 +31,7 @@ daily <- dtb %>%
   spread('fgrp1', 'dailysum', fill = 0) %>% 
   mutate(total69 = `6` + `9`)
 
-combined <- read_csv('../data/114_combined_irep_650.csv')
+combined <- read_csv('../data/114_combined_irep_915.csv')
 
 ent <- combined %>% 
     filter(str_detect(best_species, 'Enterococcus')) %>% 
@@ -41,7 +41,7 @@ ent <- combined %>%
     left_join(older802 %>% select(sampleid, mrn, sdrt))
 
 
-stb_pair <- combined %>%  
+stb_pair <- ent %>%  
   select(mrn, sdrt) %>% 
   transmute(mrn = mrn,
             p1d = sdrt-1,
@@ -52,21 +52,19 @@ max_p2d_69 <-  function(mrn_, p1d_, p2d_){
     filter(mrn == mrn_) %>% 
     filter(fdrt %in% c(p1d_, p2d_  )) %>% 
     group_by(mrn) %>% 
-    summarise(bigger69 = max(total69, na.rm = T),
-              bigger6 = max(`6`, na.rm = T),
-              bigger9 = max(`9`, na.rm = T),
-              ave6 = mean(`6`, na.rm = T),
-             ave9 = mean(`9`, na.rm = T),
-             ave69 = mean(total69, na.rm = T))
+    summarise(bigger69 = max(total69, na.rm = T))
   return(df)
 }
 
 max69_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
     max_p2d_69(mrn, p1d, p2d)
   }) %>% 
-  set_names(combined %>% pull(sampleid)) %>% 
+  set_names(ent %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid')
+```
 
+
+```{r}
 unique_df <- max69_p2d_df %>% 
   distinct(sampleid, .keep_all = T)
 
@@ -81,15 +79,18 @@ add2 <- ent %>%
   mutate(bigger69 = 0) %>% 
   select(colnames(max69_p2d_df))
 
-max69_p2d_df_all <- bind_rows(max69_p2d_df, add2)
+max69_p2d_df_all <- bind_rows(max69_p2d_df, add2) %>% distinct()
 
+# get the irep value back in
+both <- ent %>% 
+  left_join(max69_p2d_df_all)
 
 # the newer version of fig3 A
-res_ent_max69 <- summary(lm(aveirep ~ bigger69, data = now ))
+res_ent_max69 <- summary(lm(iRep ~ bigger69, data = both ))
 ent_max69_p <- round(res_ent_max69$coefficients[2, 'Pr(>|t|)'], 2)
 
-f3a <- now %>% 
-   ggscatter(x = 'bigger69', y = 'aveirep', alpha = scatter_alpha, shape = 16,
+f3a <- both %>% 
+   ggscatter(x = 'bigger69', y = 'iRep', alpha = scatter_alpha, shape = 16,
             xlab = 'max(sweets+fruits) in\nprevious 2 days (g)',
             ylab = 'Growth rate',
             title = 'Enterococcus',
