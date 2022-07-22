@@ -1,0 +1,145 @@
+---
+title: "Corncob tutorial"
+author: "Angel"
+date: '2022-07-19'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(corncob)
+library(tidyverse)
+library(vdbR)
+connect_database()
+list_table_from_database('blast')
+get_table_from_database('asv_annotation_blast_ag')
+```
+
+# the corncob 
+
+```{r}
+# it seems the 16s data will work better in this case
+# use the 16s data instead
+pheno <- readxl::read_excel('../data/05_meta_with_alpha.xlsx') %>% 
+  filter(day == 'D7')
+
+cts <- get_counts_subset(pheno$sampleid)
+
+keepasv <- cts %>% 
+  filter(count_relative > 0.0001) %>% 
+  count(asv_key) %>% 
+  filter(n > floor(nrow(pheno) * 0.2)) %>% 
+  pull(asv_key)
+
+ctsfil <- cts %>% 
+  filter(asv_key %in% keepasv) %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread('sampleid','count', fill = 0) %>% 
+  column_to_rownames('asv_key')
+
+# I think I need to build a phyloseq object for this
+all.equal(pheno$sampleid, colnames(ctsfil))
+
+taxa <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% rownames(ctsfil)) %>% 
+  arrange(asv_key) %>% 
+  select(asv_key, kingdom:species) %>% 
+  column_to_rownames('asv_key') %>% 
+  as.matrix()
+
+#all.equal(taxa$asv_key, rownames(ctsfil))
+
+sampledata <- pheno %>% 
+  column_to_rownames('sampleid') %>% 
+  mutate(grp = factor(grp, levels = c('BM','BMT')))
+
+samples = sample_data(sampledata)
+
+# assemble a phyloseq object
+library("phyloseq")
+OTU = otu_table(ctsfil, taxa_are_rows = T)
+TAX = tax_table(taxa)
+
+physeq = phyloseq(OTU, TAX, samples)
+
+```
+
+
+```{r}
+set.seed(1)
+da_analysis <- differentialTest(formula = ~ grp,
+phi.formula = ~ grp,
+formula_null = ~ 1,
+phi.formula_null = ~ grp,
+test = "Wald", boot = FALSE,
+data = physeq,
+fdr_cutoff = 0.25)
+
+da_analysis$significant_taxa
+otu_to_taxonomy(OTU=da_analysis$significant_taxa,data=physeq)
+```
+
+```{r}
+set.seed(1)
+dv_analysis <- differentialTest(formula = ~ grp,
+phi.formula = ~ grp,
+formula_null = ~ 1,
+phi.formula_null = ~ grp,
+test = "LRT", boot = FALSE,
+data = physeq,
+fdr_cutoff = 0.25)
+dv_analysis$significant_taxa
+
+otu_to_taxonomy(OTU=dv_analysis$significant_taxa,data=physeq)
+dv_analysis$all_models
+```
+
+# the Maaslin2
+
+```{r}
+library(Maaslin2)
+ctsfil_relab <- cts %>% 
+  filter(asv_key %in% keepasv) %>% 
+  select(asv_key, sampleid, count_relative) %>% 
+  spread('asv_key','count_relative', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+all.equal(rownames(sampledata), rownames(ctsfil_relab))
+
+fit_data <- Maaslin2(
+    input_data = ctsfil_relab, 
+    input_metadata = sampledata, 
+    #normalization = "NONE",
+    min_abundance = 0.0,
+    min_prevalence = 0.0,
+    output = "../data/output_16s-maslin", 
+    fixed_effects = c("grp"),
+    reference = c("grp,BM"))
+
+sig <- read_tsv('../data/output_16s-maslin/significant_results.tsv')
+length(intersect(sig$feature,da_analysis$significant_taxa ))
+```
+
+```{r}
+# generate binning_input.txt
+new <- tibble(
+  fn = list.files('/Volumes/vandenbm/Project_13141', recursive = T)
+) %>% 
+  filter(str_detect(fn,'gz$')) %>% 
+  transmute(sampleid = str_extract(fn , 'Sample.+IGO')) %>% 
+  mutate(sampleid = str_replace(sampleid, '/.+$','')) %>% 
+  distinct() %>% 
+  mutate(sampleid = str_glue('{sampleid}__concat'),
+         contig = str_glue('/home/daia1/my_workdir/samples/growthrate/assembly/02_assembly/02_metaspades/{sampleid}/contigs_trim.fasta'),
+         R1=str_glue('/lila/data/brinkvd/daia1/samples/growthrate/preprocessing/01_processing/05_sync/{sampleid}_1.fq.gz'),
+         R2=str_glue('/lila/data/brinkvd/daia1/samples/growthrate/preprocessing/01_processing/05_sync/{sampleid}_2.fq.gz')
+         ) %>% 
+  mutate(col3 = str_glue('{R1},{R2}')) %>% 
+  select(-R1, -R2)
+new %>% 
+  write_tsv('../data/binning_input.txt', col_names = F)
+```
+

@@ -1,0 +1,32 @@
+---
+title: "change user to superuser"
+author: "Angel"
+date: '2022-07-19'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(RPostgres)
+pFile <- read.table("~/dbConfig.txt", header = TRUE, sep = ",", colClasses = "character")
+#drv <- dbDriver("PostgreSQL")
+con <- dbConnect(RPostgres::Postgres(),
+                 dbname = "microbiome",
+                   host = "plvglover1.mskcc.org", port = 5432,
+                   user = pFile$user, password = pFile$pass)
+dbListTables(con)
+res <- dbSendQuery(con, "SELECT * FROM information_schema.table_privileges WHERE grantee = 'sadeghik' LIMIT 5;")
+library(vdbR)
+connect_database()
+get_table_from_database('test9')
+```
+```{sql, connection=con}
+ALTER USER sadeghik WITH SUPERUSER;
+```
+
+```{sql, connection=con}
+SELECT * FROM information_schema.table_privileges LIMIT 50;
+```

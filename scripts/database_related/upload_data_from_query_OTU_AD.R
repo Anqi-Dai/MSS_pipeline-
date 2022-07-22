@@ -407,6 +407,17 @@ upload_data_from_query_OTU <- function(query_number, ...){
     
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
+  
+  if(query_number==12){
+    table_name = "test9";
+    
+    d_set_input = read_csv("test.csv")
+    
+    d_set=data.frame(id=d_set_input$id,
+                     value=d_set_input$value);
+    
+    update_data_from_query_OTU_check_and_submission(table_name, d_set);
+  }
 }
 
 # 4-29-2022

@@ -6,8 +6,17 @@
 #
 #The default annotation for fields that refer to foreign keys is the `FOREIGNTABLENAME` + `_key` `FOREIGNTABLENAME_key`.
 
+library(RPostgres)
+pFile <- read.table("~/dbConfig.txt", header = TRUE, sep = ",", colClasses = "character")
+#drv <- dbDriver("PostgreSQL")
+con <- dbConnect(RPostgres::Postgres(),
+                 dbname = "microbiome",
+                 host = "plvglover1.mskcc.org", port = 5432,
+                 user = pFile$user, password = pFile$pass)
 
-source('/Users/daia1/pipeline/scripts/database_related/db_connect.R'); #Initialize connection.
+
+
+source('db_connect.R'); #Initialize connection.
 
 
 check_column_exists <- function(connection, table, column) {
@@ -269,6 +278,19 @@ create_table_type <- function(query_type, ...){
     
     create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
   }
+  
+  if(query_type==10){
+    table_name = "test9";
+    
+    table_fields=c("id","value");
+    
+    field_type=c("integer","text");
+    
+    
+    unique_set = c("id");
+    
+    create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
+  }
 }
 #### !!!!! all characters will be converted to non captital letters 
 
@@ -356,3 +378,8 @@ create_table_prepare <- function(d_set_input){
   
 }
 
+library(tidyverse)
+tibble(id = seq(1,3), value = c('a','b','c')) %>% write_csv('test.csv')
+d_set_input <- read_csv('test.csv')
+create_table_prepare(d_set_input)
+create_table_type(10)
