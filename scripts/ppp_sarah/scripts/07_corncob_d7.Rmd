@@ -1,24 +1,29 @@
 ---
-title: "Corncob tutorial"
-author: "Angel"
-date: '2022-07-19'
-output: html_document
+title: "Mouse D7 DE analysis"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F)
 ```
 
 ```{r}
 library(corncob)
 library(tidyverse)
 library(vdbR)
+library("phyloseq")
 connect_database()
-list_table_from_database('blast')
 get_table_from_database('asv_annotation_blast_ag')
+
 ```
 
-# the corncob 
+# Corncob 
 
 ```{r}
 # it seems the 16s data will work better in this case
@@ -59,7 +64,7 @@ sampledata <- pheno %>%
 samples = sample_data(sampledata)
 
 # assemble a phyloseq object
-library("phyloseq")
+
 OTU = otu_table(ctsfil, taxa_are_rows = T)
 TAX = tax_table(taxa)
 
@@ -69,35 +74,21 @@ physeq = phyloseq(OTU, TAX, samples)
 
 
 ```{r}
+# You may see NAs in the model summary because Wald testing is invalid.
+#Likelihood ratio testing can be used, but valid standard errors cannot be calculated.
 set.seed(1)
-da_analysis <- differentialTest(formula = ~ grp,
-phi.formula = ~ grp,
-formula_null = ~ 1,
-phi.formula_null = ~ grp,
-test = "Wald", boot = FALSE,
-data = physeq,
-fdr_cutoff = 0.25)
-
-da_analysis$significant_taxa
-otu_to_taxonomy(OTU=da_analysis$significant_taxa,data=physeq)
+dv_analysis <- differentialTest(
+  formula = ~ grp,
+  phi.formula = ~ grp,
+  formula_null = ~ 1,
+  phi.formula_null = ~ grp,
+  test = "LRT", boot = FALSE,
+  data = physeq,
+  fdr_cutoff = 0.25) 
 ```
 
-```{r}
-set.seed(1)
-dv_analysis <- differentialTest(formula = ~ grp,
-phi.formula = ~ grp,
-formula_null = ~ 1,
-phi.formula_null = ~ grp,
-test = "LRT", boot = FALSE,
-data = physeq,
-fdr_cutoff = 0.25)
-dv_analysis$significant_taxa
 
-otu_to_taxonomy(OTU=dv_analysis$significant_taxa,data=physeq)
-dv_analysis$all_models
-```
-
-# the Maaslin2
+# Maaslin2
 
 ```{r}
 library(Maaslin2)
@@ -112,34 +103,95 @@ all.equal(rownames(sampledata), rownames(ctsfil_relab))
 fit_data <- Maaslin2(
     input_data = ctsfil_relab, 
     input_metadata = sampledata, 
-    #normalization = "NONE",
-    min_abundance = 0.0,
-    min_prevalence = 0.0,
+    normalization = "TSS",
+    min_abundance = 0.0,# has already filtered 
+    min_prevalence = 0.0,# has already filtered 
+    max_significance = 0.25,
     output = "../data/output_16s-maslin", 
     fixed_effects = c("grp"),
     reference = c("grp,BM"))
 
 sig <- read_tsv('../data/output_16s-maslin/significant_results.tsv')
-length(intersect(sig$feature,da_analysis$significant_taxa ))
+
+```
+
+# metagenomeseq
+
+```{r}
+library(metagenomeSeq)
+cts_ <- cts %>% 
+  select(asv_key, sampleid, count) %>% 
+  spread('sampleid','count', fill = 0) %>% 
+  column_to_rownames('asv_key')
+
+pheno_data <- pheno %>% 
+  column_to_rownames('sampleid') %>% 
+  mutate(grp = factor(grp, levels = c('BM','BMT')))
+  
+all.equal(colnames(cts_) , pheno$sampleid)
+
+taxa <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% rownames(cts_)) %>% 
+  arrange(asv_key) %>% 
+  select(asv_key, kingdom:species) %>% 
+  column_to_rownames('asv_key') 
+
+all.equal(rownames(cts_) , rownames(taxa))
+
+# assemble the object for metagenomeSeq
+OTUdata <- AnnotatedDataFrame(taxa)
+phenotypeData <- AnnotatedDataFrame(pheno_data)
+
+d7 <- newMRexperiment(cts_,phenoData=phenotypeData,featureData=OTUdata)
+
+p = cumNormStatFast(d7)
 ```
 
 ```{r}
-# generate binning_input.txt
-new <- tibble(
-  fn = list.files('/Volumes/vandenbm/Project_13141', recursive = T)
-) %>% 
-  filter(str_detect(fn,'gz$')) %>% 
-  transmute(sampleid = str_extract(fn , 'Sample.+IGO')) %>% 
-  mutate(sampleid = str_replace(sampleid, '/.+$','')) %>% 
-  distinct() %>% 
-  mutate(sampleid = str_glue('{sampleid}__concat'),
-         contig = str_glue('/home/daia1/my_workdir/samples/growthrate/assembly/02_assembly/02_metaspades/{sampleid}/contigs_trim.fasta'),
-         R1=str_glue('/lila/data/brinkvd/daia1/samples/growthrate/preprocessing/01_processing/05_sync/{sampleid}_1.fq.gz'),
-         R2=str_glue('/lila/data/brinkvd/daia1/samples/growthrate/preprocessing/01_processing/05_sync/{sampleid}_2.fq.gz')
-         ) %>% 
-  mutate(col3 = str_glue('{R1},{R2}')) %>% 
-  select(-R1, -R2)
-new %>% 
-  write_tsv('../data/binning_input.txt', col_names = F)
+d7 = filterData(d7, present = 2, depth = 1) 
+d7 <- cumNorm(d7, p = p) 
+pd <- pData(d7) 
+mod <- model.matrix(~1 + grp, data = pd) 
+d7_res = fitFeatureModel(d7, mod) 
+
+
+whole <- tibble(asv_key = d7_res@taxa,
+                pval = d7_res@pvalues) %>% 
+  mutate(padj = p.adjust(pval, method = 'BH'))
+q0.25_res <- whole %>% 
+  filter(padj < 0.25)
+
+```
+# Three tools comparison
+
+```{r}
+library(ggvenn)
+res_list <- list(metagenomeSeq = q0.25_res$asv_key,
+                 MaAsLin2 = sig$feature,
+                 Corncob = dv_analysis$significant_taxa)
+
+ggvenn(res_list, show_percentage = F)
+```
+```{r}
+# what is the taxa annotation for the shared 18 ASV
+all3 <- intersect(intersect(q0.25_res$asv_key,sig$feature), dv_analysis$significant_taxa)
+
+all3_taxa <- taxa %>% 
+  filter(rownames(.) %in% all3) %>% 
+  rownames_to_column('asv_key')
+
+# plot the boxplot relab of those asv
+ctsfil_relab %>% 
+  rownames_to_column('sampleid') %>% 
+  gather('asv_key', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  filter(asv_key %in% all3) %>% 
+  left_join(pheno %>% select(sampleid, grp)) %>% 
+  left_join(all3_taxa %>% select(asv_key, genus, species)) %>% 
+  split(.$species) %>% 
+  imap(function(df_, Name_) {
+    ggpubr::ggboxplot(data = df_,x = 'grp', y ='relab',  add = 'jitter',
+                      title = Name_,
+                    add.params = list(color = 'forestgreen', alpha = 0.5, size = 3, shape = 16))
+  })
 ```
 
