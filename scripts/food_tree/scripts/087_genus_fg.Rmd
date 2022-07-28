@@ -30,6 +30,8 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
          fg_veggie = fg_veggie/100) 
 axis_text_size <- 7
 axis_title_size <- 7
+
+
 ```
 
 # The food group predictors with genus as the outcome
@@ -63,6 +65,102 @@ target_genera <-  cts %>%
   mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
   filter(perc > 10) %>% 
   pull(genus) 
+```
+
+```{r}
+# please add to S8 klebsiella and other major enterobacteriaceae (e.g. top 5 enterobacteriaceae genera) 
+# to find out what genera are in enterobacteriaceae
+library(vdbR)
+connect_database()
+get_table_from_database('asv_annotation_blast_ag')
+topn <- asv_annotation_blast_ag %>% 
+  filter(family == 'Enterobacteriaceae') %>% 
+  distinct(genus)
+
+topn_cts <- cts %>% 
+  filter(genus %in% topn$genus)
+```
+
+
+```{r}
+thre <- seq(0.0001, 0.001, 0.0001)
+thre %>% 
+  set_names(thre) %>% 
+  map_dfr(function(num){
+    topn_cts %>% 
+    group_by(genus) %>% 
+    count(relab > num) %>% 
+    rename(criteria = names(.)[2]) %>% 
+    filter(criteria == 'TRUE') %>% 
+    arrange(-n) %>% 
+    filter(genus != 'NA') %>% 
+    mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+    filter(perc > 2) %>% 
+      nrow
+  }) %>% 
+  gather('thre', 'num')
+
+# the selected genus in Enterobacteriaceae
+selected_Enterobacteriaceae <-  topn_cts %>% 
+  group_by(genus) %>% 
+  count(relab > 1e-04) %>% 
+  rename(criteria = names(.)[2]) %>% 
+  filter(criteria == 'TRUE') %>% 
+  arrange(-n) %>% 
+  filter(genus != 'NA') %>% 
+  mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+  filter(perc > 2) %>% 
+  pull(genus)
+
+extra <- read_csv('../data/088_genus_relab_log10_wide.csv') %>% 
+  select(sampleid, all_of(selected_Enterobacteriaceae))
+
+extra_full <- meta %>% 
+  inner_join(extra)
+```
+
+```{r}
+ret_genus_extra <- selected_Enterobacteriaceae %>% 
+  set_names(selected_Enterobacteriaceae) %>% 
+  purrr::map(function(genus) {
+    mod =  brm( as.formula(str_glue('{genus}  ~ 
+               0 +
+                fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               intensity +
+                empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)')),  
+                data = extra_full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = ncores, 
+              chains = 2, 
+              control = list(adapt_delta = 0.99),
+              seed = 456, sample_prior = T) 
+  })
+
+prior_df <- ret_genus_extra %>% 
+  imap(~ prior_draws(.x) ) %>% 
+  bind_rows(.id = 'genus')
+prior_df %>% 
+  write_csv('../data/087_genus_foodgroup_model_prior_extra_few.csv')
+
+
+post_df <- ret_genus_extra %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) ))  %>% 
+  bind_rows(.id = 'genus')  
+post_df %>% 
+  write_csv('../data/087_genus_foodgroup_model_post_extra_few.csv')
 ```
 
 ```{r}
@@ -175,9 +273,12 @@ valid_interval_perc <- ret_genus %>%
 
 ```{r}
 post_df <- read_csv('../data/087_genus_foodgroup_model_post.csv', col_select = c(1:10))
+post_extra <- read_csv('../data/087_genus_foodgroup_model_post_extra_few.csv', col_select = c(1:10))
+
+post_all <- bind_rows(post_df, post_extra)
 
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
-post_res_genera <- post_df %>% 
+post_res_genera <- post_all %>% 
   select(genus, starts_with('b_fg')) %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   group_by(genus, item) %>% 
@@ -240,8 +341,11 @@ genus_fg_main
 ```{r}
 # the factors for the genus-fg
 post_df <- read_csv('../data/087_genus_foodgroup_model_post.csv', col_select = c(1, 14:16))
+post_extra <- read_csv('../data/087_genus_foodgroup_model_post_extra_few.csv', col_select = c(1, 14:16))
 
-post_bi_res <- post_df %>% 
+post_all <- bind_rows(post_df, post_extra)
+
+post_bi_res <- post_all %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   group_by(genus, item) %>% 
   summarise(q50 = median(coeff),

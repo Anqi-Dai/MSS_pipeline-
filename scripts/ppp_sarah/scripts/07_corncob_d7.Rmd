@@ -20,7 +20,7 @@ library(vdbR)
 library("phyloseq")
 connect_database()
 get_table_from_database('asv_annotation_blast_ag')
-
+get_table_from_database('shotgun_lookup_ad')
 ```
 
 # Corncob 
@@ -119,6 +119,7 @@ sig <- read_tsv('../data/output_16s-maslin/significant_results.tsv')
 
 ```{r}
 library(metagenomeSeq)
+data("mouseData")
 cts_ <- cts %>% 
   select(asv_key, sampleid, count) %>% 
   spread('sampleid','count', fill = 0) %>% 
