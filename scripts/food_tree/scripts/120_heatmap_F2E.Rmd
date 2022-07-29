@@ -1,0 +1,107 @@
+---
+title: "F2E heatmap panel"
+author: "Angel"
+date: "2022-07-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggpubr)
+library(tidyverse)
+axis_title_size <- 7
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+```
+
+Make a small heatmap panel for the F2E with the 5 genera in enterobacteri and Enterococcus
+
+```{r}
+# import the model post results
+entero <- read_csv('../data/087_Enterococcus_model_fg_post.csv') %>% 
+  mutate(genus = 'Enterococcus') %>% 
+  relocate(genus, .before = b_fg_fruit)
+extra5 <- read_csv('../data/087_genus_foodgroup_model_post_extra_few.csv')
+
+post <- bind_rows(entero, extra5) %>% 
+  select(genus, starts_with('b_fg')) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)])
+
+
+post_res_genera <- post %>% 
+  group_by(genus, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+  mutate(item = str_to_title(item)) %>% 
+  mutate(item = str_replace(item, 'B_','')) %>% 
+  left_join(key %>% select(item = fg1_name, shortname))
+
+```
+
+How about I scale the percentage of the interval that is on eather side of 0 to different shades of blue/red
+
+```{r}
+# calculate the percentage of interval that is >|< 0 for each genus/food combo
+perc_side <- post %>% 
+  group_by(genus,item ) %>% 
+  count(coeff >= 0) %>% 
+  mutate(perc = round(n/4000, 2)) %>% 
+  mutate(side = if_else(`coeff >= 0` == 'TRUE', 'positive', 'negative')) %>% 
+  ungroup() %>% 
+  select(genus, item, perc, side) %>% 
+  spread('side', 'perc') %>% 
+  mutate(item = str_replace(item, 'b_','')) %>% 
+  left_join(key %>% select(item = fg1_name, shortname), by = "item")
+
+perc_mat <- perc_side %>% 
+  select(genus, shortname, positive) %>% 
+  mutate(genus = factor(genus, levels = c('Enterococcus','Klebsiella','Cronobacter','Enterobacter','Citrobacter','Cedecea','Escherichia'))) %>% 
+  mutate(shortname = factor(shortname, levels = c('Oils','Eggs','Legumes','Milk','Grains','Meats','Vegetables','Sweets','Fruits'))) %>% 
+  spread('genus', 'positive') %>% 
+  column_to_rownames('shortname') %>% 
+  as.matrix()
+
+```
+
+```{r}
+library(pheatmap)
+
+colGradient <- function( cols, length, cmax=255 )
+{ ramp <- colorRamp(cols)
+  rgb( ramp(seq(0,1,length=length)), max=cmax )
+}
+
+bwrPalette <- colGradient(c("blue","white","red"),length=11) # this is the scale of the score
+
+pheatmap(
+  perc_mat,
+  color=bwrPalette, 
+  #annotation_col = annot,
+  show_rownames = TRUE,
+  show_colnames = TRUE,
+  filename = '../data/120_perc_heatmap.tiff',
+  height = 5,
+  width = 5,
+  cluster_cols = F,
+  cluster_rows = F,
+  display_numbers = T
+  #cluster_rows =F,
+  #cluster_cols=F
+)
+
+```
+
