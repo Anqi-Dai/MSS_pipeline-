@@ -12,7 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(ggpubr)
 library(tidyverse)
-axis_title_size <- 7
+axis_title_size <- 8
+axis_text_size <- 8
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 ```
 
@@ -52,7 +53,7 @@ post_res_genera <- post %>%
 
 ```
 
-How about I scale the percentage of the interval that is on eather side of 0 to different shades of blue/red
+How about I scale the percentage of the interval that is on eather side of 0 to different shades of blue/red; making all numbers with magnitudes less than .75 white. and it just makes it easier to see what’s important with the asterisks as in the supporting figure.
 
 ```{r}
 # calculate the percentage of interval that is >|< 0 for each genus/food combo
@@ -65,43 +66,38 @@ perc_side <- post %>%
   select(genus, item, perc, side) %>% 
   spread('side', 'perc') %>% 
   mutate(item = str_replace(item, 'b_','')) %>% 
-  left_join(key %>% select(item = fg1_name, shortname), by = "item")
-
-perc_mat <- perc_side %>% 
-  select(genus, shortname, positive) %>% 
+  left_join(key %>% select(item = fg1_name, shortname), by = "item") %>%
+  mutate(color = if_else(positive >= 0.75, 'maroon', if_else(negative >= 0.75, 'steelblue', 'white'))) %>% 
+  mutate(mark = if_else(negative >= 0.99 | positive >= 0.99, '***', if_else(negative >= 0.975 | positive >= 0.975, '**', if_else(negative >= 0.95 | positive >= 0.95, '*', '')))) %>% 
   mutate(genus = factor(genus, levels = c('Enterococcus','Klebsiella','Cronobacter','Enterobacter','Citrobacter','Cedecea','Escherichia'))) %>% 
-  mutate(shortname = factor(shortname, levels = c('Oils','Eggs','Legumes','Milk','Grains','Meats','Vegetables','Sweets','Fruits'))) %>% 
-  spread('genus', 'positive') %>% 
-  column_to_rownames('shortname') %>% 
-  as.matrix()
+  mutate(shortname = factor(shortname, levels = rev(c('Oils','Eggs','Legumes','Milk','Grains','Meats','Vegetables','Sweets','Fruits')))) 
+
 
 ```
 
 ```{r}
-library(pheatmap)
+col_key <- perc_side %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key
 
-colGradient <- function( cols, length, cmax=255 )
-{ ramp <- colorRamp(cols)
-  rgb( ramp(seq(0,1,length=length)), max=cmax )
-}
-
-bwrPalette <- colGradient(c("blue","white","red"),length=11) # this is the scale of the score
-
-pheatmap(
-  perc_mat,
-  color=bwrPalette, 
-  #annotation_col = annot,
-  show_rownames = TRUE,
-  show_colnames = TRUE,
-  filename = '../data/120_perc_heatmap.tiff',
-  height = 5,
-  width = 5,
-  cluster_cols = F,
-  cluster_rows = F,
-  display_numbers = T
-  #cluster_rows =F,
-  #cluster_cols=F
-)
-
+genus_fg_extra <- ggplot(perc_side, aes(x = genus, y = shortname)) +
+  geom_tile(aes(fill = color,  x = genus, y =  shortname), alpha = 0.5, color='gray0', width=1, height=1) +
+  geom_text(aes(label = mark, x = genus,y =  shortname),
+            nudge_y = -0.05, nudge_x = 0,size = 3) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_void() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, size=axis_text_size),
+        axis.text.y=element_text(size=axis_text_size, hjust=0.95,vjust=0.2),
+        axis.title=element_text(size=axis_title_size),
+        legend.position = 'none',legend.text=element_text(size=8),
+        legend.key = element_rect( colour = "gray50")) 
+genus_fg_extra %>% write_rds('../data/120_F2E_extra_genera.rds')
+ggsave('../data/120_F2E_extra_genera.pdf', width =  60,plot = genus_fg_extra,
+       height = 70, 
+         units = c("mm"),
+         dpi = 400)
 ```
-

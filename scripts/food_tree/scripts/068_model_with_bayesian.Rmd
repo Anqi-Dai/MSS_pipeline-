@@ -352,7 +352,7 @@ div_post <- post_coeff %>%
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c("#EC0000", "gray40")) +
-  theme(axis.text=element_text(size=8),
+  theme(axis.text=element_text(size=8, color  = 'black'),
         axis.title=element_text(size=8),
         aspect.ratio=1)
 

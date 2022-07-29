@@ -62,6 +62,7 @@ f2c <- read_rds('../data/068_div_post.rds')
 f2d <- read_rds('../data/101_f2d_diversity_pred_two_diff.rds')
 
 f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
+f2e <- read_rds('../data/120_F2E_extra_genera.rds')
 ```
 
 
@@ -71,7 +72,7 @@ left <- cowplot::align_plots(f2a, f2c, align = 'v', axis = 'l')
 top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1, 2) )
 
 bottom <- plot_grid(  left[[2]],f2d,f2e, 
-                  nrow = 1, labels = c('C','D', 'E'), rel_widths  = c(1, 1, 1), align = 'hv')
+                  nrow = 1, labels = c('C','D', 'E'), rel_widths  = c(1, 1, 1.1), align = 'hv')
 
 f2 <-  plot_grid(top,bottom,
                  rel_heights = c(1,1),
