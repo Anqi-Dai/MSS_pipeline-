@@ -1,0 +1,66 @@
+---
+title: "The mouse data Enterococcus"
+author: "Angel"
+date: "2022-07-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+library(readxl)
+library(ggpubr)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database('asv_annotation_blast_ag')
+```
+
+See the relab and absolute copy numbers of these data 
+
+```{r}
+q <- read_excel('../data/Tsoni_59samples_pool1154_16SqPCR_Results_07112022.xlsx')
+pheno <- read_excel('../data/Exp9_Flourfenicol, Biapenem + Diets .xlsx')
+sampleids <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(oligos_id, 'pool1154'))
+cts <- get_counts_subset(sampleids$sampleid)
+```
+
+```{r}
+cts_entero <- cts %>% 
+  left_join(asv_annotation_blast_ag %>% 
+              select(asv_key, genus)) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>% 
+  filter(genus == 'Enterococcus') %>% 
+  full_join(q %>% 
+               select(sampleid  = `Tube ID`, copies_16s_per_g = `16S COPIES/G`)) %>% 
+  mutate(entero_copy = copies_16s_per_g*relab)  %>% 
+  inner_join(pheno %>% 
+               select(sampleid = TubeID, Treatment:Mouse_identifier )) %>% 
+  full_join(sampleids %>% 
+              select(sampleid:shannon)) %>% 
+  select(-shannon) %>% 
+  relocate(relab, .after = simpson_reciprocal) %>% 
+  relocate(entero_copy, .after = relab)  %>% 
+  gather('key', 'value', simpson_reciprocal:entero_copy) %>% 
+  mutate(key = factor(key, levels = c('entero_copy','relab','simpson_reciprocal')))
+
+cts_entero %>% 
+  write_csv('../data/121_mouse_exp.csv')
+```
+```{r}
+cts_entero %>% 
+  ggscatter(x = 'Day', y = 'value', label = 'Mouse_identifier', repel = T,color = 'Day',
+            ylab = 'Enterococcus and alpha diversity') +
+  facet_grid(key~ Treatment, scales = 'free_y') +
+  theme_update() +
+  scale_x_continuous('Day', breaks = c(0,3,7))  +
+  theme(legend.position = 'none')
+
+ggsave('../data/121_mouse_exp.pdf', width = 15)
+```
+

@@ -19,43 +19,40 @@ library(tidyverse)
 library(vdbR)
 library("phyloseq")
 connect_database()
-get_table_from_database('asv_annotation_blast_ag')
-get_table_from_database('shotgun_lookup_ad')
+
 ```
+
+```{r}
+pheno <- readxl::read_excel('../data/05_meta_with_alpha.xlsx') %>% 
+  filter(day == 'D7')
+
+# getting the cts from shotgun
+fns <- list.files('../data/metaphlan/', pattern = 'profile', full.names = T)
+metaphlan <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., skip = 4) %>% 
+          select(species  = `#clade_name`, counts = estimated_number_of_reads_from_the_clade) %>% 
+          filter(str_detect(species, 's__'))) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_extract(sampleid, 'C00....')) %>% 
+  filter(sampleid %in% pheno$sampleid) %>% 
+  # filter out virus ...
+  filter(!str_detect(species, 'k__Viruses'))
+```
+
 
 # Corncob 
 
 ```{r}
 # it seems the 16s data will work better in this case
 # use the 16s data instead
-pheno <- readxl::read_excel('../data/05_meta_with_alpha.xlsx') %>% 
-  filter(day == 'D7')
 
-cts <- get_counts_subset(pheno$sampleid)
-
-keepasv <- cts %>% 
-  filter(count_relative > 0.0001) %>% 
-  count(asv_key) %>% 
-  filter(n > floor(nrow(pheno) * 0.2)) %>% 
-  pull(asv_key)
-
-ctsfil <- cts %>% 
-  filter(asv_key %in% keepasv) %>% 
-  select(asv_key, sampleid, count) %>% 
-  spread('sampleid','count', fill = 0) %>% 
-  column_to_rownames('asv_key')
+cts <- metaphlan %>% 
+  spread('sampleid','counts', fill = 0) %>% 
+  column_to_rownames('species')
 
 # I think I need to build a phyloseq object for this
-all.equal(pheno$sampleid, colnames(ctsfil))
-
-taxa <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% rownames(ctsfil)) %>% 
-  arrange(asv_key) %>% 
-  select(asv_key, kingdom:species) %>% 
-  column_to_rownames('asv_key') %>% 
-  as.matrix()
-
-#all.equal(taxa$asv_key, rownames(ctsfil))
+all.equal(pheno$sampleid, colnames(cts))
 
 sampledata <- pheno %>% 
   column_to_rownames('sampleid') %>% 
@@ -64,11 +61,9 @@ sampledata <- pheno %>%
 samples = sample_data(sampledata)
 
 # assemble a phyloseq object
+OTU = otu_table(cts, taxa_are_rows = T)
 
-OTU = otu_table(ctsfil, taxa_are_rows = T)
-TAX = tax_table(taxa)
-
-physeq = phyloseq(OTU, TAX, samples)
+physeq = phyloseq(OTU,  samples)
 
 ```
 
@@ -87,31 +82,41 @@ dv_analysis <- differentialTest(
   fdr_cutoff = 0.25) 
 ```
 
-
 # Maaslin2
 
 ```{r}
+total <- metaphlan %>%
+  group_by(sampleid) %>% 
+  summarise(total = sum(counts))
+
+relab <- metaphlan %>% 
+  left_join(total) %>% 
+  mutate(relab = counts/total)
+```
+
+
+```{r}
 library(Maaslin2)
-ctsfil_relab <- cts %>% 
-  filter(asv_key %in% keepasv) %>% 
-  select(asv_key, sampleid, count_relative) %>% 
-  spread('asv_key','count_relative', fill = 0) %>% 
+cts_relab <- relab %>% 
+  select(species, sampleid, relab) %>% 
+  spread('species','relab', fill = 0) %>% 
   column_to_rownames('sampleid')
 
-all.equal(rownames(sampledata), rownames(ctsfil_relab))
+all.equal(rownames(sampledata), rownames(cts_relab))
 
 fit_data <- Maaslin2(
-    input_data = ctsfil_relab, 
+    input_data = cts_relab, 
     input_metadata = sampledata, 
     normalization = "TSS",
-    min_abundance = 0.0,# has already filtered 
-    min_prevalence = 0.0,# has already filtered 
+    min_abundance = 0.0,
+    min_prevalence = 0.0,
     max_significance = 0.25,
-    output = "../data/output_16s-maslin", 
+    output = "../data/output_shotgun-Maaslin2", 
     fixed_effects = c("grp"),
     reference = c("grp,BM"))
 
-sig <- read_tsv('../data/output_16s-maslin/significant_results.tsv')
+sig <- read_tsv('../data/output_shotgun-Maaslin2/significant_results.tsv') %>% 
+  mutate(feature = str_replace_all(feature, '\\.','\\|'))
 
 ```
 
@@ -119,31 +124,20 @@ sig <- read_tsv('../data/output_16s-maslin/significant_results.tsv')
 
 ```{r}
 library(metagenomeSeq)
-data("mouseData")
-cts_ <- cts %>% 
-  select(asv_key, sampleid, count) %>% 
-  spread('sampleid','count', fill = 0) %>% 
-  column_to_rownames('asv_key')
 
 pheno_data <- pheno %>% 
   column_to_rownames('sampleid') %>% 
   mutate(grp = factor(grp, levels = c('BM','BMT')))
   
-all.equal(colnames(cts_) , pheno$sampleid)
+all.equal(colnames(cts) , pheno$sampleid)
 
-taxa <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% rownames(cts_)) %>% 
-  arrange(asv_key) %>% 
-  select(asv_key, kingdom:species) %>% 
-  column_to_rownames('asv_key') 
 
-all.equal(rownames(cts_) , rownames(taxa))
 
 # assemble the object for metagenomeSeq
-OTUdata <- AnnotatedDataFrame(taxa)
+
 phenotypeData <- AnnotatedDataFrame(pheno_data)
 
-d7 <- newMRexperiment(cts_,phenoData=phenotypeData,featureData=OTUdata)
+d7 <- newMRexperiment(cts,phenoData=phenotypeData)
 
 p = cumNormStatFast(d7)
 ```
@@ -156,7 +150,7 @@ mod <- model.matrix(~1 + grp, data = pd)
 d7_res = fitFeatureModel(d7, mod) 
 
 
-whole <- tibble(asv_key = d7_res@taxa,
+whole <- tibble(species = d7_res@taxa,
                 pval = d7_res@pvalues) %>% 
   mutate(padj = p.adjust(pval, method = 'BH'))
 q0.25_res <- whole %>% 
@@ -167,28 +161,43 @@ q0.25_res <- whole %>%
 
 ```{r}
 library(ggvenn)
-res_list <- list(metagenomeSeq = q0.25_res$asv_key,
+res_list <- list(metagenomeSeq = q0.25_res$species,
                  MaAsLin2 = sig$feature,
                  Corncob = dv_analysis$significant_taxa)
 
 ggvenn(res_list, show_percentage = F)
+
+# the sig results (FDR < 0.25) from MaAsLin2
+sig$feature
+
+# the sig results (FDR < 0.25) from metagenomeSeq
+q0.25_res$species
+
+# the sig results (FDR < 0.25) from Corncob
+dv_analysis$significant_taxa
 ```
 ```{r}
-# what is the taxa annotation for the shared 18 ASV
-all3 <- intersect(intersect(q0.25_res$asv_key,sig$feature), dv_analysis$significant_taxa)
 
-all3_taxa <- taxa %>% 
-  filter(rownames(.) %in% all3) %>% 
-  rownames_to_column('asv_key')
+# what is the taxa annotation for the shared 1
+all3 <- intersect(intersect(q0.25_res$species,sig$feature), dv_analysis$significant_taxa)
+# the intersected sig results between maaslin2 and metagenomicSeq
+mas_meta <- intersect(q0.25_res$species,sig$feature)
+mas_meta
+
+# the intersected sig results between corncob and metagenomicSeq
+intersect(q0.25_res$species,dv_analysis$significant_taxa)
+
+# the intersected sig results between corncob and maaslin2
+intersect(sig$feature,dv_analysis$significant_taxa)
 
 # plot the boxplot relab of those asv
-ctsfil_relab %>% 
+cts_relab %>% 
   rownames_to_column('sampleid') %>% 
-  gather('asv_key', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
-  filter(asv_key %in% all3) %>% 
+  gather('species', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  filter(species %in% union(q0.25_res$species,union(sig$feature, dv_analysis$significant_taxa))) %>% 
   left_join(pheno %>% select(sampleid, grp)) %>% 
-  left_join(all3_taxa %>% select(asv_key, genus, species)) %>% 
-  split(.$species) %>% 
+  mutate(spp = str_extract(species, 's__.+$')) %>% 
+  split(.$spp) %>% 
   imap(function(df_, Name_) {
     ggpubr::ggboxplot(data = df_,x = 'grp', y ='relab',  add = 'jitter',
                       title = Name_,
