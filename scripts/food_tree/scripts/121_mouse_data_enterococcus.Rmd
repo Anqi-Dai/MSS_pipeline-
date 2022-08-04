@@ -64,3 +64,144 @@ cts_entero %>%
 ggsave('../data/121_mouse_exp.pdf', width = 15)
 ```
 
+```{r}
+# also make bar graph and also pcoa
+genus <- cts %>% 
+  left_join(asv_annotation_blast_ag %>% select(asv_key, genus)) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>% 
+  ungroup() %>% 
+  left_join(pheno %>% select(sampleid = TubeID, Treatment:Mouse_identifier)) %>% 
+  arrange(Treatment, Day, Mouse_identifier) %>% 
+  mutate(sid = str_glue('{Treatment}__Day:{Day}__Mouse:{Mouse_identifier}'))
+
+
+```
+
+
+```{r}
+# # find the genera > 0.1% in more than 10% samples
+#  22/108 left 
+keepgenera <- genus %>% 
+  filter(relab > 0.01) %>% 
+  count(genus) %>% 
+  filter(n > floor(nrow(pheno) * 0.1)) %>% 
+  pull(genus)
+
+genus %>% ungroup %>% distinct(genus)
+```
+
+```{r}
+# to find colors for these features
+library(randomcoloR)
+n <- length(keepgenera)
+palette <- distinctColorPalette(n)
+pie(rep(1, n), col=palette)
+
+bar_palette <- genus %>%
+  filter(genus %in% keepgenera) %>%
+  distinct(genus) %>%
+  arrange(genus) %>%
+  mutate(color = palette)
+
+bar_plot_pal <- deframe(bar_palette)
+
+
+genus %>% 
+  filter(genus %in% keepgenera) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'genus', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  facet_grid(Day ~ Treatment, scales = 'free') +
+  scale_fill_manual(values = bar_plot_pal) +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+
+ggsave('../data/121_bar_mouse.pdf', height  = 14, width = 14)
+```
+
+```{r}
+library(vegan)
+# pcoa
+keep_asv <- cts %>% 
+  filter(count_relative > 0.0001) %>% 
+  count(asv_key) %>% 
+  filter(n > floor(nrow(pheno) * 0.1)) %>% 
+  pull(asv_key)
+
+
+# calculate the Bray curtis beta diversity 
+cts_fil <- cts %>% 
+  filter(asv_key %in% keep_asv) %>% 
+  select(sampleid, asv_key,count_relative ) %>% 
+  spread(key = 'asv_key', value = 'count_relative', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+dist_ <- vegdist(cts_fil, method = 'bray')
+eigen <- cmdscale(dist_, eig = T)$eig
+percent_var <- signif(eigen/sum(eigen), 3)*100
+bc <- cmdscale(dist_, k = 2)
+beta_df <- bc %>%
+  as.data.frame() %>%
+  rownames_to_column('sampleid')  %>% 
+  full_join(pheno %>% select(sampleid = TubeID, Treatment:Mouse_identifier)) %>% 
+  separate(Treatment, into = c('abx', 'treatment'), sep = ' \\+ ', remove = F) %>% 
+  mutate(Day = factor(Day, levels = c(0, 3, 7)))
+```
+
+
+```{r}
+pcoa_all <- beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'Day', palette = 'lancet',ellipse = TRUE,
+            title = 'color by Day',
+            #facet.by = 'Day',
+           # size = 'Day', shape = 'fiber',
+            alpha = 0.5) +
+  #facet_grid(Day ~ .) +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'bottom')
+pcoa_all
+
+ggsave('../data/121_pcoa_mouse.pdf', height  = 14, width = 14)
+```
+
+```{r}
+beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'abx',palette = 'lancet',ellipse = TRUE,
+            title = 'color by abx',
+            #facet.by = 'Day',
+           # size = 'Day', shape = 'fiber',
+            alpha = 0.5) +
+  #facet_grid(Day ~ abx) +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'bottom')
+```
+```{r}
+beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'treatment',palette = 'lancet',ellipse = TRUE,
+            title = 'color by treatment',
+            #facet.by = 'Day',
+           # size = 'Day', shape = 'fiber',
+            alpha = 0.5) +
+  #facet_grid(Day ~ abx) +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'bottom')
+```
+```{r}
+beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'Mouse_identifier',palette = 'lancet',ellipse = TRUE,
+            title = 'color by Mouse_identifier',
+            #facet.by = 'Day',
+           # size = 'Day', shape = 'fiber',
+            alpha = 0.5) +
+  #facet_grid(Day ~ abx) +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'bottom')
+```
+
