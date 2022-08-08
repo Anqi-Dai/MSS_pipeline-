@@ -53,8 +53,9 @@ meta_mouse <- diversity(cts, index = 'inv') %>%
   mutate(fiber = factor(fiber, levels = c('0%','12%','40%')))
 
 meta_mouse %>% 
-  write_csv(file.path(dir, 'Mouse/pheno_with_alpha_diversity.csv'))
+  write_csv('../data/pheno_with_alpha_diversity.csv')
 ```
+
 ```{r}
 # visualize the diversity comparison in different groups
 all_alpha <- meta_mouse %>% 

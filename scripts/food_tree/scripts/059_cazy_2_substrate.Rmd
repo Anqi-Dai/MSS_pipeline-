@@ -89,7 +89,7 @@ final_ <- final %>%
 ```
 
 ```{r}
-final %>% 
+final_ %>% 
   ggbarplot(x = 'sampleid', y = 'r_suc_sta', fill = 'forestgreen', color = 'white',
             ylab = 'Ratio of Sucrose+Fructans/Starch+Glycogen')
 ```

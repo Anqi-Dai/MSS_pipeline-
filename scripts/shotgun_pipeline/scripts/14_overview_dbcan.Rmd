@@ -1,0 +1,154 @@
+---
+title: "Overview of dbcan"
+author: "Angel"
+date: "2022-08-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+# clean the tables and filter on len and cov of the gene
+fns <- list.files('../data/dbcan/overview_results/', full.names = T)
+
+cazy <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., col_types = 'cccccd')) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_extract(sampleid, 'Sample_.+IGO_.....')) %>% 
+  rename_all(~ gsub("#", "Number", .)) %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  separate(sampleid, into = c('sampleid','projectid'), sep = '_IGO_') %>% 
+  mutate(sampleid = str_replace(sampleid, 'Sample_','')) %>% 
+  mutate(cov = str_extract(Gene_ID, 'cov_.+$'))%>% 
+  mutate(cov = str_replace(cov, 'cov_', ''),
+         cov = str_replace(cov, '_.+$', ''),
+         cov = as.numeric(cov))   %>% 
+  filter(cov >= 5) %>% 
+  mutate(len = str_extract(Gene_ID, 'length_.+_cov'),
+         len = str_replace(len, 'length_', ''),
+         len = str_replace(len, '_cov', ''),
+         len = as.numeric(len)) %>% 
+  filter(len >= 1000)
+```
+
+```{r}
+# the 12898 jenny project is a good case to test this since it's about fiber
+pheno <- read_csv('../../ppp_Jenny/data/pheno_with_alpha_diversity.csv') %>% 
+  mutate(fiber = factor(fiber, levels = c('0%','12%','40%')))
+
+fiber <- cazy  %>% 
+  filter(str_detect(sampleid, '12898') & NumberofTools == 3) 
+```
+
+
+```{r}
+test <- fiber %>% 
+  filter(sampleid == 'CO11302') %>% 
+  mutate(cazyme = eCAMI) %>% 
+  relocate(cazyme, .after = projectid) %>% 
+  mutate(cazyme = str_replace_all(cazyme, '\\+',',')) %>% 
+  group_by(sampleid) %>% 
+  summarise(all_cazyme = str_c(cazyme, collapse = ",")) %>% 
+  ungroup() %>% 
+  tibble(cazymes = str_split(all_cazyme, ',')[[1]]) %>% 
+  select(-all_cazyme)
+```
+
+
+```{r}
+sub <- pheno %>% 
+  filter(Day == 14 & grp == 'BMT')
+
+subcazy <- cazy %>% 
+  inner_join(sub) %>% 
+  filter(NumberofTools == 3)
+```
+
+## to look at the total cazymes in each sample
+
+```{r}
+subcazy %>% 
+  count(fiber, sampleid,Day, grp ) %>% 
+  ggboxplot(x = 'fiber', y = 'n', add = 'dotplot', ylab = 'Number of cazymes',xlab = 'Fiber content',
+            add.params = list(color = 'forestgreen', size = 1.5, alpha = 1, shape = 20)) +
+  facet_grid(Day ~ grp)  +
+  stat_compare_means(comparisons= list(c('12%', '40%'),
+                                       c('0%', '12%'),
+                                       c('40%', '0%')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE) +
+  theme_bw()
+
+ggsave('../data/14_fiber_sub_total_cazyme.pdf', height = 5)
+```
+
+# to look at the individual cazymes (the categories)
+
+```{r}
+subsummarized <- subcazy %>% 
+  split(.$sampleid) %>% 
+  map(function(df){
+      mutate(.data = df,cazyme = eCAMI) %>% 
+          relocate(cazyme, .after = projectid) %>% 
+          mutate(cazyme = str_replace_all(cazyme, '\\+',',')) %>% 
+          group_by(sampleid, fiber, Day, grp) %>% 
+          summarise(all_cazyme = str_c(cazyme, collapse = ",")) %>% 
+          ungroup() %>% 
+          tibble(cazymes = str_split(all_cazyme, ',')[[1]]) %>% 
+          select(-all_cazyme)
+    }
+    ) %>% 
+  bind_rows() %>% 
+  mutate(cazygroup = str_replace(cazymes, '\\d+$',''))
+
+subfaction <- subsummarized %>% 
+  count(sampleid,fiber,  Day, grp, cazygroup)
+
+sample_total <- subfaction %>% 
+  group_by(sampleid) %>% 
+  summarise(total = sum(n))
+
+sub_fra <- subfaction %>% 
+  left_join(sample_total) %>% 
+  mutate(percent = round(n/total*100))
+```
+
+
+```{r}
+sub_fra %>% 
+  select(-total) %>% 
+  gather('type', 'value', n:percent) %>% 
+  ggbarplot(x = 'sampleid', y = 'value', fill = 'cazygroup', color = 'white' , xlab = '', ylab = 'cazygroup') +
+  facet_grid(type ~ fiber, scales = 'free_y') +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+
+ggsave('../data/14_fiber_sub_catetory_cazyme.pdf', height = 5)
+```
+
+```{r}
+subsummarized %>% 
+  count(sampleid, fiber, cazymes) %>% 
+  group_by(sampleid) %>% 
+  top_n(5, wt = n) %>% 
+  left_join(sample_total) %>% 
+  mutate(percent = round(n/total*100)) %>% 
+  select(-total) %>% 
+  gather('type', 'value', n:percent) %>% 
+  ggbarplot(x = 'sampleid', y = 'value', fill = 'cazymes', color = 'white' , xlab = '', ylab = 'cazymes', palette = 'jco') +
+  facet_grid(type ~ fiber, scales = 'free_y') +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+
+ggsave('../data/14_fiber_sub_top5_cazyme.pdf', height = 5)
+```
+

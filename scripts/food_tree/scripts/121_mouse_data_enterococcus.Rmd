@@ -17,13 +17,38 @@ library(ggpubr)
 connect_database()
 get_table_from_database('asv_alpha_diversity_ag')
 get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_annotation_blast_color_ag')
 ```
+
 
 See the relab and absolute copy numbers of these data 
 
 ```{r}
 q <- read_excel('../data/Tsoni_59samples_pool1154_16SqPCR_Results_07112022.xlsx')
-pheno <- read_excel('../data/Exp9_Flourfenicol, Biapenem + Diets .xlsx')
+updated_q <- q %>%
+  rename(sampleid=Sample.ID,
+         copies_16s_per_g_pre = "16S COPIES/G") %>% 
+  mutate(
+    g = `16S COPY NUMBER`/ copies_16s_per_g_pre,
+    copies_16s_bounded = ifelse(
+      `16S COPY NUMBER` < 12800, 
+      (12800*.5),
+      ifelse(
+        `16S COPY NUMBER` > 2e8,
+        1.5 * (2e8),
+        `16S COPY NUMBER`
+      )
+    )
+  ) %>% 
+  mutate(copies_16s_per_g =  copies_16s_bounded/g)  # use the *copies_16s_per_g*
+```
+
+
+```{r}
+pheno <- read_csv('../data/correct_flourfenicol_biapenem_cfucounts.csv') %>% 
+  filter(!is.na(Log_CFUs_per_GramStool)) # there is one mouse that no stool was collected
+
+
 sampleids <- asv_alpha_diversity_ag %>% 
   filter(str_detect(oligos_id, 'pool1154'))
 cts <- get_counts_subset(sampleids$sampleid)
@@ -36,18 +61,22 @@ cts_entero <- cts %>%
   group_by(sampleid, genus) %>% 
   summarise(relab = sum(count_relative)) %>% 
   filter(genus == 'Enterococcus') %>% 
-  full_join(q %>% 
-               select(sampleid  = `Tube ID`, copies_16s_per_g = `16S COPIES/G`)) %>% 
+  full_join(updated_q %>% 
+               select(sampleid  = `Tube ID`, copies_16s_per_g )) %>% 
   mutate(entero_copy = copies_16s_per_g*relab)  %>% 
   inner_join(pheno %>% 
-               select(sampleid = TubeID, Treatment:Mouse_identifier )) %>% 
-  full_join(sampleids %>% 
-              select(sampleid:shannon)) %>% 
-  select(-shannon) %>% 
+               select(sampleid = TubeID, Treatment:Mouse_identifier, Log_CFUs_per_GramStool )) %>% 
+  inner_join(sampleids %>% 
+              select(sampleid:simpson_reciprocal)) %>% 
   relocate(relab, .after = simpson_reciprocal) %>% 
   relocate(entero_copy, .after = relab)  %>% 
-  gather('key', 'value', simpson_reciprocal:entero_copy) %>% 
-  mutate(key = factor(key, levels = c('entero_copy','relab','simpson_reciprocal')))
+  mutate(grouping = str_extract(Treatment, '\\+.+$'),
+         grouping = str_replace(grouping, '\\+ ', ''),
+         grouping = factor(grouping, levels = c('Plain Hydrogel','Sucrose','Naked Smoothie','Canned Peaches')) ,
+         grouping = str_glue('{grouping}__Day{Day}')) %>% 
+  relocate(Log_CFUs_per_GramStool, .before = 'grouping') %>% 
+  gather('key', 'value', relab:Log_CFUs_per_GramStool) %>% 
+  mutate(key = factor(key, levels = c('Log_CFUs_per_GramStool','entero_copy','relab')))
 
 cts_entero %>% 
   write_csv('../data/121_mouse_exp.csv')
@@ -63,6 +92,10 @@ cts_entero %>%
 
 ggsave('../data/121_mouse_exp.pdf', width = 15)
 ```
+
+
+# bar plot and pcoa
+
 
 ```{r}
 # also make bar graph and also pcoa
@@ -90,6 +123,9 @@ keepgenera <- genus %>%
 
 genus %>% ungroup %>% distinct(genus)
 ```
+
+
+
 
 ```{r}
 # to find colors for these features
@@ -205,3 +241,95 @@ beta_df %>%
   theme(aspect.ratio=1, legend.position = 'bottom')
 ```
 
+# bar chart using the human palette
+
+```{r}
+dat <- cts %>% 
+  select(asv_key:count_total, count_relative) %>% 
+  left_join(asv_annotation_blast_color_ag %>% 
+              select(asv_key,color_label_group_distinct), by = "asv_key")
+```
+
+```{r}
+# there are some ASVs that don't have a color with it, but can use the color for the genus level
+color_group <- dat %>% 
+  split(is.na(.$color_label_group_distinct))
+# find the genus for these asv
+
+no_color <- color_group %>% 
+  pluck('TRUE') %>% 
+  distinct(asv_key) %>% 
+  inner_join(asv_annotation_blast_ag %>% 
+               select(asv_key, genus)) 
+# find the colors for these genera
+genera_colors <- no_color %>% 
+  distinct(genus) %>% 
+  inner_join(asv_annotation_blast_color_ag %>% 
+               distinct(genus, color_label_group_distinct))
+# the full df for the no color genera
+no_color_df <- no_color %>% 
+  left_join(genera_colors)
+no_color_df_full <- color_group %>% 
+  pluck('TRUE') %>% 
+  select(-color_label_group_distinct) %>% 
+  left_join(no_color_df %>% 
+              select(- genus))
+  
+# so if the genus is unknown then it's gonna be assigned "other" gray color  
+# the question is do we go one taxa level higher or make a new color base and shades for the new asv
+# after discussing with Tsoni, we decided that it's ok to assign gray to the unknown genus 
+# merge the new no_color_df_full to the original df
+dat <- bind_rows(
+  no_color_df_full,
+  color_group %>% 
+    pluck('FALSE')
+) %>% left_join(pheno %>% 
+               select(sampleid = TubeID, Treatment:Mouse_identifier ))%>% 
+  arrange(Treatment, Day, Mouse_identifier) %>% 
+  mutate(sid = str_glue('Day:{Day}__Mouse:{Mouse_identifier}'))
+```
+
+
+```{r}
+asv_color_set <- asv_annotation_blast_color_ag %>% 
+  distinct(color,color_label_group_distinct,color_label_group,color_base) %>% 
+  select(color_label_group_distinct, color) %>% 
+  deframe()
+
+cbd <- compute_beta_diversity_and_tsne(sampleid = dat$sampleid, 
+                                      taxonomy = dat$color_label_group_distinct,
+                                      count = dat$count);
+#compute beta diversity
+cbd$compute_beta_diversity()
+
+
+stacked_bar <- ggplot(dat,aes(sid, count_relative, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  theme_classic() +
+  facet_grid(Day ~ Treatment, scales = 'free') +
+  labs(title = '',
+       ylab = 'Relative counts') +
+  theme(axis.text.x = element_text(angle = 90),
+        axis.text.y = element_blank(),
+        legend.position = "none") +
+  scale_fill_manual(values = asv_color_set)
+
+stacked_bar
+
+
+library(cowplot)
+p <- '../../miscellaneous/data//composition_legend.png'
+legend <- ggdraw() +
+  draw_image(magick::image_read(p),   scale = 0.9) 
+legend 
+
+
+top <- plot_grid(stacked_bar, legend, labels = 'none',rel_widths  = c(2, 0.5) )
+
+ggsave('../data/121_bar_human_palette.pdf',
+       width = 300,
+       height = 120,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = top)  
+```
