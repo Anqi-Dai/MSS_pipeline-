@@ -47,14 +47,15 @@ updated_q <- q %>%
 ```{r}
 pheno <- read_csv('../data/correct_flourfenicol_biapenem_cfucounts.csv') %>% 
   filter(!is.na(Log_CFUs_per_GramStool)) # there is one mouse that no stool was collected
-
+# Only C014165 has no stool pellet so it wasn’t given to sequencing.
+# C014184: That tube has stool. It just didn’t grow on our plate selective for enterococcus.(no colony count)
 
 sampleids <- asv_alpha_diversity_ag %>% 
   filter(str_detect(oligos_id, 'pool1154'))
 cts <- get_counts_subset(sampleids$sampleid)
 ```
 
-```{r}
+```{r cts_entero}
 cts_entero <- cts %>% 
   left_join(asv_annotation_blast_ag %>% 
               select(asv_key, genus)) %>% 
@@ -90,13 +91,18 @@ bia_df <- cts_entero %>%
   filter(abx == 'Biapenem')
 ```
 ```{r}
-bia_df %>% 
-  ggscatter(x = 'sid', y = 'value', 
+rows <- bia_df %>% 
+  ggscatter(x = 'sampleid', y = 'value', title = 'Biapenem',
             ylab = 'Enterococcus') +
   facet_grid(key~ faceting_var, scales = 'free') +
   theme_linedraw() +
   theme(legend.position = 'none',
-        axis.text.x = element_text(angle = 90))
+        strip.background = element_blank(),
+        axis.text.x = element_blank(),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.title.x = element_blank())
 
 ggsave('../data/121_mouse_exp.pdf', width = 15)
 ```
@@ -292,9 +298,17 @@ dat <- bind_rows(
   color_group %>% 
     pluck('FALSE')
 ) %>% left_join(pheno %>% 
-               select(sampleid = TubeID, Treatment:Mouse_identifier ))%>% 
-  arrange(Treatment, Day, Mouse_identifier) %>% 
-  mutate(sid = str_glue('Day:{Day}__Mouse:{Mouse_identifier}'))
+               select(sampleid = TubeID, Treatment:Mouse_identifier, Log_CFUs_per_GramStool )) %>% 
+  mutate(abx = str_extract(Treatment, '^.+\\+'),
+         abx = str_replace(abx, ' \\+', ''),
+        grouping = str_extract(Treatment, '\\+.+$'),
+         grouping = str_replace(grouping, '\\+ ', ''),
+         grouping = factor(grouping, levels = c('Plain Hydrogel','Sucrose','Naked Smoothie','Canned Peaches')) ,
+         sid = str_glue('{grouping}__Day{Day}__{Mouse_identifier}'),
+         faceting_var = str_glue('{grouping}__Day{Day}'))
+
+dat_bia <- dat %>% 
+  filter(abx == 'Biapenem')
 ```
 
 
@@ -304,27 +318,32 @@ asv_color_set <- asv_annotation_blast_color_ag %>%
   select(color_label_group_distinct, color) %>% 
   deframe()
 
-cbd <- compute_beta_diversity_and_tsne(sampleid = dat$sampleid, 
-                                      taxonomy = dat$color_label_group_distinct,
-                                      count = dat$count);
+cbd <- compute_beta_diversity_and_tsne(sampleid = dat_bia$sampleid, 
+                                      taxonomy = dat_bia$color_label_group_distinct,
+                                      count = dat_bia$count);
 #compute beta diversity
 cbd$compute_beta_diversity()
 
 
-stacked_bar <- ggplot(dat,aes(sid, count_relative, fill = color_label_group_distinct) ) +
+stacked_bar <- ggplot(dat_bia,aes(sid, count_relative, fill = color_label_group_distinct) ) +
   geom_bar(stat = "identity", position="fill", width = 1) +
   theme_classic() +
-  facet_grid(Day ~ Treatment, scales = 'free') +
+  facet_grid(. ~ faceting_var, scales = 'free') +
+  theme_linedraw() +
   labs(title = '',
-       ylab = 'Relative counts') +
+       y = 'Relative abundance') +
   theme(axis.text.x = element_text(angle = 90),
         axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        strip.background = element_blank(),
         legend.position = "none") +
   scale_fill_manual(values = asv_color_set)
 
 stacked_bar
+```
 
 
+```{r}
 library(cowplot)
 p <- '../../miscellaneous/data//composition_legend.png'
 legend <- ggdraw() +
@@ -335,9 +354,13 @@ legend
 top <- plot_grid(stacked_bar, legend, labels = 'none',rel_widths  = c(2, 0.5) )
 
 ggsave('../data/121_bar_human_palette.pdf',
-       width = 300,
-       height = 120,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, plot = top)  
+        width = 15, plot = stacked_bar)
+```
+
+
+```{r}
+library(cowplot)
+both <- plot_grid(rows, stacked_bar, nrow = 2,align = 'hv', axis = 'lr')
+ggsave('../data/121_overlay.pdf',
+        width = 10, plot = both)
 ```
