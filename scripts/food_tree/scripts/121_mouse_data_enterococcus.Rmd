@@ -70,25 +70,33 @@ cts_entero <- cts %>%
               select(sampleid:simpson_reciprocal)) %>% 
   relocate(relab, .after = simpson_reciprocal) %>% 
   relocate(entero_copy, .after = relab)  %>% 
-  mutate(grouping = str_extract(Treatment, '\\+.+$'),
+  mutate(abx = str_extract(Treatment, '^.+\\+'),
+         abx = str_replace(abx, ' \\+', ''),
+        grouping = str_extract(Treatment, '\\+.+$'),
          grouping = str_replace(grouping, '\\+ ', ''),
          grouping = factor(grouping, levels = c('Plain Hydrogel','Sucrose','Naked Smoothie','Canned Peaches')) ,
-         grouping = str_glue('{grouping}__Day{Day}')) %>% 
+         sid = str_glue('{grouping}__Day{Day}__{Mouse_identifier}'),
+         faceting_var = str_glue('{grouping}__Day{Day}')) %>% 
   relocate(Log_CFUs_per_GramStool, .before = 'grouping') %>% 
+  relocate(abx, after = 'grouping') %>% 
   gather('key', 'value', relab:Log_CFUs_per_GramStool) %>% 
   mutate(key = factor(key, levels = c('Log_CFUs_per_GramStool','entero_copy','relab')))
 
 cts_entero %>% 
   write_csv('../data/121_mouse_exp.csv')
+
+# to only plotting the Biapenem for now 
+bia_df <- cts_entero %>% 
+  filter(abx == 'Biapenem')
 ```
 ```{r}
-cts_entero %>% 
-  ggscatter(x = 'Day', y = 'value', label = 'Mouse_identifier', repel = T,color = 'Day',
-            ylab = 'Enterococcus and alpha diversity') +
-  facet_grid(key~ Treatment, scales = 'free_y') +
-  theme_update() +
-  scale_x_continuous('Day', breaks = c(0,3,7))  +
-  theme(legend.position = 'none')
+bia_df %>% 
+  ggscatter(x = 'sid', y = 'value', 
+            ylab = 'Enterococcus') +
+  facet_grid(key~ faceting_var, scales = 'free') +
+  theme_linedraw() +
+  theme(legend.position = 'none',
+        axis.text.x = element_text(angle = 90))
 
 ggsave('../data/121_mouse_exp.pdf', width = 15)
 ```
