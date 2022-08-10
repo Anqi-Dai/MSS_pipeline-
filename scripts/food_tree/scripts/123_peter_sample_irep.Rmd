@@ -1,0 +1,164 @@
+---
+title: "peter sample irep values"
+author: "Angel"
+date: "2022-08-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+fns <- list.files('../data/growth/irep/peter_samples_irep/', full.names = T, pattern = '.tsv')
+df <- tibble(fns = fns)
+irep <- fns %>% 
+  set_names(fns) %>% 
+  purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '_irep_dastool.tsv$',''),
+         fn = str_replace(fn, '../data/growth/irep/peter_samples_irep//','')) %>% 
+  separate(fn, into = c('sampleid','samplebin'), sep = '__concat__', remove = T) %>% 
+  mutate(iRep = as.numeric(iRep)) %>% 
+  mutate(sbid = str_glue('{sampleid}__{samplebin}')) %>% 
+  filter(str_detect(sampleid, '^Sample')) # to only include the project 13141 ones
+
+samp <- irep %>% 
+  distinct(sampleid)
+```
+
+
+```{r}
+bins <- read_tsv('../data/growth/irep/binning_table_all_simple_peter.tsv') %>% 
+  rename_all(~ gsub("\\.", "_", .)) %>% 
+  mutate(fpmbp = `# contigs (>= 0 bp)`/Size_Mb) %>% 
+  filter(Completeness >= 75 & fpmbp <= 175 & Contamination <= 2) %>% 
+  mutate(Sample = str_replace(Sample, '__concat',''),
+         sbid = str_glue('{Sample}__{Bin}')) %>% 
+  inner_join(irep, by  = 'sbid') %>% 
+  relocate(iRep, .after = 'Bin') %>% 
+  relocate(best_species, .after = 'iRep') %>% 
+  filter(!is.na(iRep)) %>% 
+  arrange(Sample,Bin,  best_species) %>% 
+  # if there are multiple get the average
+  #group_by(Sample, best_species, best_level) %>% 
+  #summarise(aveirep = mean(iRep)) %>% 
+  filter(best_species != 'Unclassified') %>% 
+  mutate(sampleid = str_extract(Sample, '^Sample.+IGO'),
+         sampleid = str_replace(sampleid, 'Sample_',''),
+         sampleid = str_replace(sampleid, '_IGO','')) %>% 
+  relocate(sampleid, .before = 'Sample')  %>% 
+  mutate(sampleid = str_replace(sampleid, '_2', ''),
+         sampleid = str_replace(sampleid,'FMT_', 'FMT\\.'))
+
+# find the genus and family of the irep bins
+colnames(bins)
+```
+
+
+
+```{r}
+# do these samples overlap with the current diet cohort?
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+stool <- read_csv('../data/011_802_total_stool_samples.csv')
+length(intersect(stool$sampleid, bins$sampleid))
+length(intersect(meta$sampleid, bins$sampleid)) # 28
+has_diet <- intersect(meta$sampleid, bins$sampleid)
+
+
+# find the previous 2 days sum of fruits and sweets
+p2d_sum69 <- meta %>% 
+  filter(sampleid %in% has_diet) %>% 
+  select(sampleid, fg_fruit, fg_sweets) %>% 
+  mutate(sum69 = (fg_fruit + fg_sweets) *2)
+```
+
+# the genera in enterococcaea and enterbacteria 
+
+```{r}
+library(vdbR)
+connect_database()
+list_table_from_database('blast')
+get_table_from_database('asv_annotation_blast_ag')
+
+target <- asv_annotation_blast_ag %>% 
+  filter(family %in% c('Enterobacteriaceae','Enterococcaceae')) %>% 
+  distinct(family, genus) %>% 
+  summarise(genera = str_c(genus, collapse = "|"))
+
+find_higher <- bins %>% 
+  distinct(best_species,  best_level) %>% 
+  arrange(best_species) %>% 
+  filter(str_detect(best_species, target$genera)) %>% 
+  mutate(genus = c('Enterobacter','Enterococcus','Enterococcus','Enterococcus','Escherichia','Klebsiella','Klebsiella'))
+
+
+family2 <- bins %>% 
+  select(sampleid,samplebin,  iRep, best_species,  best_level) %>% 
+  inner_join(find_higher) %>% 
+  inner_join(p2d_sum69 %>% 
+               select(sampleid, sum_sugar = sum69)) %>% 
+  select(sampleid, samplebin, iRep, genus, sum_sugar)
+
+
+family2_irep <- bins %>% 
+  select(sampleid,samplebin,  iRep, best_species,  best_level) %>% 
+  inner_join(find_higher)
+
+older <-  read_csv('../data/sum of sugar intake vs max zscore family(E,E).csv') %>% 
+  select(colnames(family2_irep)) 
+
+all_fam2_irep <- bind_rows(family2_irep,older )%>% 
+   split(.$genus) %>% 
+  map(function(df){
+    df %>% 
+      mutate(iRep_zscore = scale(.$iRep, center = T, scale = T)[,1])
+  }
+    ) %>% 
+  bind_rows()  %>% 
+  inner_join(all %>% select(sampleid, sum_sugar)
+               )
+  
+```
+
+
+```{r}
+# the data from jonas lab people
+them <- read_csv('../data/sum of sugar intake vs max zscore family(E,E).csv') %>% 
+  select(sampleid, samplebin, iRep, genus, sum_sugar, iRep_zscore) %>% 
+  filter(!is.na(sum_sugar))
+ 
+all <- bind_rows(them, family2) %>% 
+  filter(!is.na(sum_sugar))
+
+them %>% 
+  mutate(ave_sugar = sum_sugar/2) %>% 
+  ggpubr::ggscatter(x = 'ave_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
+                    xlab = 'Fruits and sweets intake averaged over prior 2 days',
+                    ylab = 'Growth rate (standardized within genus) ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left")) +
+  theme(aspect.ratio = 1,
+        legend.position = 'right',
+        legend.title=element_blank())
+ggsave('../data/123_new_2fam_fig3top.pdf', height = 3.5)
+```
+
+```{r}
+# adding the new samples
+all_fam2_irep %>% 
+  ggpubr::ggscatter(x = 'sum_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left"))
+```
+ 
