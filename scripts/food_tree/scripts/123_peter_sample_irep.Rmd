@@ -129,7 +129,7 @@ all_fam2_irep <- bind_rows(family2_irep,older )%>%
 ```{r}
 # the data from jonas lab people
 them <- read_csv('../data/sum of sugar intake vs max zscore family(E,E).csv') %>% 
-  select(sampleid, samplebin, iRep, genus, sum_sugar, iRep_zscore) %>% 
+  select(sampleid, samplebin, iRep, genus, sum_sugar, iRep_zscore, pid) %>% 
   filter(!is.na(sum_sugar))
  
 all <- bind_rows(them, family2) %>% 
@@ -149,6 +149,10 @@ them %>%
         legend.position = 'right',
         legend.title=element_blank())
 ggsave('../data/123_new_2fam_fig3top.pdf', height = 3.5)
+
+them %>% 
+  #distinct(sampleid)
+  distinct(pid)
 ```
 
 ```{r}

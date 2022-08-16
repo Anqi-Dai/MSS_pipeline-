@@ -45,8 +45,7 @@ updated_q <- q %>%
 
 
 ```{r}
-pheno <- read_csv('../data/correct_flourfenicol_biapenem_cfucounts.csv') %>% 
-  filter(!is.na(Log_CFUs_per_GramStool)) # there is one mouse that no stool was collected
+pheno <- read_csv('../data/correct_flourfenicol_biapenem_cfucounts.csv')  # there is one mouse that no stool was collected
 # Only C014165 has no stool pellet so it wasn’t given to sequencing.
 # C014184: That tube has stool. It just didn’t grow on our plate selective for enterococcus.(no colony count)
 
@@ -80,6 +79,7 @@ cts_entero <- cts %>%
          faceting_var = str_glue('{grouping}__Day{Day}')) %>% 
   relocate(Log_CFUs_per_GramStool, .before = 'grouping') %>% 
   relocate(abx, after = 'grouping') %>% 
+  mutate(Log_CFUs_per_GramStool = log10(Log_CFUs_per_GramStool)) %>% 
   gather('key', 'value', relab:Log_CFUs_per_GramStool) %>% 
   mutate(key = factor(key, levels = c('Log_CFUs_per_GramStool','entero_copy','relab')))
 
