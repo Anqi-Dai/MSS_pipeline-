@@ -1,0 +1,71 @@
+---
+title: "look at the kraken output"
+author: "Angel"
+date: "2022-08-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+Percentage of fragments covered by the clade rooted at this taxon
+Number of fragments covered by the clade rooted at this taxon
+Number of fragments assigned directly to this taxon
+A rank code, indicating (U)nclassified, (R)oot, (D)omain, (K)ingdom, (P)hylum, (C)lass, (O)rder, (F)amily, (G)enus, or (S)pecies. Taxa that are not at any of these 10 ranks have a rank code that is formed by using the rank code of the closest ancestor rank with a number indicating the distance from that rank. E.g., "G2" is a rank code indicating a taxon is between genus and species and the grandparent taxon is at the genus rank.
+NCBI taxonomic ID number
+Indented scientific name
+
+```{bash}
+
+for file in ../data/archaea/*_kraken2.report
+  do echo $file
+  ./../data/KrakenTools/kreport2mpa.py  --report-file $file --output $file.out  --percentages  --intermediate-ranks
+  done
+```
+
+```{r}
+fns <- list.files('../data/archaea/', full.names = T, pattern = 'out$') 
+all <- tibble(fn = fns)
+test <- read_delim(fns[1])
+kraken <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_delim(., col_names = F, col_types = 'cd')  %>% 
+        select(taxa = X1, perc = X2)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(
+         sampleid = str_extract(sampleid, '//.+_'),
+         sampleid = str_replace(sampleid, '//',''),
+         sampleid = str_replace(sampleid, '_*+$',''))
+
+ids <- kraken %>% 
+  distinct(sampleid) %>% 
+  mutate(fid = str_replace(sampleid, 'Sample_', ''),
+         fid = str_replace(fid, '_IGO.+$', '')) %>% 
+  inner_join(shotgun_lookup_ad %>% select(fid, cleaned_sampleid = sampleid))
+
+archaea_k <- kraken %>% 
+  filter(str_detect(taxa, 'k__Archaea$'))
+
+archaea <- kraken %>% 
+  filter(str_detect(taxa, 'k__Archaea')) %>% 
+  left_join(ids) %>% 
+  select(-fid)
+archaea %>% write_csv('../data/kraken_shotgun_archaea_perc.csv')
+
+```
+
+
+
+
+
+
+

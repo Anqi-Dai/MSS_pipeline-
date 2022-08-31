@@ -44,8 +44,6 @@ metaphlan <- fns %>%
 # Corncob 
 
 ```{r}
-# it seems the 16s data will work better in this case
-# use the 16s data instead
 
 cts <- metaphlan %>% 
   spread('sampleid','counts', fill = 0) %>% 

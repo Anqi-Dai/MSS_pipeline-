@@ -1,0 +1,115 @@
+---
+title: "First look at the archaea results"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+# the sampleid column is the "sampleid" extracted from the file name. 
+# the cleaned_sampleid is the actual sampleid
+archaea <- read_csv('../data/kraken_shotgun_archaea_perc.csv')
+
+archaea_k <- archaea %>% 
+  filter(str_detect(taxa, 'k__Archaea$'))
+```
+
+# 15 samples archaea kingdom
+
+```{r}
+# look at the kindom level archeae of the 15 samples 
+# their_results_kraken.csv is a table I manually cleaned from the excel file they shared
+their <- read_csv('../data/their_results_kraken.csv')  %>% 
+  gather('sampleid', 'perc', names(.)[2]:names(.)[ncol(.)]) %>% 
+  mutate(perc = if_else(is.na(perc), 0, perc))
+
+m15_k <- archaea_k %>% 
+  filter(!str_detect(sampleid, '^Sample')) %>% 
+  mutate(sampleid = str_replace(sampleid, '_.+$',''),
+         sampleid = str_replace(sampleid, '^X',''))
+
+their_k <- their %>% 
+  filter(KRAKEN == '% Archaea') %>% 
+  rename(their = perc) %>% 
+  mutate(sampleid = case_when(
+    sampleid == '60I' ~ 'FMT0060I',
+    sampleid == '64B' ~ 'FMT0064B',
+    sampleid == '132D' ~ 'FMT0132D',
+    sampleid == '187E' ~ 'FMT0187E',
+    sampleid == '221G' ~ 'FMT0221G',
+    sampleid == '1909' ~ '1909L',
+    TRUE ~ sampleid
+  ))
+
+both_k <- m15_k %>% 
+  full_join(their_k %>% 
+              select(sampleid, their)) %>% 
+  mutate(their = if_else(is.na(their), 0, their))
+
+# to compare the archaea kindom perc of the 15 samples between their and our kraken results and 
+# also show pearson correlation
+both_k %>% 
+  ggscatter(x = 'perc', y = 'their',
+            xlab = 'Our Kraken2 Archaea percentage', ylab = 'Their Kraken2 Archaea percentage',
+        title = 'Pearson correlation of the kingdom of Archaea percentage',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+```
+
+# 873 shotgun samples from our kraken run
+
+```{r}
+# to look at all the archaea percentage data of the 800+ samples we ran
+archaea_k %>% 
+  mutate(grp = if_else(!str_detect(sampleid, '^Sample'), 'Marina', 'others')) %>% 
+  ggviolin(y = 'perc', add = 'boxplot', xlab = '', ylab = 'Archaea kingdom percentage',
+           title = '873 shotgun samples') +
+  scale_y_sqrt()
+
+
+```
+
+# to look at the archaea at species level for the 15 samples
+
+```{r}
+library(kableExtra)
+m15_s <- archaea %>% 
+  filter(!str_detect(sampleid, '^Sample') & str_detect(taxa, 's__') ) %>% 
+  mutate(spp = str_extract(taxa, 's__.+$')) %>% 
+  filter(!str_detect(spp, 'x__')) %>% 
+  mutate(sampleid = str_replace(sampleid, '_.+$',''),
+         sampleid = str_replace(sampleid, '^X',''))
+  
+# the identified species (perc > 0)
+their_s <- their %>% 
+  filter(perc > 0 & str_detect(KRAKEN, '(S)'))
+
+our_s <- m15_s %>% 
+  filter(perc > 0)
+# looks very similar to the metaphlan results 
+
+their_s %>%
+  kbl(caption = 'Identified Archaea species in their kraken run') %>%
+  kable_styling()
+
+our_s %>%
+  kbl(caption = 'Identified Archaea species in our kraken run') %>%
+  kable_styling()
+```
+
