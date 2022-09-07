@@ -1,0 +1,63 @@
+---
+title: "Update the shotgun_lookup_table"
+author: "Angel"
+date: "2022-09-02"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+```{r}
+current <- read_csv('../data/current_shotgun.txt', col_names = F) %>% 
+  mutate(fullid = str_extract(X1, 'Sample_.+$')) %>% 
+  mutate(fid = str_replace(fullid, 'Sample_',''),
+         fid = str_replace(fid, '_IGO.+$','')) %>% 
+  select(-X1) %>% 
+  mutate(projectid = str_extract(fullid, 'IGO_.+_'),
+         projectid = str_replace(projectid, '_$', ''),
+         projectid = str_replace(projectid, 'IGO', 'Project')) %>% 
+  mutate(sampleid = fid)
+
+
+current 
+
+old <- shotgun_lookup_ad %>% 
+  mutate(fullid = str_extract(directory, 'Sample_.+$'))
+
+# ggvenn
+
+
+library(ggvenn)
+two_list <- list(old = old$fullid,
+current = current$fullid)
+
+ggvenn(two_list)
+
+toadd <- tibble(fullid = setdiff(current$fullid, old$fullid)) %>% 
+   mutate(fid = str_replace(fullid, 'Sample_',''),
+         fid = str_replace(fid, '_IGO.+$','')) %>% 
+  mutate(projectid = str_extract(fullid, 'IGO_.+_'),
+         projectid = str_replace(projectid, '_$', ''),
+         projectid = str_replace(projectid, 'IGO', 'Project')) %>% 
+  mutate(sampleid = fid) %>% 
+  mutate(sampleid = if_else(str_detect(sampleid, '^FMT_'), str_replace(sampleid, 'FMT_','FMT.'), sampleid),
+         sampleid = if_else(sampleid == '0116E', 'FMT.0116E', sampleid),
+         sampleid = if_else(sampleid == '01320E', '1320E', sampleid)) %>% 
+  mutate(directory = str_glue('/home/daia1/my_workdir/samples/{fullid}'))  %>% 
+  select(directory, projectid, sampleid, fid)
+
+toadd %>% 
+  write_csv('../data/update_shotgun_lookup_sept2.csv')
+
+```
+

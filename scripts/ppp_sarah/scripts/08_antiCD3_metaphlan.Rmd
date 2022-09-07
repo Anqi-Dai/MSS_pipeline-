@@ -1,19 +1,27 @@
 ---
-title: "Metaphlan results of the taxa"
-author: "Angel"
-date: "2022-08-29"
-output: html_document
+title: "alpha/beta diversity and the significantly different taxa of anti CD3 samples"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
 library(tidyverse, quietly = T)
 library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
 ```
 
+# the metaphlan results
 
 ```{r}
 fns <- list.files('../data/anticd3/', pattern = '.txt', full.names = T)
@@ -34,6 +42,8 @@ pheno <- tibble(
   grp = c(rep('control', 3), rep('grp1', 3),rep('grp2', 3))
 )
 ```
+
+# alpha and beta diversity
 
 ```{r}
 # to look at the alpha diversity
@@ -60,6 +70,7 @@ meta <- diversity(cts_, index = 'inv') %>%
 
 all_alpha <- meta %>% 
   ggboxplot(x = 'grp', y = 'inv', add = 'dotplot', ylab = 'inverse simpson',
+            title = 'Alpha diversity (grp1: lower grp2: higher)',
             add.params = list(color = 'forestgreen', size = 2, alpha = 1, shape = 20)) +
   stat_compare_means(comparisons= list(c('control', 'grp1'),
                                        c('control', 'grp2'),
@@ -68,6 +79,9 @@ all_alpha <- meta %>%
 										method= 'wilcox.test',
 										correct=FALSE) +
   theme_bw()
+
+
+all_alpha
 ```
 ```{r}
 # beta diversity
@@ -84,13 +98,16 @@ beta_df <- bc %>%
 
 beta_df %>% 
   ggscatter(x = 'V1', y = 'V2', color =  'grp', palette = 'lancet',  alpha = 1) +
-  labs(title = '') +
+  labs(title = 'Bray curtis distance') +
   xlab(paste0("PC 1 [",percent_var[1],"%]")) +
   ylab(paste0("PC 2 [",percent_var[2],"%]")) +
   theme(aspect.ratio=1, legend.position = 'right')
 
 ```
 
+# Sig different taxa at species level (with FDR < 0.25)
+
+## Corncob
 
 ```{r}
 library(corncob)
@@ -107,7 +124,7 @@ cts1 <- taxa %>%
   filter(!str_detect(sampleid, 'D7_3')) %>% 
   spread('sampleid','counts', fill = 0) %>% 
   column_to_rownames('species')
-samples1 = sample_data(sampledata %>% filter(grp != 'grp2'))
+samples1 = sample_data(pheno %>% filter(grp != 'grp2') %>% column_to_rownames('sampleid'))
 
 OTU1 = otu_table(cts1, taxa_are_rows = T)
 physeq1 = phyloseq(OTU1,  samples1)
@@ -128,7 +145,7 @@ cts2 <- taxa %>%
   filter(!str_detect(sampleid, 'D7_2')) %>% 
   spread('sampleid','counts', fill = 0) %>% 
   column_to_rownames('species')
-samples2 = sample_data(sampledata %>% filter(grp != 'grp1'))
+samples2 = sample_data(pheno %>% filter(grp != 'grp1') %>% column_to_rownames('sampleid'))
 
 OTU2 = otu_table(cts2, taxa_are_rows = T)
 physeq2 = phyloseq(OTU2,  samples2)
@@ -141,12 +158,26 @@ dv_analysis2 <- differentialTest(
   phi.formula_null = ~ grp,
   test = "LRT", boot = FALSE,
   data = physeq2,
-  fdr_cutoff = 0.25) 
-
-Corncob1 <- dv_analysis1$significant_taxa
-Corncob2 <- dv_analysis2$significant_taxa
+  fdr_cutoff = 0.25)
 ```
-# Maaslin2
+
+The sig different species between control and lower from Corncob
+
+```{r}
+# the sig different species between control and lower
+Corncob1 <- dv_analysis1$significant_taxa
+Corncob1
+```
+
+The sig different species between control and higher from Corncob
+
+```{r}
+# the sig different species between control and higher
+Corncob2 <- dv_analysis2$significant_taxa
+Corncob2
+```
+
+## Maaslin2
 
 ```{r}
 library(Maaslin2)
@@ -173,8 +204,10 @@ Maaslin1 <- Maaslin2(
     fixed_effects = c("grp"),
     reference = c("grp,control"))
 
+
 sig1 <- read_tsv('../data/output_shotgun-Maaslin1/significant_results.tsv') 
 ```
+No sig species between control and lower from Maaslin2
 
 ```{r}
 cts_2 <- cts_relab %>% 
@@ -201,8 +234,13 @@ Maaslin2 <- Maaslin2(
 
 sig2 <- read_tsv('../data/output_shotgun-Maaslin2/significant_results.tsv') 
 ```
+The species sig different between control and higher from Maaslin2
 
-# metagenomeseq
+```{r}
+sig2$feature
+```
+
+## Metagenomeseq
 
 ```{r}
 library(metagenomeSeq)
@@ -240,6 +278,7 @@ whole1 <- tibble(species = d1_res@taxa,
   filter(padj < 0.25)
 
 ```
+No sig species between control and lower from Metagenomeseq
 
 ```{r}
 
@@ -275,4 +314,12 @@ whole2 <- tibble(species = d2_res@taxa,
   mutate(padj = p.adjust(pval, method = 'BH')) %>% 
   filter(padj < 0.25)
 ```
+The species sig different between control and higher from Metagenomeseq
 
+```{r}
+whole2$species
+```
+
+## Conclusion
+
+All three tools identified s__Oscillibacter_sp_1_3 as the sig different species between control and higher.

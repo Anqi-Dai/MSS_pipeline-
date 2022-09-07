@@ -42,10 +42,10 @@ source('/Users/daia1/pipeline/scripts/database_related/get_data_from_query_OTU.R
 source('/Users/daia1/pipeline/scripts/database_related/db_connect.R'); #Start a connection here; The connection variable is `con`.
 getwd()
 # temp for when I'm using Marissa's laptop
-source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/get_data_from_query_OTU.R')
+
 # if there is a sourcing problem of the above script then go to that script and run directly , the key is to
 # have the get_data_from_query_otu function
-source('/Users/daia1/Downloads/MSK/MSS_pipeline-/scripts/database_related/db_connect.R');
+
 #warning("TO DO: ADD a step to get last `id` from database.")
 
 my_dbWriteTable <- function(con, table_name, d_set_to_upload_reordered){
@@ -134,7 +134,7 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   d_set_to_upload = d_set
   #table_name = 'humann_shotgun_ko_cpm_unstratified'
   table_name <- table_name
-  d_set_to_upload <- d_set
+  #d_set_to_upload <- d_set
   #Clean temp_table
   temp_table="temp_updating";
   query_check_temp = sprintf("SELECT EXISTS (SELECT 1 FROM   information_schema.tables WHERE table_name = '%s')", 
@@ -218,7 +218,7 @@ upload_data_from_query_OTU <- function(query_number, ...){
   if(query_number==1){
     table_name = "shotgun_lookup_ad";
     
-    d_set_input = fread("~/Downloads/MSK/Catalog/data/new_20211014.csv")
+    d_set_input = read_csv("/Users/daia1/pipeline/scripts/shotgun_pipeline/data/update_shotgun_lookup_sept2.csv")
     
     d_set=data.frame(directory=d_set_input$directory,
                      projectid=d_set_input$projectid,

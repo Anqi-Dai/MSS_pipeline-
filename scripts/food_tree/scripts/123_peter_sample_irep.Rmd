@@ -129,31 +129,76 @@ all_fam2_irep <- bind_rows(family2_irep,older )%>%
 ```{r}
 # the data from jonas lab people
 them <- read_csv('../data/sum of sugar intake vs max zscore family(E,E).csv') %>% 
-  select(sampleid, samplebin, iRep, genus, sum_sugar, iRep_zscore, pid) %>% 
-  filter(!is.na(sum_sugar))
+  select(sampleid, samplebin, iRep, genus, p1d_Sweets, p2d_Sweets,p1d_Fruits, p2d_Fruits, iRep_zscore, pid, sum_sugar) %>% 
+  filter(!is.na(sum_sugar)) %>% 
+  mutate(sum_fruits = p1d_Fruits + p2d_Fruits,
+         sum_sweets = p1d_Sweets + p2d_Sweets)
  
 all <- bind_rows(them, family2) %>% 
   filter(!is.na(sum_sugar))
 
-them %>% 
-  mutate(ave_sugar = sum_sugar/2) %>% 
-  ggpubr::ggscatter(x = 'ave_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
-                    xlab = 'Fruits and sweets intake averaged over prior 2 days',
-                    ylab = 'Growth rate (standardized within genus) ',
+ave_fruit <- them %>% 
+  mutate(ave_fruit = sum_fruits/2) %>% 
+  ggpubr::ggscatter(x = 'ave_fruit', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
+                    xlab = 'Fruits intake averaged',
+                    ylab = 'Growth rate\n(standardized within genus) ',
                     add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left")) +
   theme(aspect.ratio = 1,
-        legend.position = 'right',
+        legend.position = 'none',
         legend.title=element_blank())
-ggsave('../data/123_new_2fam_fig3top.pdf', height = 3.5)
+
+ave_sweets <- them %>% 
+  mutate(ave_sweets = sum_sweets/2) %>% 
+  ggpubr::ggscatter(x = 'ave_sweets', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
+                    xlab = 'Sweets intake averaged',
+                    ylab = 'Growth rate\n(standardized within genus) ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left")) +
+  theme(aspect.ratio = 1,
+        legend.position = 'none',
+        legend.title=element_blank())
+
+ave_combined <- them %>% 
+  mutate(ave_sugar = sum_sugar/2) %>% 
+  ggpubr::ggscatter(x = 'ave_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
+                    xlab = 'Sweets and fruits intake averaged',
+                    ylab = 'Growth rate\n(standardized within genus) ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left")) +
+  theme(aspect.ratio = 1,
+        legend.position = 'none',
+        legend.title=element_blank())
+ggsave('../data/123_new_2fam_fig3top.jpg', height = 3, plot = ave_combined)
 
 them %>% 
   #distinct(sampleid)
   distinct(pid)
+
+# put the above two in the same row
+library(cowplot)
+g <- plot_grid(ave_fruit, ave_sweets, 
+    ncol = 2,
+    o = 'hv',
+    #labels = 'AUTO',
+    axis = 'bltr') 
+ggsave('../data/123_new_2fam_fig3top_split2.jpg', width = 200, height = 100, units = c("mm"),
+         dpi = 300, plot = g)
 ```
+
+```{r}
+
+```
+
 
 ```{r}
 # adding the new samples

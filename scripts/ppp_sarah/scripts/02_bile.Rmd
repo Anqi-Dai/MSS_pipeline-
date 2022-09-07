@@ -66,3 +66,34 @@ tb %>%
 ggsave('../data/conbimed_bile_box.pdf')
 ```
 
+```{r}
+# the anti-CD3 projects
+kos <- list.files('../data/anticd3/', 'KO', full.names = T)
+
+ko <- kos %>% 
+  set_names(kos) %>% 
+  map(~ read_tsv(.,  col_types = 'cd') %>% 
+          select(KO  = `# Gene Family`, cpm = names(.)[2])  ) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../data/anticd3//Sample_',''),
+         sampleid = str_replace(sampleid, '_IGO_.+$','')) %>% 
+  filter(str_detect(KO, KO_str)) 
+
+ko %>% 
+  mutate(grp = if_else(str_detect(sampleid, 'D7_1'), 'control', if_else(str_detect(sampleid, 'D7_2'), 'lower', 'higher'))) %>% 
+  filter(!str_detect(KO, '\\|') ) %>% 
+  ggboxplot(x = 'grp', 'cpm', facet.by = 'KO', add = 'jitter') +
+  facet_grid(KO~., scales = 'free') +
+  stat_compare_means(comparisons= list(c('control', 'lower'),
+                                       c('control', 'higher'),
+                                       c('lower', 'higher')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE)
+
+ggsave('../data/anticd3_KO.pdf', width = 5, height = 6) 
+ko %>% write_csv('../data/anticd3_KO.csv')
+```
+
+
+

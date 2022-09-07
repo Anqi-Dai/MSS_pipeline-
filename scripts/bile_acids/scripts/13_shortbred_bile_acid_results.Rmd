@@ -26,3 +26,9 @@ res <- read_tsv('~/222_short_bile.txt', col_types = 'cddd') %>%
   inner_join(headers)
 ```
 
+```{r}
+library(seqinr)
+bai <- read.fasta('../data/IMG_aa_seq/bai_aa_seq/fasta.faa')
+ids <- tibble(id = names(bai))
+```
+

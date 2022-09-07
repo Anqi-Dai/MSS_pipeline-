@@ -1,0 +1,29 @@
+---
+title: "human shotgun data"
+author: "Angel"
+date: "2022-09-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+samp <- readxl::read_excel('../data/fiberstudy_patientsamples_shotgun.xlsx')
+
+sampleids <- samp %>% 
+  select(ends_with('id')) %>% 
+  gather()
+
+length(intersect(shotgun_lookup_ad$sampleid, sampleids$value))
+setdiff(sampleids$value, shotgun_lookup_ad$sampleid)
+```
+

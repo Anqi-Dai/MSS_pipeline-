@@ -47,6 +47,7 @@ vdb_users <- c("peledj",
                "piasevok",
                "lyum1",
                'sadeghik',
+               "katsamakisz",
                "rajs");
 #               "gomesa_cluster");
 

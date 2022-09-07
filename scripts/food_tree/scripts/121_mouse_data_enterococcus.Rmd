@@ -79,7 +79,8 @@ cts_entero <- cts %>%
          faceting_var = str_glue('{grouping}__Day{Day}')) %>% 
   relocate(Log_CFUs_per_GramStool, .before = 'grouping') %>% 
   relocate(abx, after = 'grouping') %>% 
-  mutate(Log_CFUs_per_GramStool = log10(Log_CFUs_per_GramStool)) %>% 
+  mutate(Log_CFUs_per_GramStool = log10(Log_CFUs_per_GramStool),
+         entero_copy = log10(entero_copy)) %>% 
   gather('key', 'value', relab:Log_CFUs_per_GramStool) %>% 
   mutate(key = factor(key, levels = c('Log_CFUs_per_GramStool','entero_copy','relab')))
 

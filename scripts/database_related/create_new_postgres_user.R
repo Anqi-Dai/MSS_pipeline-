@@ -20,8 +20,6 @@
 #
 #
 library(DBI)
-library(vdbR)
-connect_database()
 source('get_data_from_query_OTU.R');
 
 create_new_postgres_user <- function(user_name, temp_pass){
