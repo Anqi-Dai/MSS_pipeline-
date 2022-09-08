@@ -45,6 +45,12 @@ tb <- read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>%
   #summarise(aveirep = mean(iRep)) %>% 
   filter(best_species != 'Unclassified')
 
+tb %>% distinct(Sample) 
+#151 samples               
+```
+
+
+```{r}
 # save a copy of the high quality bins from the growth samples
 bins <-  read_tsv('../data/growth/bhatpipeline/binning_table_all_simple.tsv') %>% 
   rename_all(~ gsub("\\.", "_", .)) %>% 
