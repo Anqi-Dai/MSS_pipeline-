@@ -26,6 +26,9 @@ biosample <- read_csv('../data/save/all_biosample_table_20220226.csv')
 
 allsample <- bind_rows(newbiosample, biosample)
 allsra <- bind_rows(newsra, sra)
+
+allsample %>% write_csv('../data/save/all_released_biosample_table_20220907.csv')
+allsra %>% write_csv('../data/save/all_released_sra_table_20220907.csv')
 ```
 
 ```{r}

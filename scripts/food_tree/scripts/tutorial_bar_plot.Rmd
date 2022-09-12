@@ -1,0 +1,118 @@
+---
+title: "the composition bar plot"
+author: "Angel"
+date: '2022-09-12'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+library(readxl)
+library(ggpubr)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_annotation_blast_color_ag')
+
+sampleids <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(oligos_id, 'pool1154'))
+cts <- get_counts_subset(sampleids$sampleid)
+
+pheno <- read_csv('../data/correct_flourfenicol_biapenem_cfucounts.csv')
+```
+```{r}
+dat <- cts %>% 
+  select(asv_key:count_total, count_relative) %>% 
+  left_join(asv_annotation_blast_color_ag %>% 
+              select(asv_key,color_label_group_distinct), by = "asv_key")
+```
+
+
+```{r}
+# there are some ASVs that don't have a color with it, but can use the color for the genus level
+color_group <- dat %>% 
+  split(is.na(.$color_label_group_distinct))
+# find the genus for these asv
+
+no_color <- color_group %>% 
+  pluck('TRUE') %>% 
+  distinct(asv_key) %>% 
+  inner_join(asv_annotation_blast_ag %>% 
+               select(asv_key, genus)) 
+# find the colors for these genera
+genera_colors <- no_color %>% 
+  distinct(genus) %>% 
+  inner_join(asv_annotation_blast_color_ag %>% 
+               distinct(genus, color_label_group_distinct))
+
+# the full df for the no color genera
+no_color_df <- no_color %>% 
+  left_join(genera_colors)
+no_color_df_full <- color_group %>% 
+  pluck('TRUE') %>% 
+  select(-color_label_group_distinct) %>% 
+  left_join(no_color_df %>% 
+              select(- genus))
+  
+# so if the genus is unknown then it's gonna be assigned "other" gray color  
+# the question is do we go one taxa level higher or make a new color base and shades for the new asv
+# after discussing with Tsoni, we decided that it's ok to assign gray to the unknown genus 
+# merge the new no_color_df_full to the original df
+dat <- bind_rows(
+  no_color_df_full,
+  color_group %>% 
+    pluck('FALSE')
+) %>% left_join(pheno %>% 
+               select(sampleid = TubeID, Treatment:Mouse_identifier, Log_CFUs_per_GramStool )) %>% 
+  mutate(abx = str_extract(Treatment, '^.+\\+'),
+         abx = str_replace(abx, ' \\+', ''),
+        grouping = str_extract(Treatment, '\\+.+$'),
+         grouping = str_replace(grouping, '\\+ ', ''),
+         grouping = factor(grouping, levels = c('Plain Hydrogel','Sucrose','Naked Smoothie','Canned Peaches')) ,
+         sid = str_glue('{grouping}__Day{Day}__{Mouse_identifier}'),
+         faceting_var = str_glue('{grouping}__Day{Day}'))
+
+dat_bia <- dat %>% 
+  filter(abx == 'Biapenem')
+```
+```{r}
+asv_color_set <- asv_annotation_blast_color_ag %>% 
+  distinct(color,color_label_group_distinct,color_label_group,color_base) %>% 
+  select(color_label_group_distinct, color) %>% 
+  deframe()
+
+
+stacked_bar <- ggplot(dat_bia,aes(sid, count_relative, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  facet_grid(. ~ faceting_var, scales = 'free') +
+  theme_linedraw() +
+  labs(title = '',
+       y = 'Relative abundance') +
+  theme(axis.text.x = element_text(angle = 90),
+        axis.text.y = element_blank(),
+        axis.title.x = element_blank(),
+        strip.background = element_blank(),
+        legend.position = "none") +
+  scale_fill_manual(values = asv_color_set)
+
+stacked_bar
+```
+
+```{r}
+library(cowplot)
+p <- '../../miscellaneous/data//composition_legend.png'
+legend <- ggdraw() +
+  draw_image(magick::image_read(p),   scale = 0.9) 
+legend 
+
+
+top <- plot_grid(stacked_bar, legend, labels = 'none',rel_widths  = c(2, 0.5) )
+
+ggsave('../data/test_bar_human_palette.pdf',
+        width = 15, plot = top)
+```

@@ -25,5 +25,8 @@ sampleids <- samp %>%
 
 length(intersect(shotgun_lookup_ad$sampleid, sampleids$value))
 setdiff(sampleids$value, shotgun_lookup_ad$sampleid)
+
+# more mouse samples 6% fiber  and 0%
+# nadir stands for the low point with the lowest neutrophil
 ```
 

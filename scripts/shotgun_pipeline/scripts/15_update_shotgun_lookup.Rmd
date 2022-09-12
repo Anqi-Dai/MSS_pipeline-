@@ -15,6 +15,9 @@ library(vdbR)
 connect_database()
 get_table_from_database('shotgun_lookup_ad')
 get_table_from_database('asv_alpha_diversity_ag')
+
+missing <- read_csv('~/Downloads/shotgun_samples_missing.csv') %>% 
+  inner_join(shotgun_lookup_ad)
 ```
 
 ```{r}

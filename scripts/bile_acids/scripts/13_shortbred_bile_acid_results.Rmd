@@ -32,3 +32,10 @@ bai <- read.fasta('../data/IMG_aa_seq/bai_aa_seq/fasta.faa')
 ids <- tibble(id = names(bai))
 ```
 
+
+```{r}
+mapper <- read_csv('~/Downloads/bai_mapper.csv')
+bai_vdb_20220807 <- read_csv('~/Downloads/bai_vdb_20220807.csv')
+length(intersect(mapper$id, bai_vdb_20220807$sseqid))
+```
+
