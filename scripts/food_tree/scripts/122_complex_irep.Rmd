@@ -204,27 +204,6 @@ mtext("Posterior prediction iRep ME model sum (sweets, fruit)")
 post<-extract.samples(mfam)
 plot(precis(mfam, depth=2))
 ```
-Collapse
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-Jot something down
-
-
-
-
-
 
 
 

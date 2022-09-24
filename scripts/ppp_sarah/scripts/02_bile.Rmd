@@ -39,10 +39,17 @@ tb <- dat %>%
 
 tb %>% 
   write_csv('../data/three_bile_KO_table.csv')
+
+d7_ba_ko <- dat %>% 
+  filter(str_detect(KOID, KO_str)) %>% 
+  gather('sampleid', 'CPM', names(.)[2]:names(.)[ncol(.)]) %>% 
+  left_join(meta) %>% 
+  filter(str_detect(KOID, KO_str))  %>% 
+  filter(day =='D7')
 ```
 ```{r}
-tb %>% 
-  ggboxplot(x = 'grp', y = 'CPM', add = 'jitter') +
+d7_ba_ko %>% 
+  ggboxplot(x = 'grp', y = 'CPM', add = 'dotplot') +
   facet_grid(day ~ KOID) +
   stat_compare_means(comparisons= list(c('BM', 'BMT')),
             label= "p.value",
@@ -50,6 +57,9 @@ tb %>%
 						correct=F) 
 
 ggsave('../data/three_KO_bile_box.pdf')
+
+d7_ba_ko %>% 
+  write_csv('../data/02_for_Fig2_three_KO_cpm.csv')
 ```
 
 ```{r}

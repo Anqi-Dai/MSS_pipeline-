@@ -676,6 +676,11 @@ two_diff <- map2(maxs, mins, .f = function(maxi, mini){
   mutate(term = str_replace(term, 'max_','')) %>% 
   left_join(key %>% 
               select(term = fg1_name, color, shortname))
+
+# find the 95% HDI for the sweets max - ave
+two_diff %>% 
+  group_by(shortname) %>% 
+  tidybayes::median_qi(diff_max_ave , .width = c(.95))
 ```
 
 

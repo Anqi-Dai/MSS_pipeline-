@@ -1,0 +1,82 @@
+---
+title: "max zscore vs. family"
+output: html_document
+date: '2022-07-22'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# they annotate the family of the taxa
+z = read.csv("../data/117_irep_full_table_zscore_family.csv")
+z.family = z[z$family %in% c("Enterobacteriaceae","Enterococcaceae"),]
+
+z.family
+
+```
+
+```{r}
+df_plot <-  z.family %>%
+  filter((p1date_missing == FALSE) | (p2date_missing == FALSE)) %>%
+  mutate(max_sugar = pmax(max_p1d_fg_Fruits, max_p2d_fg_Fruits, max_p1d_fg_Sweets,max_p2d_fg_Sweets, na.rm=TRUE)) %>%
+  group_by(sampleid) %>%
+  slice(which.max(iRep))
+
+write.csv(df_plot,"max of sugar intake vs max zscore family(E,E).csv")
+ggplot(df_plot, aes(x = max_sugar, y = iRep)) + 
+  geom_point() + 
+  theme_classic()+
+  xlab('max of sugar (g)') + 
+  ylab("zscore")+
+  ggtitle(paste0('max of sugar intake vs max zscore family \nsamples=',nrow(df_plot))) + 
+  theme(plot.title = element_text(size = 10, face = "bold")) + 
+  stat_smooth(method = "lm",formula = y~x)+ 
+  stat_fit_glance(method = 'lm',
+                  method.args = list(formula = y ~ x),  
+                  geom = 'text', 
+                  aes(label = paste("p-value=", signif(..p.value.., digits = 3), 
+                                     sep = "")),
+                      label.x = 80, label.y = 2, size = 4) 
+
+ggsave('max of sugar intake vs max zscore family(E,E).pdf', width = 4, height=4)
+```
+
+
+```{r}
+df_plot <-  z.family %>%
+  filter((p1date_missing == FALSE) | (p2date_missing == FALSE)) %>%
+  mutate(sum_sugar = p1d_Fruits + p2d_Fruits + p1d_Sweets + p2d_Sweets) %>%
+  group_by(sampleid) %>%
+  slice(which.max(iRep))
+
+write.csv(df_plot,"sum of sugar intake vs max zscore family(E,E).pdf.csv")
+ggplot(df_plot, aes(x = sum_sugar, y = iRep)) + 
+  geom_point() + 
+  theme_classic()+
+  xlab('sum of sugar (g)') + 
+  ylab("zscore")+
+  ggtitle(paste0('sum of sugar intake vs max zscore family \nsamples=',nrow(df_plot))) + 
+  theme(plot.title = element_text(size = 10, face = "bold")) + 
+  stat_smooth(method = "lm",formula = y~x)+ 
+  stat_fit_glance(method = 'lm',
+                  method.args = list(formula = y ~ x),  
+                  geom = 'text', 
+                  aes(label = paste("p-value=", signif(..p.value.., digits = 3), 
+                                     sep = "")),
+                      label.x = 80, label.y = 2, size = 4) 
+
+ggsave('sum of sugar intake vs max zscore family(E,E).pdf', width = 4, height=4)
+```
+
+
+
+
+
+
+
+
+
+
+

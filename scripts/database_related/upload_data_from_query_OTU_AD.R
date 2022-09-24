@@ -30,6 +30,9 @@ library(stringr); #For string replace.
 #library(caroline); #for `dbWriteTable2`; #https://stackoverflow.com/questions/30276108/how-to-use-dbwritetable2-properly
 library("biomformat");
 library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('samples_castori_ag')
 #library("xlsx"); #For read.xlsx function;
 
 if(file.exists('~/projects/general/library/antoniostats/intervalcluster2.R')){
@@ -131,7 +134,7 @@ update_data_from_query_OTU_check_and_submission <- function(table_name, d_set_to
   #     4. Remove temporary table.
   #     5. Return only novel data to be uploaded;
 
-  d_set_to_upload = d_set
+  #d_set_to_upload = d_set
   #table_name = 'humann_shotgun_ko_cpm_unstratified'
   table_name <- table_name
   #d_set_to_upload <- d_set
@@ -418,6 +421,7 @@ upload_data_from_query_OTU <- function(query_number, ...){
     
     update_data_from_query_OTU_check_and_submission(table_name, d_set);
   }
+
 }
 
 # 4-29-2022

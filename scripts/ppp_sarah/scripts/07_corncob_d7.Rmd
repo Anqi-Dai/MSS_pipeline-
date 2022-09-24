@@ -78,6 +78,7 @@ dv_analysis <- differentialTest(
   test = "LRT", boot = FALSE,
   data = physeq,
   fdr_cutoff = 0.25) 
+dv_analysis$significant_models
 ```
 
 # Maaslin2
@@ -146,13 +147,8 @@ d7 <- cumNorm(d7, p = p)
 pd <- pData(d7) 
 mod <- model.matrix(~1 + grp, data = pd) 
 d7_res = fitFeatureModel(d7, mod) 
-
-
-whole <- tibble(species = d7_res@taxa,
-                pval = d7_res@pvalues) %>% 
-  mutate(padj = p.adjust(pval, method = 'BH'))
-q0.25_res <- whole %>% 
-  filter(padj < 0.25)
+d7_res_sig25 <- MRcoefs(d7_res) %>% 
+  filter(adjPvalues < 0.25)
 
 ```
 # Three tools comparison
@@ -164,16 +160,24 @@ res_list <- list(metagenomeSeq = q0.25_res$species,
                  Corncob = dv_analysis$significant_taxa)
 
 ggvenn(res_list, show_percentage = F)
+ggsave('../data/07_d7_DE_venn.pdf', width = 5)
 
 # the sig results (FDR < 0.25) from MaAsLin2
 sig$feature
+```
 
+
+```{r}
 # the sig results (FDR < 0.25) from metagenomeSeq
 q0.25_res$species
+```
 
+
+```{r}
 # the sig results (FDR < 0.25) from Corncob
 dv_analysis$significant_taxa
 ```
+
 ```{r}
 
 # what is the taxa annotation for the shared 1
@@ -201,5 +205,71 @@ cts_relab %>%
                       title = Name_,
                     add.params = list(color = 'forestgreen', alpha = 0.5, size = 3, shape = 16))
   })
+```
+
+## make a plot that's like Nick did in the IR paper
+
+```{r}
+# get the corncob coeff for the sig ones 
+corns <- dv_analysis$significant_models %>% 
+  set_names(dv_analysis$significant_taxa) %>% 
+  map_dfr(function(item){
+    item$coefficients[2,1]
+  }) %>% 
+  gather(
+    'taxa','coeff'
+  ) %>% 
+  mutate(coeff_scale = coeff/max(coeff))
+
+# also getting the corrected p value for each taxa 
+corns_p <- dv_analysis$p_fdr %>% 
+  enframe('taxa', 'FDR') %>% 
+  inner_join(corns) %>% 
+  select(taxa, coeff_scale, FDR)%>% 
+  mutate(tool = 'Corncob')
+```
+
+```{r}
+# for Maaslin2
+mas <- sig %>% 
+  filter(qval < 0.25) %>% 
+  select(taxa = feature, 
+         coef, qval)  %>% 
+  mutate(coeff_scale = coef/max(coef)) %>% 
+  select(taxa, coeff_scale, FDR = qval)%>% 
+  mutate(tool = 'MaAsLin2')
+
+```
+```{r}
+# for the metagenomic seq
+mmseq <- d7_res_sig25 %>% 
+  rownames_to_column('taxa') %>% 
+  mutate(coeff_scale = logFC/max(logFC)) %>% 
+  select(taxa, coeff_scale,FDR = adjPvalues) %>% 
+  mutate(tool = 'metagenomeSeq')
+mmseq
+```
+
+```{r}
+library(viridis)
+library(ggpubr)
+three <- bind_rows(mmseq, mas, corns_p) %>% 
+  mutate(taxa = str_extract(taxa, 's__.+$'))
+
+three %>% 
+  rename(`Relative coefficient (per tool)` = coeff_scale) %>% 
+  ggpubr::ggdotchart( x = 'tool', y = 'taxa', rotate = F,
+                      size = 'FDR', color = 'Relative coefficient (per tool)') +
+  scale_color_viridis_b() + 
+ scale_size(trans = 'reverse') +
+  theme(axis.text.x = element_text(angle = 45),
+        legend.position = 'right') +
+  guides(
+         size = guide_legend(title = "Corrected p-value")) +
+  theme_cleveland()
+
+ggsave('../data/07_three_tools_coeff.pdf', width = 10)
+
+three %>% write_csv('../data/07_thre_tools_data.csv')
 ```
 

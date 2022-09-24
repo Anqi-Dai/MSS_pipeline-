@@ -81,13 +81,19 @@ tb <- read_tsv('../data/humann3_KO_cpm_joined_stratified.tsv') %>%
   filter(day == 'D7')
 
 tb %>% 
-  #filter(str_detect(KO, 'Lactobacillus_johnsonii')) %>% 
-  ggboxplot(x = 'grp', y = 'cpm', facet.by = 'KO',add = 'dotplot',
+  filter(!str_detect(KO, 'Bifido')) %>% 
+  ggboxplot(x = 'grp', y = 'cpm',add = 'dotplot',
             xlab = '', ylab = 'Counts per million') +
+  facet_grid(~ KO) +
   stat_compare_means(comparisons= list(c('BM', 'BMT')),
             label= "p.value",
             method= 'wilcox.test',
 						correct=T) 
+
+tb %>% 
+  filter(!str_detect(KO, 'Bifido')) %>% 
+  write_csv('../data/05_for_FigS2_contribution_to_BSH.csv')
+
 
 ggsave('../data/05_K01442_Lactobacillus_johnsonii.pdf', height = 4, width = 5)
 

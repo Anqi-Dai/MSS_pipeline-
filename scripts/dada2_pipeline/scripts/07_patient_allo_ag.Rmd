@@ -1,0 +1,34 @@
+---
+title: "update the patient allo ag table"
+author: "Angel"
+date: "2022-09-19"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_ta
+get_table_from_database('patient_allo_ag')
+get_table_from_database('samples_castori_ag')
+new <- read_csv('~/Desktop/complete_yearly_pull_data_2022-09-15.csv') %>% 
+  filter(type == 'allo')
+new %>% distinct(mrn)
+
+new %>% count(type)
+
+length(intersect(new$mrn, patient_allo_ag$mrn))
+
+old <- patient_allo_ag %>% distinct(mrn)
+full_join <- patient_allo_ag %>% 
+  full_join(new)
+colnames(full_join)
+
+
+```
+

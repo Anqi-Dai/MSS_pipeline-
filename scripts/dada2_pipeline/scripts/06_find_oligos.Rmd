@@ -1,0 +1,92 @@
+---
+title: "find all oligos"
+author: "Angel"
+date: "2022-09-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+dat <- read_csv('~/Downloads/shotgun_samples_missing.csv') %>% 
+  inner_join(shotgun_lookup_ad)
+```
+
+
+```{r}
+# the files that I need to copy to the castori center folder
+copy <- dat %>% 
+  filter(str_detect(directory, 'peledj|pamere')) %>%
+  transmute(file = str_replace(directory, '/Volumes','/data/brinkvd/rawIGO'),
+            file = str_replace(file, 'FASTQ/','')) %>% 
+  mutate(cmd = str_glue('scp -r daia1@lilac.mskcc.org:{file} /Volumes/castoricenter/Angel/shotgun_for_bile_acid' ))
+copy %>% 
+  select(cmd) %>% 
+  write_csv('dl_files.sh', col_names = F)
+
+other <- dat %>% 
+  filter(!str_detect(directory, 'peledj|pamere')) %>% 
+  mutate(file = str_replace(directory, '/Volumes','/data/brinkvd/rawIGO'),
+         file = str_replace(file, 'FASTQ/',''),
+         file = str_replace(file, 'vandenBrinkLab/deep_sequencing', 'vandenbm'),
+         file = str_replace(file, '/data/brinkvd/rawIGO/vandenbm','/igo/delivery/share/vandenbm')) %>% 
+  select(file) 
+other %>% 
+  write_csv('../data/ba_shotgun_45_path.csv', col_names = F)
+```
+
+
+```{r}
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+```{r}
+# how many pools in the asv_alpha_diversity_ag table 
+asv_alpha_diversity_ag %>% 
+  mutate(path = str_replace(path_pool, 'isolated_oligos$','*.oligos')) %>% 
+  mutate(cmd = str_glue('cp {path} /data/brinkvd/data/oligos')) %>% 
+  distinct(cmd) %>% 
+  write_csv('../data/copy_oligos_26064.sh', col_names = F)
+
+# 631 total
+```
+```{r}
+# 475 already finished # 631 total
+# to check those pool names
+pools <- asv_alpha_diversity_ag %>% 
+  mutate(path = str_replace(path_pool, 'isolated_oligos$','*.oligos')) %>% 
+  distinct(path)
+
+# the ones that "res" in the directory name
+res <- pools %>% 
+  filter(str_detect(path, '_res/')) %>% 
+  mutate(path = str_replace(path, '_res/dada2_results$','/*.oligos')) %>% 
+  mutate(path = if_else(str_detect(path, '^Sample'), str_glue('/lila/data/brinkvd/daia1/samples/amplicon/{path}'), path)) %>% 
+  mutate(cmd = str_glue('cp {path} /data/brinkvd/data/oligos'))  %>% 
+  select(cmd) %>% 
+  write_csv('../data/copy_oligos_15.sh', col_names = F)
+  
+```
+
+```{r}
+# find all the oligos in the castori center dir
+res <- list.files('/Volumes/castoricenter/Castori.Center/Miseq/Miseq.Oligos/', full.names = T, recursive = T)
+miseq_oligos <- tibble(oliogs = res)
+
+# all the pools that are in our asv table
+us <- asv_alpha_diversity_ag %>% 
+  mutate(folder = str_extract(path_pool, 'Sample.+$')) %>% 
+  distinct(folder)
+
+us_pool <- us %>% 
+  filter(str_detect(folder, 'pool')) %>% 
+  mutate(poolid = str_extract(folder, 'pool.+_'))
+```
+
+

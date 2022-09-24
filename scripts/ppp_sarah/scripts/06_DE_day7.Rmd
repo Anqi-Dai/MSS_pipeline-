@@ -21,7 +21,19 @@ pheno <- readxl::read_excel('../data/05_meta_with_alpha.xlsx') %>%
 spp <- read_csv('../data/05_all_shotgun_metaphlan_spp.csv') %>% 
   filter(sampleid %in% pheno$sampleid)
 # actually the only difference is the BM and BMT group!
+```
 
+```{r}
+spp2 <- spp %>% 
+  filter(str_detect(clade_name, 'Lactobacillus|Enterococcus'),
+         !str_detect(clade_name, 'reuteri'))
+
+spp2 %>% 
+  write_csv('../data/06_two_spp_perc.csv')
+```
+
+
+```{r}
 genera <- spp %>% 
   mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
   group_by(sampleid, genus) %>% 
@@ -123,4 +135,6 @@ fit_data <- Maaslin2(
 # looking at the results from Maaslin2
 res <- read_tsv('../data/output/significant_results.tsv')
 ```
+
+
 

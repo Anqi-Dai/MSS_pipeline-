@@ -195,9 +195,6 @@ ggsave('../data/123_new_2fam_fig3top_split2.jpg', width = 200, height = 100, uni
          dpi = 300, plot = g)
 ```
 
-```{r}
-
-```
 
 
 ```{r}
