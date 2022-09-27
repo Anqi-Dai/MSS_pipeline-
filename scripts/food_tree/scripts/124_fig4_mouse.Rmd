@@ -1,0 +1,125 @@
+---
+title: "fig 4 mouse data"
+author: "Angel"
+date: "2022-09-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(scales)
+library(tidyverse)
+exp_title <- 'Experiments 10, 12, 13, 14'
+alldat4 <- readRDS("../data/alldat4.rds")
+
+gg4 <- alldat4 %>% 
+  ggplot(aes(day_factor_simple, y=as.numeric(Log_CFUs_per_GramStool))) + 
+  geom_boxplot(aes(fill = diet_treatment), alpha = 0.7,  outlier.shape = NA) +
+  geom_jitter(width = 0.1, alpha = 0.4, shape = 16, size = 2) +
+  # geom_dotplot(dotsize=3, binaxis='y', stackdir='center', position=position_dodge(0.5), binwidth = 0.05) +
+  ylab("CFUs/gram of stool, Log10 Scale") +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+                labels = trans_format("log10", math_format(10^.x))) +
+  facet_grid(. ~abx_treatment + diet_treatment)+
+  ggtitle(exp_title) +
+  theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust = 0.5)) +
+  theme_classic() +
+  # geom_text_repel(data=alldat1, aes(Day,as.numeric(Log_CFUs_per_GramStool), label=Mouse_identifier), fontface='bold')+
+  theme(legend.position = "none")
+
+alldat4$Mouse_identifier %>% unique() %>% length()
+# wilxocon = 0.0012 for day 6-7
+# N = 36 mice across 4 independent experiments
+gg4
+# ggsave("biapenem_combo.pdf", plot = gg4, device = "pdf")
+```
+
+```{r}
+#Just for targeted stats purposes of day 6-7 with stat_compare_means()
+alldat4 %>% 
+  filter(abx_treatment == "biapenem") %>% 
+  filter(day_factor_simple == "6-7") %>% 
+  ggplot(aes(diet_treatment, y=as.numeric(Log_CFUs_per_GramStool))) + 
+  geom_boxplot(alpha = 0.7,  outlier.shape = NA) +
+  geom_jitter(width = 0.1, alpha = 0.4) +
+  # geom_dotplot(dotsize=3, binaxis='y', stackdir='center', position=position_dodge(0.5), binwidth = 0.05) +
+  ylab("CFUs/gram of stool, Log10 Scale") +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+                labels = trans_format("log10", math_format(10^.x))) +
+  ggtitle('day 7 only') +
+  theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust = 0.5)) +
+  theme_classic() +
+  # geom_text_repel(data=alldat1, aes(Day,as.numeric(Log_CFUs_per_GramStool), label=Mouse_identifier), fontface='bold')+
+  theme(legend.position = "none") +
+  ggpubr::stat_compare_means()  
+```
+
+
+```{r}
+library(ggpubr)
+# the fold change for d0 d7 
+# of only the biapenem group
+dat07 <- alldat4 %>% 
+  filter(abx_treatment == 'biapenem') %>% 
+  select(Experiment, diet_treatment, abx_treatment, Group, Mouse_identifier,Log_CFUs_per_GramStool,day_factor_simple )%>% 
+  filter(day_factor_simple != '3') %>% 
+  spread('day_factor_simple', 'Log_CFUs_per_GramStool') %>% 
+  rename(d0 = `0`, d7 = `6-7`) %>% 
+  mutate(d70_foldchange = d7/d0)
+
+dat07 %>% 
+  ggboxplot(x = 'diet_treatment', y = 'd70_foldchange', add = 'jitter',
+            title = 'd7 VS d0 fold change') +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+                labels = trans_format("log10", math_format(10^.x))) +
+  stat_compare_means() 
+
+```
+
+```{r d7_box}
+# make a nicer version of the fig4 with the day 7 only data 
+d7 <- alldat4 %>% 
+  filter(abx_treatment == "biapenem") %>% 
+  filter(day_factor_simple == "6-7") %>% 
+  mutate(diet_treatment = str_replace(diet_treatment, '_',' ')) %>% 
+  ggboxplot(x = 'diet_treatment', y = 'Log_CFUs_per_GramStool', add = 'jitter',
+            xlab = '', ylab = 'CFUs/gram of stool, Log10 Scale',
+            add.params = list(size = 3, color = 'forestgreen', alpha = 0.5, shape = 16),
+            title = '') +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+                labels = trans_format("log10", math_format(10^.x))) +
+  stat_compare_means(comparisons= list(c('fruit smoothie', 'diet vehicle')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE) +
+  theme(axis.text =  element_text(size = 10),
+        axis.title  =  element_text(size = 10))
+d7
+
+```
+
+```{r}
+# import the diagram I made
+library(cowplot)
+p <- '../figs/paper/fig4_diagram.png'
+diagram <- ggdraw() +
+  draw_image(magick::image_read(p),   scale = 0.9) 
+diagram 
+
+fig4 <-  plot_grid(diagram,d7, 
+                  nrow = 1, labels = c('A','B'),  align = 'hvlr', rel_heights = c(1,1))
+fig4
+ggsave(
+  '../figs/paper/F4_124.pdf', width = 150, height = 80, units = c("mm"),
+         dpi = 400, device = 'pdf', plot = fig4
+)
+
+ggsave(
+  '../figs/paper/F4_124.jpg', width = 150, height = 80, units = c("mm"),
+         dpi = 400, device = 'jpg', plot = fig4
+)
+```
+

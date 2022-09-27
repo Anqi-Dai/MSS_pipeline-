@@ -165,21 +165,34 @@ ave_sweets <- them %>%
         legend.position = 'none',
         legend.title=element_blank())
 
+axis_text_size <- 10
+axis_title_size <- 10
+```
+
+
+```{r}
 ave_combined <- them %>% 
   mutate(ave_sugar = sum_sugar/2) %>% 
   ggpubr::ggscatter(x = 'ave_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
-                    xlab = 'Sweets and fruits intake averaged',
+                    xlab = 'Sweets and fruits intake averaged (g)',
                     ylab = 'Growth rate\n(standardized within genus) ',
                     add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left")) +
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5)) +
   theme(aspect.ratio = 1,
-        legend.position = 'none',
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        legend.position = 'right',
         legend.title=element_blank())
-ggsave('../data/123_new_2fam_fig3top.jpg', height = 3, plot = ave_combined)
 
+ggsave('../data/123_new_2fam_fig3top.pdf', height = 2, plot = ave_combined)
+them %>% distinct(pid)
+```
+
+
+```{r}
 them %>% 
   #distinct(sampleid)
   distinct(pid)
@@ -199,12 +212,12 @@ ggsave('../data/123_new_2fam_fig3top_split2.jpg', width = 200, height = 100, uni
 
 ```{r}
 # adding the new samples
-all_fam2_irep %>% 
-  ggpubr::ggscatter(x = 'sum_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
-                    add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left"))
+# all_fam2_irep %>% 
+#   ggpubr::ggscatter(x = 'sum_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
+#                     add = "reg.line",  # Add regressin line
+#            add.params = list(color = "blue", fill = "lightgray"), # Customize line
+#            conf.int = TRUE, # Add confidence interval
+#            cor.coef = TRUE, # Add correlation coefficient.
+#            cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left"))
 ```
  

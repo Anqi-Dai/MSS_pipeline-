@@ -68,6 +68,8 @@ mean_fg <-  meta %>%
 max_fg <- meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(max)) 
+
+meta %>% distinct(mrn)
 ```
 
 ## Priors 

@@ -71,7 +71,7 @@ byday_original <- dtb %>%
   ungroup()
 
 byday %>% write_csv('../data/089_sameday_diet_and_microbiome.csv')
-
+byday_original %>% distinct(mrn, fdrt)
 ```
 
 ```{r}
