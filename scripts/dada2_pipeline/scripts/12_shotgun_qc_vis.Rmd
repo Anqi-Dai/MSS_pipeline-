@@ -1,0 +1,179 @@
+---
+title: "12_shotgun_qc_vis"
+author: "Angel"
+date: "2022-10-13"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse) 
+library(ggpubr)
+library(scales)
+library(kableExtra)
+```
+
+```{r}
+# the table with the metrics grabbed from the log files
+logs <- read_csv('../data/09_shotgun_QC.csv')
+
+# the table with the quality score from fastqc 
+qual <- read_csv('../data/08_quality_score_shotgun_TRUE.csv') %>% 
+  mutate(fn = str_replace(fn, '../data/chi_shotgun//','')) %>% 
+  separate(fn, into = c('folder','pair'), sep = '__concat_')
+
+# the table with the over-represented sequences 
+over <- read_csv('../data/08_adapter_no_hit_FALSE.csv') %>% 
+  filter(str_detect(fn, 'chi_shotgun')) %>% 
+  mutate(fn = str_replace(fn, '../data/chi_shotgun//','')) %>% 
+  separate(fn, into = c('folder','pair'), sep = '__concat_')
+```
+
+```{r}
+# distribution of total number of reads in a sample
+# logs %>% 
+#   ggviolin( y  ='total', add = 'boxplot', xlab = '') +
+#   theme(axis.text.x = element_blank())
+
+# the quantiles
+quantile(logs$total, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(total = comma(value)) %>% 
+  select(quantiles, total) %>% 
+  kbl(caption = 'Total number of reads distribution in shotgun samples') %>% 
+  kable_styling()
+
+# decided to ignore samples with < 1 M reads
+```
+```{r}
+# the distribution of trimmed portions
+quantile(logs$trimmed_perc, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(trimmed_perc = comma(value)) %>% 
+  select(quantiles, trimmed_perc) %>% 
+  kbl(caption = 'Trimmed percentage distribution in shotgun samples') %>% 
+  kable_styling()
+
+# decided to ignore samples with trimmed portion > 50%
+trim_remove_portion <- logs %>% 
+  count(trimmed_perc > 50) %>% 
+  mutate(perc = round(n/sum(n)*100,2))
+trim_remove_portion %>% 
+  kbl(caption = 'samples removed because trimmed portion > 50%') %>% 
+  kable_styling()
+```
+
+```{r}
+# host genome percentage
+quantile(logs$hg38_perc, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(hg38_perc = comma(value)) %>% 
+  select(quantiles, hg38_perc) %>% 
+  kbl(caption = 'human host genome percentage distribution in shotgun samples') %>% 
+  kable_styling()
+ 
+quantile(logs$hg38_perc, probs = seq(0.9, 1, 0.01)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(hg38_perc = comma(value)) %>% 
+  select(quantiles, hg38_perc) %>% 
+  kbl(caption = 'human host genome percentage distribution in shotgun samples') %>% 
+  kable_styling()
+```
+
+```{r}
+# mapped to the mouse genome
+quantile(logs$mm38_perc, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(mm38_perc = comma(value)) %>% 
+  select(quantiles, mm38_perc) %>% 
+  kbl(caption = 'mouse host genome percentage distribution in shotgun samples') %>% 
+  kable_styling()
+```
+
+```{r}
+
+
+# % of samples kept after the filtering
+# round(nrow(keep)/nrow(logs)*100, 2) 
+
+# total number of reads before and after trimming 
+# trimmed portion 
+# overrepresented max and primer 
+
+# >>Per sequence GC content	pass
+```
+
+```{r}
+# quality score 
+qualscore <- qual %>% 
+  mutate(threshold = if_else(qscore >= 28, 'pass', 'fail')) %>% 
+  group_by(folder, pair, threshold) %>% 
+  summarise(threshold_count = sum(count)) %>% 
+  spread('threshold', 'threshold_count') %>% 
+  mutate(total_one = fail + pass ) %>% 
+  mutate(pass_perc = round(pass/total_one*100, 2))
+
+# compare the quality score of the R1 and R2
+qualscore %>% 
+  gghistogram(x = 'pass_perc', bins = 50, color = 'white', fill = 'forestgreen',
+              title = '% reads that have average quality score > 28')  +
+  facet_grid(pair~ .) 
+```
+```{r}
+# how many samples are in the df
+have_primer_or_adapter <- over %>% distinct(folder) %>% nrow
+
+# how many samples have_primer_or_adapter (perc)
+have_primer_or_adapter/nrow(logs)*100
+
+over %>% 
+  filter(str_detect(source, 'Primer')) %>% 
+  kbl(caption = 'primer hits in 297 shotgun samples') %>% 
+  kable_styling()
+
+over %>% 
+  filter(str_detect(source, 'Adapter')) %>% 
+  kbl(caption = 'Adapter hits in shotgun samples') %>% 
+  kable_styling()
+
+
+over_df <- over %>% 
+  group_by(folder) %>% 
+  summarise(max_perc = max(percentage)) 
+  
+  
+quantile(x = df$maxsample,  probs = seq(0,1,0.01))
+
+
+
+```
+
+```{r}
+# make a total df with all those metrics
+after <- read_csv('../data/09_total_after_processing.csv')
+metrics <- logs %>% 
+  full_join(after) %>% 
+  left_join(over_df ) %>% 
+  mutate(max_perc = if_else(is.na(max_perc), 0, max_perc))
+
+metrics %>% 
+  write_csv('../data/12_full_shotgun_qc_metrics.csv')
+
+# keep samples :
+# with > 1 M reads;   trimmed portion < 50% 
+# mm38 perc < 5  & after the preprocessing to still > 1 M reads & 
+# keep the max primer and adapter < 5%
+keep <- metrics %>%  
+  filter(total > 1e6 & trimmed_perc < 50 & mm38_perc < 5 & total_after > 1e6 & max_perc < 5) 
+
+keep %>%  write_csv('../data/12_shotgun_keep_samples.csv')
+```
+
+

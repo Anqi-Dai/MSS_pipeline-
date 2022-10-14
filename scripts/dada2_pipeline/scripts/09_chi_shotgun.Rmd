@@ -1,0 +1,255 @@
+---
+title: "chi shotgun samples"
+author: "Angel"
+date: "2022-09-28"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+# the shotgun samples sampleids
+shot <- read_csv('../data/shotgun_fid_from_metaphlan3_results.csv') %>% 
+  select(fid = x) %>% 
+  left_join(shotgun_lookup_ad)
+
+fix <- shot %>% 
+  filter(is.na(sampleid)) %>% 
+  select(fid) %>% 
+  mutate(fid = str_replace(fid, '^X','')) %>% 
+  mutate(fid = str_replace(fid, '\\.','-'))  %>% 
+  inner_join(shotgun_lookup_ad) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  mutate(folder = str_extract(directory, 'Sample_.+$')) %>% 
+  select(sampleid, folder, fid)
+
+right <- shot %>% 
+  filter(!is.na(sampleid)) %>% 
+  distinct(sampleid, .keep_all = T) %>% 
+  mutate(folder = str_extract(directory, 'Sample_.+$')) %>% 
+  select(sampleid, folder, fid)
+
+corrected <- bind_rows(fix, right)
+corrected %>% write_csv('../data/09_chi_shotgun_sampleid_corrected.csv')
+```
+
+## the trimming
+
+```{r}
+# the trimming results
+bbmap_logs <- list.files('../../shotgun_pipeline/data/logs/', '_bbmap_log.txt$', full.names = T)
+# this is for a pair of reads, reads in the whole sample
+   
+bb <- bbmap_logs %>% 
+  set_names(bbmap_logs) %>% 
+  map(~ suppressWarnings(read_tsv(., skip = 1, col_names = F, col_types = 'c', num_threads = 16)) %>% 
+      filter(str_detect(X1, 'Input:|Removed')) %>% 
+      rename(content = X1) %>% 
+      mutate(content = str_replace(content, 'reads.+$',''),
+             content = str_replace(content, '^.+\t','')) %>% 
+      mutate(content = as.numeric(content )) %>% 
+      mutate(type = c('total','trimmed')) %>% 
+      spread('type', 'content') ) %>% 
+  bind_rows(.id = 'sampleid') 
+         
+
+bbchi <- corrected %>% 
+  left_join(bb %>% 
+            mutate(folder = str_replace(sampleid, '../../shotgun_pipeline/data/logs//',''),
+         folder = str_replace(folder, '_bbmap_log.txt','')) %>% select(-sampleid))
+
+# # the ones that missing the trimming log
+# missing1 <- bbchi %>% 
+#   filter(is.na(total))
+bbchi %>% write_csv('../data/09_total_and_trimmed_1231.csv')
+```
+
+## the kneaddata 
+
+```{r}
+# to see how many I have already run kneaddata
+
+
+# knead <- tibble(fns = fns) %>% 
+#   mutate(folder = str_extract(fns, 'Sample_.+$'),
+#          folder = str_replace(folder, '_knead.log','')) %>% 
+#   right_join(corrected)
+# 
+# missing2 <- knead %>% 
+#   filter(is.na(fns))
+# 
+# length(intersect(missing1$folder, missing2$folder))
+# setdiff(missing2$folder, missing1$folder)
+# 
+# # write out the missing 31 to run in the pipeline
+# missing2 %>% select(folder) %>% 
+#   write_csv('../data/09_missing_shotgun_31.csv', col_names = F)
+```
+
+```{r}
+# to grab the host reads from the log files   
+fns <- list.files('../../shotgun_pipeline/data/logs/', full.names = T, pattern = '_knead.log$')
+    
+# first I need to find out what samples successfully finished the knead ...
+
+all <- fns %>% 
+  set_names(fns) %>% 
+  map(~ suppressWarnings(read_csv(., col_names = F, col_types = 'c', num_threads = 16)) %>% 
+        rename(content = names(.)[1]) %>% 
+        filter(str_detect(content, 'Total contaminate sequences in file')) %>% 
+  mutate(type = if_else(str_detect(content, 'hg38'), 'hg38','mm38')) %>% 
+  mutate(content = str_replace(content, '^.+: ','')) %>% 
+  distinct() %>% # R1 and R2 have the same number 
+  mutate(content = as.numeric(content))  )
+
+#all$`../../shotgun_pipeline/data/logs//Sample_1042T_IGO_07976_96_knead.log`
+
+# find the ones that have 2 rows from the all
+right <- all %>%  
+  keep( ~nrow(.) == 2) %>% 
+  bind_rows(.id = 'folder') %>%
+  mutate(folder = str_replace(folder, '../../shotgun_pipeline/data/logs//',''),
+         folder = str_replace(folder, '_knead.log','')) %>% 
+  spread('type', 'content') %>% 
+  right_join(corrected) %>% 
+  mutate(hg38 = hg38*2,
+         mm38 = mm38*2)
+
+# 
+# problems <- all %>%  
+#   keep( ~ nrow(.) != 2) %>% 
+#   bind_rows(.id = 'folder') %>%
+#   mutate(folder = str_replace(folder, '../../shotgun_pipeline/data/logs//',''),
+#          folder = str_replace(folder, '_knead.log',''))
+# 
+# 
+# length(intersect(problems$folder, corrected$folder))
+# rerun <- intersect(problems$folder, corrected$folder) 
+```
+
+```{r}
+
+
+all_after <- fns %>% 
+  set_names(fns) %>% 
+  map(~ suppressWarnings(read_csv(., col_names = F, col_types = 'c', num_threads = 16)) %>% 
+        rename(content = names(.)[1]) %>% 
+        filter(str_detect(content, 'Total reads after merging results from multiple databases'))  %>% 
+  mutate(content = str_replace(content, '^.+: ','')) %>% 
+  distinct() %>% # R1 and R2 have the same number 
+  mutate(content = as.numeric(content))  )
+
+all_after_df <- all_after %>%  
+  keep( ~nrow(.) == 1) %>% 
+  bind_rows(.id = 'folder') %>%
+  mutate(folder = str_replace(folder, '../../shotgun_pipeline/data/logs//',''),
+         folder = str_replace(folder, '_knead.log','')) %>% 
+  right_join(corrected) %>% 
+  mutate(total_after = content * 2) %>% 
+  select(folder, total_after)
+
+all_after_df %>% write_csv('../data/09_total_after_processing.csv')
+```
+
+
+```{r}
+# grabbing the current total host from mouse and human
+# four sample in rerun need to rerun the kneaddata 
+# the4 <- problems %>% 
+#   group_by(folder) %>% 
+#   summarise(host = sum(content)) %>% 
+#   filter(folder %in% corrected$folder)
+# 
+# the1227 <- right %>% 
+#   filter(!is.na(hg38)) %>% 
+#   mutate(host = hg38 + mm38) %>% 
+#   select(folder, host)
+# 
+# total_host <- bind_rows(the4, the1227)
+
+
+the1231 <- right %>% 
+  filter(!is.na(hg38)) %>% 
+  select(folder, hg38, mm38)
+
+totalqc <- the1231 %>% 
+  full_join(bbchi) %>% 
+  select(sampleid, folder, total, trimmed, hg38, mm38) %>% 
+  mutate(trimmed_perc = round(trimmed/total*100, 2),
+         hg38_perc = round(hg38/total*100, 2),
+         mm38_perc = round(mm38/total*100, 2)) 
+
+totalqc %>% write_csv('../data/09_shotgun_QC.csv')
+
+totalqc <- read_csv('../data/09_shotgun_QC.csv')
+```
+
+
+```{r}
+# the filtering criteria we defined:
+
+#ignore < 1 M reads
+
+#ignore trimmed > 50%
+
+#ignore high mouse percentage
+
+keep <- totalqc %>% 
+  filter(total > 1e6 & trimmed_perc < 50)
+
+keep %>% 
+  write_csv('../data/09_keep_shotgun_1216.csv')
+```
+
+
+## the complete knead pair files for upload
+
+```{r}
+finished <- read_csv('../../shotgun_pipeline/data/current_knead.txt', col_names = c('folder')) %>% 
+  mutate(folder = str_extract(folder, 'Sample_.+knead'),
+         folder = str_replace(folder, '_knead' ,''))
+
+length(intersect(finished$folder, corrected$folder))
+
+need <- corrected %>% 
+  filter(! folder %in% finished$folder)
+
+need %>% 
+  select(folder) %>% 
+  write_csv('../data/09_need_knead_419.csv', col_names = F)
+```
+
+
+```{r}
+# and there is a need to have the fastqc report for the raw fastq files
+corrected %>% 
+  select(folder) %>% 
+  write_csv('../data/09_shotgun_1231.csv', col_names = F)
+```
+
+```{r}
+# to make a tsv for the binning input txt
+# tl <- read_csv('../../miscellaneous/data/16_shotgun_cart_sample.csv', col_names = c('folder'))
+# input <- tibble(
+#   folder = tl$folder
+# ) %>% 
+#   mutate(fid = str_glue('{folder}__concat'),
+#          trim = str_glue('/home/daia1/my_workdir/samples/cart_irep/assembly/02_assembly/02_metaspades/{fid}/contigs_trim.fasta'),
+#          r1 = str_glue('/lila/data/brinkvd/daia1/samples/cart_irep/preprocessing/01_processing/05_sync/{fid}_1.fq.gz'),
+#          r2 =  str_glue('/lila/data/brinkvd/daia1/samples/cart_irep/preprocessing/01_processing/05_sync/{fid}_2.fq.gz'))
+#   
+# input %>% 
+#   mutate(reads = str_glue('{r1},{r2}')) %>% 
+#   select(fid, trim, reads) %>% 
+#   write_tsv('../data/binning_input.txt', col_names = F)
+```
+

@@ -8,13 +8,13 @@ editor_options:
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 # One-time configuration of the MSK RStudio Package Manager
-# install.packages("rstudio.prefs")
-# rstudio.prefs::use_rstudio_secondary_repo(
-#   MSK_RSPM = "http://rspm.mskcc.org/MSKREPO/latest"
-# )
-# install.packages("biostatR")
+install.packages("rstudio.prefs")
+rstudio.prefs::use_rstudio_secondary_repo(
+  MSK_RSPM = "http://rspm.mskcc.org/MSKREPO/latest"
+)
+install.packages("biostatR")
 library(biostatR)
- library(mskRvis)  #https://github.mskcc.org/pages/datadojo/mskRvis/index.html
+library(mskRvis)  #https://github.mskcc.org/pages/datadojo/mskRvis/index.html
 
 library(tidyverse)
 library(vdbR)
@@ -58,6 +58,7 @@ factored_case_when <- function(...) {
 }
 
 load('../data/2022_9_13.rdata')
+# df_lab is the lab test results , 
 # day relative to cart and the value for the lab test for the table df_lab
 ```
 
@@ -103,6 +104,7 @@ library(vdbR)
 connect_database()
 get_table_from_database('asv_alpha_diversity_ag')
 get_table_from_database("samples_castori_ag")
+get_table_from_database("patient_allo_ks_20220930")
 # merge clinical data with sample data + filter to day -40 to 60
 samples <- samples_castori_ag %>%
   mutate(mrn=str_pad(mrn, pad = "0", width = 8)) %>%
@@ -112,13 +114,26 @@ samples <- samples_castori_ag %>%
 #  inner_join(df_msk_filt %>% select(mrn,record_id, dx.factor, dt_car_t,ind_aph_cart_d, crs.factor, objres_100,everCR_100, icans.factor, dur_neut_d, bestres_3lvl_100, everCR_100), by=c("mrn"))%>%
   mutate(dr_car = as.numeric(ymd(datecollection) - ymd(dt_car_t))) %>%
   filter(dr_car > -40 & dr_car <= 100)
+
+samples %>% write_csv('../data/castori_has_samples.csv')
+
+# new updated samples 
+samples <-  read_csv('../data/01_19135_total_stool_samples.csv')
+
+now <- samples %>% 
+  inner_join(df_msk_filt,  by=c("mrn"))%>%
+#  inner_join(df_msk_filt %>% select(mrn,record_id, dx.factor, dt_car_t,ind_aph_cart_d, crs.factor, objres_100,everCR_100, icans.factor, dur_neut_d, bestres_3lvl_100, everCR_100), by=c("mrn"))%>%
+  mutate(dr_car = as.numeric(ymd(datecollection) - ymd(dt_car_t))) %>%
+  filter(dr_car > -40 & dr_car <= 100)
+
+now %>% 
+  write_csv('../data/new_samples_table_with_patient_data.csv')
 ```
 
 
 ```{r}
 # figure out what are the most recently sequenced samples in the pool1157
-new <- asv_alpha_diversity_ag %>% 
-  filter(str_detect(oligos_id, 'pool1157'))
+
 
 length(intersect(samples$sampleid, new$sampleid))
 
@@ -208,7 +223,7 @@ phy
 
 # Sample Exploration
 ```{r}
-
+# not all patients have microbiol samples 
 mrns_missing <- df_msk_filt[!df_msk_filt$mrn %in% samples$mrn, "mrn"]
 
 print(paste0("Found sequencing data for ", nrow(df_msk_filt)-nrow(mrns_missing), "/", nrow(df_msk_filt), " patients"))
@@ -230,7 +245,7 @@ samples %>%
   set_msk_aes()
 
 
-
+# crs_2_4 : grade 2 -4 VS 0:1
 samples %>%
 filter(!is.na(crs_2_4)) %>% 
   ggplot(aes(dr_car, fill = crs_2_4)) +

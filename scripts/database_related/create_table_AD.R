@@ -291,6 +291,7 @@ create_table_type <- function(query_type, ...){
     
     create_table(con, table_name, table_fields, field_type, unique_set = unique_set,access_type="restricted");
   }
+  
 }
 #### !!!!! all characters will be converted to non captital letters 
 

@@ -1,0 +1,78 @@
+---
+title: "updated samples list"
+author: "Angel"
+date: "2022-10-05"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(lubridate)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database("samples_castori_ag")
+```
+
+```{r}
+tbl <- read_csv('../data/gabe_sheet.csv', skip = 2, col_select = c('MRN','Sample ID','Collection Date')) %>% 
+  mutate(mrn = as.numeric(MRN),
+         datecollection = mdy(`Collection Date`)) %>% 
+  rename(sampleid = `Sample ID`) %>% 
+  select(sampleid, datecollection, mrn)  %>% 
+  distinct()
+
+new <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(oligos_id, 'pool1157')) %>% 
+  filter(! sampleid %in% samples_castori_ag$sampleid & str_detect(sampleid, '^\\d')) %>% 
+  inner_join(tbl) 
+
+
+# whether the patients of those 7 samples are in the selected patient cohort
+length(intersect(new$mrn, df_msk_filt %>% mutate(mrn = as.numeric(mrn)) %>% pull(mrn)))
+# yes
+
+# make a table that can be combined to the current subset samples table 
+castori_ones <- read_csv('../data/castori_has_samples.csv')
+
+new7 <- new %>% 
+  select(mrn, sampleid, datecollection) %>% 
+  mutate(mrn=str_pad(mrn, pad = "0", width = 8)) %>% 
+  mutate(sampletype = 'Stool', consistency = 'NA') %>% 
+  select(mrn, sampleid, datecollection, consistency, sampletype)
+ 
+new_samples <- bind_rows(castori_ones, new7)
+
+new_samples %>% write_csv('../data/01_19135_total_stool_samples.csv')
+
+```
+
+```{r}
+# now 204 samples pull those tables ...
+alpha <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% now$sampleid) %>% 
+  select(sampleid:shannon) %>% 
+  distinct(sampleid, .keep_all = T)
+#186
+cts <-get_counts_subset(alpha$sampleid)  %>% 
+  select(asv_key:count_total, count_relative)
+
+taxa <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts$asv_key) %>% 
+  select(asv_key:blast_pass)
+
+list(alpha = alpha,
+     counts = cts,
+     taxa = taxa) %>% 
+  imap(function(.x, .y){
+    write_csv(.x, str_glue('../data/cart_ASV_{.y}.csv'))
+  })
+
+#setdiff(now$sampleid, alpha$sampleid)
+```
+

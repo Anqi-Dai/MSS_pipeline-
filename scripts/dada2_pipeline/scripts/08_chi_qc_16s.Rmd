@@ -1,0 +1,367 @@
+---
+title: "Chi samples 16s metrics"
+author: "Angel"
+date: "2022-09-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+list_table_from_database('nutrition')
+get_table_from_database('asv_alpha_diversity_ag')
+list_table_from_database('nutrition')
+get_table_from_database('nutrition_demographics_ag')
+```
+
+for the quality of the sequences gather data from fastqc data like this:
+
+```{r}
+# >>Per sequence quality scores	pass
+# #Quality	Count
+# 11	1.0
+# 12	0.0
+# 13	0.0
+# 14	0.0
+# 15	1.0
+# 16	2.0
+# 17	2.0
+# 18	2.0
+# 19	4.0
+# 20	3.0
+# 21	16.0
+# 22	27.0
+# 23	77.0
+# 24	140.0
+# 25	263.0
+# 26	539.0
+# 27	927.0
+# 28	1488.0
+# 29	2166.0
+# 30	3208.0
+# 31	4735.0
+# 32	6887.0
+# 33	10271.0
+# 34	17106.0
+# 35	33208.0
+# 36	45957.0
+# 37	330.0
+
+#% of read over quality score 28:
+# the median and mean of the quality score for every sample
+# 
+```
+
+## for the 16s
+
+Get the # read of raw and after filterandtrim
+Get the quality score FastQC: for demultiplexed fastq files (16S) 
+
+```{r}
+# the samples in the 16s the demultiplexed ones
+amplicon <- read_csv('../data/whole_cohort_oligos_id.csv')
+
+# find the demultiplexed fastq path
+ampath <- amplicon %>% 
+  inner_join(asv_alpha_diversity_ag) %>% 
+  distinct(sampleid, oligos_id, .keep_all = T)
+
+missingpath <- amplicon %>% 
+  filter(! oligos_id %in% ampath$oligos_id)
+
+other24 <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% missingpath$sampleid)
+
+other1 <- other24 %>% 
+  filter(str_detect(path_pool, 'dada2')) %>% 
+  mutate(path_pool = str_replace(path_pool,'dada2_results','isolated_oligos')) %>% 
+  mutate(r1 = str_glue('{path_pool}/{oligos_id}'))
+
+other2 <- other24 %>% 
+  filter(!str_detect(path_pool, 'dada2')) %>% 
+  mutate(r1 = str_glue('{path_pool}/{oligos_id}_R1.fastq.gz'))
+
+other24_ <- bind_rows(other1, other2) %>% 
+  select(r1)
+
+main <- ampath %>% 
+  mutate(r1 = str_glue('{path_pool}/{oligos_id}_R1.fastq.gz')) %>% 
+  select(r1)
+
+newer <- bind_rows(main, other24_)
+
+
+# my 801 pool is empty but I can use Antonio's files
+newer_ <- newer %>% 
+  mutate(r1 = str_replace(r1, '/lila/data/brinkvd/daia1/samples/amplicon/Sample_pool801_complete', '/data/brinkvd/gomesa/e63data/pipeline_16S_call/Human_data_castori_update/Sample_pool801_complete'),
+         r1 = str_replace(r1, '/lila/data/brinkvd/daia1/samples/amplicon/Sample_pool768_complete', '/data/brinkvd/gomesa/e63data/pipeline_16S_call/Human_data_castori_update/Sample_pool768_complete'),
+         r1 = str_replace(r1, '/lila/data/brinkvd/daia1/samples/amplicon', '/data/brinkvd/gomesa/e63data/pipeline_16S_call/Human_data_castori_update'),
+         r1 = str_replace(r1, 'complete_res', 'complete'))
+```
+
+
+```{r}
+newer_ %>% 
+  filter(!str_detect(r1, 'pool1047')) %>% 
+  write_csv('../data/08_16s_r1.csv', col_names = F)
+
+newer_ %>% 
+  filter(str_detect(r1, 'daia1')) %>% 
+  mutate(pool = str_extract(r1, 'pool\\d+')) %>% 
+  distinct(pool) %>% 
+  summarize(text = str_c(pool, collapse = "|"))
+
+# the 4 that are in the pool 1047
+only4 <- newer_ %>% 
+  filter(str_detect(r1, 'pool1047')) %>% 
+  mutate(r1 = str_replace(r1, '/data/brinkvd/gomesa/e63data/pipeline_16S_call/Human_data_castori_update/Sample_pool1047_complete','/home/daia1/my_workdir/samples/amplicon/Sample_pool1047_complete_IGO_11150_1'))
+
+only4 %>% 
+  write_csv('../data/08_16s_r1_4.csv', col_names = F)
+```
+
+
+```{r}
+# now construct a path to download all of the fastqc zip files
+fastqc <- bind_rows(
+  newer_ %>% 
+  filter(!str_detect(r1, 'pool1047')),
+  only4
+) %>% 
+  transmute(zip = str_replace(r1, ".fastq.gz","_fastqc.zip")) %>% 
+  mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:{zip}  /Users/daia1/pipeline/scripts/dada2_pipeline/data/chi_16s'))  
+
+fastqc %>% select(cmd) %>% 
+  write_csv('../data/08_download_fastqc.sh', col_names = F)
+
+redo <- fastqc %>% 
+  filter(str_detect(zip, 'oligos/54'))
+
+redo %>% select(cmd) %>% 
+  write_csv('../data/08_redownload_fastqc.sh', col_names = F)
+
+zipped <- fastqc %>% 
+  mutate(file = str_replace(zip, '^.+isolated_oligos/',''),
+         file = str_glue('/Users/daia1/pipeline/scripts/dada2_pipeline/data/chi_16s/{file}')) 
+
+zipped %>% select(file) %>% 
+  write_csv('../data/08_zipped.csv', col_names = F)
+```
+
+```{r}
+# the folders for all of the samples
+allamp <- fastqc %>% 
+  mutate(pool = str_replace(r1, '/isolated_oligos.+$', '')) %>% 
+  distinct(pool)
+
+allamp %>% 
+  write_csv('../data/chi_all_pools.csv')
+```
+
+```{r}
+# to make path for the counts of the trimmed files:
+# {prefix}_F_filt_reads.txt
+total <- fastqc %>%
+  mutate(r1 = str_replace(r1 , 'isolated_oligos','isolated_oligos/filtered'),
+         r1 = str_replace(r1 , '_R1.fastq.gz','_F_filt_reads.txt')) %>% 
+  transmute(cmd = str_glue('scp daia1@lilac.mskcc.org:{r1} .'))
+
+total %>% write_csv('../data/chi_16s/dl_trim_R1_reads.sh', col_names = F)
+  
+```
+
+
+```{r}
+# to test on one sample's fastqc data
+
+test <- read_csv('../data/1163Q..pool716_R1_fastqc/fastqc_data.txt', col_names = c('content'), col_types = 'c')
+
+totalseq <- test %>% 
+  filter(str_detect(content, 'Total Sequences' )) %>% 
+  mutate(totalseq = str_extract(content, '\\d+')) %>% 
+  mutate(totalseq = as.numeric(totalseq)) %>% 
+  select(totalseq)
+```
+
+```{r}
+# to grab the per sequence quality scores 
+qua_start <- test%>% 
+  with(which(str_detect(content, 'Per sequence quality scores' )))
+
+qua_end <- test %>% 
+  with(which(str_detect(content, 'Per base sequence content	' ))) 
+stopindex <- qua_end -2
+startindex <- qua_start + 2
+
+quadf <- test %>% 
+  slice( startindex:stopindex) %>% 
+  separate(content, into = c('qscore','count'), sep = '\t') %>% 
+  mutate(qscore = as.numeric(qscore),
+         count = as.numeric(count))
+quadf
+```
+
+## the total number of reads for each sample
+
+```{r}
+# unzip all of the 10187 fastqc zip files and extract the data file path
+# extract the total number of reads for each sample
+fastqcdat <- list.files('../data/chi_16s/', pattern = '_fastqc$', full.names = T)
+
+fq <- tibble(
+  folder = fastqcdat
+) %>% 
+  mutate(txt = str_glue('{folder}/fastqc_data.txt'))
+
+txts <- fq %>% pull(txt)
+
+totalreads <- txts %>% 
+  set_names(txts) %>% 
+  map(~ read_csv(., col_names = c('content'), col_types = 'c') %>% 
+          filter(str_detect(content, 'Total Sequences' )) %>% 
+          mutate(totalseq = str_extract(content, '\\d+')) %>% 
+          mutate(totalseq = as.numeric(totalseq)) %>% 
+          select(totalseq))
+```
+
+```{r}
+totalreads_df <- totalreads %>% bind_rows(.id = 'oligos_id') %>% 
+  mutate(total_per_sample = totalseq * 2) %>% 
+  mutate(oligos_id = str_replace(oligos_id, '../data//',''),
+         oligos_id = str_replace(oligos_id, '_R1_fastqc/fastqc_data.txt','')) %>% 
+  select(-totalseq)
+
+totalreads_df %>% 
+  write_csv('../data/08_16s_total_reads_per_sample.csv')
+```
+
+## the the per sequence quality scores  
+
+```{r}
+# a function to extract that df
+extract_qualdf <- function(file){
+    df <- read_csv(file, col_names = c('content'), col_types = 'c')
+    
+      qua_start <- df%>% 
+      with(which(str_detect(content, 'Per sequence quality scores' )))
+    
+    qua_end <- df %>% 
+      with(which(str_detect(content, 'Per base sequence content	' ))) 
+    stopindex <- qua_end -2
+    startindex <- qua_start + 2
+    
+    quadf <- df %>% 
+      slice( startindex:stopindex) %>% 
+      separate(content, into = c('qscore','count'), sep = '\t') %>% 
+      mutate(qscore = as.numeric(qscore),
+             count = as.numeric(count))
+    return(quadf)
+}
+
+qualscore <- txts %>% 
+  set_names(txts) %>% 
+  map(.x = ., .f = extract_qualdf  )
+
+qualscore_df <- qualscore %>% 
+  bind_rows(.id = 'oligos_id') %>% 
+  mutate(oligos_id = str_replace(oligos_id, '../data//',''),
+         oligos_id = str_replace(oligos_id, '_R1_fastqc/fastqc_data.txt','')) 
+
+qualscore_df %>% write_csv('../data/08_per_seq_quality_score_R1.csv')
+```
+
+## the adapter hits
+
+```{r}
+
+
+extract_overrepresen <- function(file){
+  df <- read_csv(file, col_names = c('content'), col_types = 'c')
+  
+  overre_start <- df%>% 
+  with(which(str_detect(content, 'Overrepresented sequences' )))
+
+  overre_end <- df %>% 
+    with(which(str_detect(content, 'Adapter Content' )))
+  
+  stopindex <- overre_end -2
+  startindex <- overre_start + 2
+  
+  overrepredf <- df %>% 
+    slice( startindex:stopindex) %>% 
+    separate(content, into = c('sequence','count','percentage','source'), sep = '\t') %>% 
+    mutate(count = as.numeric(count),
+           percentage = as.numeric(percentage))
+  return(overrepredf)
+}
+
+overrepresented <- txts %>% 
+  set_names(txts) %>% 
+  map(.x = ., .f = extract_overrepresen  )
+
+overrepresented_df <- overrepresented %>% 
+   bind_rows(.id = 'oligos_id') %>% 
+  mutate(oligos_id = str_replace(oligos_id, '../data//',''),
+         oligos_id = str_replace(oligos_id, '_R1_fastqc/fastqc_data.txt','')) 
+
+overrepresented_df %>% 
+  write_csv('../data/08_overrepresented_df_R1.csv')
+```
+
+```{r}
+# gather all the fastqc dat I have and then run then all thru these three steps functions
+sg <- list.files('../data/chi_shotgun/', pattern = '*txt', full.names = T)
+r2 <- list.files('../data/chi_16s/', pattern = '_fastqc_data.txt', full.names = T)
+all4 <- c(sg, r2, txts)
+```
+
+```{r}
+total_seq <- all4 %>%   
+  set_names(all4) %>% 
+  map(~ suppressWarnings(read_csv(., col_names = c('content'), col_types = 'c')) %>% 
+          filter(str_detect(content, 'Total Sequences' )) %>% 
+          mutate(totalseq = str_extract(content, '\\d+')) %>% 
+          mutate(totalseq = as.numeric(totalseq)) %>% 
+          select(totalseq)) %>% 
+  bind_rows(.id = 'fn') 
+
+overrepresented_df <- all4 %>% 
+  set_names(all4) %>% 
+  map(.x = ., .f = extract_overrepresen  ) %>% 
+   bind_rows(.id = 'fn')
+
+
+qualscore_df <- all4 %>% 
+  set_names(all4) %>% 
+  map(.x = ., .f = extract_qualdf  ) %>% 
+  bind_rows(.id = 'fn')
+
+total_seq %>% 
+  split(str_detect(.$fn, 'shotgun')) %>% 
+  imap(function(.x, .y){
+    write_csv(x = .x, file = str_glue('../data/08_total_seq_shotgun_{.y}.csv'))
+  })
+  
+qualscore_df %>% 
+   split(str_detect(.$fn, 'shotgun')) %>% 
+  imap(function(.x, .y){
+    write_csv(x = .x, file = str_glue('../data/08_quality_score_shotgun_{.y}.csv'))
+  })
+
+overrepresented_df %>% distinct(fn)
+
+overrepresented_clean <- overrepresented_df %>% 
+  filter(!is.na(count))
+
+overrepresented_clean %>% 
+  split(str_detect(.$source, 'No Hit')) %>% 
+  imap(function(.x, .y){
+    write_csv(x = .x, file = str_glue('../data/08_adapter_no_hit_{.y}.csv'))
+  })
+```
+

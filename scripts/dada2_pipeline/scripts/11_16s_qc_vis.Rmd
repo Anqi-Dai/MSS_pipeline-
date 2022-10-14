@@ -1,0 +1,59 @@
+---
+title: "16s qc vis"
+author: "Angel"
+date: "2022-10-11"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+```
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(ggpubr)
+library(scales)
+```
+
+
+```{r}
+total <- read_csv('../data/08_total_seq_shotgun_FALSE.csv') %>% 
+  mutate(pair = if_else(str_detect(fn, 'R1'), 'R1', 'R2')) %>% 
+  filter(pair == 'R1') %>% 
+  mutate(totalsample = totalseq * 2)
+  
+
+qual <- read_csv('../data/08_quality_score_shotgun_FALSE.csv') %>% 
+  mutate(fn = str_replace(fn, '../data/chi_16s//','')) %>% 
+  mutate(pair = if_else(str_detect(fn, 'R1'), 'R1', 'R2'))
+```
+```{r}
+quantile(total$totalsample, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(totalsample = comma(value)) %>% 
+  select(quantiles, totalsample) %>% 
+  kbl(caption = 'Total number of reads distribution in 16s samples') %>% 
+  kable_styling()
+```
+```{r}
+# quality score 
+qualscore <- qual %>% 
+  mutate(threshold = if_else(qscore >= 28, 'pass', 'fail')) %>% 
+  group_by(fn, pair, threshold) %>% 
+  summarise(threshold_count = sum(count)) %>% 
+  spread('threshold', 'threshold_count') %>% 
+  mutate(total_one = fail + pass ) %>% 
+  mutate(pass_perc = round(pass/total_one*100, 2))
+
+# compare the quality score of the R1 and R2
+qualscore %>% 
+  gghistogram(x = 'pass_perc', bins = 50, color = 'white', fill = 'forestgreen',
+              title = '% reads that have average quality score > 28 in 16s samples')  +
+  facet_grid(pair~ .) 
+```
+

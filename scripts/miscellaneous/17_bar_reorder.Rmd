@@ -1,0 +1,62 @@
+---
+title: "the bar plot order"
+author: "Angel"
+date: "2022-10-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_annotation_blast_color_ag')
+samples_clinical <- read_csv('/Volumes/vandenbrinklab/oriana/Study ideas/bile_acids/final_datasets/samples_clinical_temp.csv', num_threads = 16)
+cts <- get_counts_subset(samples_clinical$sampleid)
+
+asv_color_set = unique(asv_annotation_blast_color_ag[,.(color,color_label_group_distinct,color_label_group,color_base)])
+color_set_asv_carT = asv_color_set$color
+names(color_set_asv_carT)=asv_color_set$color_label_group_distinct;
+
+counts_data<-samples_clinical %>% left_join(cts) 
+
+setDT(counts_data)
+m = merge(counts_data[,.(asv_key,sampleid,oligos_id,
+                         count,count_relative,count_total)],
+          asv_annotation_blast_color_ag[,.(asv_key,color_label_group_distinct)]);
+
+
+composition <- m %>% 
+  left_join(samples_clinical %>% select(sampleid, mrn)) 
+length(unique(composition$sampleid))
+
+m1<-m %>% 
+  group_by(sampleid, color_label_group_distinct) %>% 
+  mutate(sampleid = fct_reorder(sampleid, dplyr::desc(count_relative))) %>% 
+  inner_join(samples_clinical)
+
+m1$color_label_group_distinct = factor(m1$color_label_group_distinct,levels = sort(unique(m1$color_label_group_distinct),decreasing = T));
+m2<-key %>% left_join(m1)
+
+
+
+
+
+gg_composition = ggplot(m2,
+                        aes(x=reorder(sampleid, -secondary_nonurso),
+                            y=count_relative,
+                            fill=color_label_group_distinct) ) +
+  geom_bar(stat = "identity",position="fill",width = 1) +
+  theme_classic() +
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        legend.position = "none") +
+  xlab("sampleid")+
+  #legend.position = "top")+
+  scale_fill_manual(values = color_set_asv_carT);
+print(gg_composition)
+```
+

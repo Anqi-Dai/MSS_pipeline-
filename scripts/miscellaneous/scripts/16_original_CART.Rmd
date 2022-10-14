@@ -1,0 +1,75 @@
+---
+title: "the original cart shotgun samples"
+author: "Angel"
+date: "2022-09-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+shotgun <- read_csv('../data/final_comprehensive_UPDATED_simple.csv') %>% 
+  inner_join(shotgun_lookup_ad) %>% 
+  select(fid, directory, center:toxicity) %>% 
+  mutate(Sample = str_extract(directory, 'Sample_.+$')) %>% 
+  select(Sample, center:toxicity)
+
+shotgun %>% 
+  select(folder) %>% 
+  write_csv('../data/16_shotgun_cart_sample.csv', col_names = F)
+
+```
+
+```{r}
+# clean the irep values of those samples
+fns <- list.files('../data/cart_irep/', full.names = T, pattern = 'dastool')
+
+irep <- fns %>% 
+  set_names(fns) %>% 
+  purrr::map(~  read_tsv(file = ., n_max = 1 , col_types = 'cc',  skip = 2, col_names = c('bin','iRep')) %>%  select(iRep) ) %>% 
+  bind_rows(.id = 'fn') %>% 
+  mutate(fn = str_replace(fn, '_irep.tsv$',''),
+         fn = str_replace(fn, '../data/cart_irep//','')) %>% 
+  separate(fn, into = c('sampleid','samplebin'), sep = '__concat__', remove = T) %>% 
+  mutate(iRep = as.numeric(iRep)) %>% 
+  mutate(samplebin = str_replace(samplebin, '_irep_dastool.tsv','')) %>% 
+  mutate(sbid = str_glue('{sampleid}__{samplebin}'))
+
+full <- read_tsv('../data/cart_irep/binning_table_all_full.tsv')
+
+tb <- read_tsv('../data/cart_irep/binning_table_all_simple.tsv') %>% 
+  rename_all(~ gsub("\\.", "_", .)) %>% 
+  mutate(fpmbp = `# contigs (>= 0 bp)`/Size_Mb) %>% 
+  filter(Completeness >= 75 & fpmbp <= 175 & Contamination <= 2) %>% 
+  mutate(Sample = str_replace(Sample, '__concat',''),
+         sbid = str_glue('{Sample}__{Bin}')) %>% 
+  inner_join(irep, by  = 'sbid') %>% 
+  relocate(iRep, .after = 'Bin') %>% 
+  relocate(best_species, .after = 'iRep') %>% 
+  filter(!is.na(iRep)) %>% 
+  arrange(Sample,Bin,  best_species) %>% 
+  # if there are multiple get the average
+  #group_by(Sample, best_species, best_level) %>% 
+  #summarise(aveirep = mean(iRep)) %>% 
+  filter(best_species != 'Unclassified')
+
+tb %>% write_csv('../data/16_CART_samples_irep.csv')
+```
+```{r}
+bins <- read_csv('../data/16_CART_samples_irep.csv')
+together <- bins %>% 
+  left_join(shotgun, by = "Sample")
+
+together %>% 
+  write_csv('../data/16_CART_samples_irep_with_pheno.csv')
+```
+

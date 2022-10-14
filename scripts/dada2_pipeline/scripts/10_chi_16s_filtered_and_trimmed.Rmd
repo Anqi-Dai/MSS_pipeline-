@@ -1,0 +1,32 @@
+---
+title: "chi 16s 10187 filtered and trimned files"
+author: "Angel"
+date: '2022-10-07'
+output: html_document
+---
+ 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# gather the total reads after filtering of 16s 
+# remember to time 2, since I only counted Forward reads
+fils <- list.files('../data/chi_16s/', pattern = 'fil', full.names = T)
+
+filtered <- read_csv(fils[1], col_names = F)
+
+filtered_df <- fils %>% 
+  set_names(fils) %>% 
+  map(~ read_csv(.,  col_types = 'd', col_names = c('filtered_reads'))) %>% 
+  bind_rows(.id = 'oligos_id') %>% 
+  mutate(oligos_id = str_replace(oligos_id, '../data/chi_16s//',''),
+         oligos_id = str_replace(oligos_id, '_F_filt_reads.txt',''))  %>% 
+  mutate(filtered_reads = filtered_reads * 2)
+  
+```
+
