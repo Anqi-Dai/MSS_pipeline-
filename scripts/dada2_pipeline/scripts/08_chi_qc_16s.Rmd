@@ -17,6 +17,19 @@ list_table_from_database('nutrition')
 get_table_from_database('asv_alpha_diversity_ag')
 list_table_from_database('nutrition')
 get_table_from_database('nutrition_demographics_ag')
+tbl <- read_tsv('~/Work/projects_original/CART_microbiome/data/shotgun_output/metaphlan/merged_abundance_table_metaphlan3.txt', skip = 1) %>% 
+  gather('sampleid', 'perc', names(.)[3]:names(.)[ncol(.)]) %>% 
+  select(sampleid, perc, clade_name) %>% 
+  filter(str_detect(clade_name, 'g__')) %>% 
+  filter(!str_detect(clade_name, 's__')) %>% 
+  mutate(sampleid = str_replace(sampleid, '_metaphlan3_profile',''))
+
+irep <- read_csv('../../miscellaneous/data/16_CART_samples_irep_with_pheno.csv') %>% 
+  mutate(sampleid = str_replace(Sample, 'Sample_',''),
+         sampleid = str_replace(sampleid, '_IGO.+$','')) 
+  irep %>% write_csv('../data/08_irep_cleaned.csv')
+  
+  tbl %>% write_csv('../data/08_metaphlan_genus.csv')
 ```
 
 for the quality of the sequences gather data from fastqc data like this:
@@ -179,7 +192,7 @@ total %>% write_csv('../data/chi_16s/dl_trim_R1_reads.sh', col_names = F)
 ```{r}
 # to test on one sample's fastqc data
 
-test <- read_csv('../data/1163Q..pool716_R1_fastqc/fastqc_data.txt', col_names = c('content'), col_types = 'c')
+test <- read_csv('../data/chi_16s/1163Q..pool716_R1_fastqc/fastqc_data.txt', col_names = c('content'), col_types = 'c')
 
 totalseq <- test %>% 
   filter(str_detect(content, 'Total Sequences' )) %>% 

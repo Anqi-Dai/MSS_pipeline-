@@ -1,59 +1,191 @@
 ---
 title: "16s qc vis"
 author: "Angel"
-date: "2022-10-11"
+date: "`r Sys.Date()`"
 output:
   html_document:
     toc: true
     toc_float: true
+    code_folding: hide
     toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = F, message = F, warning = F)
+knitr::opts_chunk$set( message = F, warning = F)
 ```
 
 ```{r}
 library(tidyverse)
 library(kableExtra)
 library(ggpubr)
-library(scales)
+library(scales) 
 ```
 
+## total reads before and after trimming 
 
 ```{r}
+# before trimming
 total <- read_csv('../data/08_total_seq_shotgun_FALSE.csv') %>% 
-  mutate(pair = if_else(str_detect(fn, 'R1'), 'R1', 'R2')) %>% 
-  filter(pair == 'R1') %>% 
-  mutate(totalsample = totalseq * 2)
-  
+  mutate(pair = if_else(str_detect(fn, 'R1'), 'R1_beforetrim', 'R2_beforetrim')) %>% 
+  mutate(oligos_id = str_replace(fn, '../data/chi_16s//',''),
+         oligos_id = str_replace(oligos_id, '_R.+$','')) %>% 
+  select(-fn) %>% 
+  spread('pair', 'totalseq')
 
-qual <- read_csv('../data/08_quality_score_shotgun_FALSE.csv') %>% 
-  mutate(fn = str_replace(fn, '../data/chi_16s//','')) %>% 
-  mutate(pair = if_else(str_detect(fn, 'R1'), 'R1', 'R2'))
+# after trimming
+tot <- read_tsv('../data/trimmed_16s/total_seq_trimmed.txt', col_names = c('oligos_id','aftertotal'), col_types = 'cd') %>% 
+  mutate(oligos_id = str_replace(oligos_id, '/home/daia1/my_workdir/samples/amplicon/fastqc_res/',''),
+         oligos_id = str_replace(oligos_id, '_filt_fastqc_data.txt:Total Sequences','')) %>% 
+  separate(oligos_id, into = c('oligos_id','pair'), sep = '_') %>% 
+  mutate(pair = if_else(pair == 'F', 'R1_aftertrim', 'R2_aftertrim')) %>% 
+  spread('pair', 'aftertotal')
 ```
+
+
 ```{r}
-quantile(total$totalsample, probs = seq(0.1, 1, 0.1)) %>% 
+totalall <- tot %>% 
+  full_join(total) %>% 
+  mutate(before_trim_total = R1_beforetrim + R2_beforetrim,
+         after_trim_total = R1_aftertrim + R2_aftertrim) %>% 
+  mutate(kept_perc = round(after_trim_total/before_trim_total*100, 2))
+
+totalall %>% write_csv('../data/11_total_reads_16s.csv')
+
+
+quantile(totalall$kept_perc, probs = c(seq(0, 0.1, 0.01), seq(0.1, 1, 0.1))) %>% 
   enframe('quantiles', 'value') %>% 
-  mutate(totalsample = comma(value)) %>% 
-  select(quantiles, totalsample) %>% 
-  kbl(caption = 'Total number of reads distribution in 16s samples') %>% 
+  mutate(kept_perc = comma(value)) %>% 
+  select(quantiles, kept_perc) %>% 
+  kbl(caption = 'Percent reads remained after trimming in 16s samples') %>% 
   kable_styling()
 ```
+
+10% samples have less than 44% reads left after trimming. 
+
 ```{r}
+quantile(totalall$before_trim_total, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(before_trim_total = comma(value)) %>% 
+  select(quantiles, before_trim_total) %>% 
+  kbl(caption = 'Total number of reads before trimming in 16s samples') %>% 
+  kable_styling()
+```
+
+```{r}
+quantile(totalall$after_trim_total, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(after_trim_total = comma(value)) %>% 
+  select(quantiles, after_trim_total) %>% 
+  kbl(caption = 'Total number of reads after trimming in 16s samples') %>% 
+  kable_styling()
+```
+
+## quality scores of the reads
+
+```{r}
+# before trimming
+qual <- read_csv('../data/08_quality_score_shotgun_FALSE.csv') %>% 
+  mutate(fn = str_replace(fn, '../data/chi_16s//',''),
+         fn = str_replace(fn, '_fastqc_data.txt','')) %>% 
+  separate(fn, into = c('oligos_id','pair'), sep = '_') 
+
+qual %>% write_csv('../data/11_quality_score_before_trimming_16s.csv')
+
 # quality score 
 qualscore <- qual %>% 
   mutate(threshold = if_else(qscore >= 28, 'pass', 'fail')) %>% 
-  group_by(fn, pair, threshold) %>% 
+  group_by(oligos_id, pair, threshold) %>% 
   summarise(threshold_count = sum(count)) %>% 
   spread('threshold', 'threshold_count') %>% 
   mutate(total_one = fail + pass ) %>% 
   mutate(pass_perc = round(pass/total_one*100, 2))
+```
 
+```{r}
+# after trimming
+aq <- read_delim('../data/trimmed_16s/trimmed_seq_quality_score.txt', col_names = F, delim = '\t' , comment = '>>') %>% 
+  separate(X2, into = c('Count','fn'), sep = ';') %>% 
+  filter(!str_detect(Count, 'Count')) %>% 
+  mutate(fn = str_replace(fn, '/home/daia1/my_workdir/samples/amplicon/fastqc_res/',''),
+         fn = str_replace(fn, '_filt_seq_quality_score.txt','')) %>% 
+  separate(fn, into = c('oligos_id','pair'), sep = '_') %>% 
+  mutate(Count = as.numeric(Count)) %>% 
+  rename(qscore = X1)
+
+aq %>% write_csv('../data/11_quality_score_after_trimming_16s.csv')
+```
+
+
+```{r}
+aq_score <- aq %>% 
+  mutate(threshold = if_else(qscore >= 28, 'pass', 'fail')) %>% 
+  group_by(oligos_id, pair, threshold) %>% 
+  summarise(threshold_count = sum(Count)) %>% 
+  spread('threshold', 'threshold_count' ,fill = 0) %>% 
+  mutate(total_one = fail + pass ) %>% 
+  mutate(pass_perc = round(pass/total_one*100, 2)) %>% 
+  mutate(pair = if_else(pair == 'F', 'R1', 'R2'))
+
+allscore <- bind_rows(
+  qualscore %>% 
+    mutate(grp = 'beforetrimming'),
+  aq_score %>% 
+    mutate(grp = 'aftertrimming')
+) %>% 
+  mutate(grp = factor(grp, levels = c('beforetrimming','aftertrimming')))
+```
+
+```{r}
 # compare the quality score of the R1 and R2
-qualscore %>% 
+allscore %>% 
   gghistogram(x = 'pass_perc', bins = 50, color = 'white', fill = 'forestgreen',
-              title = '% reads that have average quality score > 28 in 16s samples')  +
-  facet_grid(pair~ .) 
+              xlab = '% reads that have average quality score > 28 in each sample',
+              title = '% reads that have high quality score before and after trimming in 16s samples')  +
+  facet_grid(pair~ grp)  
+```
+
+## over represented sequences of the before trimmed reads
+
+```{r}
+# the table with the over-represented sequences 
+over <- read_csv('../data/08_adapter_no_hit_FALSE.csv') %>% 
+  filter(str_detect(fn, 'chi_16s')) %>% 
+  mutate(fn = str_replace(fn, '../data/chi_16s//','')) %>% 
+  mutate(fn = str_replace(fn, '_fastqc.+$','')) %>% 
+  separate(fn, into = c('oligos_id','pair'), sep = '_')
+
+over_df <- over %>% 
+  group_by(oligos_id) %>% 
+  summarise(max_perc = max(percentage))
+
+quantile(over_df$max_perc, probs = seq(0.1, 1, 0.1)) %>% 
+  enframe('quantiles', 'value') %>% 
+  mutate(max_perc = comma(value)) %>% 
+  select(quantiles, max_perc) %>% 
+  kbl(caption = 'Max perct in primer/adapter in each sample before trimming in 16s samples') %>% 
+  kable_styling()
+
+# how many samples have hits in primer or adapter before trimming in 16s samples
+over %>% 
+  distinct(oligos_id) %>% 
+  nrow
+```
+
+## GC content
+
+```{r}
+# before trimming
+gc <- read_tsv('../data/trimmed_16s/raw_gc_content.txt', col_names = c('oligos_id','gc'), col_types = 'cc') %>% 
+  mutate(oligos_id = str_replace(oligos_id, '/home/daia1/my_workdir/samples/amplicon/fastqc_res/',''),
+         oligos_id = str_replace(oligos_id, '_fastqc_data.txt:>>Per sequence GC content','')) %>% 
+  separate(oligos_id, into = c('oligos_id','pair'), sep = '_') 
+```
+```{r}
+# count the number of fail or pass or warn  
+total_samples <- length(unique(gc$oligos_id))
+
+gc %>% 
+  count(pair, gc) %>% 
+  mutate(perc = round(n/total_samples*100, 2)) 
 ```
 

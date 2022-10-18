@@ -33,8 +33,29 @@ entero <- read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>%
   rename(fdrt = Days.Post.HSCT) %>% 
   mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
   select(mrn, fdrt, nut_type) %>% 
-  filter(nut_type == 'TPN')
+  count(mrn)
 
+summary(entero$n)
+```
+
+
+```{r}
+read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>% 
+  filter(mrn %in% dtb$mrn) %>% 
+  rename(fdrt = Days.Post.HSCT) %>% 
+  mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
+  select(mrn, fdrt, nut_type) %>% 
+  filter(nut_type == 'TPN') %>% 
+  count(mrn)
+
+
+read_csv('../data/cleaned_diet_data/TPN_EN patients.csv') %>% 
+  filter(mrn %in% dtb$mrn) %>% 
+  rename(fdrt = Days.Post.HSCT) %>% 
+  mutate(nut_type = if_else(TPN.1..EN.2 == 1, "TPN", "EN")) %>% 
+  select(mrn, fdrt, nut_type) %>% 
+  filter(nut_type == 'EN') %>% 
+  count(mrn)
 ```
  
 ```{r}

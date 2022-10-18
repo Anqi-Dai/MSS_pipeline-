@@ -98,15 +98,15 @@ quantile(logs$mm38_perc, probs = seq(0.1, 1, 0.1)) %>%
 ```
 
 ```{r}
-
-
+  
+ 
 # % of samples kept after the filtering
 # round(nrow(keep)/nrow(logs)*100, 2) 
-
+ 
 # total number of reads before and after trimming 
 # trimmed portion 
 # overrepresented max and primer 
-
+  
 # >>Per sequence GC content	pass
 ```
 
