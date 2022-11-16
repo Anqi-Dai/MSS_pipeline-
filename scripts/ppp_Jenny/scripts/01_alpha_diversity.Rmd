@@ -27,7 +27,9 @@ meta <- read_csv('../data/Stool_mice_Fiber_Days1.7.14_JP_VDB_1.26.22.csv') %>%
 
 ```{r}
 # grab the metaphlan results for this project
+second <- list.files('../data/shotgun_output/', pattern = 'JPS', full.names = T)
 fns <- list.files('../data/shotgun_output/', pattern = '12898', full.names = T)
+total <- c(fns, second)
 
 taxa <- fns %>% 
   set_names(fns) %>% 
@@ -39,7 +41,7 @@ taxa <- fns %>%
   bind_rows(.id = 'sampleid') %>% 
   mutate(sampleid = str_replace(sampleid, '../data/shotgun_output//Sample_',''),
          sampleid = str_replace(sampleid, '_IGO_12898.+$',''))
-
+taxa %>% distinct(sampleid)
 
 taxa %>% write_csv(file.path(dir, 'Mouse/metaphlan_results_fraction.csv'))
 

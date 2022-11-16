@@ -2,7 +2,7 @@
 title: "the patient info meta data"
 output: html_document
 ---
-
+ 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -13,8 +13,8 @@ This script is for organizing the meta data of the patient info, including trans
 library(tidyverse)
 library(readxl)
 library(lubridate)
-source('~/db_connect_simple.R')
-connect_database(config_file = '~/dbConfig.txt')
+library(vdbR)
+connect_database()
 #dbListTables(con) %>% data.frame() %>% filter(grepl('nutri',.))
 ```
 
@@ -30,6 +30,7 @@ dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with
 
 #nutri <- get_table_from_database('nutrition_ag')
 get_table_from_database('nutrition_demographics_ag')
+list_table_from_database('patient')
 
 # the info from this table that I wanna integrate into my meta
 demo <- nutrition_demographics_ag %>% 
@@ -301,5 +302,24 @@ donor<- patient_allo_ag %>%
   mutate(donor_clean = if_else(str_detect(donor, 'Unrelated'), 'Unrelated', 'Related')) %>% 
   count(donor_clean) %>% 
   mutate(perc = round(n/sum(n)*100))
+```
+
+## summarize the time to neutrophil engraftment for these 97 
+
+```{r}
+get_table_from_database('patient_allo_ks_20221003')
+get_table_from_database('patient_allo_ag')
+list_table_from_database('patient')
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+ttanc500 <- patient_allo_ks_20221003 %>% 
+  inner_join(ptb %>% select(mrn, hct)) %>% 
+  select(mrn, hct, tt_anc_500) %>% 
+  mutate(tt_anc_500 = if_else(hct =='2020-01-17', 12, tt_anc_500))
+
+summary(ttanc500$tt_anc_500)
+
+ttanc500 %>% 
+  filter(is.na(tt_anc_500)) %>% 
+  write_csv('../data/003_4_patients_missing_ttanc.csv')
 ```
 

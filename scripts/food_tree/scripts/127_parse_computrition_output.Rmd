@@ -1,0 +1,115 @@
+---
+title: "Parse the computrition output"
+author: "Angel"
+date: "2022-11-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(readxl)
+```
+
+```{r}
+computrition_dir <- '/Volumes/vandenBrinkLab/Peter/COMPUTRITION_OUTPUTS/newest_cohort_76/'
+pt_files <- list.files(computrition_dir, full.names = T)
+```
+
+```{r}
+# now make a function to do this for each patient you know to reach the final cleaned table form of "joined"
+clean_each_patient <- function(pt_fn){
+  input_df <- read_excel(pt_fn, col_names = F)
+
+  breaks <- which(str_detect( input_df$...1, pattern = 'Date:'))
+  
+  broken <- input_df %>% 
+     split(cumsum(1:nrow(input_df) %in% breaks))
+  
+  names <- broken[['0']] %>% 
+    filter(str_detect(...1, 'Name|MRN')) %>% 
+    select(...1, ...3) %>% 
+    spread(...1, ...3) %>% 
+    mutate(mrn = as.numeric(MRN)) %>% 
+    select(mrn, Name) %>% 
+    rename(name = Name)
+  
+  diet <- broken %>% 
+  discard(names(.) == '0') %>% 
+        map(function(df){
+          cleaned_date = df %>% 
+                filter(str_detect(...1, 'Date:')) %>% 
+                pull(...1)
+          
+          
+        cleaned =  filter(.data = df,!is.na(...2) | !is.na(...5)) %>% 
+        mutate(Date = cleaned_date) %>% 
+        fill(...2, .direction = 'down') %>% 
+        filter(!is.na(...1) & !is.na(...2)) %>% 
+        select(-...3, -...4, -...7) %>% 
+        rename(Food_NSC = ...1,
+               Meal = ...2,
+               Portion_consumed = ...6,
+               Calories_kcal = ...8,
+               Protein_g = ...9,
+               Fat_g = ...10,
+               Carbohydrates_g = ...11,
+               Fibers_g = ...12,
+               Sugars_g = ...13,
+               Sodium_mg = ...14) %>% 
+        select(-...5) %>% 
+        relocate(Date, .before = Food_NSC) %>% 
+        separate(Date, into = c('name','date'), sep = ' Date: ') %>% 
+        mutate(date = str_replace(date, '^.*?,','')) %>% 
+        mutate(date = mdy(date),
+               name = str_trim(name, side = 'right')) %>% 
+        #separate(Portion_consumed, into = c('Por_eaten','Unit'), sep = ' ') %>% 
+        mutate(Calories_kcal = str_replace_all(Calories_kcal, '\\+$',''),
+                 Protein_g = str_replace_all(Protein_g, '\\+$',''),
+                 Fat_g = str_replace_all(Fat_g, '\\+$',''),
+                 Carbohydrates_g = str_replace_all(Carbohydrates_g, '\\+$',''),
+                 Fibers_g = str_replace_all(Fibers_g, '\\+$',''),
+                 Sugars_g = str_replace_all(Sugars_g, '\\+$',''),
+                 Sodium_mg = str_replace_all(Sodium_mg, '\\+$','')) %>% 
+        mutate_at(vars(ends_with('g')), funs(as.numeric)) %>% 
+        mutate(Calories_kcal = as.numeric(Calories_kcal),
+               #Por_eaten = as.numeric(Por_eaten),
+               Sodium_g = Sodium_mg/1000) %>% 
+        select(-Sodium_mg)
+        }) %>% 
+  bind_rows() %>% 
+    left_join(names)
+  
+  return(diet)
+}
+
+
+new <- pt_files %>% 
+  map(function(fn) {
+    clean_each_patient(fn)
+  }) %>% 
+  bind_rows()
+
+
+```
+
+
+```{r}
+# continue cleaning the new table
+ongoing <- new %>% 
+  select(-...12, -...13, -...14, -...15)  %>% 
+  mutate(splits = str_split_fixed(Portion_consumed, pattern = ' ', n = 2)) %>% 
+  mutate(Por_eaten = splits[,1],
+         Unit = splits[,2],
+         Por_eaten = as.numeric(Por_eaten),
+         Por_eaten = if_else(str_detect(Portion_consumed, '1/2 '), 0.5, if_else(str_detect(Portion_consumed, '1/4 '), 0.25, Por_eaten)))  %>% 
+  select(-splits, -Portion_consumed)
+ 
+colnames(ongoing)  
+
+ongoing %>% write_csv('../data/127_new_pt.csv')
+```

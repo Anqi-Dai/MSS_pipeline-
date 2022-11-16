@@ -1,0 +1,141 @@
+---
+title: "The model re-done with Bayesian"  
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+
+```{r}
+library(tidyverse)
+library(brms)   
+library(ggpubr)
+library(tidybayes)
+library(cowplot)
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+theme_set(theme_tidybayes() + panel_border())
+ncores <- parallel::detectCores()
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
+
+# dtb %>% 
+#   distinct(mrn) %>% 
+#   write_csv('../data/nutrition_patients_97_mrns.csv', col_names = T)
+```
+## Loading meta data table
+
+```{r load_meta}
+tb_rm <- read_csv('../data/112_has_missing_to_be_removed.csv')
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  filter(!sampleid %in% tb_rm$sampleid) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100)
+
+```
+
+
+```{r }
+# the mean food group intake from our data 
+# ave_fg <- meta %>% 
+#   select(starts_with('fg')) %>% 
+#   summarise_all(funs(mean)) %>% 
+#   gather
+# 
+# mean_fg <-  meta %>% 
+#   select(starts_with('fg')) %>% 
+#   summarise_all(funs(mean))
+# 
+# max_fg <- meta %>% 
+#   select(starts_with('fg')) %>% 
+#   summarise_all(funs(max)) 
+# 
+# meta %>% distinct(mrn)
+```
+
+## Priors 
+
+```{r get_prior}
+# what priors I can set 
+model_formular <- log(simpson_reciprocal) ~ 0 + 
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               intensity +
+               empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+get_prior( model_formular,  
+              data = meta)
+```
+
+
+### Setting priors
+
+```{r set_prior}
+priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+
+# samples are drawn solely from the priors ignoring the likelihood
+# model_wo_EN  means the usual model that the EN is still a binary variable and not ann inndivicual group
+model_div <- brm( model_formular,  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = ncores, 
+              chains = 2, 
+              seed = 123, sample_prior = T) 
+
+# actually draw samples from the priors 
+samples_prior <- prior_draws(model_div)
+
+
+# save it for future use
+post_res <- suppressWarnings(posterior_samples(model_div)) 
+post_res %>%  write_csv('../data/068_div_model_fg_post.csv')
+```

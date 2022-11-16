@@ -1,10 +1,16 @@
 ---
 title: "look at the fruit subgroups"
-output: html_document
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
@@ -16,6 +22,7 @@ fruit2 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>%
   filter(str_detect(Level.code, '^6')) %>% 
   filter(str_length(Level.code) == 2)
 
+# so the dtbn is acutually my usual dtb 
 dtbn <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 
 meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
@@ -29,32 +36,23 @@ what_fruit <- dtbn %>%
   left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
   arrange(L2_grp)
 
-what_fruit %>% 
-  kableExtra::kable() %>% 
+what_fruit %>%
+  kableExtra::kable() %>%
   kableExtra::kable_styling()
 
 
-
-dtbn %>% 
-  mutate(Food_code = as.character(Food_code)) %>% 
-  filter(str_detect(Food_code, '^6'))  %>% 
-  mutate(l2 = str_sub(Food_code, start = 1, end = 2)) %>% 
-  distinct(l2)
 ```
 
 
 ```{r}
 # some examples contained in this group 
-set.seed(2)
-what_fruit %>% 
-  group_by(L2_grp) %>% 
-  sample_n(1) %>% 
-  mutate(desc = str_replace_all(Main.food.description, '_',' ')) %>% 
-  ungroup() %>% 
-  select(desc, Food_NSC) %>% 
-  mutate(Food_NSC = c('Orange juice','Dried mixed Fruit','Banana')) %>% 
-  kableExtra::kable( ) %>% 
-  kableExtra::kable_styling(full_width = F)
+# set.seed(2)
+# what_fruit %>% 
+#   group_by(L2_grp) %>% 
+#   sample_n(6) %>% 
+#   mutate(desc = str_replace_all(Main.food.description, '_',' ')) %>% 
+#   ungroup() %>% 
+#   select(desc, Food_NSC)
 ```
 
 ```{r}
@@ -64,8 +62,10 @@ dtbn_fruit <- dtbn %>%
   group_by(mrn, fdrt, L2_grp) %>% 
   summarise(L2_total = sum(dehydrated_weight))
 
+
+  
 # get the mean of previous two days for every stool sample I'm currently using
-stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
+stb <- meta
 
 
   
@@ -92,47 +92,59 @@ mean_p2d_l2_fruit_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
   select(-L2_grp ) %>% 
   spread('Main.food.description', 'ave_L2', fill = 0) %>% 
-  inner_join(meta, by = "sampleid")
+  right_join(meta, by = "sampleid") %>% 
+  mutate(pid = str_glue('P{as.numeric(as.factor(mrn))}')) %>% 
+  select(-mrn)
 
+# visualize the sub group fruit intake
 mean_p2d_l2_fruit_df %>% 
   select(Citrus_fruits_juices:Other_fruits) %>% 
   gather('group','value', Citrus_fruits_juices:Other_fruits) %>% 
   ggpubr::ggboxplot(x = 'group', y = 'value')
 
+# the columns in this table 
 mean_p2d_l2_fruit_df %>% 
   summary
+#The Citrus_fruits_juices, Dried_fruits and Other_fruits are the three sub groups of fruits observed in the data and the value is the previous two days average of a collected stool sample
+# the columns with fg_ are the food groups intake averaged in the previous two days
+# intensity is the conditioning regimen intensity
+# sdrt stands for the day relative to transplant of a stool sample collection
+# EN, TPN and empirial refer to whether the patients had enteral nutrition of parenteral nutrition in the previous two days or had any empirical abx in the prior two days
+# the pid is the anonymized patient ID
+# there are 466 stool samples that have nonzero fruit intake in that window and the remaining ones didn't 
+
 ```
 
 ```{r}
 mean_p2d_l2_fruit_df  %>% 
-  write_csv('../data/cleaned_stool/all_samples_meta_p2d_L2_fruit_only.csv')
+  write_csv('../data/cleaned_stool/036_all_samples_meta_p2d_L2_fruit_only.csv')
 ```
 
 ```{r}
-library(lmerTest)
-
-# to make sure the columns are in right type
-fruitdat <- mean_p2d_l2_fruit_df %>% 
-  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
-  mutate(mrn = factor(mrn))
-
-mod_fruit <-  lmer(log(simpson_reciprocal) ~ 
-              Citrus_fruits_juices+
-               Dried_fruits+
-               Other_fruits+
-                 fg_meat+
-               fg_milk+
-               #fg_oils+
-                #fg_egg+ 
-                fg_grain+
-                fg_sweets+  
-                #fg_legume+
-                fg_veggie+
-               empirical + 
-               intensity + 
-               (1 | mrn) +
-                (1 | timebin), REML = F, data = fruitdat )
-summary(mod_fruit)
+# library(lmerTest)
+# 
+# # to make sure the columns are in right type
+# fruitdat <- mean_p2d_l2_fruit_df %>% 
+#   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+#   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+#   mutate(mrn = factor(mrn))
+# 
+# mod_fruit <-  lmer(log(simpson_reciprocal) ~ 
+#               Citrus_fruits_juices+
+#                Dried_fruits+
+#                Other_fruits+
+#                  fg_meat+
+#                fg_milk+
+#                #fg_oils+
+#                 #fg_egg+ 
+#                 fg_grain+
+#                 fg_sweets+  
+#                 #fg_legume+
+#                 fg_veggie+
+#                empirical + 
+#                intensity + 
+#                (1 | mrn) +
+#                 (1 | timebin), REML = F, data = fruitdat )
+# summary(mod_fruit)
 ```
 

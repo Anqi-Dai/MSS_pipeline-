@@ -1,5 +1,5 @@
 ---
-title: "Mouse D7 DE analysis"
+title: "Mouse D7 DE analysis with kaiju data"
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
 output:
@@ -23,7 +23,8 @@ connect_database()
 
 ```{r}
 pheno <- readxl::read_excel('../data/05_meta_with_alpha.xlsx') %>% 
-  filter(day == 'D7')
+  filter(day == 'D7') %>% 
+  arrange(sampleid)
 
 # getting the cts from shotgun
 fns <- list.files('../data/metaphlan/', pattern = 'profile', full.names = T)
@@ -39,12 +40,74 @@ metaphlan <- fns %>%
   filter(!str_detect(species, 'k__Viruses'))
 ```
 
+```{r}
+# the kaiju data 
+kaiju <- read_csv('/Volumes/castoricenter/taurlab/bai_vdb_mice_tax_20221021.csv', num_threads = 16)
+kaiju_d7_counts <- kaiju %>% 
+    filter(Superkingdom == 'Bacteria') %>% 
+  select(sample_id, Species, reads)  %>% 
+  rename(sampleid = sample_id,
+         species = Species,
+         counts = reads) %>% 
+  #filter(species %in% filt_species) %>% 
+  filter(sampleid %in% pheno$sampleid) %>% 
+  arrange(sampleid)
+
+
+```
+
+```{r}
+# see how many species left after the filtering on different levels
+thre <- seq(2, 100, 5)
+thre %>% 
+  set_names(thre) %>% 
+  map_dfr(function(num){
+    kaiju_d7_counts %>% 
+    group_by(species) %>% 
+    count(counts > num) %>% 
+    rename(criteria = names(.)[2]) %>% 
+    filter(criteria == 'TRUE') %>% 
+    arrange(-n) %>% 
+    filter(species != 'NA') %>% 
+    mutate(perc = round(n/nrow(pheno)*100, 0)) %>% 
+    filter(perc > 30) %>% 
+      nrow
+  }) %>% 
+  gather('thre', 'num')
+
+filt_species <-  kaiju_d7_counts %>% 
+    group_by(species) %>% 
+    count(counts > 100) %>% 
+    rename(criteria = names(.)[2]) %>% 
+    filter(criteria == 'TRUE') %>% 
+   filter(n  > 5) %>% 
+  pull(species)
+```
+
+```{r}
+kaiju_counts <- kaiju_d7_counts %>% 
+  filter(species %in% filt_species)  %>% 
+  # clean the characters here and replace all of them with underscores
+  mutate(species = str_replace_all(species, ' |-|\\.|:|\\(|\\)|\\[|\\]','_'))
+
+unique <- kaiju_counts %>% 
+  distinct(species)
+
+kaiju_counts_original_species <- kaiju_d7_counts %>% 
+  filter(species %in% filt_species)  %>% 
+  # clean the characters here and replace all of them with underscores
+  mutate(newname = str_replace_all(species, ' |-|\\.|:|\\(|\\)|\\[|\\]','_')) %>% 
+  distinct(species, newname) %>% 
+  rename(taxa = newname, 
+         original = species)
+```
+
 
 # Corncob 
 
 ```{r}
 
-cts <- metaphlan %>% 
+cts <- kaiju_counts %>% 
   spread('sampleid','counts', fill = 0) %>% 
   column_to_rownames('species')
 
@@ -77,20 +140,22 @@ dv_analysis <- differentialTest(
   test = "LRT", boot = FALSE,
   data = physeq,
   fdr_cutoff = 0.25) 
-dv_analysis$significant_models
+dv_analysis$significant_taxa
 ```
 
 # Maaslin2
 
 ```{r}
-total <- metaphlan %>%
+# calculate the relab of the counts
+total <- kaiju_counts %>%
   group_by(sampleid) %>% 
   summarise(total = sum(counts))
 
-relab <- metaphlan %>% 
+relab <- kaiju_counts %>% 
   left_join(total) %>% 
   mutate(relab = counts/total)
 ```
+
 
 
 ```{r}
@@ -109,11 +174,11 @@ fit_data <- Maaslin2(
     min_abundance = 0.0,
     min_prevalence = 0.0,
     max_significance = 0.25,
-    output = "../data/output_shotgun-Maaslin2", 
+    output = "../data/output_shotgun-Maaslin2_kaiju", 
     fixed_effects = c("grp"),
     reference = c("grp,BM"))
 
-sig <- read_tsv('../data/output_shotgun-Maaslin2/significant_results.tsv') %>% 
+sig <- read_tsv('../data/output_shotgun-Maaslin2_kaiju/significant_results.tsv') %>% 
   mutate(feature = str_replace_all(feature, '\\.','\\|'))
 
 ```
@@ -122,6 +187,7 @@ sig <- read_tsv('../data/output_shotgun-Maaslin2/significant_results.tsv') %>%
 
 ```{r}
 library(metagenomeSeq)
+
 
 pheno_data <- pheno %>% 
   column_to_rownames('sampleid') %>% 
@@ -141,15 +207,20 @@ p = cumNormStatFast(d7)
 ```
 
 ```{r}
-d7 = filterData(d7, present = 2, depth = 1) 
+d7 = filterData(d7, present = 1, depth = 1) 
 d7 <- cumNorm(d7, p = p) 
 pd <- pData(d7) 
 mod <- model.matrix(~1 + grp, data = pd) 
 d7_res = fitFeatureModel(d7, mod) 
 d7_res_sig25 <- MRcoefs(d7_res) %>% 
-  filter(adjPvalues < 0.25)
+  filter(adjPvalues < 0.25) %>% 
+  rownames_to_column('species') 
 
 ```
+
+
+
+
 # Three tools comparison
 
 ```{r}
@@ -159,8 +230,10 @@ res_list <- list(metagenomeSeq = d7_res_sig25$species,
                  Corncob = dv_analysis$significant_taxa)
 
 ggvenn(res_list, show_percentage = F)
-ggsave('../data/07_d7_DE_venn.pdf', width = 5)
+ggsave('../data/09_d7_DE_venn_kaiju.pdf', width = 5)
+```
 
+```{r}
 # the sig results (FDR < 0.25) from MaAsLin2
 sig$feature
 ```
@@ -181,6 +254,7 @@ dv_analysis$significant_taxa
 
 # what is the taxa annotation for the shared 1
 all3 <- intersect(intersect(d7_res_sig25$species,sig$feature), dv_analysis$significant_taxa)
+
 # the intersected sig results between maaslin2 and metagenomicSeq
 mas_meta <- intersect(d7_res_sig25$species,sig$feature)
 mas_meta
@@ -192,21 +266,21 @@ intersect(d7_res_sig25$species,dv_analysis$significant_taxa)
 intersect(sig$feature,dv_analysis$significant_taxa)
 
 # plot the boxplot relab of those asv
-cts_relab %>% 
-  rownames_to_column('sampleid') %>% 
-  gather('species', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
-  filter(species %in% union(d7_res_sig25$species,union(sig$feature, dv_analysis$significant_taxa))) %>% 
-  left_join(pheno %>% select(sampleid, grp)) %>% 
-  mutate(spp = str_extract(species, 's__.+$')) %>% 
-  split(.$spp) %>% 
-  imap(function(df_, Name_) {
-    ggpubr::ggboxplot(data = df_,x = 'grp', y ='relab',  add = 'jitter',
-                      title = Name_,
-                    add.params = list(color = 'forestgreen', alpha = 0.5, size = 3, shape = 16))
-  })
+# cts_relab %>% 
+#   rownames_to_column('sampleid') %>% 
+#   gather('species', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+#   filter(species %in% union(d7_res_sig25$species,union(sig$feature, dv_analysis$significant_taxa))) %>% 
+#   left_join(pheno %>% select(sampleid, grp)) %>% 
+#   mutate(spp = str_extract(species, 's__.+$')) %>% 
+#   split(.$spp) %>% 
+#   imap(function(df_, Name_) {
+#     ggpubr::ggboxplot(data = df_,x = 'grp', y ='relab',  add = 'jitter',
+#                       title = Name_,
+#                     add.params = list(color = 'forestgreen', alpha = 0.5, size = 3, shape = 16))
+#   })
 ```
 
-## make a plot that's like Nick did in the IR paper
+## make a plot that's like Nick did in the IR paper for the 5 all identified species
 
 ```{r}
 # get the corncob coeff for the sig ones 
@@ -218,7 +292,9 @@ corns <- dv_analysis$significant_models %>%
   gather(
     'taxa','coeff'
   ) %>% 
-  mutate(coeff_scale = coeff/max(coeff))
+  mutate(coeff_scale = sign(coeff)*(abs(coeff)/max(abs(coeff)))) %>% 
+    filter(taxa %in% all3) 
+  
 
 # also getting the corrected p value for each taxa 
 corns_p <- dv_analysis$p_fdr %>% 
@@ -233,8 +309,9 @@ corns_p <- dv_analysis$p_fdr %>%
 mas <- sig %>% 
   filter(qval < 0.25) %>% 
   select(taxa = feature, 
-         coef, qval)  %>% 
-  mutate(coeff_scale = coef/max(coef)) %>% 
+         coef, qval)   %>% 
+  mutate(coeff_scale = sign(coef)*(abs(coef)/max(abs(coef))))  %>% 
+  filter(taxa %in% all3) %>% 
   select(taxa, coeff_scale, FDR = qval)%>% 
   mutate(tool = 'MaAsLin2')
 
@@ -242,10 +319,11 @@ mas <- sig %>%
 ```{r}
 # for the metagenomic seq
 mmseq <- d7_res_sig25 %>% 
-  rownames_to_column('taxa') %>% 
-  mutate(coeff_scale = logFC/max(logFC)) %>% 
-  select(taxa, coeff_scale,FDR = adjPvalues) %>% 
-  mutate(tool = 'metagenomeSeq')
+  mutate(coeff_scale = sign(logFC)*(abs(logFC)/max(abs(logFC)))) %>% 
+  filter(species %in% all3) %>% 
+  select(species, coeff_scale,FDR = adjPvalues) %>% 
+  mutate(tool = 'metagenomeSeq') %>% 
+  rename(taxa = species)
 mmseq
 ```
 
@@ -253,11 +331,11 @@ mmseq
 library(viridis)
 library(ggpubr)
 three <- bind_rows(mmseq, mas, corns_p) %>% 
-  mutate(taxa = str_extract(taxa, 's__.+$'))
+  inner_join(kaiju_counts_original_species)
 
 three %>% 
   rename(`Relative coefficient (per tool)` = coeff_scale) %>% 
-  ggpubr::ggdotchart( x = 'tool', y = 'taxa', rotate = F,
+  ggpubr::ggdotchart( x = 'tool', y = 'original', rotate = F,
                       size = 'FDR', color = 'Relative coefficient (per tool)') +
   scale_color_viridis_b() + 
  scale_size(trans = 'reverse') +
@@ -267,8 +345,8 @@ three %>%
          size = guide_legend(title = "Corrected p-value")) +
   theme_cleveland()
 
-ggsave('../data/07_three_tools_coeff.pdf', width = 10)
+ggsave('../data/09_three_tools_coeff_kaiju.pdf', width = 10)
 
-three %>% write_csv('../data/07_thre_tools_data.csv')
+three %>% write_csv('../data/09_thre_tools_data_kaiju.csv')
 ```
 

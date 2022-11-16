@@ -1,0 +1,22 @@
+---
+title: "the pools that need to be rerun"
+author: "Angel"
+date: "2022-11-04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+```{r}
+# the few samples that I uploaded for my nutrition 
+```
+

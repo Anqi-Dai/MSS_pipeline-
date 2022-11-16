@@ -810,9 +810,9 @@ times2_mrn = [x.strip() for x in content]
 
 loop_vars = times2_mrn +  times3_mrn + times4_mrn + times5_mrn
 
-stool_loop_vars = ['allstool_p1d_scts','allstool_p2d_scts','allstool_p3d_scts','allstool_p4d_scts','allstool_p5d_scts']
+stool_loop_vars = ['allstool_weighted']
 
-food_loop_vars = ['allstool_p1d','allstool_p2d','allstool_p3d','allstool_p4d','allstool_p5d']
+food_loop_vars = ['allstool_weighted']
 
 #food_loop_vars = ["single_p{}d".format(i) for i in range(1,11)]
 

@@ -17,6 +17,7 @@ connect_database('~/dbConfig.txt')
 list_table_from_database('alpha')
 get_table_from_database('asv_annotation_blast_ag')
 get_table_from_database('asv_alpha_diversity_ag')
+cts <- get_counts_subset(c('02.tp.72'))
 ```
 
 # Wisconsin samples 

@@ -140,18 +140,14 @@ get_table_from_database('asv_annotation_blast_ag')
 
 cts <- get_counts_subset(stb$sampleid)
 
-annot <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% cts$asv_key) %>% 
-  mutate(ordr =  if_else(ordr == '', str_glue('of_class_{class}'), ordr),
-         family =  if_else(family == '', str_glue('of_order_{ordr}'), family),
-         genus =  if_else(genus == '', str_glue('of_family_{family}'), genus),
-         species =  if_else(species == '', str_glue('of_genus_{genus}'), species)) 
- 
 
 cts_genus <- cts %>% 
-  left_join(annot %>%  select(asv_key, genus), by  = 'asv_key') %>% 
+  inner_join(asv_annotation_blast_ag %>%  select(asv_key, genus), by  = 'asv_key') %>% 
   group_by(sampleid, genus) %>% 
   summarise(relab = sum(count_relative)) 
+
+cts_spread <- cts_genus %>% 
+  spread('genus', 'relab', fill = 0)
 
 cts_genus %>% 
   write_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv')

@@ -62,6 +62,26 @@ dtb %>% count(mrn,  fdrt) %>%
   summarise(total_days = sum(n))
 ```
 
+```{r}
+# summarize how many diet data days we have for the patients?  Median min and max.  
+dtb %>% 
+  distinct(mrn, fdrt) %>% 
+  #count(mrn) %>% 
+  summary
+
+# -how common was it? how many of 97 patients consumed at least 1?
+#-what fraction of meals (or fraction of days) included a smoothie?
+#-for how many meals  (or days) was smoothie the only thing consumed?
+
+# find the food code that has the highest per meal average consumption
+smoothie <- dtb %>% 
+  group_by(Food_code, description) %>% 
+  summarise(total = sum(dehydrated_weight))  %>% 
+  arrange(desc(total)) %>% 
+  ungroup() %>% 
+  slice(1)  %>% 
+  pull(Food_code)
+```
 
 
 ```{r stool_alpha}
@@ -523,5 +543,40 @@ all_umap %>%
 ```{r}
 several <- all_umap %>% 
   filter(fdrt > 30 & taxumap1 < 15.5 & taxumap2 < -6)
+```
+
+```{r}
+# Tsoni says: I still think a little figure would be helpful. Perhaps best a small histogram of N samples and N meals recorded over transplant time. That would show both the depth of sampling and emphasize the temporal nature of the dataset
+# the histogram of the N stool samples over transplant time
+stool_hist <- meta %>% 
+  gghistogram(x = 'sdrt', xlab = 'Transplant day', ylab = 'Count', color = 'white', fill = stool_line_color, alpha = 1) +
+  scale_x_continuous( breaks = seq(-10, 50, 20)) + 
+  theme(aspect.ratio=1)
+stool_hist
+
+range(meta$sdrt)
+```
+
+
+```{r}
+# the histogram of the N meals over transplant time
+diet_hist <- dtb %>% 
+  distinct(mrn, Meal, fdrt) %>% 
+  gghistogram(x = 'fdrt', xlab = 'Transplant day', ylab = 'Count', color = 'white', fill = diet_line_color, alpha = 1)+
+    scale_x_continuous( breaks = seq(-10, 50, 20)) + 
+  theme(aspect.ratio=1,
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+diet_hist
+```
+```{r}
+hist_two <- plot_grid(diet_hist, stool_hist,
+                  nrow = 2,axis = 'lbrt', align = 'hv')
+
+hist_two
+
+ggsave('../data/072_hist2.pdf', height = 3)
 ```
 
