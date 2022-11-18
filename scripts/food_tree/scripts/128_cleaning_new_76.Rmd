@@ -1,0 +1,99 @@
+---
+title: "keep cleaning the new 76"
+author: "Angel"
+date: "2022-11-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+new_all <- read_csv('../data/127_new_pt.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+```
+```{r}
+# clean some entries in the new_all table
+new <- new_all %>% 
+  filter(!str_detect(Food_NSC, '^\\*\\*\\*\\*\\*\\*\\*'))  %>% 
+  mutate(Food_NSC = str_replace(Food_NSC, '^\\^','')) %>% 
+  left_join(dtb %>% 
+              distinct(Food_NSC, Food_code, description)) %>% 
+  relocate(Food_code, .after = Food_NSC) %>% 
+  relocate(description, .after = Food_code)
+
+# the ones that I don't have a food code of
+nocode <- new %>% 
+  filter(is.na(Food_code)) %>% 
+  distinct(Food_NSC, Food_code)
+
+nocode %>% write_csv('../data/128_new_pt_no_food_code.csv')
+
+dtb %>% 
+  distinct(Food_NSC, Food_code,description ) %>% 
+  arrange(Food_NSC) %>% 
+  write_csv('../data/128_food_code_identified_in_97_patients.csv')
+```
+
+
+```{r}
+no <- new %>% 
+  filter(! Food_NSC %in% dtb$Food_NSC) %>% 
+  distinct(Food_NSC) %>% 
+  arrange(Food_NSC)
+
+no %>% write_csv('../data/128_no_foodnsc.csv')
+
+# join with the table that Peter sent me
+eaten <- read_csv('../data/eaten_FNDDS.csv') %>% 
+  rename(Food_NSC = item1_value_raw_raw)
+
+length(intersect(eaten$Food_NSC, no$Food_NSC))
+```
+
+
+```{r}
+have <- dtb %>% 
+  distinct(Food_NSC)
+
+new %>% 
+  write_csv('../data/128_new_76_patients_data_all.csv')
+
+questions <- new %>% 
+  filter(is.na(Calories_kcal) | Calories_kcal > 920)
+
+questions %>% write_csv('../data/128_data_either_NA_or_calories_off.csv')
+```
+
+
+```{r}
+# see the missing data in the diet values
+# first of all, what food_nsc are new
+library(ggvenn)
+res_list <- list(new = unique(new$Food_NSC),
+                 dtb = unique(dtb$Food_NSC))
+ggvenn(res_list, show_percentage = F)
+
+
+```
+
+```{r}
+# the two batch MRNs
+total <- bind_rows(
+  dtb %>% 
+    distinct(mrn) %>% 
+    mutate(batch = 'batch1'),
+  new %>% 
+    distinct(mrn) %>% 
+    mutate(batch = 'batch2')
+)
+
+total %>% write_csv('../data/128_nutrition_patients_two_batches.csv')
+```
+

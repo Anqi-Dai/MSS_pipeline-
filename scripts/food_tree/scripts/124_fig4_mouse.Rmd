@@ -46,42 +46,42 @@ gg4
 
 ```{r}
 #Just for targeted stats purposes of day 6-7 with stat_compare_means()
-alldat4 %>% 
-  filter(abx_treatment == "biapenem") %>% 
-  filter(day_factor_simple == "6-7") %>% 
-  ggplot(aes(diet_treatment, y=as.numeric(Log_CFUs_per_GramStool))) + 
-  geom_boxplot(alpha = 0.7,  outlier.shape = NA) +
-  geom_jitter(width = 0.1, alpha = 0.4) +
-  # geom_dotplot(dotsize=3, binaxis='y', stackdir='center', position=position_dodge(0.5), binwidth = 0.05) +
-  ylab("CFUs/gram of stool, Log10 Scale") +
-  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
-                labels = trans_format("log10", math_format(10^.x))) +
-  ggtitle('day 7 only') +
-  theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust = 0.5)) +
-  theme_classic() +
-  # geom_text_repel(data=alldat1, aes(Day,as.numeric(Log_CFUs_per_GramStool), label=Mouse_identifier), fontface='bold')+
-  theme(legend.position = "none") +
-  ggpubr::stat_compare_means()  
+# alldat4 %>% 
+#   filter(abx_treatment == "biapenem") %>% 
+#   filter(day_factor_simple == "6-7") %>% 
+#   ggplot(aes(diet_treatment, y=as.numeric(Log_CFUs_per_GramStool))) + 
+#   geom_boxplot(alpha = 0.7,  outlier.shape = NA) +
+#   geom_jitter(width = 0.1, alpha = 0.4) +
+#   # geom_dotplot(dotsize=3, binaxis='y', stackdir='center', position=position_dodge(0.5), binwidth = 0.05) +
+#   ylab("CFUs/gram of stool, Log10 Scale") +
+#   scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+#                 labels = trans_format("log10", math_format(10^.x))) +
+#   ggtitle('day 7 only') +
+#   theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust = 0.5)) +
+#   theme_classic() +
+#   # geom_text_repel(data=alldat1, aes(Day,as.numeric(Log_CFUs_per_GramStool), label=Mouse_identifier), fontface='bold')+
+#   theme(legend.position = "none") +
+#   ggpubr::stat_compare_means()  
 ```
 
 ```{r}
-library(ggpubr)
-# the fold change for d0 d7 
-# of only the biapenem group
-dat07 <- alldat4 %>% 
-  filter(abx_treatment == 'biapenem') %>% 
-  select(Experiment, diet_treatment, abx_treatment, Group, Mouse_identifier,Log_CFUs_per_GramStool,day_factor_simple )%>% 
-  filter(day_factor_simple != '3') %>% 
-  spread('day_factor_simple', 'Log_CFUs_per_GramStool') %>% 
-  rename(d0 = `0`, d7 = `6-7`) %>% 
-  mutate(d70_foldchange = d7/d0)
-
-dat07 %>% 
-  ggboxplot(x = 'diet_treatment', y = 'd70_foldchange', add = 'jitter',
-            title = 'd7 VS d0 fold change') +
-  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
-                labels = trans_format("log10", math_format(10^.x))) +
-  stat_compare_means() 
+# library(ggpubr)
+# # the fold change for d0 d7 
+# # of only the biapenem group
+# dat07 <- alldat4 %>% 
+#   filter(abx_treatment == 'biapenem') %>% 
+#   select(Experiment, diet_treatment, abx_treatment, Group, Mouse_identifier,Log_CFUs_per_GramStool,day_factor_simple )%>% 
+#   filter(day_factor_simple != '3') %>% 
+#   spread('day_factor_simple', 'Log_CFUs_per_GramStool') %>% 
+#   rename(d0 = `0`, d7 = `6-7`) %>% 
+#   mutate(d70_foldchange = d7/d0)
+# 
+# dat07 %>% 
+#   ggboxplot(x = 'diet_treatment', y = 'd70_foldchange', add = 'jitter',
+#             title = 'd7 VS d0 fold change') +
+#   scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+#                 labels = trans_format("log10", math_format(10^.x))) +
+#   stat_compare_means() 
 
 ```
 
@@ -119,19 +119,35 @@ ggsave('../figs/paper/F4_box.pdf', width = 150, height = 100, units = c("mm"),
 ```
 
 ```{r}
-# import the diagram I made
-library(cowplot)
-p <- '../figs/paper/fig4_diagram.png'
-diagram <- ggdraw() +
-  draw_image(magick::image_read(p),   scale = 0.9) 
-diagram 
+# can you calculate the significance of the difference between 1-week cfu with biapenem and fruitsmoothie to the other three 1-week cfu values?
 
-fig4 <-  plot_grid(diagram,d7, 
-                  nrow = 1, labels = c('A','B'),  align = 'hv', rel_width = c(1,1))
-fig4
-ggsave(
-  '../figs/paper/F4_124.pdf', width = 150, height = 80, units = c("mm"),
-         dpi = 400, device = 'pdf', plot = fig4
-)
+oneweek <- alldat4 %>% 
+  filter(day_factor_simple == '6-7') %>% 
+  select(Log_CFUs_per_GramStool, diet_treatment, abx_treatment, day_factor_simple)%>% 
+   filter(day_factor_simple != "3") %>% 
+  mutate(abx_treatment = if_else(abx_treatment == 'inj_vehicle', 'injection vehicle', abx_treatment)) %>% 
+  mutate(day_factor_simple = if_else(day_factor_simple == '6-7', '1 week', day_factor_simple)) %>% 
+  mutate(diet_treatment = str_replace(diet_treatment, '_',' ')) %>% 
+  mutate(grp = str_glue('{diet_treatment}_{abx_treatment}'))
+
+oneweek %>% 
+  ggboxplot(x = 'grp', y = 'Log_CFUs_per_GramStool', add = 'jitter',
+            xlab = '', ylab = 'CFUs/gram of stool, Log10 Scale',
+            add.params = list(size = 2, color = 'black', alpha = 0.5, shape = 16),
+            title = '') +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+                labels = trans_format("log10", math_format(10^.x))) +
+  stat_compare_means(comparisons= list(
+    c('fruit smoothie_biapenem', 'diet vehicle_biapenem'),
+    c('fruit smoothie_biapenem', 'fruit smoothie_injection vehicle'),
+    c('fruit smoothie_biapenem', 'diet vehicle_injection vehicle')),
+            label= "p.signif",
+            method= 'wilcox.test',
+            exact=FALSE,
+						correct=FALSE)  +
+   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+ggsave('../data/124_three_pvalues.pdf', height = 10)
 ```
+
 
