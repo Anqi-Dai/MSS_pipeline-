@@ -195,8 +195,11 @@ coord <- dcoords %>%
   inner_join(link) %>% 
   select(-fid, -pt)
 
-fcts_fg <- read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv') 
+fcts_fg <-  read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv')
+```
 
+
+```{r umap}
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv')
 
 fcts_fg_dom <- fcts_fg %>%
@@ -225,7 +228,7 @@ color_key <- df %>%
 
 fig1_umap <- df %>% 
   arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 1,size = 1 , shape = 16,
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 1,size = umap_pt_size , shape = 16,
             xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
   theme_classic() +
@@ -238,7 +241,7 @@ fig1_umap <- df %>%
         axis.ticks = element_blank(),
         aspect.ratio=1) +
   guides(colour = guide_legend(override.aes = list(alpha=1)))
-
+ggsave( '../data/072_fig1_umap.png', dpi = 300, width = 2.5, height = 2.5,plot = fig1_umap, bg = "transparent")
 ```
 
 ```{r umap_faith}
@@ -261,8 +264,9 @@ umap_faith <- another %>%
         axis.title=element_blank(),
         axis.text= element_blank(),
         axis.ticks = element_blank(),
-        aspect.ratio=1)
-
+        aspect.ratio=1,
+        legend.position = 'none')
+ggsave( '../data/072_umap_faith.png', dpi = 300, width = 2.5,height = 2.5, plot = umap_faith, bg = "transparent")
 ```
 
 ```{r umap_caloric}
@@ -278,7 +282,7 @@ umap_caloric <- umap_cal %>%
   paletteer::scale_color_paletteer_c("viridis::plasma") +
   theme_classic() +
   #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
-  theme(
+  theme(legend.position = "none",
         line = element_blank(),
         legend.title = element_blank(),
         axis.title=element_blank(),
@@ -287,7 +291,7 @@ umap_caloric <- umap_cal %>%
         aspect.ratio=1)
 umap_caloric
 
-
+ggsave( '../data/072_umap_caloric.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_caloric, bg = "transparent")
 ```
 
 ```{r umap_time}
@@ -326,7 +330,7 @@ umap_drt_high_to_low_bin <- umap_time_df %>%
              xlab = '', ylab = '') + 
    scale_color_manual(values = RColorBrewer::brewer.pal(9,"Spectral"))  +
    theme_classic() +
-   theme(
+   theme(legend.position = "none",
      #legend.position = 'none',
          line = element_blank(),
          legend.title = element_blank(),
@@ -334,6 +338,52 @@ umap_drt_high_to_low_bin <- umap_time_df %>%
          axis.text= element_blank(),
          axis.ticks = element_blank(),
         aspect.ratio=1)
+ggsave( '../data/072_umap_drt_high_to_low_bin.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_drt_high_to_low_bin, bg = "transparent")
+```
+
+```{r}
+# Angel: we need a TaxUMAP labeled by patient ID, too. Maybe: a grey umap, and all meals by three patients in three colors highlighted
+
+# figure out the color for them
+# randomly select three patients and give them three distinct colors while others remain gray 
+set.seed(1234)
+umap_pt_color <- umap_cal %>% 
+  distinct(mrn) %>% 
+  slice_sample(n = 3, replace = F) %>% 
+  mutate(colors = RColorBrewer::brewer.pal(3, "Set1"))
+umap_pt_color_all <- bind_rows(
+   umap_cal %>% 
+  distinct(mrn) %>% 
+    filter(!mrn %in% umap_pt_color$mrn) %>% 
+    mutate(colors = 'gray81'),
+  umap_pt_color
+)
+
+umap_pt <- umap_cal %>% 
+  left_join(umap_pt_color_all) %>% 
+  mutate(mrn = as.character(mrn))
+
+color_key <- umap_pt_color_all %>% 
+  mutate(mrn = as.character(mrn)) %>% 
+  ungroup() %>% 
+  deframe()
+
+umap_pt_plot <- umap_pt %>% 
+   arrange(desc(fdrt)) %>% 
+  #arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'mrn', alpha = 1, size = umap_pt_size, shape = 16,
+             xlab = '', ylab = '') + 
+    scale_color_manual(values = color_key) +
+   theme_classic() +
+   theme(legend.position = "none",
+     #legend.position = 'none',
+         line = element_blank(),
+         legend.title = element_blank(),
+         axis.title=element_blank(),
+         axis.text= element_blank(),
+         axis.ticks = element_blank(),
+        aspect.ratio=1)
+ggsave( '../data/072_umap_pt.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_pt_plot, bg = "transparent")
 ```
 
 

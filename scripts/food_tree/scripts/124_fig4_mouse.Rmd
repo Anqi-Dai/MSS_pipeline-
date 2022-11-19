@@ -65,23 +65,32 @@ gg4
 ```
 
 ```{r}
-# library(ggpubr)
-# # the fold change for d0 d7 
-# # of only the biapenem group
-# dat07 <- alldat4 %>% 
-#   filter(abx_treatment == 'biapenem') %>% 
-#   select(Experiment, diet_treatment, abx_treatment, Group, Mouse_identifier,Log_CFUs_per_GramStool,day_factor_simple )%>% 
-#   filter(day_factor_simple != '3') %>% 
-#   spread('day_factor_simple', 'Log_CFUs_per_GramStool') %>% 
-#   rename(d0 = `0`, d7 = `6-7`) %>% 
-#   mutate(d70_foldchange = d7/d0)
-# 
-# dat07 %>% 
-#   ggboxplot(x = 'diet_treatment', y = 'd70_foldchange', add = 'jitter',
-#             title = 'd7 VS d0 fold change') +
-#   scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
-#                 labels = trans_format("log10", math_format(10^.x))) +
-#   stat_compare_means() 
+library(ggpubr)
+# the fold change for d0 d7
+# of only the biapenem group
+dat07 <- alldat4 %>%
+  filter(abx_treatment == 'biapenem') %>%
+  select(Experiment, diet_treatment, abx_treatment, Group, Mouse_identifier,Log_CFUs_per_GramStool,day_factor_simple )%>%
+  filter(day_factor_simple != '3') %>%
+  spread('day_factor_simple', 'Log_CFUs_per_GramStool') %>%
+  rename(d0 = `0`, d7 = `6-7`) %>%
+  mutate(d70_foldchange = d7/d0)
+
+dat07 %>%
+  ggboxplot(x = 'diet_treatment', y = 'd70_foldchange', add = 'jitter',
+            title = 'd7 VS d0 fold change') +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)),
+                labels = trans_format("log10", math_format(10^.x))) +
+  stat_compare_means()
+
+# can you check the follwing: what is the fold-change between mean (fruit smoothie+biapenem) VS mean (diet vehicle+biapenem)
+
+oneweek_fc <- dat07 %>% 
+  group_by(diet_treatment ) %>% 
+  summarise(mean_grp = mean(d7))
+
+61882311/1987119
+1987119/61882311 
 
 ```
 
