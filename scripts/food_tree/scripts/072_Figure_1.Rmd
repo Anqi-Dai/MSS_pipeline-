@@ -239,6 +239,12 @@ fig1_umap <- df %>%
         axis.title=element_blank(),
         axis.text= element_blank(),
         axis.ticks = element_blank(),
+                 panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
         aspect.ratio=1) +
   guides(colour = guide_legend(override.aes = list(alpha=1)))
 ggsave( '../data/072_fig1_umap.png', dpi = 300, width = 2.5, height = 2.5,plot = fig1_umap, bg = "transparent")
@@ -265,6 +271,12 @@ umap_faith <- another %>%
         axis.text= element_blank(),
         axis.ticks = element_blank(),
         aspect.ratio=1,
+                 panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
         legend.position = 'none')
 ggsave( '../data/072_umap_faith.png', dpi = 300, width = 2.5,height = 2.5, plot = umap_faith, bg = "transparent")
 ```
@@ -288,6 +300,12 @@ umap_caloric <- umap_cal %>%
         axis.title=element_blank(),
         axis.text= element_blank(),
         axis.ticks = element_blank(),
+         panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
         aspect.ratio=1)
 umap_caloric
 
@@ -337,11 +355,17 @@ umap_drt_high_to_low_bin <- umap_time_df %>%
          axis.title=element_blank(),
          axis.text= element_blank(),
          axis.ticks = element_blank(),
+              panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
         aspect.ratio=1)
 ggsave( '../data/072_umap_drt_high_to_low_bin.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_drt_high_to_low_bin, bg = "transparent")
 ```
 
-```{r}
+```{r  umap_pt}
 # Angel: we need a TaxUMAP labeled by patient ID, too. Maybe: a grey umap, and all meals by three patients in three colors highlighted
 
 # figure out the color for them
@@ -361,7 +385,8 @@ umap_pt_color_all <- bind_rows(
 
 umap_pt <- umap_cal %>% 
   left_join(umap_pt_color_all) %>% 
-  mutate(mrn = as.character(mrn))
+  mutate(mrn = as.character(mrn)) %>% 
+  arrange(desc(colors))
 
 color_key <- umap_pt_color_all %>% 
   mutate(mrn = as.character(mrn)) %>% 
@@ -369,21 +394,34 @@ color_key <- umap_pt_color_all %>%
   deframe()
 
 umap_pt_plot <- umap_pt %>% 
-   arrange(desc(fdrt)) %>% 
+  # arrange(desc(fdrt)) %>% 
   #arrange(fdrt) %>% 
    ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'mrn', alpha = 1, size = umap_pt_size, shape = 16,
              xlab = '', ylab = '') + 
     scale_color_manual(values = color_key) +
    theme_classic() +
-   theme(legend.position = "none",
+   theme(legend.position = "bottom",
      #legend.position = 'none',
          line = element_blank(),
          legend.title = element_blank(),
          axis.title=element_blank(),
          axis.text= element_blank(),
          axis.ticks = element_blank(),
+              panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
         aspect.ratio=1)
 ggsave( '../data/072_umap_pt.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_pt_plot, bg = "transparent")
+```
+```{r}
+# make a figure of the patients ABC and the colors
+umap_pt_color %>% 
+  ggscatter( x= 'mrn', y = 'mrn', color = 'colors') +
+   scale_color_manual(values = color_key) 
+ggsave('../data/072_umappt_legends.pdf')
 ```
 
 

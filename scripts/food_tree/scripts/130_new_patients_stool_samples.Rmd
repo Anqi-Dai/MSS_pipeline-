@@ -1,0 +1,85 @@
+---
+title: "new patients stool samples"
+author: "Angel"
+date: "2022-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database('samples_castori_ag')
+```
+
+```{r}
+# the MRNs of the patients
+pts <- read_csv('../data/129_new_76_full_patient_info.csv')
+
+# the stool samples of the patients
+collected <- samples_castori_ag %>% 
+  filter(mrn %in% pts$mrn)%>% 
+  filter(!sampleid %in% c('442A','442B'))
+
+# how many exist in the diversity table
+have <- collected %>% 
+  inner_join(asv_alpha_diversity_ag, by = 'sampleid')
+
+pools <- have %>% distinct(path_pool)
+
+# the ones that are not sequenced
+not <- collected %>% 
+  filter(!sampleid %in% asv_alpha_diversity_ag$sampleid)
+
+# do they have a pool number
+location <- readxl::read_excel('/Volumes/castoricenter/Human.Sequencing.Data/Sequenced.BMT.xlsx')
+
+where <- location %>% 
+  select(Sample.ID,Directory.16S ) %>% 
+  rename(sampleid = Sample.ID) %>% 
+  inner_join(not )
+
+# pools need to be run
+run <- where %>% 
+  distinct(Directory.16S) %>% 
+  filter(str_detect(Directory.16S, '^/Vo'))
+
+# the newly sequenced ones in those three pools
+actually <- have %>% 
+  filter(uploaded_date.y == '2022-11-21')
+```
+
+```{r}
+# how many total were collected and are related 
+total <- collected %>% 
+  filter(!sampleid %in% c('442A','442B'))
+
+nrow(total)
+
+# how many samples I have right now 
+have %>% nrow()
+
+# the samples that going be done with the pipeline
+going <- where %>% 
+  filter(str_detect(Directory.16S, 'Volumes'))
+
+# the samples that haven't been sequenced
+where %>% 
+  filter(is.na(Directory.16S))
+
+# the collectiondate of these samples
+need <- where %>% 
+  filter(is.na(Directory.16S))
+
+need %>%
+  gghistogram('datecollection', color = 'white', fill = 'blue',
+              title = '')
+  
+```
+

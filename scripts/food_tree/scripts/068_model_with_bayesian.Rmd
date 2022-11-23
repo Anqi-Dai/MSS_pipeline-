@@ -139,6 +139,7 @@ samples_prior <- prior_draws(model_div)
 post_res <- suppressWarnings(posterior_samples(model_div)) 
 post_res %>%  write_csv('../data/068_div_model_fg_post.csv')
 ```
+
 ```{r validate_prior}
 prior_div <- prior_draws(model_div) 
 colnames(prior_div)

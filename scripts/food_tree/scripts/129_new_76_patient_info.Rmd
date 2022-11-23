@@ -64,5 +64,67 @@ disim <- pull %>%
 # the NA ones 
 need_clean <- disim %>% 
   filter(is.na(disease.simple))
+colnames(disim)
+```
+
+```{r}
+ptb_n <- disim %>% 
+  select(mrn, source , intensity, hct, age, sex, disease.simple) %>%  
+  mutate(source = if_else(str_detect(source, 'Cord' ), 
+                             'cord',
+                             if_else(str_detect(source, 'SBA|CD34'), 
+                                     'TCD',
+                                     'unmodified'))) %>% 
+  mutate(intensity = if_else(intensity %in% c('Ablative','ABLATIVE'), 'ablative',
+                                         if_else(intensity %in% c('NONABL','Nonablative'), 'nonablative','reduced'))) %>% 
+  mutate(disease.simple = if_else(is.na(disease.simple), 'AML', disease.simple))
+```
+
+```{r}
+library(gtsummary)  
+ptb_n %>% distinct(disease.simple)
+final <- ptb_n %>% 
+  select(age, sex, Disease = disease.simple, source,  intensity) %>% 
+  mutate(Disease = case_when(
+    Disease == 'NHL' ~ "Non-Hodgkin's lymphoma",
+    # Myelodysplastic/myeloproliferative neoplasms
+    Disease == 'MDS/MPN' ~ 'MDS/MPN',
+    Disease == 'AML' ~ 'Acute myeloid leukemia',
+    Disease == 'ALL' ~ 'Acute lymphoid leukemia',
+    Disease == 'CLL' ~ 'Chronic lymphocytic leukemia',
+    Disease == 'CML' ~ 'Other',
+    Disease == 'Hodgkins' ~ "Other",
+    Disease == 'Myeloma' ~ 'Myeloma', 
+    Disease == 'AA' ~ 'Other'
+  )) %>% 
+  mutate(source = case_when(
+    source == 'unmodified' ~ "Unmodified bone marrow or PBSC",
+    source == 'cord' ~ "Cord blood",
+    source == 'TCD' ~ "T-cell depleted PBSC"
+  )) %>% 
+  mutate(intensity = case_when(
+    intensity == 'nonablative' ~ "Nonmyeloablative",
+    intensity == 'ablative' ~ "Ablative",
+    intensity == 'reduced' ~ "Reduced intensity"
+  )) %>% 
+  mutate(intensity = fct_reorder(intensity, intensity, .fun=length, .desc = T),
+         source = fct_reorder(source, source, .fun=length, .desc = T),
+         Disease = fct_reorder(Disease, Disease, .fun=length, .desc = T),
+         sex = fct_reorder(sex, sex, .fun=length, .desc = T)) %>% 
+  rename(`Graft type` = source, 
+         #`HCT-CI` = ci,
+         `Intensity of conditioning regimen` = intensity ) 
+
+final %>% 
+  tbl_summary(
+    #type = list(all_integer() ~ "continuous"), 
+    statistic = list(all_continuous() ~ "{mean} ({sd})")
+  ) %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  #gt::tab_footnote(footnote = "MDS/MPN = Myelodysplastic/myeloproliferative neoplasms") %>% 
+  gt::gtsave(filename = "../figs/paper/129_table_1_patient_summary.pdf")
+
+
 ```
 

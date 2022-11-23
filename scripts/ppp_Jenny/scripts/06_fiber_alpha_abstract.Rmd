@@ -56,6 +56,8 @@ combined %>%
             label= "p.format",
             method= 'wilcox.test',
 						correct=FALSE)
+
+ggsave('../data/06_gvhd_mean_fiber.pdf', height = 5)
 ```
 
 
@@ -72,6 +74,8 @@ meta %>%
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
   theme(aspect.ratio=1)
+
+ggsave('../data/06_diversity_and_fiber.pdf', height = 5)
 ```
 
 ```{r}
@@ -87,6 +91,8 @@ grps %>%
             label= "p.format",
             method= 'wilcox.test',
 						correct=FALSE)
+
+ggsave('../data/06_diversity_and_fiber_binary.pdf', height = 5)
 ```
 
 

@@ -1,0 +1,132 @@
+---
+title: "time fixed in bayesian"
+author: "Angel"
+date: "2022-11-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(brms)   
+library(ggpubr)
+library(tidybayes)
+```
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(timebin = as.factor(as.numeric(timebin)))
+levels(meta$timebin)
+```
+```{r}
+model_formular <- log(simpson_reciprocal) ~ 0 + 
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               intensity +
+               empirical+
+                TPN+
+                EN+
+                timebin +
+               (1 | mrn) 
+get_prior( model_formular,  
+              data = meta)
+```
+```{r}
+priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for time as fixed effects
+            prior(normal(0, 0.5), class = 'b', coef = "timebin2"),
+            prior(normal(0, 0.5), class = 'b', coef = "timebin3"),
+            prior(normal(0, 0.5), class = 'b', coef = "timebin4"),
+            prior(normal(0, 0.5), class = 'b', coef = "timebin5"),
+            prior(normal(0, 0.5), class = 'b', coef = "timebin6"),
+            prior(normal(0, 0.5), class = 'b', coef = "timebin7"),
+            prior(normal(0, 0.5), class = 'b', coef = "timebin8"),
+            prior(normal(0, 0.5), class = 'b', coef = "timebin9"),
+            # for the intensity 
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+
+ncores <- parallel::detectCores()
+
+model_div <- brm( model_formular,  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = ncores, 
+              chains = 2, 
+              seed = 456, sample_prior = T) 
+
+summary(model_div)
+
+post_res <- suppressWarnings(posterior_samples(model_div)) 
+
+post_coeff <- post_res %>% 
+  select(starts_with('b_fg')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  )) %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+
+post_coeff %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'ln(diversity) change per 100g of food',
+       y = '', 
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c("#EC0000", "gray40")) +
+  theme(axis.text=element_text(size=8, color  = 'black'),
+        axis.title=element_text(size=8),
+        aspect.ratio=1)
+```
+

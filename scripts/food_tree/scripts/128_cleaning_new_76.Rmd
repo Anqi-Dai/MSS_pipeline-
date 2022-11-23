@@ -57,19 +57,27 @@ eaten <- read_csv('../data/eaten_FNDDS.csv') %>%
 length(intersect(eaten$Food_NSC, no$Food_NSC))
 ```
 
-
 ```{r}
 have <- dtb %>% 
   distinct(Food_NSC)
 
 new %>% 
   write_csv('../data/128_new_76_patients_data_all.csv')
-
+new <- read_csv('../data/128_new_76_patients_data_all.csv')
 questions <- new %>% 
   filter(is.na(Calories_kcal) | Calories_kcal > 920)
 
 questions %>% write_csv('../data/128_data_either_NA_or_calories_off.csv')
 ```
+```{r}
+questions_ <- questions %>% 
+  select(-Food_code, -description) %>% 
+  select(-Meal) %>% 
+  relocate(Por_eaten, .after = Food_NSC) %>% 
+  relocate(Unit, .after = Por_eaten)  %>% 
+  arrange(Calories_kcal, desc(Food_NSC))
+```
+
 
 
 ```{r}
@@ -95,5 +103,255 @@ total <- bind_rows(
 )
 
 total %>% write_csv('../data/128_nutrition_patients_two_batches.csv')
+```
+
+```{r}
+# the NAs and the calories off ones that have been fixed by Peter
+fixed <- read_csv('../data/128_data_either_NA_or_calories_off_peter.csv') %>% 
+  filter(!is.na(Food_code) & !is.na(Calories_kcal))
+
+all <- read_csv('../data/128_new_76_patients_all_peter.csv')
+
+
+splits <- all %>% 
+  split(is.na(.$Calories_kcal) | .$Calories_kcal > 920)
+
+all1 <- bind_rows(
+  splits %>% pluck('FALSE'),
+  fixed
+) 
+```
+
+```{r}
+fixcode <- read_csv('../data/128_new_pt_no_food_code_peter.csv')
+
+# to see if Peter removed all of the no code items in the dtb
+nofix <- fixcode %>% filter(is.na(Food_code)) %>% pull(Food_NSC)
+length(intersect(nofix, all1$Food_NSC)) 
+
+# really no code? is it correct especially for the Sauce, Buffalo and BLT - Bacon, Lettuce, Tomato?
+no_code_really <- intersect(nofix, all1$Food_NSC)
+```
+
+```{r}
+# merge the food code back to the table
+fixedcode <- fixcode %>% 
+  filter(!is.na(Food_code))
+
+split2 <- all1 %>% 
+  split(is.na(.$Food_code))
+
+added <- split2 %>% 
+  pluck('TRUE') %>% 
+  select(-Food_code, -description) %>%  
+  inner_join(fixedcode, by  ='Food_NSC') %>% 
+  relocate(Food_code, .after = Food_NSC) %>% 
+  relocate(description, .after = Food_code)
+
+all2 <- bind_rows(
+  split2 %>% pluck('FALSE'),
+  added
+)
+```
+
+```{r}
+# change the date to fdrt 
+ptb <- read_csv('../data/129_new_76_full_patient_info.csv')
+
+all3 <- all2 %>% 
+  left_join(ptb %>% select(mrn,hct )) %>% 
+  mutate(date = mdy(date)) %>% 
+  mutate(fdrt = date -hct ) %>% 
+  mutate(fdrt = as.numeric(fdrt)) %>% 
+  select(-hct, -date) %>% 
+  relocate(Por_eaten, .before = 'Calories_kcal') %>% 
+  relocate(Unit, .after = 'Por_eaten') %>% 
+  relocate(description, .after = 'fdrt') %>% 
+  relocate(Meal, .after = 'description')
+```
+
+
+```{r}
+# look at the current diet data I have
+total_records <- nrow(all3)
+all3 %>% 
+  gghistogram(x = 'fdrt', xlab = 'Day relative to transplant', color = 'white', fill = 'blue',
+              title = str_glue('Total of {total_records} diet entries'))
+ggsave('../data/128_total_dtb.png', height  = 4)
+```
+
+
+```{r}
+# look at the meals
+total_meals <- all3 %>% 
+  distinct(mrn, Meal, fdrt) %>% nrow()
+diet_hist <- all3 %>% 
+  distinct(mrn, Meal, fdrt) %>% 
+  gghistogram(x = 'fdrt', xlab = 'Day relative to transplant', ylab = 'Count', color = 'white', fill = 'red',
+              title = str_glue('Total of {total_meals} meals'))
+
+ggsave('../data/128_total_meals.png', height  = 4)
+```
+```{r}
+all3 %>% 
+  summary()
+```
+
+```{r}
+# now need to fix the NAs in the values
+# and also the crazy values   
+# correcting the NA values in protein
+split3 <- all3 %>% 
+  split(is.na(.$Protein_g))
+
+
+split3_correct <- split3 %>% pluck('TRUE') %>% 
+  mutate(Protein_g = if_else(Por_eaten == 2, 0.20, 0.1)) %>% 
+  mutate(Fibers_g = Protein_g)
+
+# merge it back to the df
+all4 <- bind_rows(
+  split3_correct,
+  split3 %>% pluck('FALSE')
+)
+colnames(all4)
+```
+```{r}
+# create a table with only the food nsc and the portion and the nutritional values
+db <- dtb %>%  
+  arrange(Food_NSC, Unit, Por_eaten) %>% 
+  distinct(Food_NSC, Food_code, Unit, Por_eaten, Calories_kcal, Protein_g, Fat_g,Carbohydrates_g, Fibers_g,Sugars_g,  Sodium_g ) 
+```
+
+
+```{r}
+# correct the NA values in fiber
+fiberna <- all4 %>% 
+  filter(is.na(Fibers_g)) %>% 
+  distinct(Food_NSC,Food_code, Por_eaten, .keep_all = T) %>% 
+  select(Food_NSC,Food_code, Por_eaten,Fibers_g) %>% 
+  arrange(Food_code)
+
+fiberna %>% write_csv('../data/128_fiber_na.csv', na = '')
+
+# how many exisit in the dtb already
+length(intersect(fiberna$Food_NSC, dtb$Food_NSC))
+dtbones <- db %>% 
+  filter(Food_NSC %in% fiberna$Food_NSC)
+
+# the ones that are na and do not exist in the db
+needfiber <- fiberna %>% 
+  filter(! Food_NSC %in% db$Food_NSC)
+
+# find those food code fiber values
+foodcode_fiber <- db %>% 
+  distinct(Food_code,.keep_all = T ) %>% 
+  filter(Food_code %in% needfiber$Food_code)
+
+# the ones that are not zero
+nonzero <- foodcode_fiber %>% 
+  filter(Fibers_g > 0)
+
+# for the purpose of this presentation just make them all 0
+all5 <- all4 %>% 
+  mutate(Fibers_g = if_else(is.na(Fibers_g), 0, Fibers_g))
+
+```
+
+```{r}
+# look at the sugar NA values
+sugarNA <- all5 %>% 
+  filter(is.na(Sugars_g)) %>% 
+  distinct(Food_NSC,Food_code,  .keep_all = T)
+
+df <- db  %>%   distinct(Food_NSC,Food_code,  .keep_all = T)
+# check in the db the food code of them
+havevalues <- db %>% 
+  filter(Food_NSC %in% sugarNA$Food_NSC)
+
+length(intersect(sugarNA$Food_NSC, db$Food_NSC))
+
+all6 <- all5 %>% 
+  mutate(Sugars_g = case_when(
+    str_detect(Food_NSC, '2017 Milk, Skim 4 oz ')  ~ 6,
+    str_detect(Food_NSC, '2017 Milk, Skim 4 oz ')  ~ 26,
+    TRUE ~ Sugars_g
+  )) %>% 
+  mutate(Sugars_g = if_else(is.na(Sugars_g), 0,Sugars_g )) %>% 
+  mutate(Sodium_g = if_else(is.na(Sodium_g), 0,Sodium_g ))
+```
+
+```{r}
+all6 %>% 
+  summary()
+
+```
+
+```{r}
+all7 <- all6 %>% 
+  filter(Fat_g < 60 & Fibers_g < 8.5)
+```
+
+```{r}
+axis_text_size <- 8
+axis_title_size <- 10
+stip_txt_size <- 8
+alpha_val <- 0.05
+point_size <- 1.2
+scatter_col <- 'gray14'
+pick_point_size <- 1
+pick_line_size <- 0.5
+example_pt_line_size <- 0.3
+diet_line_color <- '#E41A1C'
+stool_line_color <- 'blue'
+umap_pt_size <- 1
+
+m_all <- all7 %>%  
+  select(mrn, fdrt,Protein_g:Sodium_g ) %>% 
+  gather('grp','gram', Protein_g:Sodium_g) %>% 
+  mutate(grp = str_replace(grp, '_g$','')) %>% 
+  group_by(mrn, fdrt, grp) %>% 
+  summarise(eachsum = sum(gram)) 
+
+m_panel <- m_all %>% 
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.01, size = 1.2, 
+            xlab = 'Day relative to HCT',
+            ylab = 'Grams',
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
+  facet_wrap(~ grp, nrow = 3, scales = 'free_y') +
+  scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  theme(axis.text=element_text(size=6),
+        strip.background = element_blank(),
+        strip.text.x = element_text(size = stip_txt_size), 
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        aspect.ratio=1)
+m_panel
+
+ggsave('../data/128_macronutrients_facets.png', height = 6)
+ 
+```
+
+```{r}
+day_calori <- all7 %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(daycal = sum(Calories_kcal))
+# REMEMBER THAT IN AXIS LABLE YOU NEED TO TIMES THE 1000 BACK!!!!!!
+day_cal <- day_calori %>% 
+  #mutate(daycal = daycal/1000) %>% 
+  ggscatter(x = 'fdrt', y = 'daycal', alpha = 0.01, size = 1.2, 
+            xlab = 'Day relative to HCT',
+            ylab = 'Daily caloric intake',
+            title = 'Daily caloric intake',
+            color = scatter_col,
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +  
+  # scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        aspect.ratio=1)
+ggsave('../data/128_cal.png', height = 3)
 ```
 
