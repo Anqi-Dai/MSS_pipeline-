@@ -1,0 +1,86 @@
+---
+title: "Bayesian Analysis Reporting"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(brms)   
+library(tidybayes)
+library(cowplot)
+library(kableExtra)
+theme_set(theme_tidybayes() + panel_border())
+ncores <- parallel::detectCores()
+```
+
+Preamble: Jonas' job
+
+Step 1: address each points if you can by referring to the main text, figure with model cartoon, and refer to prior predictions in the supplementary figure.
+
+Step 2: address each with a bullet point
+
+Step 3: A,B - refer to the main results, C: not needed
+
+Step 4: not relevant
+
+Step 5: B -- rerun the model but set all priors to wide, e.g. normal (0, 100)
+
+Step 6: make the scripts and data tables clean (I think that's already done)
+
+# Preamble
+
+# Step 1. Explain the model
+
+A. Data variables. Explain the dependent (predicted) variables and independent (predictor) variables. B. Likelihood function and parameters. For every model, explain the likelihood function and all the parameters, distinguishing clearly between parameters of primary theoretical interest and ancillary parameters. If the model is multilevel, be sure that the hierarchical structure is clearly explained, along with any covariance structure if multivariate parameter distributions are used. C. Prior distribution. For every model, explain and justify the prior distribution of the parameters in the model. D. Formal specification. Include a formal specification (mathematical or computer code) of the likelihood and prior, located either in the main text or in in publicly and persistently accessible online supplementary material. E. Prior predictive check. Especially when using informed priors but even with broad priors, it is valuable to report a prior predictive check to demonstrate that the prior really generates simulated data consistent with the assumed prior knowledge.
+
+```{r}
+# load the data that has the qualified stool samples with the prior two days diet data together with other clinical variables 
+meta <- read_rds('../data/132_all_samples_meta_p2d_fg9_updated.rds') 
+
+summary(meta) 
+```
+
+A cartoon of the Bayesian model is shown in Fig. 2B (also below) in the form of a directed acyclic graph, which explains that in addition to the effect of diet on the microbiome, the model includes antibiotic exposures, nutrition support events, and patient-level variables (e.g. chemotherapeutic regimen) as fixed effect predictors of the microbiome composition because they could confound the effect of diet. The model also includes varying effects terms for each patient as well as the time spent in the hospital to account for repeated measurements of- and unmeasured differences between patients, as well as unmeasured exposures during hospitalization that are not captured by the explicit predictors.
+
+Dependent variables:
+
+-   Log transformed fecal alpha diversity (Simpson's reciprocal)
+
+Independent variables:
+
+1.  Fixed effects
+
+-   Averaged food consumption in the 9 groups during the prior two days
+-   Exposure to enteral nutrition (tube feeds, EN) or total parenteral nutrition (TPN)
+-   Conditioning regimen intensity
+-   Exposure to empirical antibiotics (antibiotics for neutropenic fever (pip/tazo, carbapenems, cefepime, linezolid) & C. diff (oral vancomycin, metrodinazole); Prophylactic fluoroquinolones & i.v. vancomycin were not considered)
+
+2.  Random effects
+
+-   Patient level difference
+-   Stool sample collection in different week relative to transplant
+
+```{r fig.cap="Directed acyclic graph of the model", out.width = '100%'}
+knitr::include_graphics("../figs/paper/cartoon_of_model.png")
+```
+
+```{r}
+# the food group intake data is divided by 100 to facilitate the interpretation of 100 grams of vegetable intake is correlated with ....
+input <- meta %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100)
+```

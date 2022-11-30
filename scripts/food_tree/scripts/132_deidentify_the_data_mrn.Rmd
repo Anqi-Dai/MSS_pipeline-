@@ -1,0 +1,34 @@
+---
+title: "deidentify the data for submission"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  mutate(
+    patient = as.numeric(factor(mrn)),
+         pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
+         pid = str_glue('P{pid}')
+  ) %>% 
+  select(-mrn, -disease.simple, -admit_wt, -ci, -patient)  %>% 
+  select(sampleid, sdrt, timebin,simpson_reciprocal,  fg_egg:fg_veggie, pid, intensity, empirical,EN,  TPN) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(pid = factor(pid)) 
+
+summary(meta)
+  
+ meta %>% write_rds('../data/132_all_samples_meta_p2d_fg9_updated.rds') 
+
+```
+

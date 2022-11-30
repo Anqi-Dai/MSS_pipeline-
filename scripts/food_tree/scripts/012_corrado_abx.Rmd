@@ -278,3 +278,17 @@ new_samples %>%
   write_csv('../data/cleaned_stool/abx_all_samples_with_censoring_info_2day_effect.csv')
 
 ```
+
+
+```{r}
+oral <- this %>% 
+  filter(active_atb_vanco_po == 'TRUE') %>% 
+  mutate(
+     active_atb_vanco_po   = if_else (sampleid %in% sampleid[s_atb_start < 0 &
+                                                                    s_atb_stop > -conf_atb_days_from_stop &
+                                                                    drug_name_clean == "vancomycin_oral"],
+                                             TRUE, FALSE)
+  ) %>% 
+  select(active_atb_vanco_po)
+```
+

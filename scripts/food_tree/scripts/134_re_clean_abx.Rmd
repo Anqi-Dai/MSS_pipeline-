@@ -1,0 +1,113 @@
+---
+title: "Re-clean the abx data"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(lubridate)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('samples_castori_ag')
+get_table_from_database ("antibiotics_antibacterial_multicenter_ag")
+```
+
+```{r}
+#abx <- read_rds('/Volumes/vandenbrinklab/Nutrition and microbiota/medication_exposures/meds_nutrition_batch1_2022-11-29.rds')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+```
+
+```{r}
+picked <-  c("azithromycin","cefepime", "ciprofloxacin", "imipenem_cilastatin", "ertapenem","levofloxacin","linezolid","meropenem","metronidazole","piperacillin_tazobactam","sulfamethoxazole_trimethoprim")
+
+abx <- antibiotics_antibacterial_multicenter_ag %>% 
+  filter(institution == 'MSKCC' ) %>% 
+  mutate(mrn = as.numeric(patient_id)) %>% 
+  filter(mrn %in% dtb$mrn) %>% 
+  mutate (drug_clean = if_else (drug_name_clean == "vancomycin",
+                                if_else (route_simple == "oral","vancomycin_oral", "vancomycin_iv"),
+                                if_else (drug_name_clean %in% picked, 
+                                         drug_name_clean,"atb_other"))) %>% 
+  left_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(abx_p_start = start - hct,
+         abx_p_stop = stop - hct) %>% 
+  filter (abx_p_start > -30 & abx_p_stop < 70) 
+```
+
+
+```{r}
+p2d_df <- meta %>% 
+  select(sampleid, mrn) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection)) %>% 
+  mutate(p1d = datecollection -1,
+         p2d = datecollection -2) %>% 
+  mutate(p2d_int = interval(p2d, p1d)) %>% 
+  select(sampleid, datecollection, mrn, p1d, p2d, p2d_int)
+
+# then repeat this for all of the drugs
+# all the drugs that I wanna see if there is an exposure in the previous 2 days
+all_drugs <- abx %>% 
+  distinct(drug_clean) %>% pull(drug_clean)
+
+find_exposure <- all_drugs %>% 
+  set_names(all_drugs) %>% 
+  map_dfr(function(d){
+    each_drug = abx %>% 
+        filter(drug_clean == d) %>% 
+        select(mrn, drug_clean, start, stop) %>% 
+        mutate(drug_int =  interval(start, stop)) %>% 
+        rename(abx_start = start,
+               abx_stop = stop)
+    
+    had_drug_res = p2d_df %>% 
+        inner_join(each_drug, by = "mrn") %>% 
+        mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
+        filter(had_drug == 'TRUE')
+    
+    return(had_drug_res)
+  }) %>% 
+  left_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(abx_start_day = abx_start - hct)
+
+find_exposure %>% write_rds('../data/134_743stool_samples_p2d_drug_exposure.rds')
+```
+```{r}
+find_exposure %>% 
+  gghistogram(x = 'abx_start_day', facet.by = 'drug_clean', fill = 'black') +
+  geom_vline( xintercept =0)
+```
+
+```{r}
+# find out the samples that were exposed to empirical abx
+empirical_abx <- c('vancomycin_oral',	'imipenem_cilastatin',	'meropenem',	'ertapenem',		'cefepime',		'linezolid',	'metronidazole',	'piperacillin_tazobactam')
+
+empirical_exposed <- find_exposure %>% 
+  filter(drug_clean %in% empirical_abx)
+
+new_exposed <- empirical_exposed %>% distinct(sampleid)
+
+old_exposed <- meta %>% 
+  filter(empirical == 'TRUE')
+
+library(ggvenn)
+two_list <- list(old = old_exposed$sampleid,new = new_exposed$sampleid)
+ggvenn(two_list)
+
+```
+```{r}
+# need to update my meta table with this newly updated exposure data
+new_meta <- meta %>% 
+  mutate(empirical = if_else(sampleid %in% new_exposed$sampleid, T, F))
+
+new_meta %>% write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+```
+

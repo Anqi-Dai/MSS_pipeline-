@@ -1,0 +1,69 @@
+---
+title: "The other patients for the figure 3 supplementary"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+We need timelines for each of the selected patients here, like in figure 3A,B. Each time, for the growth rate and total abundance data, use the genus with the highest irep, as per figure 3c
+
+```{r}
+# find the genus with the highest irep for the other patients
+
+# the below is the version where there might be missing diet data the original 802 samples and also all of the irep values I've got 
+combined <- read_csv('../data/114_combined_irep_915.csv')
+
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+meta <- read_csv('/Volumes/vandenBrinkLab/Angel_Dai/Nutrition_project/data/all_samples_meta_p2d_fg9_updated.csv')
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc') %>% 
+  select(fg = fg1_name,shortname )
+scatter_alpha <- 0.35
+cor_text_size <- 3
+axis_text_size <- 11
+axis_title_size <- 11
+
+klept <- read_csv('../data/095_Klebsiella-patient.csv')
+ent_pt <- read_csv('../data/075_entero_pt.csv')
+```
+
+```{r}
+# the 12 patients that I have both the irep and the qpcr
+both <- read_csv('../data/133_patients_with_both_irep_and_qpcr.csv')
+
+# # find the other patients that don't make it to the fig3 top (10)
+target <- both %>% 
+  filter(! value %in% c(klept$mrn, ent_pt$mrn))
+
+# find the genus with the highest irep for those patients
+irep <- combined %>% 
+  filter(mrn %in% target$value)
+
+# find the genus of those species
+all_spp <- irep %>% 
+  distinct(best_species) %>% 
+  mutate(cleaned_spp = str_replace(best_species, '\\[',''),
+         cleaned_spp = str_replace(cleaned_spp, '\\]','')) %>% 
+  mutate(best_genus = str_extract(cleaned_spp, "[^\\s]+")) %>% 
+  filter(!best_genus %in% c('Bacteria','Lachnospiraceae'))
+
+growall <- irep %>% 
+  inner_join(all_spp %>% select(best_species, best_genus))
+
+# find the genus with the highest irep for those patients
+max_genus <- growall %>% 
+  arrange(mrn, desc(iRep)) %>% 
+  group_by(mrn) %>% 
+  slice(1) %>% 
+  select(mrn, best_genus, iRep)
+```
+

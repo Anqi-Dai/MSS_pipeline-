@@ -123,6 +123,15 @@ stb4 <- stb3 %>%
 
 stb4 %>% 
   distinct(mrn, sdrt)# XXX are duplicated on the same day
+
+abx_all %>% filter(mrn %in% dtb$mrn) %>% 
+  distinct(mrn)
+
+this <- abx_all %>% filter(mrn %in% dtb$mrn) 
+
+setdiff(dtb$mrn, this$mrn)
+
+this %>% write_rds('../data/011_nutrition_patient_96_abx.rds')
 ```
 
 # what about the same day there are two stool samples
@@ -133,6 +142,8 @@ select one of the samples and ignore the other. take the one with the earlier sa
 stb5 <- stb4 %>% 
   arrange(mrn, sdrt, sampleid) %>% 
   distinct(mrn, sdrt, .keep_all = T)
+
+meta %>% distinct(mrn)
 ```
 
 # has to have at least one real diet data in the previous 2 days (for the later pairing)
@@ -224,6 +235,8 @@ stb9 <- stb8 %>%
 ```{r}
 stb9 %>% 
   write_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
+
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
 ```
  
 #########################################################################################################

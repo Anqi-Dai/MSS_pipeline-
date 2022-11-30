@@ -423,6 +423,53 @@ umap_pt_color %>%
    scale_color_manual(values = color_key) 
 ggsave('../data/072_umappt_legends.pdf')
 ```
+```{r}
+# make a umap to highlight the ICU patients
+icu_days <- dtb %>% 
+  filter(Meal == 'EN') %>% 
+  select(mrn, fdrt) %>% 
+  mutate(grp = 'ICU days')
+
+umap_icu <- umap_cal %>% 
+  left_join(icu_days, by = c("mrn", "fdrt")) %>% 
+  mutate(grp = if_else(is.na(grp), '', grp))
+
+umap_icu_plot <- umap_icu %>% 
+  arrange(grp) %>% 
+  #arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'grp',palette = 'jco' , 
+             alpha = 1, size = umap_pt_size, shape = 16,
+             xlab = '', ylab = '') + 
+    #scale_color_manual(values = color_key) +
+   theme_classic() +
+   theme(
+     legend.position = 'bottom',
+         line = element_blank(),
+         legend.title = element_blank(),
+         axis.title=element_blank(),
+         axis.text= element_blank(),
+         axis.ticks = element_blank(),
+              panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
+        aspect.ratio=1)
+ggsave( '../data/072_umap_icu.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_icu_plot, bg = "transparent")
+
+
+```
+
+
+```{r}
+umap_icu %>% 
+  filter(icu =='TRUE') %>% 
+  gghistogram(x = 'fdrt', facet.by = 'mrn')
+
+df <- umap_icu %>% 
+  filter(icu =='TRUE') 
+```
 
 
 ```{r tree}
@@ -667,4 +714,5 @@ hist_two
 
 ggsave('../data/072_hist2.pdf', height = 3)
 ```
+
 
