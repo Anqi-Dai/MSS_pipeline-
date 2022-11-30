@@ -129,6 +129,7 @@ model_div <- brm( model_formular,
               prior = priors,
               cores = ncores, 
               chains = 2, 
+               control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T) 
 
 # actually draw samples from the priors 
@@ -138,6 +139,7 @@ samples_prior <- prior_draws(model_div)
 # save it for future use
 post_res <- suppressWarnings(posterior_samples(model_div)) 
 post_res %>%  write_csv('../data/068_div_model_fg_post.csv')
+
 ```
 
 ```{r validate_prior}
