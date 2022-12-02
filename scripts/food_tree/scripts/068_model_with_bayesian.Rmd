@@ -410,5 +410,23 @@ coeff_bi %>%
   count(coeff < 0) %>% 
   mutate(perc = n / sum(n)*100)
 
+
+coeff_bi %>% 
+  filter(!str_detect(item, 'intensity')) %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+  labs(x = 'Coefficients',
+       y = 'Factor variables',
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none',
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        aspect.ratio=1) 
+
+ggsave('../data/068_only_abx_diversity_bi.pdf', width = 3.5, height = 3)
 ```
 

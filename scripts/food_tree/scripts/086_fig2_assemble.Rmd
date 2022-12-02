@@ -129,6 +129,13 @@ ggsave('../figs/paper/S5_div_entero_factor_086.jpg',
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'jpg', plot = fac2)
+
+ggsave('../figs/paper/S_div_factor_086.pdf',
+       width = 100,
+       height = 60, 
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf', plot = div_fac)
 ```
 
 # accompanying supp figures of the prior simulation of the div and enterococcus model

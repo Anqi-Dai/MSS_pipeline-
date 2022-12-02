@@ -308,3 +308,11 @@ question<- whole %>%
   filter(Sample.ID %in% stb2_not_sequenced$sampleid)
 ```
 
+```{r}
+meta %>% distinct(mrn) %>% nrow
+
+stool802 <- read_csv('../data/011_802_total_stool_samples.csv')
+
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+```
+

@@ -10,8 +10,39 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+axis_text_size <- 11
+axis_title_size <- 11
+plot_ratio <-1.5/2
+shorter_ratio <- 1/2
 library(tidyverse)
 library(ggpubr)
+library(vdbR)
+library(cowplot)
+connect_database('~/dbConfig.txt')
+get_table_from_database('qpcr_16s_ag')
+get_table_from_database('antibiotics_antibacterial_multicenter_ag')
+get_table_from_database('samples_castori_ag')
+get_table_from_database('asv_annotation_blast_ag')
+all802 <- read_csv('../data/011_802_total_stool_samples.csv')
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+updated_qPCR <- qpcr_16s_ag %>%
+  rename(sampleid=sample_id,
+         copies_16s_per_g_pre = copies_16s_per_g) %>% 
+  mutate(
+    g = copy_number_16s/ copies_16s_per_g_pre,
+    copies_16s_bounded = ifelse(
+      copy_number_16s < 12800, 
+      (12800*.5),
+      ifelse(
+        copy_number_16s > 2e8,
+        1.5 * (2e8),
+        copy_number_16s
+      )
+    )
+  ) %>% 
+  mutate(copies_16s_per_g =  copies_16s_bounded/g) 
 ```
 
 We need timelines for each of the selected patients here, like in figure 3A,B. Each time, for the growth rate and total abundance data, use the genus with the highest irep, as per figure 3c
@@ -59,11 +90,263 @@ all_spp <- irep %>%
 growall <- irep %>% 
   inner_join(all_spp %>% select(best_species, best_genus))
 
-# find the genus with the highest irep for those patients
+df <- growall %>% distinct(best_genus) 
+
+# find the genus with the highest irep for those patients that are within the 4 genera
 max_genus <- growall %>% 
+  filter(best_genus %in% c('Enterobacter','Escherichia','Klebsiella','Enterococcus')) %>% 
   arrange(mrn, desc(iRep)) %>% 
   group_by(mrn) %>% 
   slice(1) %>% 
   select(mrn, best_genus, iRep)
+```
+```{r}
+pt_df <- max_genus %>% ungroup() %>% 
+  slice(3) 
+
+pt <- pt_df %>% pull(mrn)
+ge <- pt_df %>% pull(best_genus)
+```
+
+
+```{r}
+# plot the total abundance data 
+sam <- samples_castori_ag %>% 
+  filter(mrn %in% pt) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+
+samps <- samples_castori_ag %>% 
+  filter(mrn %in% pt) %>% 
+  distinct(sampleid, mrn)
+
+cts <- get_counts_subset(sam)
+
+cts_ge_df <- cts %>% 
+  left_join(asv_annotation_blast_ag %>% 
+              select(asv_key, genus)) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>%
+  spread('sampleid', 'relab', fill = 0) %>% 
+  filter(genus == ge) %>% 
+  gather('sampleid', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  inner_join(updated_qPCR %>% 
+               select(sampleid , copies_16s_per_g)) %>% 
+  mutate(ge_copy = copies_16s_per_g*relab) %>% 
+  inner_join(samples_castori_ag %>% 
+               select(sampleid, datecollection)) %>% 
+  inner_join(samps) %>% 
+  inner_join(ptb %>% 
+               select(mrn, hct)) %>% 
+  mutate(sdrt = datecollection - hct) %>% 
+  filter(!is.na(ge_copy))
+
+cts_ge <- cts_ge_df %>% 
+  mutate(max_pt = if_else(ge_copy == max(cts_ge_df$ge_copy), T, F))
+
+# find the samples that have zero relab in this genus
+
+
+ge_copies <- cts_ge %>% 
+  #filter(sdrt %in% -5:15) %>% 
+  #mutate(ge_copy = ge_copy/1e7) %>% 
+  ggplot(aes(x = sdrt, y = ge_copy )) +
+  geom_line(aes(x = sdrt, y = ge_copy), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = max_pt, col = max_pt)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  #xlim(xmin, xmax) +
+  labs(x = 'Transplant day',
+       y = str_glue('{ge}\ncopies /g'),
+       title = '') +  
+  theme_classic() +
+  theme(aspect.ratio=shorter_ratio,legend.position = 'none',
+        plot.margin = margin(l=-0.8,unit="cm"),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+
+# plot the irep and total abundance data for those patients for the genus with the highest irep value
+
+# irep
+ge_irep_all <- irep %>%  
+  filter(str_detect(best_species, ge)) %>% 
+  inner_join(all802 %>% 
+               select(sampleid, sdrt))
+ge_irep_q25 <- quantile(x = ge_irep_all$iRep, 0.25)
+ge_irep_q50 <- quantile(x = ge_irep_all$iRep, 0.5)
+ge_irep_q75 <- quantile(x = ge_irep_all$iRep, 0.75)
+ge_irep_highest <- max(ge_irep_all$iRep) + 0.05
+
+ge_irep_pt <- irep %>% 
+  filter(mrn == pt & str_detect(best_species, ge))
+lowerday <- min(ge_irep_pt$sdrt)
+highday <- max(ge_irep_pt$sdrt)
+xmin <- lowerday - 1 
+xmax <- highday + 1  
+
+
+ge_irep <-  ge_irep_all %>% 
+  #filter(sdrt %in% -5:15) %>% 
+  filter(mrn == pt) %>%
+  ggplot(aes(x = sdrt, y = iRep )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = ge_irep_q25, ymax = ge_irep_q75, fill='gray',  alpha=0.3) +
+  geom_point(aes(size = iRep > ge_irep_q75, col = iRep > ge_irep_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  labs(title = str_glue('{}')) +
+  #xlim(xmin, xmax) +
+  ylim(1, ge_irep_highest) +
+  labs(x = '', 
+       y = str_glue('{ge}\ngrowth rate'),
+       title = '')+
+  theme_classic()+
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(color = "grey85"))
+ge_irep
+
+bottom2 <-  plot_grid(ge_irep, ge_copies, 
+                  ncol = 1,axis = 'lbrt', align = 'hv') 
+
+```
+
+```{r}
+# do this for all of the 10 patients
+plot_botton2 <- function(mrn_, genus_){
+  # plot the total abundance data 
+  
+  # irep
+ge_irep_all <- irep %>%  
+  filter(str_detect(best_species, genus_)) %>% 
+  inner_join(all802 %>% 
+               select(sampleid, sdrt))
+ge_irep_q25 <- quantile(x = ge_irep_all$iRep, 0.25)
+ge_irep_q50 <- quantile(x = ge_irep_all$iRep, 0.5)
+ge_irep_q75 <- quantile(x = ge_irep_all$iRep, 0.75)
+ge_irep_highest <- max(ge_irep_all$iRep) + 0.05
+
+ge_irep <- irep %>% 
+  filter(mrn == mrn_ & str_detect(best_species, genus_))
+lowerday_irep <- min(ge_irep$sdrt)
+higherday_irep <- max(ge_irep$sdrt)
+
+
+
+sam <- samples_castori_ag %>% 
+  filter(mrn %in% mrn_) %>% 
+  distinct(sampleid) %>% 
+  pull(sampleid)
+
+samps <- samples_castori_ag %>% 
+  filter(mrn %in% mrn_) %>% 
+  distinct(sampleid, mrn)
+
+cts <- get_counts_subset(sam)
+
+cts_ge_df <- cts %>% 
+  left_join(asv_annotation_blast_ag %>% 
+              select(asv_key, genus)) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) %>%
+  spread('sampleid', 'relab', fill = 0) %>% 
+   filter(genus == genus_) %>% 
+  gather('sampleid', 'relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  inner_join(updated_qPCR %>% 
+               select(sampleid , copies_16s_per_g)) %>% 
+  mutate(ge_copy = copies_16s_per_g*relab) %>% 
+  inner_join(samples_castori_ag %>% 
+               select(sampleid, datecollection)) %>% 
+  inner_join(samps) %>% 
+  inner_join(ptb %>% 
+               select(mrn, hct)) %>% 
+  mutate(sdrt = datecollection - hct) %>% 
+  filter(!is.na(ge_copy)) %>% 
+  mutate(sdrt = as.numeric(sdrt))
+
+lowerday_cts <- min(cts_ge_df$sdrt)
+higherday_cts <- max(cts_ge_df$sdrt)
+lowerday <- min(lowerday_cts, lowerday_irep)
+higherday <- max(higherday_cts, higherday_irep)
+xmin <- lowerday - 1 
+xmax <- higherday + 1  
+
+cts_ge <- cts_ge_df %>% 
+  mutate(max_pt = if_else(ge_copy == max(cts_ge_df$ge_copy), T, F))
+
+# find the samples that have zero relab in this genus
+
+
+ge_copies <- cts_ge %>% 
+  #filter(sdrt %in% -5:15) %>% 
+  #mutate(ge_copy = ge_copy/1e7) %>% 
+  ggplot(aes(x = sdrt, y = ge_copy )) +
+  geom_line(aes(x = sdrt, y = ge_copy), linetype = 'solid', size = 0.5, col = 'black') +
+  geom_point(aes(size = max_pt, col = max_pt)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  xlim(xmin, xmax) +
+  labs(x = 'Transplant day',
+       y = str_glue('{genus_}\ncopies /g'),
+       title = '') +  
+  theme_classic() +
+  theme(aspect.ratio=shorter_ratio,legend.position = 'none',
+        plot.margin = margin(l=-0.8,unit="cm"),
+            axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(colour = "grey85"))
+
+# plot the irep and total abundance data for those patients for the genus with the highest irep value
+
+
+
+
+ge_irep <-  ge_irep_all %>% 
+  #filter(sdrt %in% -5:15) %>% 
+  filter(mrn == mrn_) %>%
+  ggplot(aes(x = sdrt, y = iRep )) +
+  annotate('rect', xmin = xmin, xmax = xmax, ymin = ge_irep_q25, ymax = ge_irep_q75, fill='gray',  alpha=0.3) +
+  geom_point(aes(size = iRep > ge_irep_q75, col = iRep > ge_irep_q75)) +
+  scale_size_manual(values = c(2, 4)) +
+  scale_color_manual(values = c('black', 'red')) +
+  labs(title = str_glue('{}')) +
+  xlim(xmin, xmax) +
+  ylim(1, ge_irep_highest) +
+  labs(x = '', 
+       y = str_glue('{genus_}\ngrowth rate'),
+       title = '')+
+  theme_classic()+
+  theme(aspect.ratio=shorter_ratio, legend.position = 'none' ,
+        #axis.text.x=element_blank(),
+        #axis.ticks.x=element_blank(),
+        axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
+        panel.grid.major.x = element_line(color = "grey85"))
+
+
+bottom2 <-  plot_grid(ge_irep, ge_copies, 
+                  ncol = 1,axis = 'lbrt', align = 'hv') 
+return(bottom2)
+}
+pt_df <- max_genus %>% ungroup() %>% 
+  slice(4) 
+
+pt <- pt_df %>% pull(mrn)
+ge <- pt_df %>% pull(best_genus)
+plot_botton2(pt,ge)
+```
+
+
+```{r}
+other10 <- pmap(max_genus %>% select(-iRep), function(mrn, best_genus){
+    plot_botton2(mrn,best_genus)
+  }) 
 ```
 
