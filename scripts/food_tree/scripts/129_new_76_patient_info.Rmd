@@ -36,6 +36,8 @@ pull <- read_csv('../data/pts_updated_through_june_2022.csv') %>%
 
 pull %>% write_csv('../data/129_new_76_full_patient_info.csv')
 pull %>% distinct(Disease) 
+
+new <- read_csv('../data/129_new_76_full_patient_info.csv')
 ```
 
 ```{r}

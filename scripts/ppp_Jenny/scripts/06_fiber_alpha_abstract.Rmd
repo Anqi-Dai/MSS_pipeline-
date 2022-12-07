@@ -96,3 +96,25 @@ ggsave('../data/06_diversity_and_fiber_binary.pdf', height = 5)
 ```
 
 
+For patients: could you do fiber over time? y-axis: fibers; x-axis time as a continuous (don't break it as pre-transplant, perengraftment etc) and color by GVHD vs controls?
+
+```{r}
+# find all of th gvhd or not for the patients
+full <- read_csv('../../food_tree/data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv')
+pts <- full %>% 
+  distinct(mrn)
+
+gvhd <- patient_allo_ks_20221104 %>% 
+  filter(mrn %in% pts$mrn) %>% 
+  distinct(mrn, gvhd_old, hct, .keep_all = T ) %>% 
+  inner_join(ptb, by = c("mrn", "hct")) %>% 
+  select(mrn,  gvhd_old) %>% 
+  filter(gvhd_old %in% c('N','Y'))
+gvhd %>% distinct(mrn)
+
+df <- full %>% 
+  select(mrn, sampleid, sdrt, ave_fiber) %>% 
+  left_join(gvhd )
+```
+
+

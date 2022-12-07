@@ -1,0 +1,32 @@
+---
+title: "alpha diversity analysis"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun Data/'
+meta_mouse <- read_csv('../data/pheno_with_alpha_diversity.csv')
+```
+
+For the a-diversity over time: can you do a similar plot that you have for humans but for the mice? y-axis: a-diversity; x-axis time from transplant as a continuous (even thought there are only 3 time points) and have one point per mouse per time point and only a line for each mouse group (fiber 0% vs 6% vs 12% vs 40%).
+
+```{r}
+meta_mouse %>% 
+  ggscatter(x = 'Day', y  = 'inv', color = 'fiber', palette = 'lancet', add = "loess", conf.int = F,
+            ylab = 'alpha diversity', facet.by = 'grp')  +
+   scale_x_continuous( breaks = c(1,7, 14)) 
+  
+  
+```
+

@@ -11,12 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun Data/'
-meta_mouse <- read_csv(file.path(dir, 'Mouse/pheno_with_alpha_diversity.csv'))
+meta_mouse <- read_csv('../data/pheno_with_alpha_diversity.csv')
 ```
 
 ```{r}
 # look at the bar stacked plots at genus level
-spp <- read_csv(file.path(dir, 'Mouse/metaphlan_results_fraction.csv'))
+spp <- read_csv(file.path(dir, 'Mouse/metaphlan_results_fraction.csv')) 
 
 genera <- spp %>% 
   mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
@@ -27,7 +27,7 @@ genera <- spp %>%
   #mutate(ge = fct_reorder(ge, genus, )) %>%
   left_join(meta_mouse, by = "sampleid") %>% 
   mutate(Day = factor(Day, levels = c(1, 7, 14)),
-         fiber = factor(fiber, c('0%','12%','40%'))) %>% 
+         fiber = factor(fiber, c('0%','6%', '12%','40%'))) %>% 
   arrange(Day, grp, fiber, Box_number) %>% 
   mutate(sid = str_glue('Day {Day}: {grp}: {fiber}:Box {Box_number}')) 
   
@@ -37,18 +37,20 @@ genera %>%
 ```
 
 ```{r}
-# find the genera > 0.1% in more than 20% samples
-#  17/47 left 
+# find the genera > 0.1% in more than 10% samples
+#  21/59 left 
 keepgenera <- genera %>% 
   filter(relab > 0.001) %>% 
   count(genus) %>% 
-  filter(n > floor(nrow(meta_mouse) * 0.2)) %>% 
+  filter(n > floor(nrow(meta_mouse) * 0.1)) %>% 
   pull(genus)
+
+
 ```
 
 
 ```{r}
-# to find colors for these features
+#to find colors for these features
 # library(randomcoloR)
 # n <- length(keepgenera)
 # palette <- distinctColorPalette(n)
@@ -62,11 +64,29 @@ keepgenera <- genera %>%
 #   arrange(ge) %>%
 #   mutate(color = palette)
 # 
+# length(intersect(bar_palette$ge, bar_palette_old$ge))
+# 
 # bar_palette %>% write_csv('../data/bar_palette.csv')
+# 
+# bar_palette_old <-  read_csv('../data/bar_palette_Angel.csv')
+# 
+# # use the old palette plus 4 new ones 
+# new4 <-  RColorBrewer::brewer.pal(4, name = 'Set1')
+# palette <- c(new4, bar_palette_old$color)
+# pie(rep(1, 21), col=palette)
+# 
+# new4df <- bar_palette %>% 
+#   filter(!ge %in% bar_palette_old$ge)  %>% 
+#   mutate(color = new4) 
+# 
+# all_save <- bind_rows(new4df, bar_palette_old)
+# all_save %>% write_csv('../data/02_bar_palette_21.csv')
+```
 
-bar_palette <-  read_csv(file.path(dir, 'Mouse/bar_palette.csv'))
 
-bar_plot_pal <- deframe(bar_palette)
+```{r}
+bar_pal_save <- read_csv('../data/02_bar_palette_21.csv')
+bar_plot_pal <- deframe(bar_pal_save)
 
 # all samples
 genera %>% 
@@ -92,7 +112,7 @@ genera %>%
   theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
          legend.position = 'bottom') 
     
-    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_grp_{.y}.jpg')))
+    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_grp_{.y}.jpg')), width = 10, height = 7)
   })
 ```
 
@@ -109,7 +129,7 @@ genera %>%
   theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
          legend.position = 'bottom') 
     
-    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_Day_{.y}.jpg')))
+    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_Day_{.y}.jpg')), width = 10, height = 7)
   })
   
 ```
@@ -128,9 +148,39 @@ genera %>%
   theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
          legend.position = 'bottom') 
     
-    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_fiber_{.y}.jpg')))
+    ggsave(file.path(dir, str_glue('Mouse/results/bar_split_by_fiber_{.y}.jpg')), width = 10, height = 7)
   })
   
 ```
 
+
+```{r}
+# pre transplant and peri engraftment day -10 to 0;  day 7 -21
+# top 10 foods that have the fiber content 
+dtb <- read_csv('../../food_tree/data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  filter(!Food_NSC %in% c('Yogurt,  Plain - (1 Carb)', 'CHICKEN FINGERS'))
+
+selected <- dtb %>% 
+  filter(fdrt %in% -10:0 | fdrt %in% 7:21) %>% 
+  mutate(timegrp = if_else(fdrt <=0, 'pre', 'peri'))
+
+test <- selected %>% 
+  filter(timegrp == 'pre') %>% 
+  distinct(mrn, fdrt, Food_NSC,Por_eaten, Unit, Calories_kcal, Protein_g,  Fibers_g, Sugars_g, Carbohydrates_g, Fat_g) %>% 
+  distinct(Food_NSC,.keep_all = T)
+
+peri <- selected %>% 
+  filter(timegrp == 'peri') %>% 
+  distinct(mrn, fdrt, Food_NSC,Por_eaten, Unit, Calories_kcal, Protein_g,  Fibers_g, Sugars_g, Carbohydrates_g, Fat_g) %>% 
+  distinct(Food_NSC,.keep_all = T)
+```
+
+```{r}
+# ok find that data for Peter to review .........
+doubt <- dtb %>% 
+  distinct(Food_NSC,Food_code, description, Por_eaten, Unit, Calories_kcal, Protein_g,  Fibers_g, Sugars_g, Carbohydrates_g, Fat_g, Sodium_g ) %>% 
+  filter(Fibers_g > 10)
+
+doubt %>% write_csv('../data/02_fiber_questionable.csv')
+```
 

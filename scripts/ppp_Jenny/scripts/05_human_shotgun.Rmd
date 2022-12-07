@@ -14,6 +14,11 @@ library(tidyverse)
 library(vdbR)
 connect_database()
 get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('samples_castori_ag')
+list_table_from_database('patient_allo_ag')
+get_table_from_database('patient_allo_ks_20221104')
+get_table_from_database('patient_allo_ag')
+dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun Data/'
 ```
 
 ```{r}
@@ -41,7 +46,7 @@ location <- shotgun_lookup_ad %>%
 #   FMT.0215A FMT.0215C  FMT.0215H
 missing3 <- c('FMT.0215A','FMT.0215C','FMT.0215H')
 
-# generate sripts to download those results
+# generate script to download those results
 dl <- location %>% 
   filter(!sampleid %in% missing3) %>% 
   mutate(cmd = str_glue('scp daia1@lilac.mskcc.org:/home/daia1/my_workdir/samples/metaphlan/{str_extract(directory, "Sample_.+$")}_metaphlan3_profile.txt .')) %>% 
@@ -49,7 +54,7 @@ dl <- location %>%
   write_csv('../data/dl58.sh', col_names = F)
 
 # now gather the dl metaphlan results
-fns <- list.files('../data/', pattern = '_metaphlan3_profile.txt$', full.names = T)
+fns <- list.files('../data/human_shotgun/', pattern = '_metaphlan3_profile.txt$', full.names = T)
  
 human <- fns %>% 
   set_names(fns) %>% 
@@ -59,12 +64,13 @@ human <- fns %>%
           filter(str_detect(clade_name, 's__')) %>% 
   mutate(relative_abundance = relative_abundance/100)) %>% 
   bind_rows(.id = 'fid') %>% 
-  mutate(fid = str_replace(fid, '../data//Sample_',''),
+  mutate(fid = str_replace(fid, '../data/human_shotgun//Sample_',''),
          fid = str_replace(fid, '_IGO_.+$',''))  %>% 
   left_join(location %>% select(fid, sampleid)) %>% 
   select(-fid)
 
 human %>% write_csv('../data/human_metaphlan_61samples.csv')
+human %>% distinct(sampleid)
 ```
 
 ```{r}
@@ -82,5 +88,77 @@ p2d <- meta_all_old %>%
 
 p2d %>% 
   write_csv('../data/human_samples_p2d_diet_data.csv')
+```
+```{r}
+# the alpha diversity
+library(ggpubr)
+library(vegan)
+cts <- human %>% 
+  spread(key = 'clade_name', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+meta_human <- diversity(cts, index = 'inv') %>% 
+  enframe(name = 'sampleid', value = 'inv') 
+
+# meta_mouse %>% 
+#   write_csv('../data/pheno_with_alpha_diversity.csv')
+```
+
+```{r}
+# find the sdrt of those stool samples 
+my <- read_csv('../../food_tree/data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+  filter(sampleid %in% sampleids$value)
+
+length(intersect(samp$mrn, ptb$mrn))
+ptb <- read_csv('../../food_tree/data/cleaned_patients/diet_patients_97.csv')
+
+new2 <- read_csv('../../food_tree/data/129_new_76_full_patient_info.csv')
+
+this <- sampleids %>% 
+  select(sampleid = value) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection, mrn)) %>% 
+  left_join(patient_allo_ks_20221104 %>% select(mrn, hct))
+
+fixed <- this %>% 
+  split(is.na(.$hct))
+
+fixed_ <- bind_rows(
+  fixed %>% pluck('FALSE'),
+  fixed %>% pluck('TRUE') %>% select(-hct) %>% inner_join(new2 %>% select(mrn, hct))
+) %>% 
+  mutate(drt = as.numeric(datecollection - hct)) %>% 
+  mutate(grp = case_when(
+    drt %in% -8:-6 ~ 'pre_HCT',
+    drt %in% -1:1 ~ 'peri_HCT',
+    drt %in% 6:8 ~ 'nadir',
+    drt %in% 13:15 ~ 'engraftment',
+    drt %in% 20:22 ~ 'recover'
+  )) %>% 
+  full_join(meta_human)
+
+fixed_ %>% write_csv()
+
+```
+
+```{r}
+fixed_ %>% 
+  ggboxplot(x = 'grp', y = 'inv', add = 'dotplot', ylab = 'inverse simpson',
+            title = 'shotgun data human 61 samples', 
+            add.params = list(color = 'brown', size = 1, alpha = 1, shape = 20)) +
+  #facet_grid(Day ~ grp)  +
+  stat_compare_means(comparisons= list(c('pre_HCT', 'peri_HCT'),
+                                       c('pre_HCT', 'nadir'),
+                                       c('pre_HCT', 'engraftment'),
+                                       c('pre_HCT', 'recover'),
+                                       c('peri_HCT', 'engraftment'),
+                                       c('peri_HCT', 'recover')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE) +
+  theme_bw()
+
+ggsave(file.path(dir, 'human/05_human_shotgun_alpha_61.pdf'), width = 10)
+ 
+
 ```
 

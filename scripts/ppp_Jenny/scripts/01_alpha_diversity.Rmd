@@ -12,17 +12,34 @@ library(tidyverse)
 library(ggpubr)
 library(vegan)
 dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun Data/'
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
 ```
 
 ```{r}
 # organize the meta table
 # AVOID ALL SPACES. replace the space with underscores
+
+
+b2 <- read_csv('../data/pheno_batch2.csv') %>% 
+  select(-...4) %>% 
+  rename(sampleid = `MMF ID`) %>% 
+  separate(`Mice group`, into = c('grp','fiber'), sep = ' \\+ ') %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  mutate(fiber = str_replace(fiber, ' fiber',''),
+         grp = str_replace(grp, ' ','_'))
+
 meta <- read_csv('../data/Stool_mice_Fiber_Days1.7.14_JP_VDB_1.26.22.csv') %>% 
   rename(sampleid = `Tube ID`) %>% 
   separate(`Mice group`, into = c('grp','fiber'), sep = ' \\+ ') %>% 
   rename_all(~ gsub(" ", "_", .)) %>% 
   mutate(fiber = str_replace(fiber, ' fiber',''),
-         grp = str_replace(grp, ' ','_'))
+         grp = str_replace(grp, ' ','_')) %>% 
+  select(colnames(b2))
+
+both <- bind_rows(b2, meta) %>% 
+  filter(sampleid %in% taxa$sampleid)
 ```
 
 ```{r}
@@ -31,8 +48,8 @@ second <- list.files('../data/shotgun_output/', pattern = 'JPS', full.names = T)
 fns <- list.files('../data/shotgun_output/', pattern = '12898', full.names = T)
 total <- c(fns, second)
 
-taxa <- fns %>% 
-  set_names(fns) %>% 
+taxa <- total %>% 
+  set_names(total) %>% 
   map(~ read_tsv(., skip = 4, col_types = 'ccddd') %>% 
           rename(clade_name = names(.)[1]) %>% 
           select(clade_name, relative_abundance) %>% 
@@ -40,7 +57,7 @@ taxa <- fns %>%
   mutate(relative_abundance = relative_abundance/100)) %>% 
   bind_rows(.id = 'sampleid') %>% 
   mutate(sampleid = str_replace(sampleid, '../data/shotgun_output//Sample_',''),
-         sampleid = str_replace(sampleid, '_IGO_12898.+$',''))
+         sampleid = str_replace(sampleid, '_IGO_.+$',''))
 taxa %>% distinct(sampleid)
 
 taxa %>% write_csv(file.path(dir, 'Mouse/metaphlan_results_fraction.csv'))
@@ -51,8 +68,8 @@ cts <- taxa %>%
 
 meta_mouse <- diversity(cts, index = 'inv') %>% 
   enframe(name = 'sampleid', value = 'inv') %>% 
-  inner_join(meta)  %>% 
-  mutate(fiber = factor(fiber, levels = c('0%','12%','40%')))
+  inner_join(both)  %>% 
+  mutate(fiber = factor(fiber, levels = c('0%','6%', '12%','40%')))
 
 meta_mouse %>% 
   write_csv('../data/pheno_with_alpha_diversity.csv')
@@ -66,7 +83,10 @@ all_alpha <- meta_mouse %>%
   facet_grid(Day ~ grp)  +
   stat_compare_means(comparisons= list(c('12%', '40%'),
                                        c('0%', '12%'),
-                                       c('40%', '0%')),
+                                       c('40%', '0%'),
+                                       c('40%', '6%'),
+                                       c('12%', '6%'),
+                                       c('0%', '6%')),
 										label= "p.format",
 										method= 'wilcox.test',
 										correct=FALSE) +
@@ -76,19 +96,4 @@ all_alpha <- meta_mouse %>%
 ggsave(file.path(dir, 'Mouse/results/alpha_comparison.jpg'), width = 5, height = 8, plot = all_alpha)
 
 
-# for the BM only group what is the p value
-bm_alpha <- meta_mouse %>% 
-  filter(grp == 'BM_only') %>% 
-  ggboxplot(x = 'fiber', y = 'inv', add = 'dotplot', ylab = 'inverse simpson',
-            add.params = list(color = 'forestgreen', size = 2, alpha = 1, shape = 20)) +
-  facet_grid(Day ~ grp)  +
-  stat_compare_means(comparisons= list(
-                                       c('12%', '40%')),
-										label= "p.format",
-										method= 'wilcox.test',
-										correct=FALSE) +
-  theme_bw()
-
-ggsave(file.path(dir, 'Mouse/results/alpha_comparison_BM_only.jpg'), width = 2.5, height = 8, plot = bm_alpha)
 ```
-

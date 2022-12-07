@@ -60,6 +60,29 @@ top3grp_sugar <- dtb %>%
   inner_join(top3grp) %>% 
   mutate(sugar_perc_per_meal = gram_sugar_per_meal/gram_per_meal*100) %>% 
   mutate(description = factor(description, levels = top3grp$description))
+
+
+```
+```{r}
+# go back to the dtb to see the sugar data of those 
+top50 <- top3grp_sugar <- dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  filter(fgrp1 %in% c('9','6','7')) %>% 
+  group_by(Food_code, description, fgrp1) %>% 
+  summarise(total_sugar_per_code = sum(Sugars_g)) %>% 
+  ungroup() %>% 
+  arrange(desc(total_sugar_per_code)) %>% 
+  filter(fgrp1 %in% c('6')) %>% 
+  slice_head(n = 50)
+
+see <- dtb %>% 
+  distinct(Food_NSC, Food_code, description, Por_eaten, Unit, .keep_all = T) %>% 
+  select(Food_NSC:description) %>% 
+  distinct(Food_NSC, Food_code, .keep_all = T) %>% 
+  filter(Food_code %in% top50$Food_code) %>% 
+  filter(Sugars_g > 0 & str_detect(description, 'raw')) 
+
+see %>% write_csv('../data/099_raw_fruits_with_sugars.csv')
 ```
 
 

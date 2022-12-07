@@ -60,6 +60,12 @@ dtb %>% distinct(Food_code)
 dtb %>% count(mrn,  fdrt) %>% 
   count(mrn) %>% 
   summarise(total_days = sum(n))
+
+dtb %>% distinct(Food_NSC)
+
+dtb %>% count(mrn, fdrt) %>% 
+  distinct(mrn, fdrt) 
+  
 ```
 
 ```{r}
@@ -715,4 +721,11 @@ hist_two
 ggsave('../data/072_hist2.pdf', height = 3)
 ```
 
+```{r}
+# summary statistics 
+# median N samples per patient
+n_per_patient <- meta %>% 
+  count(mrn) 
+summary(n_per_patient$n)
+```
 

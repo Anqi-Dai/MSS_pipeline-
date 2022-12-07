@@ -1,0 +1,46 @@
+---
+title: "find out the finalized number of shotgun samples in the fig 3"
+author: "Anqi Dai"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('samples_castori_ag')
+```
+
+```{r}
+full <- read_csv('../data/117_irep_full_table.csv') %>% 
+  distinct(sampleid) %>% 
+  inner_join(shotgun_lookup_ad, by = "sampleid") %>% 
+  arrange(sampleid, desc(projectid)) %>% 
+  distinct(sampleid, .keep_all = T)
+
+full %>% count(sampleid)
+
+irep_raw <- irep %>% 
+  mutate(sampleid = str_replace(sampleid, 'FMT_','FMT\\.'))
+
+irep %>% distinct(sampleid)
+p11862 <- shotgun_lookup_ad %>% 
+  filter(str_detect(projectid,'11862'))
+# do I get all of the 11862 samples
+length(intersect(irep_raw$sampleid, p11862$sampleid)) 
+
+# save the selected 145 sampleid as the starting sample number for this analysis 
+tibble(
+  sampleid = p11862$sampleid
+) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, mrn)) %>% 
+  distinct(mrn)
+  write_csv('../data/135_selected_samples_for_irep_analysis.csv')
+```
+

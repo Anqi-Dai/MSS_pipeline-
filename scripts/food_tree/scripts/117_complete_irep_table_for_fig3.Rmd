@@ -256,6 +256,6 @@ where10 <- shotgun_lookup_ad %>%
 other141 <- all151 %>% 
   filter(str_detect(projectid, '11862'))
 
-
+full %>% distinct(pid)
 ```
 
