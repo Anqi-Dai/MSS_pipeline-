@@ -27,6 +27,6 @@ meta_mouse %>%
             ylab = 'alpha diversity', facet.by = 'grp')  +
    scale_x_continuous( breaks = c(1,7, 14)) 
   
-  
+ggsave('../data/07-mouse_alpha_versus_day.pdf', width = 8, height = 6)
 ```
 

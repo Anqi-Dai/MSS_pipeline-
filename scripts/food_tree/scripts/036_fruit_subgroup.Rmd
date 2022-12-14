@@ -148,3 +148,88 @@ mean_p2d_l2_fruit_df  %>%
 # summary(mod_fruit)
 ```
 
+## Summarize the fruits at each food code level
+
+```{r}
+each_fruit_code  <- dtbn %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  distinct(Food_code, description) 
+
+each_fruit_code %>% write_csv('../data/036_each_fruit_food_code_description.csv')
+# %>% 
+#   mutate(L3_grp = str_sub(Food_code, start = 1, end = 3))  %>% 
+#   distinct(L3_grp)
+#   left_join(fruit2 %>% rename(L2_grp = Level.code), by  = 'L2_grp') %>% 
+#   arrange(L2_grp)
+
+dtbn_fruit_code <- dtbn %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(food_code_total = sum(dehydrated_weight))
+
+
+mean_p2d_each_fruit_diet <-  function(mrn_, p1d_, p2d_){
+  df = dtbn_fruit_code %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(Food_code) %>% 
+    summarise(ave_code = sum(food_code_total)/2)
+  return(df)
+}
+
+mean_p2d_each_fruit_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_each_fruit_diet(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid')
+
+each_code <- mean_p2d_each_fruit_df %>% 
+  spread('Food_code', 'ave_code', fill = 0) %>% 
+  right_join(meta, by = "sampleid") %>% 
+  mutate(pid = str_glue('P{as.numeric(as.factor(mrn))}')) %>% 
+  select(-mrn)
+
+each_code %>% write_csv('../data/036_all_samples_meta_p2d_each_fruit_food_code.csv')
+```
+
+## L3
+
+```{r}
+dtbn_fruit_l3 <- dtbn %>% 
+  filter(str_detect(Food_code, '^6')) %>% 
+  mutate(L3_grp = str_sub(Food_code, start = 1, end = 3)) %>% 
+  group_by(mrn, fdrt, L3_grp) %>% 
+  summarise(l3_total = sum(dehydrated_weight))
+
+
+mean_p2d_l3_fruit_diet <-  function(mrn_, p1d_, p2d_){
+  df = dtbn_fruit_l3 %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(L3_grp) %>% 
+    summarise(ave_l3 = sum(l3_total)/2)
+  return(df)
+}
+
+mean_p2d_l3_fruit_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_l3_fruit_diet(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid')
+
+fruit3 <- read_tsv('../data/source/NodeLabelsMCT.txt', col_types = 'cc')  %>% 
+  filter(str_detect(Level.code, '^6')) %>% 
+  filter(str_length(Level.code) == 3)
+
+each_l3 <- mean_p2d_l3_fruit_df %>% 
+  left_join(fruit3 %>% rename(L3_grp = Level.code), by  = 'L3_grp') %>% 
+  select(-L3_grp ) %>% 
+
+  spread('Main.food.description', 'ave_l3', fill = 0) %>% 
+  right_join(meta, by = "sampleid") %>% 
+  mutate(pid = str_glue('P{as.numeric(as.factor(mrn))}')) %>% 
+  select(-mrn)
+
+each_l3 %>% write_csv('../data/036_all_samples_meta_p2d_each_fruit_L3_level.csv')
+```
+

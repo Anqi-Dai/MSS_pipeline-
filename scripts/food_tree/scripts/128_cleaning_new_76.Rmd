@@ -217,6 +217,42 @@ all4 <- bind_rows(
 )
 colnames(all4)
 ```
+
+
+```{r}
+# I spotted check the highest fat ones and here are the two that are obviously wrong 
+two <- dtb %>% 
+  filter(Food_NSC %in% c('2017 Dressing, Creamy Italian (.5)','2017 Milkshake, Oreo (3) 11 oz')) %>% 
+  arrange(Food_NSC, desc(Por_eaten)) %>% 
+  distinct(Food_NSC, Por_eaten, Unit, Fat_g) %>% 
+  add_row(tibble_row(Food_NSC = '2017 Dressing, Creamy Italian (.5)', Unit = 'pkt', Por_eaten = 1, Fat_g = 10))%>% 
+  add_row(tibble_row(Food_NSC = '2017 Milkshake, Oreo (3) 11 oz', Unit = 'each', Por_eaten = 0.75, Fat_g = 13.64))%>% 
+  add_row(tibble_row(Food_NSC = '2017 Milkshake, Oreo (3) 11 oz', Unit = 'each', Por_eaten = 1, Fat_g = 18.181818))
+
+# correct the entries with these two items
+correct2 <- all4 %>% 
+  filter(Food_NSC %in% c('2017 Dressing, Creamy Italian (.5)','2017 Milkshake, Oreo (3) 11 oz')) %>% 
+  select(-Fat_g) %>% 
+  left_join(two, by = c("Food_NSC", "Por_eaten", "Unit"))
+
+remaining4 <- all4 %>% 
+  filter(!Food_NSC %in% c('2017 Dressing, Creamy Italian (.5)','2017 Milkshake, Oreo (3) 11 oz'))
+
+all5 <- bind_rows(
+  remaining4,
+  correct2 %>% select(colnames(remaining4))
+)
+
+### this is the most updated new dtb!!!
+
+all5 %>% write_csv('../data/128_new_dtb.csv')
+```
+
+```{r}
+all5 %>% 
+  summary() 
+```
+
 ```{r}
 # create a table with only the food nsc and the portion and the nutritional values
 db <- dtb %>%  
@@ -282,11 +318,7 @@ all6 <- all5 %>%
   mutate(Sodium_g = if_else(is.na(Sodium_g), 0,Sodium_g ))
 ```
 
-```{r}
-all6 %>% 
-  summary()
 
-```
 
 ```{r}
 all7 <- all6 %>% 

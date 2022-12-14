@@ -111,10 +111,20 @@ gvhd <- patient_allo_ks_20221104 %>%
   select(mrn,  gvhd_old) %>% 
   filter(gvhd_old %in% c('N','Y'))
 gvhd %>% distinct(mrn)
+gvhd %>% count(gvhd_old)
 
 df <- full %>% 
   select(mrn, sampleid, sdrt, ave_fiber) %>% 
-  left_join(gvhd )
+  mutate(ave_fiber = ave_fiber *100) %>% 
+  inner_join(gvhd )
+
+df %>% 
+  ggscatter(x  = 'sdrt', y = 'ave_fiber', color = 'gvhd_old', palette = 'nejm', add = "loess", conf.int = T,
+            alpha = 0.7, 
+            ylab = 'average fiber intake in previous two days',
+            xlab = 'day relative to transplant')
+
+ggsave('../data/06_fiber_versus_time.pdf', width = 5, height = 4)
 ```
 
 

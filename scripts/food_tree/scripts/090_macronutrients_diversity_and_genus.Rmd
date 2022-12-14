@@ -186,17 +186,20 @@ full <- meta %>%
   full_join(p2d_diet, by = c("sampleid", "mrn")) %>%
   full_join(gcts, by = "sampleid") %>%
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>%
-  mutate(mrn = factor(mrn)) %>%
-  mutate(ave_fiber = ave_fiber/100,
-         ave_fat = ave_fat/100,
-         ave_Protein = ave_Protein/100,
-         ave_Sugars = ave_Sugars/100,
-         ave_carb = ave_carb/100,
-         ave_cal = ave_cal/1000
-         ) 
+  mutate(mrn = factor(mrn)) 
 
 full %>%
   write_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv')
+
+
+# %>%
+  # mutate(ave_fiber = ave_fiber/100,
+  #        ave_fat = ave_fat/100,
+  #        ave_Protein = ave_Protein/100,
+  #        ave_Sugars = ave_Sugars/100,
+  #        ave_carb = ave_carb/100,
+  #        ave_cal = ave_cal/1000
+  #        ) 
 
 ```
 
