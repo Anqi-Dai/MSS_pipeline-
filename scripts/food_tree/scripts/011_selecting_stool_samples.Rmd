@@ -91,7 +91,7 @@ stb3 %>%
 stb3 %>% 
   distinct(sampleid)
 ```
-
+  
 # which stool samples exposed to the empirical abx
 
 ```{r}

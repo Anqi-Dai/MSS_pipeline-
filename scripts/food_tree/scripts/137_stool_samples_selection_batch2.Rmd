@@ -148,7 +148,10 @@ stb6 <- stb5 %>%
 # Clean the antibiotics data from this cohort
 
 ```{r}
-picked <-  c("azithromycin","cefepime", "ciprofloxacin", "imipenem_cilastatin", "ertapenem","levofloxacin","linezolid","meropenem","metronidazole","piperacillin_tazobactam","sulfamethoxazole_trimethoprim", 'vancomycin')
+
+
+# censor_abx <- c('active_atb_vanco_po',	'active_atb_imipenem',	'active_atb_meropenem',	'active_atb_ertapenem',		'active_atb_cefepime',		'active_atb_linezolid',	'active_atb_metro',	'active_atb_piptazo')
+picked <-  c('vancomycin', 'imipenem_cilastatin','meropenem','ertapenem', 'cefepime', 'linezolid','metronidazole','piperacillin_tazobactam')
 
 
 med <- read_rds('../data/batch2_medication_exposures.rds') %>% 
@@ -219,11 +222,53 @@ find_exposure <- all_empirical %>%
         mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
         filter(had_drug == 'TRUE')
     
-    return(had_drug_res)
-  }) %>% 
+    return(had_drug_res) 
+  }) %>%  
   left_join(ptb %>% select(mrn, hct)) %>% 
   mutate(abx_start_day = abx_start - hct,
-         abx_stop_day = abx_stop - hct)
+         abx_stop_day = abx_stop - hct) 
+
+# the above samples are flagged for exposed to empirical
+stb7 <- stb6 %>% 
+  mutate(empirical = if_else(sampleid %in% find_exposure$sampleid, T, F))
+
+stb7 %>% count(empirical) 
+
+```
+# find the EN and TPN info of this cohort 
+
+```{r}
+# only few patients had TPN
+# no patients had EN
+support <- read_csv('../data/NutritionSupport_DietPatients.csv') %>% 
+  filter(MRN %in% ptb$mrn) %>% 
+  mutate(date = mdy(`Date Nutrition Support`)) %>% 
+  filter(`Nutrition Support` == 'TPN') %>% 
+  select(mrn = MRN,
+         date,
+         nutrition_support = `Nutrition Support`) %>% 
+  mutate(TPN_int = interval(date, date))
+
+# to find if any of those stool samples had TPN in the prior two days
+has_tpn <- p2d_df %>% 
+  inner_join(support, by = "mrn") %>% 
+  mutate(had_tpn = int_overlaps(p2d_int, TPN_int)) %>% 
+  filter(had_tpn == 'TRUE')
+
+stb8 <- stb7 %>% 
+  mutate(TPN = if_else(sampleid %in% has_tpn$sampleid, T, F)) %>% 
+  mutate(EN = F)
+ 
+# join with the intensity level of the patients 
+stb9 <- stb8 %>% 
+  left_join(ptb %>% select(mrn, intensity), by = "mrn") %>% 
+   mutate(intensity = case_when(
+    intensity == 'Ablative' ~ 'ablative',
+    intensity == 'Reduced Intensity' ~ 'reduced',
+    intensity == 'Nonablative' ~ 'nonablative'
+  ))
+
+stb9 %>% write_rds('../data/137_stb.rds')
 ```
 
 
