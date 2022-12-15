@@ -1,0 +1,229 @@
+---
+title: "Filtering batch 2 stool samples"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(lubridate)
+```
+```{r}
+ptb <- read_csv('../data/129_new_76_full_patient_info.csv')
+stb_ <- read_csv('../data/130_batch2_pt_stool_samples.csv')
+dtb <- read_rds('../data/136_updated_dtb2.rds')
+```
+
+# selecting stool samples for the patients and also close to diet data
+
+```{r}
+stb <- stb_ %>% 
+  left_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(sdrt = datecollection - hct) %>% 
+  mutate(sdrt = as.numeric(sdrt))
+
+
+# remove all the stool samples collected >= 2 days after the latest diet sample for every patient
+# get the latest diet sample for every patient
+dtb_latest_dsample <- dtb %>% 
+  arrange(mrn, desc(fdrt)) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  select(mrn, fdrt)  
+
+# join the lastest dsample day to the stb 
+stb_dsample_diff_tobe_removed <- stb %>% 
+  left_join(dtb_latest_dsample, by = 'mrn')  %>% 
+  mutate(diff = sdrt - fdrt) %>% 
+  filter(diff >= 2) %>% 
+  pull(sampleid)
+
+stb1 <- stb %>% 
+  filter(!sampleid %in% stb_dsample_diff_tobe_removed)
+
+# also remove the stool samples that are earlier than the earliest diet sample for each patient
+earliest_dsample <- dtb %>% 
+  arrange(mrn, fdrt) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  select(mrn, fdrt)
+
+early_2b_rm <- stb1 %>% 
+  left_join(earliest_dsample, by = 'mrn')  %>% 
+  mutate(diff = sdrt - fdrt) %>% 
+  filter(diff <= 0) %>% 
+  pull(sampleid)
+
+stb2 <- stb1 %>% 
+  filter(!sampleid %in% early_2b_rm) %>% 
+  select(-hct, -datecollection)
+```
+
+```{r}
+# now find the samples that  have a satisfying total count
+stb3 <- stb2 %>% 
+  filter(count_total >= 400)
+```
+
+# remove the duplicated samples of the same patient on the same day 
+
+select one of the samples and ignore the other. take the one with the earlier sampleid by alphanumeric sorting
+
+```{r}
+stb4 <- stb3 %>% 
+  arrange(mrn, sdrt, sampleid) %>% 
+  distinct(mrn, sdrt, .keep_all = T)
+```
+
+# has to have at least one real diet data in the previous 2 days (for the later pairing)
+
+```{r}
+# list the previous 2 days drt for every stool sample 
+qual_stool_df <- stb4 %>% 
+  mutate(p1d = sdrt-1,
+         p2d = sdrt-2) %>% 
+  select(mrn, p1d, p2d)
+
+
+
+no_real_diet_d_to_be_rm_stool_s <- function(mrn_, p1d_, p2d_){
+  df = dtb %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt == p1d_ | fdrt == p2d_  ) %>% 
+    nrow()
+  return(df)
+}
+
+qual_stool2 <- pmap(qual_stool_df, function(mrn, p1d, p2d){
+    no_real_diet_d_to_be_rm_stool_s(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb4 %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  gather(key = 'sampleid', value = 'num_d_records') %>% 
+  arrange(num_d_records) 
+
+no_diet_to_be_removed_stool_samples <- qual_stool2 %>% 
+  filter(num_d_records == 0) %>% 
+  pull(sampleid)
+  
+stb5 <- stb4 %>% 
+  filter(!sampleid %in% no_diet_to_be_removed_stool_samples) 
+```
+
+# no missing data in the previous two days before a stool sample collection
+
+```{r}
+missingdays <- readxl::read_excel('../data/MissingDataCheck_DietStudy_New80Patients.xlsx') %>% 
+  filter(diet_data_status == 'missing') %>% 
+  mutate(mrn = as.numeric(mrn),
+         date = ymd(date)) %>% 
+  left_join(ptb %>% select(mrn, hct))  %>% 
+  mutate(missing_int = interval(date, date))
+
+
+# the previous two days interval for every stool sample
+p2d_df <- stb5 %>% 
+  select(sampleid, mrn) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection)) %>% 
+  mutate(p1d = datecollection -1,
+         p2d = datecollection -2) %>% 
+  mutate(p2d_int = interval(p2d, p1d)) %>% 
+  select(sampleid, datecollection, mrn, p1d, p2d, p2d_int) %>% 
+  inner_join(missingdays, by = "mrn") %>% 
+  mutate(had_missing = int_overlaps(p2d_int, missing_int)) %>% 
+  filter(had_missing == 'TRUE')
+
+have_missing_diet_need_to_be_rm <- p2d_df %>% 
+  pull(sampleid)
+
+# final qualified stool samples
+stb6 <- stb5 %>% 
+  filter(!sampleid %in% have_missing_diet_need_to_be_rm) 
+```
+
+# Clean the antibiotics data from this cohort
+
+```{r}
+picked <-  c("azithromycin","cefepime", "ciprofloxacin", "imipenem_cilastatin", "ertapenem","levofloxacin","linezolid","meropenem","metronidazole","piperacillin_tazobactam","sulfamethoxazole_trimethoprim", 'vancomycin')
+
+
+med <- read_rds('../data/batch2_medication_exposures.rds') %>% 
+  select(MRN:stop_date, drug_name, route) %>% 
+  mutate(drug_name_clean = str_replace_all(drug_name, '-', '_')) %>% 
+  mutate(drug_name_clean = str_to_lower(drug_name_clean)) %>% 
+  mutate(drug_name_clean = case_when(
+    drug_name_clean == 'levofloxacin (levaquin)' ~ 'levofloxacin',
+    drug_name_clean == 'vancomycin invest' ~ 'vancomycin',
+    TRUE ~ drug_name_clean
+  )) %>% 
+  mutate(mrn = as.numeric(MRN))
+
+now <- med %>% count(drug_name_clean) %>% arrange(desc(n)) 
+allroute <- med %>% count(route)
+
+has <- med %>% 
+  filter(drug_name_clean %in% picked) %>% 
+  distinct(drug_name_clean)
+
+# find all the ones that may have extra part of the strings
+allpickes <- tibble(picked = picked) %>% 
+  summarise(text = str_c(picked, collapse = "|"))
+allhas <- now %>% 
+  filter(str_detect(drug_name_clean, allpickes$text))
+
+# no "metronidazole topical"
+# no "ciprofloxacin otic" it's for ear
+# no "ciprofloxacin_hydrocortisone otic" also for ear
+
+# empirical med exposure
+empirical_med_oral <- med %>% 
+  filter(drug_name_clean %in% picked) %>% 
+  select(-drug_name) %>% 
+  filter(route == 'PO') %>% 
+  filter(mrn %in% ptb$mrn)
+
+
+
+empirical_med_oral %>% write_csv('../data/137_batch2_empircal_oral.csv')
+```
+
+```{r}
+# find if exposure to oral empirical abx in the two days prior to a stool sample collection
+p2d_df <- stb6 %>% 
+  select(sampleid, mrn) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection)) %>% 
+  mutate(p1d = datecollection -1,
+         p2d = datecollection -2) %>% 
+  mutate(p2d_int = interval(p2d, p1d)) %>% 
+  select(sampleid, datecollection, mrn, p1d, p2d, p2d_int)
+
+all_empirical <- empirical_med_oral %>% 
+  distinct(drug_name_clean) %>% pull(drug_name_clean)
+
+find_exposure <- all_empirical %>% 
+  set_names(all_empirical) %>% 
+  map_dfr(function(d){
+    each_drug = empirical_med_oral %>% 
+        filter(drug_name_clean == d) %>% 
+        select(mrn, drug_name_clean, start_date, stop_date) %>% 
+        mutate(drug_int =  interval(start_date, stop_date)) %>% 
+        rename(abx_start = start_date,
+               abx_stop = stop_date)
+    
+    had_drug_res = p2d_df %>% 
+        inner_join(each_drug, by = "mrn") %>% 
+        mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
+        filter(had_drug == 'TRUE')
+    
+    return(had_drug_res)
+  }) %>% 
+  left_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(abx_start_day = abx_start - hct,
+         abx_stop_day = abx_stop - hct)
+```
+
+

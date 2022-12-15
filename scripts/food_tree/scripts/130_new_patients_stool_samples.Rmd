@@ -25,12 +25,23 @@ pts <- read_csv('../data/129_new_76_full_patient_info.csv')
 # the stool samples of the patients
 collected <- samples_castori_ag %>% 
   filter(mrn %in% pts$mrn)%>% 
-  filter(!sampleid %in% c('442A','442B'))
+  filter(!sampleid %in% c('442A','442B')) %>% 
+  filter(sampletype == 'Stool' | sampletype == 'stool')
 
 # how many exist in the diversity table
 have <- collected %>% 
-  inner_join(asv_alpha_diversity_ag, by = 'sampleid')
+  inner_join(asv_alpha_diversity_ag, by = 'sampleid') %>% 
+  select(mrn, sampleid,datecollection,  oligos_id:count_total)
 
+have %>% write_csv('../data/130_batch2_pt_stool_samples.csv')
+
+# what are the ones I currently not have 
+notyet <- collected %>% 
+  filter(!sampleid %in% have$sampleid)
+```
+
+
+```{r}
 pools <- have %>% distinct(path_pool)
 
 # the ones that are not sequenced

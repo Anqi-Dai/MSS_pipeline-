@@ -117,13 +117,15 @@ new3 <- bind_rows(total_fixed2_df, other2) %>%
   left_join(engy, by  = 'Food_code')  %>% 
   mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
   mutate(dehydrated_weight = if_else(total_weight == 99999, 0.0001, total_weight*(1 - Water_g/100))) %>% 
-  filter(Por_eaten > 0)
+  filter(Por_eaten > 0) %>% 
+  select(colnames(dtb))
 
 sanity_check <- new3 %>% 
   distinct(Food_NSC, Por_eaten, Unit, dehydrated_weight)
 # finally it is ok!!!!!!!!!!!omg!!!!!!!!!
-```
 
+new3 %>% write_rds('../data/136_updated_dtb2.rds')
+```
 
 
 
