@@ -229,4 +229,4 @@ diversity_factor <- coeff_bi %>%
         strip.text = element_blank(),
         aspect.ratio=1/2) 
 ```
-
+## are the 

@@ -13,6 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 library(lubridate)
+library(vdbR)
+connect_database()
+get_table_from_database('samples_castori_ag')
 ```
 ```{r}
 ptb <- read_csv('../data/129_new_76_full_patient_info.csv')
@@ -228,12 +231,21 @@ find_exposure <- all_empirical %>%
   mutate(abx_start_day = abx_start - hct,
          abx_stop_day = abx_stop - hct) 
 
+exposed_empirical <- empirical_med_oral %>% 
+  mutate(drug_int =  interval(start_date, stop_date)) %>% 
+  inner_join(p2d_df, by = "mrn") %>% 
+   mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
+        filter(had_drug == 'TRUE')
+exposed_empirical %>% distinct(sampleid)
+
 # the above samples are flagged for exposed to empirical
 stb7 <- stb6 %>% 
   mutate(empirical = if_else(sampleid %in% find_exposure$sampleid, T, F))
 
 stb7 %>% count(empirical) 
 
+
+# so few samples have oral empirical abx???
 ```
 # find the EN and TPN info of this cohort 
 

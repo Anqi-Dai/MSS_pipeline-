@@ -417,7 +417,7 @@ coeff_bi %>%
   stat_pointinterval(.width = c(.66, .95)) +
   #scale_color_manual(values = c('#EC0000','#00468B')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+  facet_wrap(grp ~ . , scales = 'free', dir = 'v') +
   labs(x = 'Coefficients',
        y = 'Factor variables',
        title = 'Diversity') +
