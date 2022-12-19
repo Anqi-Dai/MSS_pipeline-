@@ -1,0 +1,328 @@
+---
+title: "Second batch diet taxUMAP"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+umap_pt_size <- 1
+```
+
+# format the required tables
+
+The microbiota data file (e.g., examples/example_data/microbiota_table.csv) must have a column with sample indices labeled 'index_column'. The remaining columns are expected to be amplicon sequence variant (ASV) labels or operational taxonomic unit (OTU) labels, i.e., the lowest level of taxonomy
+
+```{r}
+dtb <- read_rds('../data/136_updated_dtb2.rds')
+
+# the weight need to be relative so needs to normalize them 
+
+
+fc_table <- dtb %>% 
+  select(mrn, fdrt, Food_code, dehydrated_weight) %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(total = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  mutate(index_column = str_glue('P{mrn}_{fdrt}')) %>% 
+  select(index_column, Food_code, total)
+
+fc_total <- fc_table %>% 
+  group_by(index_column) %>% 
+  summarise(daily_total = sum(total))
+
+fc_df <- fc_table %>% 
+  left_join(fc_total) %>% 
+  mutate(daily_relative = total/daily_total) %>% 
+  select(index_column,Food_code, daily_relative ) %>% 
+  spread('Food_code', 'daily_relative', fill = 0)
+
+fc_df %>% write_csv('../data/139_food_code_relative.csv')
+
+dtb %>% distinct(mrn)
+```
+
+The taxonomy table (e.g., examples/example_data/taxonomy.csv) is expected to resolve higher taxonomic groups for each ASV/OTU in the microbiota table. The index of the taxonomy table should be ASV/OTU labels, while the columns of the taxonomy table should be higher taxonomic categories (e.g., kingdom, phylum, etc.). The columns must be ordered from left to right in decreasing taxonomic hierarchy,
+
+```{r}
+actual_foodids <- colnames(fc_table)[2:length(colnames(fc_table))]
+
+final.table <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv') %>% 
+  mutate(FoodID = as.character(FoodID))
+
+food_taxa <- final.table %>% 
+  filter(FoodID %in% actual_foodids) %>% 
+  select(ASV = FoodID, Kingdom = L1, Phylum = L2, Class = L3, Order = L4) 
+
+food_taxa %>% write_csv('../data/139_food_taxa.csv')
+
+top2level <- food_taxa %>% 
+  distinct(Kingdom, Phylum)
+
+```
+
+```{bash}
+<!-- ~/pipeline/scripts/food_tree/softwares/taxumap/run_taxumap.py -t 139_food_taxa.csv -m 139_food_code_relative.csv --agg_levels Kingdom -n 76 --weights 1 -->
+```
+
+```{bash}
+~/pipeline/scripts/food_tree/softwares/taxumap/run_taxumap.py -t 139_food_taxa.csv -m 139_food_code_relative.csv --agg_levels Kingdom/Phylum -n 76 --weights 1/0.5 --outdir batch2_taxumap_kingdom_and_phylum
+```
+
+```{r}
+# calculate the dominant food group of that day
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv') %>% mutate(fgrp1 = as.character(fgrp1))
+fg_daily <- dtb %>% 
+  group_by(mrn, fdrt ) %>% 
+  summarise(daily_total = sum(dehydrated_weight))
+
+fg_sum <- dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+   group_by(mrn, fdrt , fgrp1) %>% 
+  summarise(daily_fg = sum(dehydrated_weight)) %>% 
+  left_join(fg_daily) %>% 
+  mutate(fg_relab = daily_fg/daily_total) %>% 
+  ungroup() %>% 
+  left_join(key) %>% 
+  group_by(mrn, fdrt) %>% 
+  arrange(desc(fg_relab)) %>% 
+  slice(1)
+```
+
+# color by the dominant food group
+
+```{r}
+# the output
+out2 <- read_csv('../data/taxumap_embedding.csv') %>% 
+  separate(index_column, into = c('mrn','fdrt'), sep = '_') %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P','')),
+         fdrt = as.numeric(fdrt)) %>% 
+  full_join(fg_sum, by = c("mrn", "fdrt"))
+
+color_key <- out2 %>% 
+  distinct( color, shortname) %>% select(shortname, color) %>% 
+  deframe()
+
+out2_umap <- out2 %>% 
+  #arrange(desc(n)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 1,size = umap_pt_size , shape = 16,
+            xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
+  scale_color_manual(values = color_key) +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(legend.position = "none",
+        line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+                 panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
+        aspect.ratio=1) +
+  guides(colour = guide_legend(override.aes = list(alpha=1)))
+
+ggsave( '../data/139_umap_fg.png', dpi = 300, width = 2.5, height = 2.5,plot = out2_umap, bg = "transparent")
+```
+
+# color by the diet alpha diversity
+
+```{r}
+fcts <-  fc_table %>% 
+  spread(key = 'index_column', value = 'total', fill = 0) 
+
+fcts %>% 
+  write_tsv('../data/139_batch2_food_code_counts_matrix.tsv')
+```
+
+
+```{bash} 
+biom convert -i ../data/139_batch2_food_code_counts_matrix.tsv -o ../data/139_batch2_food_code_counts_matrix.biom --to-hdf5 --table-type="Table"
+
+qiime tools import \
+  --input-path ../data/139_batch2_food_code_counts_matrix.biom \
+  --output-path ../data/139_batch2_food_code_counts_matrix.qza \
+  --type 'FeatureTable[Frequency]' 
+
+qiime tools import \
+  --input-path ../data/cleaned_tree/output_food_tree_datatree.newick \
+  --output-path ../data/cleaned_tree/output_food_tree_datatree.qza \
+  --type 'Phylogeny[Rooted]'
+
+qiime diversity alpha-phylogenetic \
+  --i-table ../data/139_batch2_food_code_counts_matrix.qza  \
+  --i-phylogeny ../data/cleaned_tree/output_food_tree_datatree.qza \
+  --p-metric faith_pd \
+  --o-alpha-diversity ../data/139_batch2_faith_pd.qza
+
+
+# export to tsv format
+qiime tools export --input-path ../data/139_batch2_faith_pd.qza --output-path ../data/139_batch2_faith_pd
+```
+
+
+```{r}
+# color the umap with the faith pd
+faith <- read_tsv('../data/139_batch2_faith_pd/alpha-diversity.tsv') %>% 
+  separate(...1, into = c('mrn', 'fdrt'), sep = '_', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P',''))) %>% 
+  full_join(out2)
+
+umap_faith <- faith %>% 
+  #arrange(desc(n)) %>% 
+  mutate(log10faith = log10(faith_pd + 1)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 1,size = umap_pt_size, shape = 16,
+            xlab = '', ylab = '') +
+  viridis::scale_color_viridis() +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(
+        line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+        aspect.ratio=1,
+                 panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
+        legend.position = 'none')
+
+ggsave( '../data/139_umap_faith.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_faith, bg = "transparent")
+```
+
+# color by the daily caloric intake
+
+```{r}
+# calculate daily caloric intake   
+cal <- dtb %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(total_cal = sum(Calories_kcal)) 
+
+out2_cal <- out2 %>% full_join(cal)
+
+out2_caloric <- out2_cal %>% 
+  #arrange(desc(n)) %>% 
+  mutate(transform_cal = sqrt(total_cal)) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'transform_cal', alpha = 1,size = umap_pt_size , shape = 16,
+            xlab = '', ylab = '') +
+  paletteer::scale_color_paletteer_c("viridis::plasma") +
+  theme_classic() +
+  #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
+  theme(legend.position = "none",
+        line = element_blank(),
+        legend.title = element_blank(),
+        axis.title=element_blank(),
+        axis.text= element_blank(),
+        axis.ticks = element_blank(),
+         panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
+        aspect.ratio=1)
+
+ggsave( '../data/139_umap_cal.png', dpi = 300, width = 2.5, height = 2.5,plot = out2_caloric, bg = "transparent")
+```
+
+
+```{r}
+cal %>% summary()
+
+max_eating <- cal %>% 
+  arrange(desc(total_cal)) %>% 
+  ungroup() %>% 
+  slice(1)
+
+what_max_eating <- dtb %>% 
+  inner_join(max_eating %>% select(-total_cal))
+
+
+
+```
+
+# color with the day relative to transplant
+
+```{r}
+# cuztomizing the times bins of the drt
+cutoff = 0 # Day 0 is conveneint but this can be varied
+n_groups_pre = 3;  # all HCT days <0 will be split into 3 bins; can vary this number to play
+n_groups_post = 6; # all HCT days >0 will be split into 6 bins; can vary this number to play
+
+# split the fdrt into groups:
+umap_time <- out2_cal %>% 
+  select(taxumap1, taxumap2, fdrt)  
+
+times <- umap_time %>% select( fdrt)  
+
+splits <- times %>% 
+  split(.$fdrt <= 0)
+
+pre <- splits %>% 
+  pluck('TRUE') %>% 
+  mutate(bin = cut_number(fdrt, n_groups_pre))
+
+post <- splits %>% 
+  pluck('FALSE') %>% 
+  mutate(bin = cut_number(fdrt, n_groups_post)) 
+
+both <- bind_rows(pre, post) %>% 
+  distinct(fdrt, .keep_all = T)
+
+umap_time_df <- umap_time %>% 
+  left_join(both)
+
+umap_drt_high_to_low_bin <- umap_time_df %>% 
+   arrange(desc(fdrt)) %>% 
+  #arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 1, size = umap_pt_size, shape = 16,
+             xlab = '', ylab = '') + 
+   scale_color_manual(values = RColorBrewer::brewer.pal(9,"Spectral"))  +
+   theme_classic() +
+   theme(legend.position = "none",
+     #legend.position = 'none',
+         line = element_blank(),
+         legend.title = element_blank(),
+         axis.title=element_blank(),
+         axis.text= element_blank(),
+         axis.ticks = element_blank(),
+              panel.background = element_rect(fill='transparent'), #transparent panel bg
+    plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
+    panel.grid.major = element_blank(), #remove major gridlines
+    panel.grid.minor = element_blank(), #remove minor gridlines
+    legend.background = element_rect(fill='transparent'), #transparent legend bg
+    legend.box.background = element_rect(fill='transparent') ,
+        aspect.ratio=1)
+ggsave( '../data/139_umap_drt_high_to_low_bin.png', dpi = 300, width = 2.5, height = 2.5,plot = umap_drt_high_to_low_bin, bg = "transparent")
+```
+```{r}
+# what are the few outlier dots 
+out_combined <- out2 %>% 
+  full_join(cal) %>% 
+  full_join(faith) %>% 
+  select(mrn:fgrp1, fg_relab, shortname:faith_pd) %>% 
+  mutate(outlier = if_else(taxumap1 > 26 & taxumap2 > 10, T, F))
+
+out_combined  %>% 
+   #arrange(desc(fdrt)) %>% 
+  #arrange(fdrt) %>% 
+   ggscatter(x = 'taxumap1', y = 'taxumap2', alpha = 1, size = umap_pt_size, shape = 16, color = 'outlier',
+             xlab = '', ylab = '') 
+  
+```
+
+
+# what are the top eating foods 

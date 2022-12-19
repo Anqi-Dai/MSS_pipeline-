@@ -26,22 +26,22 @@ library(readxl)
 
 
 # uniq_food is a table with the food_nsc and food code and description
-uniq_food <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
-  select(Food_code, description) %>% 
-  distinct()  
+dtb1 <-  read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
+  mutate(Food_code = as.character(Food_code))
+dtb2 <- read_rds('../data/136_updated_dtb2.rds')
+
+dtball <- bind_rows(dtb1, dtb2)
+
+uniq_food <- dtball %>% 
+  distinct(Food_code, description)  
 
 
-codes <- read_tsv('../data/finalized/paired/pNday/prophylactic_p5d_diet_foodID_dehydrated_weight_per_pt.tsv') %>% 
-  pull(Food_code)
-
-current_all <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% 
-  distinct(Food_code) %>% 
-  pull(Food_code)
+#codes <- read_tsv('../data/finalized/paired/pNday/prophylactic_p5d_diet_foodID_dehydrated_weight_per_pt.tsv') %>% 
+  #pull(Food_code)
 
 length(intersect(uniq_food$Food.Code, current_all))
 
 food_database <- uniq_food %>% 
-  filter(Food_code %in% current_all) %>% 
   distinct(Food_code, .keep_all = T)  %>%  
   rename(FoodID = Food_code) %>% 
   mutate(description = str_replace_all(description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 

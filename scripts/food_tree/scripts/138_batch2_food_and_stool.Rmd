@@ -229,4 +229,27 @@ diversity_factor <- coeff_bi %>%
         strip.text = element_blank(),
         aspect.ratio=1/2) 
 ```
-## are the 
+
+## are the dry weight in batch 1 trust worth here we come the racing game ...
+
+```{r}
+check1 <-  read_csv('../data/136_check_1_batch_cal.csv') 
+check2 <- read_csv('../data/136_check_2_batch_cal_peter.csv')
+
+# find the overlapped food nsc between the two tables
+length(intersect(check1$Food_NSC, check2$Food_NSC))
+
+check1_ <- check1 %>% 
+  rename(old_cal  = Calories_kcal) %>% 
+  left_join(check2 %>% select(Food_NSC, Por_eaten, Unit, Calories_kcal))
+
+# update the check1 for Peter
+check1new <- check1 %>% 
+  left_join(check2 %>% distinct(Food_NSC, Unit) %>% mutate(grp = 'checked ')) %>% 
+  filter(is.na(grp)) %>% 
+  select(-grp)
+
+check1new %>% write_csv('../data/136_check_1_batch_cal_new.csv')
+```
+
+
