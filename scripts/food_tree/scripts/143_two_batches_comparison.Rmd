@@ -1,0 +1,179 @@
+---
+title: "Two batches comparison"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+
+
+
+# please summarize how many patients and samples were exposed to our list of key antibiotics in batch 1 vs batch2 and list the antibiotics.
+
+The list of antibiotics: 'vancomycin', 'imipenem_cilastatin','meropenem','ertapenem', 'cefepime', 'linezolid','metronidazole','piperacillin_tazobactam'
+
+```{r}
+# Below is the code I did to find out the exposure to the abx we picked orally
+library(lubridate)
+library(vdbR)
+connect_database()
+get_table_from_database('samples_castori_ag')
+# the table that has the stool samples qualified to be in the model
+meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+
+# the table that has the patient information
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv') %>% 
+  mutate(patient_in_model = if_else(mrn %in% meta$mrn, T, F))
+
+# below is the empirical abx that we picked 
+picked <-  c('vancomycin', 'imipenem_cilastatin','meropenem','ertapenem', 'cefepime', 'linezolid','metronidazole','piperacillin_tazobactam')
+
+# the below rds is the medication data Tsoni pulled on Nov 29 for batch 1 
+# clean the drug names
+med1 <- read_rds('../data/tasks_nutrition_batch1_2022-11-29.rds') %>% 
+  select(MRN, start_date, stop_date, drug_name, route) %>% 
+  mutate(drug_name_clean = str_replace_all(drug_name, '-', '_')) %>% 
+  mutate(drug_name_clean = str_to_lower(drug_name_clean),
+         mrn = as.numeric(MRN)) %>% 
+  filter(mrn %in% ptb$mrn)
+
+# select only the entries that represent the oral exposure to the empirical drugs
+empirical_med_oral1 <- med1 %>% 
+  filter(drug_name_clean %in% picked) %>% 
+  select(-drug_name) %>% 
+  filter(route == 'oral') %>% 
+  filter(mrn %in% ptb$mrn)
+
+# make a time interval that means the day -2 to day -1 for each qualified stool sample
+p2d_df <- meta %>% 
+  select(sampleid, mrn) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection)) %>% 
+  mutate(p1d = datecollection -1,
+         p2d = datecollection -2) %>% 
+  mutate(p2d_int = interval(p2d, p1d)) %>% 
+  select(sampleid, datecollection, mrn, p1d, p2d, p2d_int)
+
+# find if there is an overlap between the prior two days of every stool sample and the administering of the oral empirical drugs, and identify the exposed stool samples
+exposed_empirical <- empirical_med_oral1 %>% 
+  mutate(drug_int =  interval(start_date, stop_date)) %>% 
+  inner_join(p2d_df, by = "mrn") %>% 
+   mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
+        filter(had_drug == 'TRUE')
+
+exposed_empirical %>% distinct(sampleid) %>% nrow
+exposed_empirical %>% distinct(MRN) %>% nrow
+```
+
+```{r}
+# for batch 2, the same method is used 
+stb2 <- read_rds('../data/137_stb.rds')
+
+stb2_exposed <- stb2 %>% 
+  filter(empirical == 'TRUE')
+
+stb2_exposed %>% distinct(sampleid) %>% nrow
+stb2_exposed %>% distinct(mrn) %>% nrow
+```
+
+**In summary, 98 samples from 15 patients were exposed to empirical drugs in batch 1; 11 samples from 7 patients were exposed in batch 2**
+
+# please plot the diet data from both batches on the same UMAP and color  them according to batch1 vs batch 2 to see if they are superimposable or separate
+
+```{r}
+# prepare the tables for taxUMAP
+
+
+dtb1 <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+dtb2 <- read_rds('../data/136_updated_dtb2.rds') %>% mutate(Food_code = as.numeric(Food_code))
+all.equal(colnames(dtb1), colnames(dtb2))
+# the weight need to be relative so needs to normalize them 
+
+
+fc_table <- bind_rows(dtb1, dtb2) %>% 
+  select(mrn, fdrt, Food_code, dehydrated_weight) %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(total = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  mutate(index_column = str_glue('P{mrn}_{fdrt}')) %>% 
+  select(index_column, Food_code, total)
+
+fc_total <- fc_table %>% 
+  group_by(index_column) %>% 
+  summarise(daily_total = sum(total))
+
+fc_df <- fc_table %>% 
+  left_join(fc_total) %>% 
+  mutate(daily_relative = total/daily_total) %>% 
+  select(index_column,Food_code, daily_relative ) %>% 
+  spread('Food_code', 'daily_relative', fill = 0)
+
+fc_df %>% write_csv('../data/143_food_code_relative.csv')
+```
+```{r}
+actual_foodids <- as.character(fc_table$Food_code)
+
+final.table <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv') %>% 
+  mutate(FoodID = as.character(FoodID))
+
+food_taxa <- final.table %>% 
+  filter(FoodID %in% actual_foodids) %>% 
+  select(ASV = FoodID, Kingdom = L1, Phylum = L2, Class = L3, Order = L4) 
+
+food_taxa %>% write_csv('../data/143_food_taxa.csv')
+```
+
+```{r}
+ # ~/pipeline/scripts/food_tree/softwares/taxumap/run_taxumap.py -t 143_food_taxa.csv -m 143_food_code_relative.csv --agg_levels Kingdom/Phylum -n 173 --weights 1/0.5 --outdir batch_all_taxumap_kingdom_and_phylum 
+```
+
+```{r}
+# the resulted coords from taxUMAP
+pt1 <- unique(dtb1$mrn)
+pt2 <- unique(dtb2$mrn)
+
+out <- read_csv('../data/batch_all_taxumap_kingdom_and_phylum/taxumap_embedding.csv') %>% 
+  separate(index_column, into = c('mrn','fdrt'), sep = '_') %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P','')),
+         fdrt = as.numeric(fdrt)) %>% 
+  mutate(batch = if_else(mrn %in% pt1, 'batch1', if_else(mrn %in% pt2, 'batch2', 'NA')))
+
+# to see the distribution of the two batches
+out %>% 
+  arrange(fdrt ) %>% 
+  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'batch', palette = 'nejm', alpha = 0.1, facet.by = 'batch') +
+  theme(aspect.ratio = 1, legend.position = 'right')
+```
+
+**It looks the two batches overlap well, and don't have fundamental difference**
+
+
+# please plot fecal alpha diversity over time from both batch 1 and batch 2 side by side (can be faceted or on the same plot).
+
+```{r}
+meta1 <- meta
+meta2 <- read_rds('../data/137_stb.rds')
+
+stb_both <- bind_rows(
+  meta1 %>% select(sampleid, sdrt, simpson_reciprocal ) %>% mutate(batch = 'batch1'),
+  meta2 %>% select(sampleid, sdrt, simpson_reciprocal ) %>% mutate(batch = 'batch2')
+)
+
+stb_both %>% 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = 0.5, size = 1, color = 'batch',palette = 'nejm',
+            xlab = 'Day relative to HCT', shape = 'triangle',
+            ylab = expression(Microbiome~alpha~diversity),
+            title = expression(Microbiome~alpha~diversity),
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'batch',  size = 1)) +
+  theme(aspect.ratio=1, legend.position = 'right') 
+```
+

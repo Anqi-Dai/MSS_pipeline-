@@ -166,10 +166,13 @@ med <- read_rds('../data/batch2_medication_exposures.rds') %>%
     drug_name_clean == 'vancomycin invest' ~ 'vancomycin',
     TRUE ~ drug_name_clean
   )) %>% 
-  mutate(mrn = as.numeric(MRN))
+  mutate(mrn = as.numeric(MRN)) %>% 
+  filter(drug_name_clean %in% picked) %>% 
+  filter(mrn %in% ptb$mrn) %>% 
+  mutate(together = str_glue('{drug_name_clean}__{route}'))
 
 now <- med %>% count(drug_name_clean) %>% arrange(desc(n)) 
-allroute <- med %>% count(route)
+allroute <- med %>% count(together)
 
 has <- med %>% 
   filter(drug_name_clean %in% picked) %>% 
@@ -186,15 +189,13 @@ allhas <- now %>%
 # no "ciprofloxacin_hydrocortisone otic" also for ear
 
 # empirical med exposure
-empirical_med_oral <- med %>% 
-  filter(drug_name_clean %in% picked) %>% 
+empirical_med2 <- med  %>% 
   select(-drug_name) %>% 
-  filter(route == 'PO') %>% 
-  filter(mrn %in% ptb$mrn)
+  filter(! together %in% c('vancomycin__IV')) 
 
 
 
-empirical_med_oral %>% write_csv('../data/137_batch2_empircal_oral.csv')
+empirical_med2 %>% write_csv('../data/137_batch2_empircal_oral.csv')
 ```
 
 ```{r}
@@ -207,40 +208,42 @@ p2d_df <- stb6 %>%
   mutate(p2d_int = interval(p2d, p1d)) %>% 
   select(sampleid, datecollection, mrn, p1d, p2d, p2d_int)
 
-all_empirical <- empirical_med_oral %>% 
-  distinct(drug_name_clean) %>% pull(drug_name_clean)
+# all_empirical <- empirical_med_oral %>% 
+#   distinct(drug_name_clean) %>% pull(drug_name_clean)
+# 
+# find_exposure <- all_empirical %>% 
+#   set_names(all_empirical) %>% 
+#   map_dfr(function(d){
+#     each_drug = empirical_med_oral %>% 
+#         filter(drug_name_clean == d) %>% 
+#         select(mrn, drug_name_clean, start_date, stop_date) %>% 
+#         mutate(drug_int =  interval(start_date, stop_date)) %>% 
+#         rename(abx_start = start_date,
+#                abx_stop = stop_date)
+#     
+#     had_drug_res = p2d_df %>% 
+#         inner_join(each_drug, by = "mrn") %>% 
+#         mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
+#         filter(had_drug == 'TRUE')
+#     
+#     return(had_drug_res) 
+#   }) %>%  
+#   left_join(ptb %>% select(mrn, hct)) %>% 
+#   mutate(abx_start_day = abx_start - hct,
+#          abx_stop_day = abx_stop - hct) 
 
-find_exposure <- all_empirical %>% 
-  set_names(all_empirical) %>% 
-  map_dfr(function(d){
-    each_drug = empirical_med_oral %>% 
-        filter(drug_name_clean == d) %>% 
-        select(mrn, drug_name_clean, start_date, stop_date) %>% 
-        mutate(drug_int =  interval(start_date, stop_date)) %>% 
-        rename(abx_start = start_date,
-               abx_stop = stop_date)
-    
-    had_drug_res = p2d_df %>% 
-        inner_join(each_drug, by = "mrn") %>% 
-        mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
-        filter(had_drug == 'TRUE')
-    
-    return(had_drug_res) 
-  }) %>%  
-  left_join(ptb %>% select(mrn, hct)) %>% 
-  mutate(abx_start_day = abx_start - hct,
-         abx_stop_day = abx_stop - hct) 
-
-exposed_empirical <- empirical_med_oral %>% 
+exposed_empirical2 <- empirical_med2 %>% 
   mutate(drug_int =  interval(start_date, stop_date)) %>% 
   inner_join(p2d_df, by = "mrn") %>% 
    mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
         filter(had_drug == 'TRUE')
-exposed_empirical %>% distinct(sampleid)
+
+exposed_empirical2 %>% distinct(sampleid) %>% nrow
+exposed_empirical2 %>% distinct(MRN) %>% nrow
 
 # the above samples are flagged for exposed to empirical
 stb7 <- stb6 %>% 
-  mutate(empirical = if_else(sampleid %in% find_exposure$sampleid, T, F))
+  mutate(empirical = if_else(sampleid %in% exposed_empirical2$sampleid, T, F))
 
 stb7 %>% count(empirical) 
 

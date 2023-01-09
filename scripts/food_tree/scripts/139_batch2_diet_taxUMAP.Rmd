@@ -13,6 +13,9 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 umap_pt_size <- 1
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
 ```
 
 # format the required tables
@@ -326,3 +329,34 @@ out_combined  %>%
 
 
 # what are the top eating foods 
+
+```{r}
+n_meal <- dtb %>% 
+  count(mrn, fdrt, Meal) %>% 
+  nrow()
+
+top_grp <- dtb %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
+  #filter(fgrp1 %in% c('9','6','7','3')) %>% 
+  group_by(Food_code, description, fgrp1) %>% 
+  summarise(total_per_code = sum(dehydrated_weight)) %>% 
+  group_by(fgrp1) %>% 
+  arrange(desc(total_per_code), .by_group = T)  %>% 
+  top_n(10) %>% 
+  left_join(key) %>% 
+  ungroup() %>% 
+  mutate(gram_per_meal = total_per_code/n_meal)
+
+ggbarplot(top_grp, "description", "gram_per_meal",xlab = '',ylab = 'Per meal average consumption (gram)',
+  fill = "shortname", color = "shortname", 
+  width = 0.7, 
+  position = position_dodge(0.8)) +
+  ylim(0, 5.5) +
+  coord_flip() +
+  theme(legend.position = 'bottom',
+        axis.text.y = element_text(size=11),
+        legend.title= element_blank())
+
+ggsave('../data/139_top_food_each_group.pdf', width = 15, height = 12)
+```
+

@@ -179,7 +179,7 @@ meta %>%
   write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 
 meta %>% 
-  summary
+  summary   
 ```
 
 ## the finalized meta table

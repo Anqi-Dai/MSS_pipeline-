@@ -84,6 +84,21 @@ meta <- mean_p2d_df %>%
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
          fg_veggie = fg_veggie/100)
+
+meta %>% summary()
+
+#meta %>% write_rds('../data/138_meta2.rds')
+summary(log(meta$simpson_reciprocal))
+sd(log(meta$simpson_reciprocal))
+```
+
+
+```{r}
+# what is the distribution like for normal(2, 0.5)
+
+test <- rnorm(1000, 2, 0.5) 
+
+quantile(test, probs = c(0, 0.25, 0.5, 0.75, 1))
 ```
 
 ## THE model
@@ -117,15 +132,15 @@ get_prior( model_formular,
               data = meta)
 
 priors <- c(# for the food group variables
-            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
-            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
-            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
-            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
-            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
-            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
-            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
-            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
-            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 0.8), class = 'b', coef = "fg_veggie"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -133,9 +148,9 @@ priors <- c(# for the food group variables
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
-            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
-            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+            prior(normal(2, 0.3), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.3), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.3), class = 'b', coef = "intensitynonablative"))
 ```
 
 ```{r}
@@ -151,10 +166,58 @@ model_div <- brm( model_formular,
 # save it for future use
 post_res <- suppressWarnings(posterior_samples(model_div)) 
 post_res %>%  write_csv('../data/138_div_model_fg_post_batch2.csv')
+
+# save the results of the prior
+samples_prior <- prior_draws(model_div)
+samples_prior %>% write_csv('../data/138_div_model_fg_prior_batch2.csv')
 ```
+
+```{r}
+# check the prior is it suitable for this cohort
+samples_prior <-  read_csv('../data/138_div_model_fg_prior_batch2.csv')
+
+samples_prior <- prior_draws(model_div)
+mean_fg <-  meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean))
+
+
+ave_each_fg_prior <- samples_prior %>% 
+  mutate(mean_fg_prior_div = 
+           b_fg_fruit*mean_fg$fg_fruit +
+           b_fg_meat*mean_fg$fg_meat + 
+           b_fg_milk*mean_fg$fg_milk + 
+           b_fg_oils*mean_fg$fg_oils + 
+           b_fg_egg*mean_fg$fg_egg + 
+           b_fg_grain*mean_fg$fg_grain +
+           b_fg_sweets*mean_fg$fg_sweets +
+           b_fg_legume*mean_fg$fg_legume +
+           b_fg_veggie*mean_fg$fg_veggie +
+           b_intensityreduced ) %>% 
+  select(mean_fg_prior_div) %>% 
+  mutate(grp = 'ave_each')  %>% 
+  mutate(within_range = if_else(mean_fg_prior_div >= min(log(meta$simpson_reciprocal)) &  mean_fg_prior_div <= max(log(meta$simpson_reciprocal)), T, F))
+
+prior_diversity <- ave_each_fg_prior %>% 
+  gghistogram(x = 'mean_fg_prior_div', fill = 'within_range', color = 'white',
+              xlab = 'Predicted ln(diversity)\nwith prior distribution',
+              title = 'Diversity') +
+  geom_vline(xintercept = min(log(meta$simpson_reciprocal)), linetype = 'dashed') +
+  geom_vline(xintercept = max(log(meta$simpson_reciprocal)), linetype = 'dashed')  +
+  theme(legend.position = 'none')
+
+ave_each_fg_prior %>% 
+  count(within_range) %>% 
+  mutate(perc = n/(sum(n))*100)
+
+ggsave('../data/138_div_prior_fg.pdf', width = 3, height = 3, plot = prior_diversity)
+```
+
+
+
 ```{r}
 post_samples  <- read_csv('../data/138_div_model_fg_post_batch2.csv')
-
+post_samples  <- suppressWarnings(posterior_samples(model_div)) 
 post_coeff <- post_samples %>% 
   select(starts_with('b_fg')) %>% 
   gather('item', 'coeff') %>% 
@@ -193,6 +256,8 @@ div_post <- post_coeff %>%
   theme(axis.text=element_text(size=8, color  = 'black'),
         axis.title=element_text(size=8),
         aspect.ratio=1)
+
+ggsave('../data/138_div_post_fg.pdf', width = 3, height = 3, plot = div_post)
 ```
 
 ```{r}
@@ -228,6 +293,8 @@ diversity_factor <- coeff_bi %>%
         strip.background = element_blank(),
         strip.text = element_blank(),
         aspect.ratio=1/2) 
+
+ggsave('../data/138_div_post_bi.pdf', width = 3, height = 3, plot = diversity_factor)
 ```
 
 ## are the dry weight in batch 1 trust worth here we come the racing game ...

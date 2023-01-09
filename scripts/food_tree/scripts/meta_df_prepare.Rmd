@@ -1,0 +1,247 @@
+---
+title: "the preparation of the meta data frame"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(brmstools)
+library(lubridate)
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('samples_castori_ag')
+```
+
+```{r}
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
+  filter(nchar(Level.code) == 1) %>% 
+  rename(fgrp1 = Level.code, 
+         fdesc = Main.food.description)
+
+fgrps_df <- dtb %>% 
+  select(mrn, fdrt, dehydrated_weight, Food_code) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1))
+
+# the total dehydated weight for a patient for one day for a single food group
+total_per_group <- fgrps_df %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(grp_tol = sum(dehydrated_weight)) %>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets'
+  ))
+
+```
+## average on the previous two days diet food groups
+
+```{r}
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv')
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv') %>% 
+  mutate(patient_in_model = if_else(mrn %in% stb$mrn, T, F))
+```
+
+## update the empirical abx info
+
+```{r}
+# start the cleaning of the medication data from the raw source 
+picked <-  c('vancomycin', 'imipenem_cilastatin','meropenem','ertapenem', 'cefepime', 'linezolid','metronidazole','piperacillin_tazobactam')
+
+med1 <- read_rds('../data/tasks_nutrition_batch1_2022-11-29.rds') %>% 
+  select(MRN, start_date, stop_date, drug_name, route) %>% 
+  mutate(drug_name_clean = str_replace_all(drug_name, '-', '_')) %>% 
+  mutate(drug_name_clean = str_to_lower(drug_name_clean),
+         mrn = as.numeric(MRN)) %>% 
+  filter(mrn %in% ptb$mrn)
+
+
+  
+now <-   med1 %>% count(drug_name_clean) %>% arrange(desc(n))
+
+allpickes <- tibble(picked = picked) %>% 
+  summarise(text = str_c(picked, collapse = "|"))
+allhas <- now %>% 
+  filter(str_detect(drug_name_clean, allpickes$text))
+#allroute <- empirical_med_oral1 %>% count(route) %>% arrange(desc(n))
+
+empirical_med_oral1 <- med1 %>% 
+  filter(drug_name_clean %in% picked) %>% 
+  select(-drug_name) %>% 
+  filter(route == 'oral') %>% 
+  filter(mrn %in% ptb$mrn)
+
+
+p2d_df <- stb %>% 
+  select(sampleid, mrn) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection)) %>% 
+  mutate(p1d = datecollection -1,
+         p2d = datecollection -2) %>% 
+  mutate(p2d_int = interval(p2d, p1d)) %>% 
+  select(sampleid, datecollection, mrn, p1d, p2d, p2d_int)
+
+# then repeat this for all of the drugs
+# all the drugs that I wanna see if there is an exposure in the previous 2 days
+exposed_empirical <- empirical_med_oral1 %>% 
+  mutate(drug_int =  interval(start_date, stop_date)) %>% 
+  inner_join(p2d_df, by = "mrn") %>% 
+   mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
+        filter(had_drug == 'TRUE')
+
+stb_update <- stb %>% 
+  mutate(empirical = if_else(sampleid %in% exposed_empirical$sampleid, T, F))
+
+stb_update %>% count(empirical)
+```
+
+```{r}
+stb_pair <- stb_update %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+mean_p2d_diet <-  function(mrn_, p1d_, p2d_){
+  df = total_per_group %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(fg1_name) %>% 
+    summarise(ave_fg = sum(grp_tol)/2)
+  return(df)
+}
+
+mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_diet(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb_update %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  spread(key = 'fg1_name', value = 'ave_fg', fill = 0) %>% 
+  inner_join(stb_update, by = "sampleid") %>% 
+  select(-age, -sex, -source)
+```
+
+## create a binary for enteral nutrition
+
+```{r}
+# does the 5 patients only have EN?
+pts <- dtb %>% 
+  filter(Meal == 'EN') %>% 
+  distinct(mrn) %>% 
+  pull(mrn)
+
+foods <- dtb  %>% 
+  filter(mrn %in% pts)  %>% 
+  mutate(grp = if_else(Meal == 'EN', 'EN', "normal")) %>% 
+  group_by(mrn, fdrt, grp) %>% 
+  summarise(daily_grp_sum = sum(Calories_kcal))
+
+foods %>% 
+  ggline(x  = 'fdrt', y = 'daily_grp_sum', color = 'grp', facet.by = 'mrn') 
+# so it is true that when the pt had EN they don't have regular food
+```
+
+```{r}
+# if a patient had EN in the previous two days before a stool sample collected,
+# it will be marked TRUE or otherwise FALSE
+en <- read_csv('../data/!question/NutritionSupport_DietPatients_peter.csv') %>% 
+  filter(`Nutrition Support` == 'EN') 
+
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+en_df <- en %>% 
+  select(mrn = MRN,
+         date_support = `Date Nutrition Support`) %>% 
+  left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
+  mutate(date_support = lubridate::mdy(date_support)) %>% 
+  mutate(endrt = date_support - hct) %>% 
+  mutate(endrt = as.numeric(endrt))
+
+p2d_EN_T_or_F <- function(mrn_, p1d_, p2d_){
+  num = en_df %>% 
+    filter(mrn == mrn_) %>% 
+    filter(endrt %in% c(p1d_, p2d_  )) %>% 
+    nrow 
+  
+  if(num > 0) { return(T)}
+  else {return(F)}
+}
+
+p2d_EN_T_or_F_df <-  pmap(stb_pair, function(mrn, p1d, p2d){
+    p2d_EN_T_or_F(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  gather(key = 'sampleid', value = 'EN')
+```
+```{r}
+# a new column to mark the TPN
+# if a patient had TPN in the previous two days before a stool sample collected,
+# it will be marked TRUE or otherwise FALSE
+tpn <- read_csv('../data/!question/NutritionSupport_DietPatients_peter.csv') %>% 
+  filter(`Nutrition Support` == 'TPN') 
+
+ptb <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+
+tpn_df <- tpn %>% 
+  select(mrn = MRN,
+         date_support = `Date Nutrition Support`) %>% 
+  left_join(ptb %>% select(mrn, hct), by = 'mrn') %>% 
+  mutate(date_support = lubridate::mdy(date_support)) %>% 
+  mutate(tdrt = date_support - hct) %>% 
+  filter(tdrt <= (max(stb$sdrt - 2))) %>% 
+  mutate(tdrt = as.numeric(tdrt))
+
+p2d_TPN_T_or_F <- function(mrn_, p1d_, p2d_){
+  num = tpn_df %>% 
+    filter(mrn == mrn_) %>% 
+    filter(tdrt %in% c(p1d_, p2d_  )) %>% 
+    nrow 
+  
+  if(num > 0) { return(T)}
+  else {return(F)}
+}
+
+p2d_TPN_T_or_F_df <-  pmap(stb_pair, function(mrn, p1d, p2d){
+    p2d_TPN_T_or_F(mrn, p1d, p2d)
+  }) %>% 
+  set_names(stb %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  gather(key = 'sampleid', value = 'TPN')
+```
+
+
+## combine all the information I have 
+
+```{r}
+
+meta <- mean_p2d_df %>% 
+  full_join(p2d_EN_T_or_F_df) %>% 
+  full_join(p2d_TPN_T_or_F_df) %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn))
+
+meta %>% 
+  write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+
+meta %>% 
+  summary   
+```

@@ -29,7 +29,10 @@ ptb %>% write_rds('../data/cleaned_patients/diet_patients_97.rds')
 
 meta %>% distinct(mrn)
 ```
+so we should consider as “exposed” any of these drugs regardless of their route (oral OR IV)
+except in the special case of vancomycin, in which case we consider vancomcyin IV to not be an exposure and we consider vancomycin oral to be an expsoure
 
+**should only remove :vancomcyin IV **
 
 ```{r}
 # start the cleaning of the medication data from the raw source 
@@ -50,13 +53,14 @@ allpickes <- tibble(picked = picked) %>%
   summarise(text = str_c(picked, collapse = "|"))
 allhas <- now %>% 
   filter(str_detect(drug_name_clean, allpickes$text))
-allroute <- empirical_med_oral1 %>% count(route) %>% arrange(desc(n))
 
-empirical_med_oral1 <- med1 %>% 
+#allroute <- empirical_med1 %>% count(together) %>% arrange(desc(n))
+
+empirical_med1 <- med1 %>% 
   filter(drug_name_clean %in% picked) %>% 
   select(-drug_name) %>% 
-  filter(route == 'oral') %>% 
-  filter(mrn %in% ptb$mrn)
+  mutate(together = str_glue('{drug_name_clean}__{route}')) %>%  
+  filter(! together %in% c('vancomycin__IV','vancomycin__IVPB'))
 ```
 
 
@@ -89,13 +93,14 @@ p2d_df <- meta %>%
 
 # then repeat this for all of the drugs
 # all the drugs that I wanna see if there is an exposure in the previous 2 days
-exposed_empirical <- empirical_med_oral1 %>% 
+exposed_empirical <- empirical_med1 %>% 
   mutate(drug_int =  interval(start_date, stop_date)) %>% 
   inner_join(p2d_df, by = "mrn") %>% 
    mutate(had_drug = int_overlaps(p2d_int, drug_int)) %>% 
         filter(had_drug == 'TRUE')
 
 exposed_empirical %>% distinct(sampleid)
+exposed_empirical %>% distinct(MRN)
 
 exposed_empirical %>% write_rds('../data/134_743stool_samples_p2d_drug_exposure.rds')
 ```
@@ -129,6 +134,6 @@ new_meta <- meta %>%
 
 new_meta %>% write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 
-
+new_meta %>% summary()
 ```
 

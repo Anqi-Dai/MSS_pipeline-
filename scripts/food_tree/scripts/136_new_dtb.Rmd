@@ -13,10 +13,12 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')%>% mutate(Food_code = as.character(Food_code))
+dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv') %>% mutate(Food_code = as.character(Food_code))
+
 dtb %>% summary()
 
-
+df <- dtb %>% 
+  distinct(Food_NSC, Unit )
 # the high water portion 
 ```
 
@@ -125,6 +127,8 @@ sanity_check <- new3 %>%
 # finally it is ok!!!!!!!!!!!omg!!!!!!!!!
 
 new3 %>% write_rds('../data/136_updated_dtb2.rds')
+
+dtb <- read_rd
 ```
 
 

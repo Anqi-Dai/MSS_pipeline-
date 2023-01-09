@@ -1,0 +1,64 @@
+---
+title: "more calories to vet"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+# the original table 
+dtbO <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized_OLD.csv')
+
+engy <- readxl::read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  select(Food_code, Energy_kcal, Water_g) %>% 
+  mutate(Energy_kcal = as.numeric(Energy_kcal),
+         Water_g = as.numeric(Water_g),
+         Food_code = as.numeric(Food_code))
+
+dtbO_check <- dtbO %>% 
+  left_join(engy, by  = 'Food_code')  %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, Calories_kcal/Energy_kcal*100)) %>% 
+  mutate(dehydrated_weight = if_else(total_weight == 99999, 0.0001, total_weight*(1 - Water_g/100))) %>% 
+  mutate(check = if_else(dehydrated_weight > 30 & Water_g > 75, T, F))
+
+dtbO_unchanged <- dtbO_check %>% 
+  filter(check == 'FALSE')
+
+dtbO_more <- dtbO_unchanged %>% 
+  select(Food_NSC, Food_code,description,  Por_eaten, Unit,Calories_kcal,  Energy_kcal:total_weight, dehydrated_weight) %>% 
+  arrange(Food_NSC, Por_eaten) %>% 
+  distinct(Food_NSC, Unit, .keep_all = T ) %>% 
+  arrange(desc(Water_g)) %>% 
+  select(Food_NSC:Calories_kcal)
+  
+dtbO_more %>% write_csv('../data/142_batch1_diet_calories_check.csv')
+
+```
+
+```{r}
+# the one that has the food code that has the Energy_kcal == 0
+Energy_kcal0_ones  <- engy  %>% 
+  filter(Energy_kcal == 0) %>% 
+  pull(Food_code)
+
+
+all0 <- dtbO %>% 
+  filter(Food_code %in% Energy_kcal0_ones) %>% 
+  distinct(Food_NSC, Unit, .keep_all = T ) %>% 
+  arrange(Food_code) %>% 
+  select(Food_NSC: Calories_kcal) %>% 
+  mutate(Volumn = '')
+
+all0 %>% write_csv('../data/142_Energy_kcal_is_0_items.csv')
+```
+
