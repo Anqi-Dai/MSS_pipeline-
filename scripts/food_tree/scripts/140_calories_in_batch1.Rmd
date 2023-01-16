@@ -135,4 +135,7 @@ scale_all_portions <- all_portions %>%
    left_join(engy, by  = 'Food_code')  %>% 
   mutate(total_weight = if_else(Energy_kcal == 0, 99999, scaled_cal/Energy_kcal*100)) 
 ```
+```{r}
+#  find out 
+```
 

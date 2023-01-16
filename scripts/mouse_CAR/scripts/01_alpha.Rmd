@@ -1,0 +1,75 @@
+---
+title: "alpha diversity"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+library(lubridate)
+```
+
+# the below parts is on the metaphlan data only
+
+```{r}
+fns <- list.files('../../shotgun_pipeline/data/IGO_13852/', pattern = 'metaphlan3_profile.txt', full.names = T)
+taxa <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., skip = 4, col_types = 'ccddd') %>% 
+          rename(clade_name = names(.)[1]) %>% 
+          select(clade_name, relative_abundance) %>% 
+          filter(str_detect(clade_name, 's__')) %>% 
+  mutate(relative_abundance = relative_abundance/100)) %>% 
+  bind_rows(.id = 'sampleid') %>% 
+  mutate(sampleid = str_replace(sampleid, '../../shotgun_pipeline/data/IGO_13852//Sample_',''),
+         sampleid = str_replace(sampleid, '_IGO_.+$',''))
+
+taxa %>% write_csv('../data/01_all_metaphlan.csv')
+
+cts <- taxa %>% 
+  spread(key = 'clade_name', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+meta_mouse <- diversity(cts, index = 'inv')%>% 
+  enframe(name = 'sampleid', value = 'inv') 
+```
+
+# the table from the investigator that has the cleaned phenotypic data
+
+```{r}
+pheno <- read_csv('../data/PH_meta.csv') %>% 
+  mutate(Date_Collected = mdy(Date_Collected)) %>% 
+  left_join(meta_mouse, by = "sampleid") %>% 
+  rename(alpha = inv)
+
+pheno %>% write_csv('../data/01_pheno_with_alpha.csv')
+
+# question: last time she mentioned 117, how come there is only 109
+# to look at the alpha diveristy as a whole now
+
+# to sort the level of the condition based on the date
+order_level <- pheno %>% 
+  distinct(Condition, Date_Collected) %>% 
+  arrange(Date_Collected) %>% 
+  pull(Condition)
+```
+
+
+```{r}
+pheno %>% 
+  arrange(Date_Collected) %>% 
+  mutate(Condition = factor(Condition, levels = order_level)) %>% 
+  ggboxplot(x = 'Group', y = 'alpha', add = 'jitter', add.params = list(color = 'blue', size = 2)) +
+  facet_grid(. ~ Condition, scales = 'free') +
+  theme(axis.text.x=element_text(angle = 90, hjust = 0))
+
+ggsave('../data/01_PH_alpha.pdf', width = 12, height = 5)
+```
+

@@ -1,0 +1,85 @@
+---
+title: "the patient 4 days data"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(lubridate)
+library(scales)
+```
+
+```{r}
+# to look at the WWEIA code of a patient data of 4 days verified by peter
+# a dish is broken down into the components 
+patient <- read_csv('../data/items_with_code.csv') %>% mutate(diary_date = dmy(diary_date))
+```
+
+```{r}
+# look at the time of the data logging
+time <- patient %>% 
+  distinct(diary_date, meal_consume_time) %>% 
+  mutate(time = str_glue('{diary_date} {meal_consume_time}')) %>% 
+  mutate(time = ymd_hms(time))
+
+time %>% 
+  gghistogram(x = 'meal_consume_time', bins = 100, fill = 'blue', color = 'white') +
+  facet_grid(diary_date~ ., scales = 'free_x') 
+ggsave('../data/02_time_log.pdf', width = 8)
+
+# the total entries of logging for each day
+daily_log <- patient %>% 
+  distinct(diary_date, meal_consume_time, entry_description) %>% 
+  count(diary_date)
+
+daily_log %>% 
+  ggbarplot(x = 'diary_date', y = 'n', label = T, fill = 'forestgreen', color = 'white',
+            title = 'Total number of foods consumed for each day')
+```
+```{r}
+colnames(patient)[1:55]
+```
+
+```{r}
+# the total calories for each day
+day_sum <- patient %>% 
+  group_by(diary_date) %>% 
+  summarise(daily_calories = sum(energy_kilocalories_kcal),
+            daily_carb = sum(carbohydrate_total_by_difference_g),
+            daily_protein = sum(protein_g),
+            daily_fat = sum(fat_total_lipids_g),
+            daily_sugar = sum(sugars_total_g, na.rm = T),
+            daily_fiber = sum(fibre_total_dietary_g)) %>% 
+  ungroup() %>% 
+  full_join(daily_log)
+```
+```{r}
+day_sum %>% 
+  gather('item', 'value', names(.)[2]: names(.)[ncol(.)]) %>% 
+  ggscatter(x = 'diary_date', y = 'value') +
+  geom_line(aes(group = item), color = "black", alpha = 0.5) +
+  facet_grid(item ~ ., scales = 'free') +
+  theme_light() 
+ggsave(
+  '../data/02_daily_summaries.pdf'
+)
+```
+
+
+```{r}
+# wondering about the sugar
+sugar_NA <- patient %>% 
+  filter(is.na(sugars_total_g)) %>% 
+  select(diary_date, entry_description, entry_quantity, energy_kilocalories_kcal, carbohydrate_total_by_difference_g, protein_g, sugars_total_g, ends_with('ose_g'))
+
+sugar_NA %>% 
+  write_csv('../data/02_question_about_the_sugar.csv')
+```
+

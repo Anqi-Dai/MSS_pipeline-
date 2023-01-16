@@ -6,7 +6,7 @@ first run: snakemake -j1
 then run: snakenake -j1 clean 
 '''
 
-project = 'IGO_13720'
+project = 'IGO_13852'
     
 rule all:
     input:

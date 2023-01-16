@@ -1,0 +1,102 @@
+---
+title: "Initial look at the data"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = F)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(lubridate)
+```
+
+```{r}
+# the total is the daily total, the item one is the one that with food items
+item <- read_csv('../data/vdb_keenoa_test_items.csv')%>% mutate(diary_date = dmy(diary_date))
+total <- read_csv('../data/vdb_keenoa_test_totals.csv') %>% mutate(diary_date = dmy(diary_date))
+colnames(item)
+```
+
+# Initial look at the data 
+
+```{r}
+# the time period when the data is collected 
+total %>% 
+  gghistogram(x = 'diary_date', fill = 'blue', color = 'white', title = 'Distribution of the collection date',
+              bins = 40)
+
+# which month has the highest number of data
+total %>% 
+  mutate(month = month(diary_date)) %>% 
+  count( month, sort = T) %>% 
+  slice(1)
+```
+
+
+```{r}
+# how many times people enter data each day
+what_time <- item %>% 
+  mutate(time = str_glue('{diary_date} {meal_consume_time}')) %>% 
+  mutate(time = ymd_hms(time)) %>% 
+  relocate(time, .after = 'participant_code')
+
+# which participants have the highest number of records in Feb
+FEb_top <- what_time %>%  filter(month(time) == 2) %>% count(participant_code,  sort = T)  %>% top_n(5)
+
+what_time %>% 
+  filter(month(time) == 2 & participant_code %in% FEb_top$participant_code) %>% 
+  gghistogram(x = 'diary_date', bins = 50) +
+  facet_wrap(~ participant_code, scales = 'free_x' )
+```
+```{r}
+# what is happening with 77940 on 2022-02-10
+# repeated data? 
+what <- what_time %>% 
+  filter(participant_code == 77940 & diary_date == '2022-02-10') %>% 
+  arrange(time) %>% select(time,entry_description ) %>% 
+  count(time,entry_description)
+
+what
+```
+
+```{r}
+# look at the daily total records for the participants
+daily_count <- item %>% 
+  count(participant_code, diary_date)
+
+daily_count %>% 
+  mutate(participant_code = fct_reorder(as.character(participant_code), n, .fun=median, .desc = T)) %>% 
+  ggboxplot(x = 'participant_code', y = 'n', add = 'jitter', add.params = list(color = 'forestgreen', size = 2, alpha = 0.5), title = 'Daily total records for each participant')
+```
+```{r}
+# curious what is a day's eating like for a total entries of ave 5
+item5 <- item %>% 
+  filter(participant_code == 76684) %>% 
+  select(diary_date, meal_consume_time, entry_description) %>% 
+  arrange(diary_date,meal_consume_time ) %>% 
+  split(.$diary_date)
+
+item5
+# I suspect missing data on the last day 
+```
+
+```{r}
+# to look at the total daily calories
+daily_cal <- item %>% 
+  group_by(participant_code,diary_date ) %>% 
+  summarise(daily_calories = sum(energy_kilocalories_kcal)) %>% 
+  ungroup( ) %>% 
+   mutate(participant_code = fct_reorder(as.character(participant_code), daily_calories, .fun=median, .desc = T))
+
+daily_cal %>% 
+  ggboxplot(x = 'participant_code', y = 'daily_calories', add = 'jitter', add.params = list(color = 'blue', size = 2, alpha = 0.5), title = 'Daily total calories for each participant')
+```
+
+
+
+
