@@ -15,13 +15,25 @@ library(ggpubr)
 ```
 
 ```{r}
-# the below data has the vetted calories and the total weight in grams
-# (waiting for the fruit smoothies breaking down to different food groups)
-vet <- readxl::read_excel('../data/142_batch1_diet_calories_check_peter.xlsx')
-
 # the current dtb1 
 # the final expanded table should be the same number 22840
 dtb1 <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+
+# the below data has the vetted calories and the total weight in grams
+# (waiting for the fruit smoothies breaking down to different food groups)
+vet <- readxl::read_excel('../data/142_batch1_diet_calories_check_peter.xlsx') %>% 
+  rename(total_g = weight_grams)
+
+# first make sure all of the my entries in cal is not NA
+nacor <- read_csv('../data/144_check_NA_ones_peter.csv') %>% 
+  inner_join(dtb1 %>% distinct(Food_code, description), by = "Food_code") %>% 
+  select(colnames(vet))
+
+# the below are the total vetted ones that are not EN
+totalvet <- bind_rows(vet, nacor) 
+
+
 
 # the table that has the water gram weight for 100 gram total weight of a food code
 engy <- readxl::read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
@@ -34,8 +46,8 @@ engy <- readxl::read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS N
 # find the unique combinations of all of the portions for (food_nsc + unit)
 allcombo <- dtb1 %>% 
   distinct(Food_code, Food_NSC, Por_eaten, Unit) %>% 
-  left_join(vet %>% 
-              select(Food_NSC, Por_eaten, Unit, Calories_kcal, total_g = weight_grams), by = c("Food_NSC", "Unit", "Por_eaten"))
+  left_join(totalvet %>% 
+              select(Food_NSC, Por_eaten, Unit, Calories_kcal, total_g), by = c("Food_NSC", "Unit", "Por_eaten"))
 
 scale_all_combos <- allcombo %>% 
   split(., list(.$Food_NSC, .$Unit))%>%  
@@ -47,16 +59,218 @@ scale_all_combos <- allcombo %>%
         mutate(scaled_cal = Calories_kcal[1]*ratio,
                scaled_total_g = total_g[1]*ratio)
   })  %>% 
-  bind_rows() %>% 
-  left_join(engy, by  = 'Food_code')
+  bind_rows()
 
-scaled <- scale_all_combos %>% 
-  select(Food_NSC:Food_code, Calories_kcal = scaled_cal, total_g = scaled_total_g, description = Main_food_description, Water_g) %>% 
-  mutate(dehydrated_weight = total_g*(1-Water_g/100))
+# need some manual correction of Specials, Angel Hair Pasta (2) since the data was entered wrong into computrition
+part1 <- scale_all_combos %>% 
+  filter(Unit != 'EN unit') %>% 
+  filter(Food_NSC != 'Specials, Angel Hair Pasta (2)') %>% 
+  add_row(totalvet %>% 
+            filter(Food_NSC == 'Specials, Angel Hair Pasta (2)') %>% 
+            slice(1) %>% 
+            mutate(ratio = 1,scaled_cal = 165, scaled_total_g = 105) %>% 
+            select(colnames(scale_all_combos)))
 
-# now expand all of the unique combos to the whole dtb1
+# now expand all of the unique combos to the whole dtb1 (excluding EN) 22787 rows
 dtb_ <- dtb1 %>% 
+  filter(Unit != 'EN unit') %>% 
+  # correct the portion and Unit for Specials, Angel Hair Pasta (2) 
+  mutate(Por_eaten = if_else(Food_NSC == 'Specials, Angel Hair Pasta (2)', 0.75, Por_eaten),
+         Unit = if_else(Food_NSC == 'Specials, Angel Hair Pasta (2)', 'cup', Unit)) %>% 
   select(mrn:Por_eaten, Food_code:fdrt) %>% 
-  left_join(scaled, by = c("Food_NSC", "Unit", "Por_eaten", "Food_code", "description"))
+  left_join(part1, by = c("Food_NSC", "Unit", "Por_eaten", "Food_code")) %>% 
+  select(mrn:fdrt, Calories_kcal = scaled_cal, total_g = scaled_total_g)
+```
+
+```{r}
+# I got the vetted data back from Peter
+# merging them into my current dtb
+calcor <- read_csv('../data/144_check_cal_500_ones_peter.csv')
+
+# find the food_nsc in these and scale to other portions
+needcal_food <- calcor %>% 
+  distinct(Food_NSC) %>% pull(Food_NSC)
+
+# find all of the combo of Portion + Unit for these food_nsc
+calcombo <- dtb_ %>% 
+  distinct(Food_code, Food_NSC, Por_eaten, Unit) %>% 
+  ungroup() %>% 
+  filter(Food_NSC %in% needcal_food) %>% 
+  left_join(calcor %>% 
+              select(Food_NSC, Por_eaten, Unit, Calories_kcal = scaled_cal, total_g = scaled_total_g), by = c("Food_NSC", "Unit", "Por_eaten"))
+
+scale_cal_check <- calcombo %>% 
+  split(., list(.$Food_NSC, .$Unit))%>%  
+  discard( ~nrow(.) == 0) %>% 
+  map(function(df){
+    df %>% 
+        arrange(Calories_kcal) %>% 
+        mutate(ratio = Por_eaten/Por_eaten[1]) %>% 
+        mutate(scaled_cal = Calories_kcal[1]*ratio,
+               scaled_total_g = total_g[1]*ratio)
+  })  %>% 
+  bind_rows()
+
+# there are some NAs in the above table and a result because of the same food with differnt Unit
+# try to find the values in the previous vetted data
+scale_cal_check_na <- scale_cal_check %>% 
+  filter(is.na(scaled_cal)) %>% 
+  select(Food_NSC:Food_code) %>% 
+  left_join(part1, by = c("Food_NSC", "Unit", "Por_eaten", "Food_code"))
+
+# now combine the above two parts 
+scale_cal_check_full <- bind_rows(
+   scale_cal_check %>% filter(!is.na(scaled_cal)),
+   scale_cal_check_na
+)
+```
+
+```{r}
+# like Jonas said now I get the full meaning of why it would be good to have a relational database
+# because you can just calibrate the unit portion for one thing and then scale it to all others accordingly so you don't need to worry about the scaling every single time
+# now to have such a unit portion thing 
+# there are two parts that I need to assemble
+cal2 <- scale_cal_check_full %>% 
+  select(Food_NSC, Food_code, Por_eaten, Unit, Calories_kcal = scaled_cal, total_g = scaled_total_g) %>% 
+  distinct(Food_NSC,Unit, .keep_all = T ) %>% 
+  mutate(cal_per_serving_unit = round(Calories_kcal/Por_eaten,1))
+
+# prepare a table for the food_nsc that is not in the calcor table 
+cal1 <- dtb_ %>% 
+  filter(!Food_NSC %in% needcal_food) %>% 
+  distinct(Food_NSC,Unit, .keep_all = T ) %>% 
+  mutate(cal_per_serving_unit = round(Calories_kcal/Por_eaten,1)) %>% 
+  select(colnames(cal2))
+
+# combine those two tables
+calall <- bind_rows(cal1, cal2) %>% 
+  mutate(total_gram_per_serving_unit = round(total_g/Por_eaten,1)) %>% 
+  select(Food_NSC, Food_code,Unit, cal_per_serving_unit, total_gram_per_serving_unit) %>% 
+  mutate(fd_unit = str_glue('{Food_code}:{Unit}'))  %>% 
+  inner_join(dtb1 %>% distinct(Food_code, description), by = "Food_code")
+
+calall %>% write_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
+
+calall <- read_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
+```
+
+
+```{r}
+# to make a plot shows that Jonas suggested that has the foodcode+unit combination boxplot to see if they are generallly consistent
+  
+
+tally_combo <- calall %>% count(fd_unit, sort = T)
+to_plot <- tally_combo %>% 
+  filter(n >= 5) %>% pull(fd_unit)
+
+# select to plot the combos that have at least 5 points
+to_plot_calall <- calall %>% 
+  filter(fd_unit %in% to_plot)
+
+to_plot_calall %>% 
+  ggboxplot(y = 'cal_per_serving_unit') +
+  facet_wrap(~ fd_unit, scales = 'free')
+
+ggsave('../data/144_fd_unit5.pdf', width = 16, height = 15)
+```
+
+```{r}
+# calculate the standard deviation of the each food code + unit combo
+sd_combo <- calall %>% 
+  split(.$fd_unit) %>% 
+  map(function(df){
+    df %>% 
+      mutate(num_data = nrow(.)) %>% 
+      group_by(fd_unit, description, num_data) %>% 
+      summarise(min_cal = min(cal_per_serving_unit),
+                max_cal = max(cal_per_serving_unit),
+                mean_cal = mean(cal_per_serving_unit),
+                sd_cal = sd(cal_per_serving_unit))
+  })
+
+sd_combo_df <- sd_combo %>% bind_rows()
+```
+
+```{r}
+# make them into a single df
+calcombined <- calall %>% 
+  left_join(sd_combo_df, by = c("fd_unit", "description")) %>% 
+  rename(cal_psu = cal_per_serving_unit,
+         g_psu = total_gram_per_serving_unit)
+```
+
+```{r}
+# first to replace the food code of the old ones of the fruit juices (real) with the newer ones that Peter added that are in the fruit group
+juice_cor <- read_csv('../data/142_batch1_fruit_juice_code_correction.csv') %>% 
+  inner_join(calall %>% select(Food_NSC, old_code = Food_code) %>% distinct()) %>% 
+  distinct()
+
+cor_food <- juice_cor %>% 
+  distinct(Food_NSC) %>% pull(Food_NSC)
+
+cal_cor1 <- calall %>% 
+  filter(Food_NSC %in% cor_food) %>% 
+  select(-Food_code, -fd_unit, -description) %>% 
+  left_join(juice_cor %>% select(Food_NSC:description), by = "Food_NSC") %>% 
+  mutate(fd_unit = str_glue('{Food_code}:{Unit}')) %>% 
+  select(colnames(calall))
+
+cal_cor2 <- calall %>% 
+   filter(!Food_NSC %in% cor_food) 
+
+calall2 <- bind_rows(cal_cor1 , cal_cor2)
+calall2 %>% write_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
+
+```
+
+
+
+```{r}
+# the ones that are NA (not EN ones) and also the ones > 500 Kcal after scaling
+# checkcc1 <- scale_all_combos %>% 
+#   filter(is.na(scaled_cal)) %>% 
+#   filter(Unit != 'EN unit') %>% 
+#   arrange(Food_code) %>% 
+#   select(Food_NSC:total_g)
+# 
+# checkcc1 %>% write_csv('../data/144_check_NA_ones.csv', na = '')
+# 
+# # just ask Peter to give me for one unit portion values 
+# checkcc2 <- scale_all_combos %>% 
+#   filter(scaled_cal > 500) %>% 
+#   distinct(Food_NSC, Unit, .keep_all = T) %>% 
+#   select(Food_NSC:Food_code, scaled_cal:scaled_total_g) %>% 
+#   arrange(Food_code)
+# 
+# checkcc2 %>% write_csv('../data/144_check_cal>500_ones.csv', na = '')
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```{r}
+# %>% 
+#   left_join(engy, by  = 'Food_code')
+
+# scaled <- scale_all_combos %>% 
+#   select(Food_NSC:Food_code, Calories_kcal = scaled_cal, total_g = scaled_total_g, description = Main_food_description, Water_g) %>% 
+#   mutate(dehydrated_weight = total_g*(1-Water_g/100))
+
+
 ```
 

@@ -1,0 +1,40 @@
+---
+title: "to see the survey food data"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(rjson)
+```
+
+```{r}
+nutrients <- read_csv('~/Downloads/FoodData_Central_survey_food_csv_2022-10-28 2/food_nutrient.csv')
+portions <- read_csv('~/Downloads/FoodData_Central_survey_food_csv_2022-10-28 2/food_portion.csv')
+
+# the below table has the matching of fdc_id and food_code and wweia_code
+matching <- read_csv('~/Downloads/FoodData_Central_survey_food_csv_2022-10-28 2/survey_fndds_food.csv')
+
+fndds_json <- fromJSON(file = "~/Downloads/FoodData_Central_survey_food_json_2022-10-28 2.json")
+```
+
+```{r}
+test <- fndds_json[["SurveyFoods"]][[1]][['foodNutrients']] %>% bind_rows()
+
+test_portion <- fndds_json[["SurveyFoods"]][[1]][['foodPortions']] %>% bind_rows()
+```
+
+```{r}
+fndds_json[["SurveyFoods"]][[1]][['foodNutrients']]
+```
+
+```{r}
+#  
+```
+
