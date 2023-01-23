@@ -16,10 +16,6 @@ connect_database()
 get_table_from_database('shotgun_lookup_ad')
 ```
 
-
-
-
-
 ```{r}
 # To send the CART preprocessed shotgun samples file to Jonas
 # figure out what samples I used for that
@@ -30,6 +26,8 @@ folders <- shotgun_lookup_ad %>%
   filter(fid %in% stb$fid) %>% 
   mutate(folder  = str_extract(directory, 'Sample.+$')) %>% 
   mutate(path = str_glue('/home/daia1/my_workdir/samples/{folder}'))
+
+folders %>% write_csv('../data/11_CART_projects.csv')
 ```
 
 ```{r}

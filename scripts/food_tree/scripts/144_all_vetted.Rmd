@@ -223,6 +223,48 @@ calall2 %>% write_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
 
 ```
 
+```{r}
+# now update the calcombined using the above data 
+calall2_summary <- calall2 %>% 
+  split(.$fd_unit) %>% 
+  map(function(df){
+    df %>% 
+      mutate(num_data = nrow(.)) %>% 
+      group_by(fd_unit, description, num_data) %>% 
+      summarise(min_cal = min(cal_per_serving_unit),
+                max_cal = max(cal_per_serving_unit),
+                mean_cal = mean(cal_per_serving_unit),
+                sd_cal = sd(cal_per_serving_unit))
+  })  %>% bind_rows()
+
+calcombined2 <- calall2 %>% 
+  left_join(calall2_summary, by = c("fd_unit", "description")) %>% 
+  rename(cal_psu = cal_per_serving_unit,
+         gram_psu = total_gram_per_serving_unit) %>% 
+  arrange(desc(sd_cal))
+
+# I wanna take out the smoothie etc for now since it is in a different table that Peter is doing
+exclude <- readxl::read_excel('../data/142b_batch1_diet_calories_check_subset_with_macros.xlsx')
+excludefood <- exclude %>% 
+  distinct(Food_NSC) %>% pull(Food_NSC)
+
+# the below is without the smoothie etc for now since it is in a different table that Peter is doing
+calcombined3 <- calcombined2 %>% 
+  filter(! Food_NSC %in% excludefood) %>% 
+  arrange(desc(sd_cal), cal_psu)
+
+# the ones that need to be merged back after Peter is done with the smoothies:
+needsmoothie <- calcombined2 %>% 
+  filter(Food_NSC %in% excludefood)
+
+needsmoothie %>% write_csv('../data/144_he ones that need to be merged back after Peter is done with the smoothies.csv')
+
+# the ones that I decided to let Peter double check:
+peter_check_sd_1.55 <- calcombined3 %>% 
+  filter(sd_cal > 1.55)
+peter_check_sd_1.55 %>%   write_csv('../data/144_peter_check_sd_gt_1.55_ones.csv')
+
+```
 
 
 ```{r}
