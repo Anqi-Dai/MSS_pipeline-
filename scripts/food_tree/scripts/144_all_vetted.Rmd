@@ -39,9 +39,10 @@ totalvet <- bind_rows(vet, nacor)
 engy <- readxl::read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
   rename_all(funs(str_replace_all(., ' ','_'))) %>% 
   rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
-  select(Food_code, Main_food_description, Water_g) %>% 
+  select(Food_code, Main_food_description, Water_g, Energy_kcal) %>% 
   mutate(Water_g = as.numeric(Water_g),
-         Food_code = as.numeric(Food_code))
+         Food_code = as.numeric(Food_code),
+         Energy_kcal = as.numeric(Energy_kcal))
 
 # find the unique combinations of all of the portions for (food_nsc + unit)
 allcombo <- dtb1 %>% 
@@ -154,7 +155,6 @@ calall %>% write_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
 calall <- read_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
 ```
 
-
 ```{r}
 # to make a plot shows that Jonas suggested that has the foodcode+unit combination boxplot to see if they are generallly consistent
   
@@ -220,7 +220,7 @@ cal_cor2 <- calall %>%
 
 calall2 <- bind_rows(cal_cor1 , cal_cor2)
 calall2 %>% write_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
-
+calall2 <- read_csv('../data/144_cal_and_gram_per_serving_unit_batch1.csv')
 ```
 
 ```{r}
@@ -257,13 +257,166 @@ calcombined3 <- calcombined2 %>%
 needsmoothie <- calcombined2 %>% 
   filter(Food_NSC %in% excludefood)
 
-needsmoothie %>% write_csv('../data/144_he ones that need to be merged back after Peter is done with the smoothies.csv')
+#needsmoothie %>% write_csv('../data/144_he ones that need to be merged back after Peter is done with the smoothies.csv')
 
 # the ones that I decided to let Peter double check:
 peter_check_sd_1.55 <- calcombined3 %>% 
   filter(sd_cal > 1.55)
-peter_check_sd_1.55 %>%   write_csv('../data/144_peter_check_sd_gt_1.55_ones.csv')
+#peter_check_sd_1.55 %>%   write_csv('../data/144_peter_check_sd_gt_1.55_ones.csv')
 
+```
+
+```{r}
+# to see if the remaining ones (ones with sd <= 1.55) have anything that is the smoothies, etc
+# the answer is no which is good
+good <- calcombined3 %>% 
+  filter(sd_cal <= 1.55 | is.na(sd_cal)) %>% 
+  select(Food_NSC:description)
+```
+
+```{r}
+# the data that peter double checked : 272, he removed 5 entries to be in the milkshake smoothie group.
+p272 <- read_csv('../data/144_peter_check_sd_gt_1.55_ones_peter.csv') %>% 
+  select(Food_NSC:description)
+
+# current ones that I have max confidence:
+currentgood <- bind_rows(good, p272) %>% 
+  select(-fd_unit) %>% 
+  left_join(engy %>% select(Food_code,Water_g )) %>% 
+  # calculate the water weight
+  mutate(water_grams = round(gram_psu * Water_g/100, 2)) %>% 
+  select(-Water_g)
+```
+
+```{r}
+# organize the 142b smoothies 
+psmoothie <- readxl::read_excel('../data/142b_batch1_diet_calories_check_subset_with_macros_peter.xlsx') %>% distinct()
+
+# to see if the other ones are captured here
+# yes! the cal and macronutrients and water are particularly vetted, cuz the different fruit smoothie even with the same food code can have vastly different values!!!!
+# only the scandishakes are split cuz the milk are added separately!
+other <- read_csv('../data/144_he ones that need to be merged back after Peter is done with the smoothies.csv') %>% 
+  distinct(Food_NSC, Unit) %>% 
+  left_join(psmoothie)
+
+# combine the two tables (the scandi shakes are now split two entries per each recipe)
+other2 <- bind_rows(
+  other %>% filter(!is.na(description)),
+  psmoothie %>% filter(str_detect(Food_NSC, '--'))
+)
+
+added5 <- setdiff(psmoothie$Food_NSC, other2$Food_NSC)
+
+added5_df <- psmoothie %>% 
+  filter(Food_NSC %in% added5) 
+
+other3 <- bind_rows(other2, added5_df)  %>% 
+  mutate(dehydrated_psu = weight_grams - water_grams) %>% 
+  rename(cal_psu = Calories_kcal,
+         gram_psu = weight_grams,
+         Protein_psu = protein_grams,
+         Carbohydrate_psu = carbohydrate_grams,
+         Fat_psu = fat_grams,
+         Fiber_psu = fiber_grams,
+         Sugars_psu = sugar_grams,
+         Water_psu = water_grams) %>% 
+  select(-Por_eaten)
+
+
+other3 %>% write_csv('../data/144_milkshake_smoothie_special_check_full.csv')
+```
+
+
+
+```{r}
+# combine the above to make a whole table for batch 1 unique food_nsc + Unit (2110 + 130 = 2240)
+# to get the other nutrients values from FNDDS for the currentgood
+nutrients_fndds <- readxl::read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  rename_all(funs(str_replace_all(., ',',''))) %>% 
+  select(Food_code, 
+         Protein_g, 
+         Carbohydrate_g,
+         Sugars_total_g, 
+         Fiber_total_dietary_g,
+         Total_Fat_g,   
+         Water_g) %>% 
+  mutate_if(is.character, as.numeric) %>% 
+  mutate(Protein_per = Protein_g/100,
+         Carbohydrate_per = Carbohydrate_g/100,
+         Sugars_per = Sugars_total_g/100,
+         Fiber_per = Fiber_total_dietary_g/100,
+         Fat_per = Total_Fat_g/100,
+         Water_per = Water_g/100)
+
+currentgood_all <- currentgood %>% 
+  left_join(nutrients_fndds %>% select(Food_code, ends_with('_per'))) %>% 
+  mutate(Protein_psu = gram_psu * Protein_per,
+         Carbohydrate_psu = gram_psu * Carbohydrate_per,
+          Sugars_psu = gram_psu * Sugars_per,
+          Fiber_psu = gram_psu * Fiber_per,
+          Fat_psu = gram_psu * Fat_per) %>% 
+  select(-ends_with('_per')) %>% 
+  mutate(dehydrated_psu = gram_psu - water_grams)
+
+colnames(currentgood_all)
+```
+
+```{r}
+# I wanna see the comparison between the dry weight from cal and the dry weight from this
+currentgood_all_compare <- currentgood_all %>% 
+  distinct(Food_NSC, Food_code,Unit,  cal_psu, dehydrated_psu, gram_psu) %>% 
+  left_join(engy , by = "Food_code") %>% 
+  mutate(total_weight = if_else(Energy_kcal == 0, 99999, cal_psu/Energy_kcal*100)) %>% 
+  mutate(dehydrated_convertion = if_else(total_weight == 99999, 0, total_weight*(1 - Water_g/100))) %>% 
+  select(-Energy_kcal,  -Water_g) %>% 
+  mutate(abs_diff = abs(dehydrated_psu - dehydrated_convertion)) %>% 
+  rename(description = Main_food_description) %>% 
+  arrange(desc(abs_diff)) %>% 
+  relocate(abs_diff, .after = Food_code) %>% 
+  select(Food_NSC, Food_code, Unit,  dehydrated_psu,  dehydrated_convertion, abs_diff)
+
+currentgood_all_compare %>% 
+  ggscatter(x = 'dehydrated_psu', y = 'dehydrated_convertion',xlab = 'total_g - water_g', ylab = 'dry weight converted from calories', add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+
+question <- currentgood_all_compare %>% 
+  arrange(desc(dehydrated_psu)) %>% 
+  slice(1)
+```
+
+```{r}
+# after asking Peter to check the top abs_diff ones he said the dehydrated_psu is good to use!
+# only need to change the food_code of one thing 
+currentgood_all2 <- currentgood_all %>% 
+  mutate(Food_code = if_else(Food_NSC == 'Chocolate-Flavored Drink,Whey and Milk Based, cup', 95106000, Food_code),
+         description = if_else(Food_NSC == 'Chocolate-Flavored Drink,Whey and Milk Based, cup', 'Nutritional drink or shake, ready-to-drink (Muscle Milk)', description)) %>% 
+  select(Food_NSC:description) %>% 
+  left_join(nutrients_fndds %>% select(Food_code, ends_with('_per'))) %>% 
+  mutate(Protein_psu = gram_psu * Protein_per,
+         Carbohydrate_psu = gram_psu * Carbohydrate_per,
+          Sugars_psu = gram_psu * Sugars_per,
+          Fiber_psu = gram_psu * Fiber_per,
+          Fat_psu = gram_psu * Fat_per,
+         Water_psu = gram_psu * Water_per) %>% 
+  select(-ends_with('_per')) %>% 
+  mutate(dehydrated_psu = gram_psu - Water_psu) %>% 
+  select(colnames(other3))
+
+colnames(currentgood_all2)
+```
+```{r}
+# finally combine the above two together to make a whole df with (2110 + 130 = 2240)
+# yeah!!!!!
+combined <- bind_rows(currentgood_all2, other3)
+# to double check the number is it ok
+# the unique combinations 
+dtb_ %>% distinct(Food_NSC, Unit) %>% nrow
+# it is Correct!! 6 of the items was split to 2 so the final number is 2234 + 6 = 2240!
 ```
 
 
@@ -287,24 +440,6 @@ peter_check_sd_1.55 %>%   write_csv('../data/144_peter_check_sd_gt_1.55_ones.csv
 # checkcc2 %>% write_csv('../data/144_check_cal>500_ones.csv', na = '')
 ```
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 ```{r}
 # %>% 
 #   left_join(engy, by  = 'Food_code')
@@ -313,6 +448,4 @@ peter_check_sd_1.55 %>%   write_csv('../data/144_peter_check_sd_gt_1.55_ones.csv
 #   select(Food_NSC:Food_code, Calories_kcal = scaled_cal, total_g = scaled_total_g, description = Main_food_description, Water_g) %>% 
 #   mutate(dehydrated_weight = total_g*(1-Water_g/100))
 
-
 ```
-

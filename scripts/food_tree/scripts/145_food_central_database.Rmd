@@ -25,6 +25,7 @@ fndds_json <- fromJSON(file = "~/Downloads/FoodData_Central_survey_food_json_202
 
 test <- fndds_json[["SurveyFoods"]][[1]]
 foodAttributes <- test[['foodAttributes']] # has the WWEIA code
+foodNutrients <- test[['foodNutrients']]
 names(test)
 ```
 
@@ -87,3 +88,7 @@ all_portion_grams <- fndds_json %>%
 all_portion_grams %>% write_csv('../data/145_foodData_Central_all_portion_grams.csv')
 ```
 
+# to get the nutrient value for each measuring unit for each food
+
+So the json file only has the nutrient values for 100 gram of that food code 
+same as this table: 2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx
