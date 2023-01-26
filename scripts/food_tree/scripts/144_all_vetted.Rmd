@@ -417,6 +417,8 @@ combined <- bind_rows(currentgood_all2, other3)
 # the unique combinations 
 dtb_ %>% distinct(Food_NSC, Unit) %>% nrow
 # it is Correct!! 6 of the items was split to 2 so the final number is 2234 + 6 = 2240!
+
+combined %>% write_csv('../data/144_non_EN_unit_diet_metrics.csv')
 ```
 
 

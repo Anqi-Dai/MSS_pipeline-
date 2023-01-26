@@ -1,0 +1,62 @@
+---
+title: "Scale the psu (unit portion diet metric) to the full data set and add EN"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+dtb1 <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+
+# there are some cleaning to do, possibly char change during manual work at the spreadsheet  
+unit <- read_csv('../data/144_non_EN_unit_diet_metrics.csv') %>% 
+  mutate(Food_NSC = if_else(Food_NSC == '2017 BRATT II - Smoothie, Banana Nut', '2017 BRATT II, Smoothie, Banana Nut', Food_NSC))
+
+# find about the portions and dates of the intake among the patients
+dtb1_p <- dtb1 %>% 
+  filter(Unit != 'EN unit') %>% 
+  select(mrn:Unit,fdrt, Por_eaten) %>% 
+  mutate(Por_eaten = if_else(Food_NSC == 'Specials, Angel Hair Pasta (2)', 0.75, Por_eaten),
+         Unit = if_else(Food_NSC == 'Specials, Angel Hair Pasta (2)', 'cup', Unit))
+```
+
+```{r}
+# I need to find a way to split the scandi shake ones 
+scan_match <- unit %>% 
+  filter(str_detect(Food_NSC, 'Scandi')) %>% 
+  select(new_nsc =  Food_NSC) %>% 
+  separate(new_nsc, into = c('Food_NSC','parts'), remove = F, sep = '--') %>% 
+  select(-parts)
+
+dtb1_p_scandi <- dtb1_p %>% 
+  filter(str_detect(Food_NSC, 'Scandi')) %>% 
+  right_join(scan_match) %>% 
+  mutate(Food_NSC = new_nsc) %>% 
+  select(-new_nsc)
+
+dtb1_p2 <- bind_rows(
+  dtb1_p %>% filter(!str_detect(Food_NSC, 'Scandi')),
+  dtb1_p_scandi
+)
+
+# join the unit table and scale it to all the different portions
+dtb1_scale <- dtb1_p2 %>% 
+  left_join(unit, by = c("Food_NSC", "Unit")) 
+
+# for the NA ones whether they are cup or each??
+```
+
+```{r}
+
+  
+```
+
