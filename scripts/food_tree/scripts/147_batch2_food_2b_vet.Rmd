@@ -1,0 +1,31 @@
+---
+title: "The Food_NSC to be vetted for batch 2"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+unit <- read_csv('../data/144_non_EN_unit_diet_metrics.csv')
+
+# the dtb2
+dtb2 <- read_rds('../data/136_updated_dtb2.rds') %>% mutate(Food_code = as.numeric(Food_code))
+
+# the unique combination of food_nsc and unit in batch 2
+combo2 <- dtb2 %>% 
+  distinct(Food_NSC, Unit, Food_code, description) %>% 
+  left_join(unit, by = c("Food_NSC", "Unit", "Food_code", "description")) %>% 
+  arrange(Food_code,Food_NSC ) %>% 
+  select(Food_NSC:gram_psu)
+
+combo2 %>% write_csv('../data/147_batch2_unit_food_nsc_to_be_vet.csv', na = '')
+```
+

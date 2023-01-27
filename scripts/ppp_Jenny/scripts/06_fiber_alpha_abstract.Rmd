@@ -19,7 +19,6 @@ all <- read_csv('~/pipeline/scripts/food_tree/data/090_all_samples_meta_p2d_fg9_
   mutate(ave_fiber = ave_fiber*100) 
 meta <- read_csv('~/pipeline/scripts/food_tree/data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv') %>% 
   select(mrn, sdrt, simpson_reciprocal, ave_fiber) %>% 
-  mutate(ave_fiber = ave_fiber*100) %>% 
   filter(sdrt %in% 7:21)
 
 meta %>% distinct(mrn)
@@ -81,6 +80,7 @@ ggsave('../data/06_diversity_and_fiber.pdf', height = 5)
 ```{r}
 # a box plot
 mean_fiber_intake <- mean(meta$ave_fiber)
+median(meta$ave_fiber)
 grps <- meta %>% 
   mutate(grp = if_else(ave_fiber > mean_fiber_intake, 'high', 'low'))
 

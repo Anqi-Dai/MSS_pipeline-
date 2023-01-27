@@ -16,7 +16,8 @@ library(brmstools)
 ```
 
 ```{r}
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+#dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+dtb <- read_csv('../data/146_updated_dtb1.csv')
 
 nodes <- read_tsv('../data/source/NodeLabels.txt', col_types = 'cc') %>% 
   filter(nchar(Level.code) == 1) %>% 
@@ -47,8 +48,10 @@ total_per_group <- fgrps_df %>%
 ## average on the previous two days diet food groups
 
 ```{r}
-stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') 
 
+drug <- read_rds('../data/134_743stool_samples_p2d_drug_exposure.rds')
+stb <- read_csv('../data/cleaned_stool/selected_stool_samples_type_abx.csv') %>% 
+  mutate(empirical = if_else(sampleid %in% drug$sampleid, T, F))
 
 stb_pair <- stb %>%  
   select(mrn, sdrt) %>% 
@@ -128,6 +131,11 @@ p2d_EN_T_or_F_df <-  pmap(stb_pair, function(mrn, p1d, p2d){
   bind_rows(.id = 'sampleid') %>% 
   gather(key = 'sampleid', value = 'EN')
 ```
+
+```{r}
+# use the new interval method to do this again
+```
+
 ```{r}
 # a new column to mark the TPN
 # if a patient had TPN in the previous two days before a stool sample collected,

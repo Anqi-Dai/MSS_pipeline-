@@ -1,0 +1,25 @@
+---
+title: "alpha diversity 16s"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+library(lubridate)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+```
+
+```{r}
+pheno <- read_csv('../data/01_pheno_with_alpha.csv')
+```
+

@@ -38,7 +38,10 @@ cts <- taxa %>%
   column_to_rownames('sampleid')
 
 meta_mouse <- diversity(cts, index = 'inv')%>% 
-  enframe(name = 'sampleid', value = 'inv') 
+  enframe(name = 'sampleid', value = 'inv') %>% 
+  left_join(pheno)
+
+
 ```
 
 # the table from the investigator that has the cleaned phenotypic data
