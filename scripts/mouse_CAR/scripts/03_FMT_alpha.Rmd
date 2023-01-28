@@ -1,0 +1,91 @@
+---
+title: "FMT experiment"
+author: "Anqi Dai"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+FMT <- read_csv('../data/01_FMT_pheno.csv') %>% 
+  mutate(Condition = str_replace(Condition, ' cells','')) %>% 
+  mutate(condition_simple = case_when(
+    Condition == '1st Collection (2 days) post-CAR T' ~ 'Week1 post-CAR',
+    Condition == '2nd Week post-CAR T' ~ 'Week2 post-CAR',
+    Condition == '3rd Week post-CAR T' ~ 'Week3 post-CAR',
+    Condition == '4th Week post-CAR T' ~ 'Week4 post-CAR',
+    Condition == '5th Week post-CAR T' ~ 'Week5 post-CAR',
+    TRUE ~ Condition
+  ))
+```
+
+# alpha diversity
+
+```{r}
+order_level <- FMT %>% 
+  distinct(condition_simple, Date_Collected) %>% 
+  arrange(Date_Collected) %>% 
+  pull(condition_simple)
+
+color_key <- FMT %>% 
+  distinct(Group) %>% 
+  mutate(color = c('#42B440','#EC0000')) %>% 
+  deframe()
+
+FMT %>% 
+  #arrange(Date_Collected) %>% 
+  mutate(condition_simple = factor(condition_simple, levels = order_level)) %>% 
+  ggboxplot(x = 'Group', y = 'alpha', add = 'jitter', add.params = list( size = 3),color = 'Group',
+            xlab = '', ylab = 'alpha diversity') +
+  scale_color_manual(values = color_key) +
+  facet_grid(. ~ condition_simple, scales = 'free') +
+  theme(axis.text.x=element_text(angle = 90, hjust = 0)) +
+  stat_compare_means(comparisons= list(c('Responder', 'Non-Responder')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE)
+
+ggsave('../data/03_PH_alpha_FMT.pdf', width = 8, height = 6)
+```
+
+# Ruminococcus
+
+```{r}
+taxa <- read_csv('../data/01_all_metaphlan.csv') %>% 
+  filter(sampleid %in% FMT$sampleid)
+
+rumino <- taxa %>% filter(str_detect(clade_name, 'Rumino'))
+
+# g__Blautia|s__Ruminococcus_gnavus and g__Blautia|s__Ruminococcus_torques
+# use the family level
+rumino_fam <- taxa %>% filter(str_detect(clade_name, 'f__Ruminococcaceae')) %>% 
+  group_by(sampleid) %>% 
+  summarise(rumino_family = sum(relative_abundance)) %>% 
+  right_join(FMT, by = "sampleid") %>% 
+  mutate(rumino_family = if_else(is.na(rumino_family), 0, rumino_family))
+```
+
+```{r}
+rumino_fam %>% 
+  #arrange(Date_Collected) %>% 
+  mutate(condition_simple = factor(condition_simple, levels = order_level)) %>% 
+  ggboxplot(x = 'Group', y = 'rumino_family', add = 'jitter', add.params = list( size = 3),color = 'Group',
+            xlab = '', ylab = 'Ruminococcaceae relative abundance') +
+  scale_color_manual(values = color_key) +
+  facet_grid(. ~ condition_simple, scales = 'free') +
+  theme(axis.text.x=element_text(angle = 90, hjust = 0)) +
+  stat_compare_means(comparisons= list(c('Responder', 'Non-Responder')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE)
+
+ggsave('../data/03_Ruminococcaceae_FMT.pdf', width = 8, height = 6)
+```
+

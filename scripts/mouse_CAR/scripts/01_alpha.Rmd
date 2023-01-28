@@ -15,6 +15,30 @@ library(ggpubr)
 library(vegan)
 library(lubridate)
 ```
+# decide if the sub-optimal samples are trust worthy
+
+I looked at the total number of reads and duplication level looks fine to me!
+
+```{r}
+suboptimal <- tibble(
+  sampleid = c(
+    'PH99',
+    'PH88',
+    'PH130',
+    'PH11',
+    'PH100',
+    'PH10',
+    'PH117',
+    'PH89',
+    'PH16',
+    'PH98')
+)
+
+intersect(suboptimal$sampleid, FMT$sampleid)
+
+# at least 40% duplication reads
+```
+
 
 # the below parts is on the metaphlan data only
 
@@ -38,8 +62,7 @@ cts <- taxa %>%
   column_to_rownames('sampleid')
 
 meta_mouse <- diversity(cts, index = 'inv')%>% 
-  enframe(name = 'sampleid', value = 'inv') %>% 
-  left_join(pheno)
+  enframe(name = 'sampleid', value = 'inv') 
 
 
 ```
@@ -47,12 +70,18 @@ meta_mouse <- diversity(cts, index = 'inv')%>%
 # the table from the investigator that has the cleaned phenotypic data
 
 ```{r}
+# I have manually added the PH11 which was of suboptimal quantity back into this pheno sheet
 pheno <- read_csv('../data/PH_meta.csv') %>% 
   mutate(Date_Collected = mdy(Date_Collected)) %>% 
   left_join(meta_mouse, by = "sampleid") %>% 
   rename(alpha = inv)
 
 pheno %>% write_csv('../data/01_pheno_with_alpha.csv')
+
+FMT <- pheno %>% 
+  filter(str_detect(Group, 'Responder'))
+
+FMT %>% write_csv('../data/01_FMT_pheno.csv')
 
 # question: last time she mentioned 117, how come there is only 109
 # to look at the alpha diveristy as a whole now

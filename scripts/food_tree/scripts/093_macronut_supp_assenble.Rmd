@@ -21,6 +21,14 @@ alpha_factor <- read_rds('../data/090_macronutrients_alpha_factor.rds')
 alpha <-  plot_grid(corr, fat_cal_cor,  alpha_main,alpha_factor,
                   nrow = 2, labels = c('A','B', 'C', "D"),  align = 'hv', axis = 'tblr')
 alpha
+
+ggsave('../data/093_macronutrients_alpha_093.pdf',
+        width = 220,
+       height = 220,
+       plot = alpha,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, device = 'pdf')
 ```
 ```{r}
 genus_main <- read_rds('../data/090_genus_macro_fat_main.rds')

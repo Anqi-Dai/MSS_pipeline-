@@ -18,10 +18,7 @@ library(ggpubr)
 dtb1 <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
 
 # there are some cleaning to do, possibly char change during manual work at the spreadsheet  
-unit <- read_csv('../data/144_non_EN_unit_diet_metrics.csv') %>% 
-  mutate(Food_NSC = if_else(Food_NSC == '2017 BRATT II - Smoothie, Banana Nut', '2017 BRATT II, Smoothie, Banana Nut', Food_NSC))
-
-unit %>% write_csv('../data/144_non_EN_unit_diet_metrics.csv')
+unit <- read_csv('../data/144_non_EN_unit_diet_metrics.csv')
 
 # find about the portions and dates of the intake among the patients
 dtb1_p <- dtb1 %>% 
@@ -101,4 +98,9 @@ dtb1_N <- bind_rows(dtb1_scale , en)
 dtb1_N %>% write_csv('../data/146_updated_dtb1.csv')
 ```
 
+
+```{r}
+# can do some sanity check on the unit table
+
+```
 
