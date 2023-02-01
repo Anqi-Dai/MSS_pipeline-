@@ -1,0 +1,76 @@
+---
+title: "Update unit table from both batches"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+unit1 <- readxl::read_excel('../data/144_non_EN_unit_diet_metrics_peter.xlsx')
+unit2 <- readxl::read_excel('../data/147_batch2_unit_food_nsc_to_be_vet_peter.xlsx')
+# there are duplications in the two tables
+colnames(unit1)
+```
+
+```{r}
+# combine the ones that are in the smoothie category
+smoo <- unit1 %>% 
+  filter(!is.na(Protein_psu))
+
+# combine the ones that are NOT in the smoothie group
+main <- bind_rows(
+  unit2,
+  unit1 %>% filter(is.na(Protein_psu))
+) %>% 
+  select(Food_NSC:gram_psu)
+
+# calculate the corresponding nutrients and dry weight like before
+nutrients_fndds <- readxl::read_excel('../data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1, col_types  = 'text') %>% 
+  rename_all(funs(str_replace_all(., ' ','_'))) %>% 
+  rename_all(funs(str_replace_all(., '\\(|\\)',''))) %>% 
+  rename_all(funs(str_replace_all(., ',',''))) %>% 
+  select(Food_code, 
+         Protein_g, 
+         Carbohydrate_g,
+         Sugars_total_g, 
+         Fiber_total_dietary_g,
+         Total_Fat_g,   
+         Water_g) %>% 
+  mutate_if(is.character, as.numeric) %>% 
+  mutate(Protein_per = Protein_g/100,
+         Carbohydrate_per = Carbohydrate_g/100,
+         Sugars_per = Sugars_total_g/100,
+         Fiber_per = Fiber_total_dietary_g/100,
+         Fat_per = Total_Fat_g/100,
+         Water_per = Water_g/100)
+
+main_all <- main %>% 
+  left_join(nutrients_fndds %>% select(Food_code, ends_with('_per'))) %>% 
+  mutate(Protein_psu = gram_psu * Protein_per,
+         Carbohydrate_psu = gram_psu * Carbohydrate_per,
+          Sugars_psu = gram_psu * Sugars_per,
+          Fiber_psu = gram_psu * Fiber_per,
+          Fat_psu = gram_psu * Fat_per,
+          Water_psu = gram_psu * Water_per) %>% 
+  select(-ends_with('_per')) %>% 
+  mutate(dehydrated_psu = gram_psu - Water_psu) %>% 
+  select(colnames(smoo))
+
+# combine the above two tables together and it is the ultimate vetted unit table!!!!
+both <- bind_rows(main_all, smoo)
+
+both %>% write_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+```
+
+```{r}
+
+```
+
