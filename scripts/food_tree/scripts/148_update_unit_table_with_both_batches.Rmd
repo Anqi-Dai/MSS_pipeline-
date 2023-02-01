@@ -65,12 +65,74 @@ main_all <- main %>%
   select(colnames(smoo))
 
 # combine the above two tables together and it is the ultimate vetted unit table!!!!
-both <- bind_rows(main_all, smoo)
+both <- bind_rows(main_all, smoo) %>% distinct()
 
-both %>% write_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+
 ```
 
 ```{r}
+# now see if I have all the Food_NSC and unit combo in this table
+dtb1 <- read_csv('../data/146_updated_dtb1.csv')
+dtb2 <- read_rds('../data/136_updated_dtb2.rds') %>% mutate(Food_code = as.numeric(Food_code))
 
+# the unique combo
+ucombo <- bind_rows(
+  dtb1,
+  dtb2 
+) %>% distinct(Food_NSC, Unit)
+  
+unitones <- both %>% 
+  mutate(food_all = str_glue('{Food_NSC}:{Unit}'))
+
+existingones <-  ucombo %>% 
+  mutate(food_all = str_glue('{Food_NSC}:{Unit}'))
+
+length(intersect(unitones$food_all, existingones$food_all))
+
+# the ones that I currently don't have 
+setdiff(existingones$food_all, unitones$food_all)
+
+# what are the ones that I have extra from Peter
+extra <- setdiff(unitones$food_all, existingones$food_all)
+
+# ggvenn
+
+
+library(ggvenn)
+two_list <- list(unitones = unitones$food_all,existingones = existingones$food_all)
+
+ggvenn(two_list)
+
+both %>% distinct(Food_NSC, Unit)
+```
+
+```{r}
+# see why I have multiple entries for few foodnsc + unit
+multiple <- both %>% 
+  count(Food_NSC, Unit, sort = T) %>% 
+  filter( n > 1) %>% 
+  mutate(food_all = str_glue('{Food_NSC}:{Unit}'))
+
+# find all the full entries in the table and ask Peter which one to pick
+multiple_ones <- both %>% 
+  mutate(food_all = str_glue('{Food_NSC}:{Unit}')) %>% 
+  filter(food_all %in% multiple$food_all) %>% 
+  arrange(food_all) %>% 
+  distinct()
+
+multiple_ones %>% write_csv('../data/148_duplicated_ones.csv')
+```
+
+```{r}
+# now that Peter has removed the wrong entry and kept the correct entry , merge them back to the table
+same <- both %>% 
+  mutate(food_all = str_glue('{Food_NSC}:{Unit}')) %>% 
+  filter(! food_all %in% multiple$food_all)
+
+kept <- read_csv('../data/148_duplicated_ones_peter.csv')
+
+both2 <- bind_rows(same, kept)
+
+both2 %>%  write_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
 ```
 
