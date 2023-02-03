@@ -1,5 +1,7 @@
 ---
-title: "The walkaround macronutrients"
+title: "same day batch 2 stool food correlation"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
 output: html_document
 ---
 
@@ -10,22 +12,48 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
-#devtools::install_github("zeehio/facetscales")
-library(facetscales)
-axis_text_size <- 10
-axis_title_size <- 10
 ```
 
-**Same day** macro nutrients with calories and stool sample 
+```{r}
+stb2 <- read_rds('../data/137_stb.rds')
+dtb2 <- read_csv('../data/149_finalized_dtb2.csv')
+```
 
-# the 3 by 2 grid scatter plot
 
 ```{r}
-dtb1 <- read_csv('../data/149_finalized_dtb1.csv')
-full <- read_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv')
+# get the genus counts
+library(vdbR)
+connect_database()
+get_table_from_database('asv_annotation_blast_ag')
+
+cts <- get_counts_subset(stb2$sampleid)
 
 
-byday_original <- dtb1 %>% 
+cts_genus <- cts %>% 
+  inner_join(asv_annotation_blast_ag %>%  select(asv_key, genus), by  = 'asv_key') %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(count_relative)) 
+
+cts_spread <- cts_genus %>% 
+  spread('genus', 'relab', fill = 0)
+
+cts_genus %>% 
+  write_csv('../data/150_b2_stool_samples_genus_counts.csv')
+
+# log10 transform the genus counts 
+zero_transform <- log10(0 + 2*10^-6)
+
+genus <- cts_genus %>% 
+  mutate(relablog = log10(relab + 2*10^-6)) %>% 
+  select(sampleid, genus, relablog) %>% 
+  spread('genus', 'relablog', fill = zero_transform) 
+ 
+genus %>% 
+  write_csv('../data/150_b2_genus_relab_log10_wide.csv')
+```
+
+```{r}
+byday_original <- dtb2 %>% 
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal),
             d_protein = sum(Protein_g),
@@ -34,11 +62,10 @@ byday_original <- dtb1 %>%
             d_fiber = sum(Fibers_g),
             d_sugar = sum(Sugars_g)) %>% 
   rename(drt = fdrt) %>% 
-  inner_join(full %>% 
-               rename(drt = sdrt) %>% 
-               select(mrn,drt, simpson_reciprocal,  Blautia, Enterococcus), by = c("mrn", "drt")) %>% 
+  inner_join(genus %>% 
+               inner_join(stb2 %>% select(sampleid, drt = sdrt, mrn, simpson_reciprocal)), 
+             by = c("mrn", "drt")) %>% 
   ungroup()
-
 ```
 
 ```{r}
@@ -54,13 +81,11 @@ macro_panel <- byday_original %>%
   gather('xaxis', 'number', daycal:d_sugar) %>% 
   mutate(xaxis = factor(xaxis, levels = c('daycal','d_carb','d_sugar','d_fiber','d_protein','d_fat'))) %>% 
   mutate(xaxis = if_else(str_detect(xaxis, '^d_'), str_replace(xaxis, 'd_',''), str_replace(xaxis, '^day','')),
-         xaxis = if_else(str_detect(xaxis, 'cal'), str_replace(xaxis, 'cal','caloric'), xaxis),
+         xaxis = if_else(str_detect(xaxis, 'cal'), str_replace(xaxis, 'cal','calorie'), xaxis),
          xaxis = str_to_title(xaxis),
-         xaxis = str_glue('Daily {xaxis} Intake')) %>% 
-  mutate(xaxis = factor(xaxis, levels = c('Daily Caloric Intake','Daily Carb Intake','Daily Sugar Intake','Daily Fiber Intake','Daily Protein Intake','Daily Fat Intake')))
- 
+         xaxis = str_glue('{xaxis}')) %>% 
+  mutate(xaxis = factor(xaxis, levels = c('Calorie','Carb','Sugar','Fiber','Protein','Fat')))
 ```
-
 
 ```{r}
 library(facetscales)
@@ -83,15 +108,17 @@ d_fiber_lim <- max(byday_original$d_fiber)
 d_sugar_lim <- max(byday_original$d_sugar)
 
 scales_x <- list(
-  `Daily Caloric Intake` = scale_x_continuous(limits = c(0, cal_lim), breaks = seq(0, cal_lim, 1)),
-  `Daily Protein Intake` = scale_x_continuous(limits = c(0, protein_lim), breaks = seq(0, protein_lim, 50)),
-  `Daily Fat Intake` = scale_x_continuous(limits = c(0, d_fat_lim), breaks = seq(0, d_fat_lim, 90)),
-  `Daily Carb Intake` = scale_x_continuous(limits = c(0, d_carb_lim), breaks = seq(0, d_carb_lim, 250)),
-  `Daily Fiber Intake` = scale_x_continuous(limits = c(0, d_fiber_lim), breaks = seq(0, d_fiber_lim, 10)),        
-  `Daily Sugar Intake` = scale_x_continuous(limits = c(0, d_sugar_lim), breaks = seq(0, d_sugar_lim, 150) )
+  `Calorie` = scale_x_continuous(limits = c(0, cal_lim), breaks = seq(0, cal_lim, 1)),
+  `Protein` = scale_x_continuous(limits = c(0, protein_lim), breaks = seq(0, protein_lim, 50)),
+  `Fat` = scale_x_continuous(limits = c(0, d_fat_lim), breaks = seq(0, d_fat_lim, 50)),
+  `Carb` = scale_x_continuous(limits = c(0, d_carb_lim), breaks = seq(0, d_carb_lim, 250)),
+  `Fiber` = scale_x_continuous(limits = c(0,d_fiber_lim), breaks = seq(0, d_fiber_lim, 20)),        
+  `Sugar` = scale_x_continuous(limits = c(0, d_sugar_lim), breaks = seq(0, d_sugar_lim, 100) )
 )
+```
 
 
+```{r}
 macro_facets <- macro_panel %>% 
   ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, pch = 19,
              add = "reg.line",  # Add regressin line
@@ -104,21 +131,18 @@ macro_facets <- macro_panel %>%
         panel.background = element_rect(fill = "gray97"),
         panel.grid.major = element_blank(), 
         strip.background = element_blank(),
-       # strip.text = element_blank(),
+        #strip.text = element_blank(),
         panel.grid.minor = element_blank()
        ) 
 
-ggsave('../data/089_b1_sameday_macronutrients_microbiome.pdf', 
-       width = 180, 
+ggsave('../data/150_b2_sameday_macronutrients_microbiome.pdf', 
+       width = 180, height = 150,
        units = c("mm"),
        plot = macro_facets)
-
 ```
-
 ```{r}
 # since I need to annotate the p value of the slope I can't do it in facet wrap
 # need to manually arrange them
-
 # calculate the p value of the slopes
 pvals <- macro_panel %>% 
   split(., list(.$xaxis, .$yaxis)) %>% 
@@ -126,41 +150,5 @@ pvals <- macro_panel %>%
     res = summary(lm(value ~ number, data = df ))
     return(pval = round(res$coefficients[2, 'Pr(>|t|)'], 3))
   })
-# 
-# dfs <- macro_panel %>% 
-#   split(., list(.$xaxis, .$yaxis))
-# 
-# panels <- list()
-# 
-# 
-# for (i in 1: length(dfs)){
-#   panels[[i]] <- dfs[[i]] %>% 
-#   ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, 
-#              add = "reg.line",  # Add regressin line
-#            add.params = list(color = "darkblue", fill = "lightgray"), # Customize line
-#            conf.int = TRUE # Add confidence interval
-#            ) +
-#   theme_classic(base_size = 11) +
-#   theme(aspect.ratio = 1,
-#         panel.grid.major = element_blank(), 
-#         panel.grid.minor = element_blank()
-#        )  +
-#   annotate("text", x = 100, y = 0, label = str_glue("paste(italic(p), \" = {pvals[[i]]}\")"), parse = TRUE)
-# }
-# names(panels) <- names(dfs)
 ```
-
-
-```{r}
-# library(gridExtra)
-# n <- length(dfs)
-# nCol <- 6
-# all <- do.call("grid.arrange", c(panels, ncol=nCol))
-#  
-# ggsave('../figs/paper/S2_sameday_macronutrients_microbiome_089_2.pdf', 
-#        width = 190, 
-#        units = c("mm"),
-#        plot = all)
-```
-
 

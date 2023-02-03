@@ -40,5 +40,34 @@ dtb2_scale <- dtb2_p %>%
 dtb2_scale %>% write_csv('../data/149_finalized_dtb2.csv')
 ```
 
-# Make the batch 2 meta table
+# scale the batch 1 dtb using the updated unit table
+
+```{r}
+dtb1 <- read_csv('../data/146_updated_dtb1.csv')
+
+dtb1_p <- dtb1 %>% 
+  filter(Meal != 'Enteral nutrition') %>% 
+  select(mrn:Unit,fdrt, Por_eaten)
+
+dtb1_scale <- dtb1_p %>% 
+  left_join(unit, by = c("Food_NSC", "Unit")) %>% 
+  # and then scale the correct portion's values
+  mutate(Calories_kcal = Por_eaten * cal_psu,
+         total_weight = Por_eaten * gram_psu,
+         Protein_g = Por_eaten * Protein_psu,
+         Fat_g = Por_eaten * Fat_psu,
+         Carbohydrates_g = Por_eaten * Carbohydrate_psu,
+         Fibers_g = Por_eaten * Fiber_psu,
+         Sugars_g = Por_eaten * Sugars_psu,
+         dehydrated_weight = Por_eaten * dehydrated_psu) %>% 
+  select(-ends_with('psu')) %>% 
+  select(colnames(dtb1))
+
+dtb1_updated <- bind_rows(
+  dtb1_scale,
+  dtb1 %>% filter(Meal == 'Enteral nutrition')
+)
+dtb1_updated %>% write_csv('../data/149_finalized_dtb1.csv')
+
+```
 

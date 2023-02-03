@@ -99,8 +99,4 @@ dtb1_N %>% write_csv('../data/146_updated_dtb1.csv')
 ```
 
 
-```{r}
-# can do some sanity check on the unit table
-
-```
 

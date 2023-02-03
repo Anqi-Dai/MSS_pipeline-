@@ -552,7 +552,5 @@ macronutrients_alpha_main <- post_coeff %>%
 macronutrients_alpha_main %>% 
   write_rds('../data/090_macronutrients_alpha_main.rds')
 ```
-```{r}
-diversity1 <- 
-```
+
 
