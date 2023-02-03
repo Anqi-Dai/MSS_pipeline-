@@ -16,7 +16,7 @@ library(ggpubr)
 
 ```{r}
 stb <- read_rds('../data/137_stb.rds')
-dtb <- read_rds('../data/136_updated_dtb2.rds')
+dtb <- read_csv('../data/149_finalized_dtb2.csv')
 ```
 
 ```{r}
@@ -90,13 +90,15 @@ meta %>% summary()
 #meta %>% write_rds('../data/138_meta2.rds')
 summary(log(meta$simpson_reciprocal))
 sd(log(meta$simpson_reciprocal))
+
+
 ```
 
 
 ```{r}
 # what is the distribution like for normal(2, 0.5)
 
-test <- rnorm(1000, 2, 0.5) 
+test <- rnorm(1000, 2, 0.5)
 
 quantile(test, probs = c(0, 0.25, 0.5, 0.75, 1))
 ```
@@ -132,15 +134,15 @@ get_prior( model_formular,
               data = meta)
 
 priors <- c(# for the food group variables
-            prior(normal(0, 0.8), class = 'b', coef = "fg_egg"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_fruit"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_grain"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_legume"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_meat"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_milk"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_oils"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_sweets"),
-            prior(normal(0, 0.8), class = 'b', coef = "fg_veggie"),
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -148,9 +150,9 @@ priors <- c(# for the food group variables
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(2, 0.3), class = 'b', coef = "intensityreduced"),
-            prior(normal(2, 0.3), class = 'b', coef = "intensityablative"),
-            prior(normal(2, 0.3), class = 'b', coef = "intensitynonablative"))
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
 ```
 
 ```{r}
@@ -300,23 +302,257 @@ ggsave('../data/138_div_post_bi.pdf', width = 3, height = 3, plot = diversity_fa
 ## are the dry weight in batch 1 trust worth here we come the racing game ...
 
 ```{r}
-check1 <-  read_csv('../data/136_check_1_batch_cal.csv') 
-check2 <- read_csv('../data/136_check_2_batch_cal_peter.csv')
-
-# find the overlapped food nsc between the two tables
-length(intersect(check1$Food_NSC, check2$Food_NSC))
-
-check1_ <- check1 %>% 
-  rename(old_cal  = Calories_kcal) %>% 
-  left_join(check2 %>% select(Food_NSC, Por_eaten, Unit, Calories_kcal))
-
-# update the check1 for Peter
-check1new <- check1 %>% 
-  left_join(check2 %>% distinct(Food_NSC, Unit) %>% mutate(grp = 'checked ')) %>% 
-  filter(is.na(grp)) %>% 
-  select(-grp)
-
-check1new %>% write_csv('../data/136_check_1_batch_cal_new.csv')
+# check1 <-  read_csv('../data/136_check_1_batch_cal.csv') 
+# check2 <- read_csv('../data/136_check_2_batch_cal_peter.csv')
+# 
+# # find the overlapped food nsc between the two tables
+# length(intersect(check1$Food_NSC, check2$Food_NSC))
+# 
+# check1_ <- check1 %>% 
+#   rename(old_cal  = Calories_kcal) %>% 
+#   left_join(check2 %>% select(Food_NSC, Por_eaten, Unit, Calories_kcal))
+# 
+# # update the check1 for Peter
+# check1new <- check1 %>% 
+#   left_join(check2 %>% distinct(Food_NSC, Unit) %>% mutate(grp = 'checked ')) %>% 
+#   filter(is.na(grp)) %>% 
+#   select(-grp)
+# 
+# check1new %>% write_csv('../data/136_check_1_batch_cal_new.csv')
 ```
 
+## Macronutrient analysis of the batch 2
+
+```{r}
+## p2d average in macronutrients
+# the daily caloric intake :
+all_daily_pt <- dtb %>%
+  group_by(mrn, fdrt) %>%
+  summarise(total_daily = sum(Calories_kcal))
+
+# the previous two days average for each stool sample
+
+stb_pair <- meta %>%
+  select(mrn, sdrt) %>%
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2)
+
+mean_p2d_cal <-  function(mrn_, p1d_, p2d_){
+  df = all_daily_pt %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_cal = sum(total_daily)/2)
+  return(df)
+}
+
+mean_p2d_df_cal <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_cal(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+# the daily total of each nutrients
+nutrients <- dtb %>%
+  select(mrn, fdrt, Protein_g:Sugars_g) %>%
+  gather('type','gram', Protein_g:Sugars_g) %>%
+  group_by(mrn, fdrt, type) %>%
+  summarise(total_daily = sum(gram)) %>%
+  split(.$type)
+
+mean_p2d_fiber <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Fibers_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_fiber = sum(total_daily)/2)
+  return(df)
+}
+mean_p2d_carb <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Carbohydrates_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_carb = sum(total_daily)/2)
+  return(df)
+}
+
+mean_p2d_fat <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Fat_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_fat = sum(total_daily)/2)
+  return(df)
+}
+mean_p2d_Protein <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Protein_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_Protein = sum(total_daily)/2)
+  return(df)
+}
+mean_p2d_Sugars <-  function(mrn_, p1d_, p2d_){
+  df = nutrients$Sugars_g %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(mrn) %>%
+    summarise(ave_Sugars = sum(total_daily)/2)
+  return(df)
+}
+
+mean_p2d_fiber <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_fiber(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_fat <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_fat(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_Protein <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_Protein(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_Sugars <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_Sugars(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_carb <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_carb(mrn, p1d, p2d)
+  }) %>%
+  set_names(meta %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+p2d_diet <- mean_p2d_df_cal %>%
+  full_join(mean_p2d_fiber, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_fat, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_Protein, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_Sugars, by = c("sampleid", "mrn")) %>%
+  full_join(mean_p2d_carb, by = c("sampleid", "mrn"))
+
+full <- meta %>%
+  full_join(p2d_diet, by = c("sampleid", "mrn")) %>%
+  #full_join(gcts, by = "sampleid") %>%
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>%
+  mutate(mrn = factor(mrn)) %>%
+  mutate(ave_fiber = ave_fiber/100,
+       ave_fat = ave_fat/100,
+       ave_Protein = ave_Protein/100,
+       ave_Sugars = ave_Sugars/100,
+       ave_carb = ave_carb/100,
+       ave_cal = ave_cal/1000
+       )
+```
+
+```{r}
+alpha_macro_fat <- log(simpson_reciprocal) ~ 0 +
+                ave_fiber +
+                ave_fat +
+                ave_Sugars +
+               intensity +
+               EN +
+                TPN +
+                empirical +
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_alpha_macro_fat <- c(
+            # for the macro nutrients
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
+            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+
+# vet the prior 
+model_alpha_macro_fat  <- brm( alpha_macro_fat,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_macro_fat,
+               control = list(adapt_delta = 0.99),
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T)
+
+
+post_res <- suppressWarnings(posterior_samples(model_alpha_macro_fat))
+post_res %>%  write_csv('../data/138_model_alpha_macro_fat_post.csv')
+
+prior_df <- prior_draws(model_alpha_macro_fat) 
+prior_df %>% 
+  write_csv('../data/138_model_alpha_macro_fat_prior.csv')
+```
+
+```{r}
+mean_macro <-  full %>% 
+  select(starts_with('ave_')) %>% 
+  summarise_all(funs(mean))
+
+mean_ave_macro_fat_prior <- prior_draws(model_alpha_macro_fat) %>% 
+  mutate(mean_div = 
+          b_ave_fiber * mean_macro$ave_fiber+
+           b_ave_fat * mean_macro$ave_fat+
+           b_ave_Sugars * mean_macro$ave_Sugars+
+           b_intensityreduced ) %>% 
+  select(mean_div) %>% 
+  mutate(grp = 'mean_macro_fat') %>% 
+  rename(prior_res = mean_div) %>% 
+  select(grp, prior_res)
+
+within_perc <- mean_ave_macro_fat_prior %>% 
+  mutate(within = if_else(  between(prior_res, min(log(full$simpson_reciprocal)), max(log(full$simpson_reciprocal))), T, F) ) %>% 
+  count(within) %>% 
+  mutate(perc = round(n/sum(n)*100, 2))
+  
+```
+```{r}
+# plot the above model post coeff
+post_coeff <- read_csv('../data/138_model_alpha_macro_fat_post.csv') %>% 
+  select(starts_with('b_ave')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+   mutate(item = case_when(
+    item ==  'fiber' ~ 'Fibers',
+    item == 'fat' ~ 'Fat',
+    TRUE ~ item
+  ))  %>% 
+  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+
+macronutrients_alpha_main <- post_coeff %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'Coefficients',
+       y = 'Macronutrients',
+       title = expression(Microbiome~alpha~diversity)) +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=10),
+        aspect.ratio=1)
+
+macronutrients_alpha_main %>% 
+  write_rds('../data/090_macronutrients_alpha_main.rds')
+```
+```{r}
+diversity1 <- 
+```
 

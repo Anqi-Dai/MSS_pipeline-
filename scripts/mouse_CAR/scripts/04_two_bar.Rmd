@@ -1,0 +1,111 @@
+---
+title: "Two samples barplot"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+```
+
+```{r}
+taxa <- read_csv('../data/01_all_metaphlan.csv') 
+
+# 1964A and PH131
+mouse <- taxa %>% 
+  filter(sampleid == 'PH131') %>% 
+  mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(relative_abundance)) %>% 
+  ungroup() %>% 
+  mutate(ge = str_extract(genus, 'g__.+$')) %>% 
+  mutate(ge = str_replace(ge, 'g__',''))
+  
+# human 
+human <- get_counts_subset(c('1964A')) %>% 
+  inner_join(asv_annotation_blast_ag %>% select(asv_key, genus)) %>% 
+  group_by(genus) %>% 
+  summarise(relab = sum(count_relative))
+
+length(intersect(mouse$ge, human$genus))
+
+# give those 36 colors but make the others gray
+shared <- intersect(mouse$ge, human$genus)
+
+# generate the colors
+library(randomcoloR)
+set.seed(123)
+n <- length(shared)
+palette <- distinctColorPalette(n)
+
+
+mouse_df <- mouse %>% 
+  mutate(grp = if_else(ge %in% shared, 'shared', 'no')) %>% 
+  arrange(desc(grp)) %>% 
+  mutate(colors = c(palette, rep('gray',gray_num )))
+
+
+
+human_df <-  human %>% 
+  mutate(grp = if_else(genus %in% shared, 'shared', 'no')) %>% 
+  arrange(desc(grp)) %>% 
+  mutate(colors = c(palette, rep('gray',human_gray )))
+
+
+```
+
+
+
+
+```{r}
+# this is just kinda hard
+mouse_clean <- mouse_df %>% 
+  filter(grp == 'shared') %>% 
+  select(genus = ge, mouse_relab = relab)
+
+shared <- human_df %>% 
+  filter(grp == 'shared') %>% 
+  full_join(mouse_clean)
+
+others <- shared %>% 
+  group_by(grp) %>% 
+  summarise(total_human = sum(relab),
+            total_mouse = sum(mouse_relab)) %>% 
+  mutate(relab = 1- total_human,
+         mouse_relab = 1- total_mouse) %>% 
+  mutate(grp = 'other', colors = 'gray', genus = 'Other') %>% 
+  select(colnames(shared))
+
+combined <- bind_rows(shared, others) %>% 
+  relocate(relab, .after = 'mouse_relab') %>% 
+  gather('organism', 'relab',mouse_relab: relab) %>% 
+  mutate(genus = factor(genus,levels = genus_order)) %>% 
+  mutate(organism = if_else(str_detect(organism, 'mouse'), 'Mouse', "Human"))
+
+pal <- combined %>% 
+  distinct(genus, colors) %>% 
+  deframe
+
+genus_order <- combined %>% 
+  distinct(grp, genus) %>% 
+  arrange(desc(grp)) %>% 
+  pull(genus)
+
+combined_p <- combined  %>% 
+  #filter(genus %in% keepgenera) %>% 
+  ggbarplot(x = 'organism' , y = 'relab', fill = 'genus', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  #facet_wrap(Day ~ fiber, scales = 'free') +
+  scale_fill_manual(values = pal) +
+  theme( axis.text.x = element_text(angle=0, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+
+ggsave('../data/04_combined_p.pdf', plot = combined_p, height = 10, width = 10)
+```
+

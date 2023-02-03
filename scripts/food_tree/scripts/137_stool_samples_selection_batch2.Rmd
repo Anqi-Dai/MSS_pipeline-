@@ -20,7 +20,7 @@ get_table_from_database('samples_castori_ag')
 ```{r}
 ptb <- read_csv('../data/129_new_76_full_patient_info.csv')
 stb_ <- read_csv('../data/130_batch2_pt_stool_samples.csv')
-dtb <- read_rds('../data/136_updated_dtb2.rds')
+dtb <- read_csv('../data/149_finalized_dtb2.csv')
 ```
 
 # selecting stool samples for the patients and also close to diet data

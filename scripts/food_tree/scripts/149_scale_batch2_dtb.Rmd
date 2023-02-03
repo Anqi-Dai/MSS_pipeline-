@@ -1,0 +1,44 @@
+---
+title: "scaling the batch 2 dtb"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+# scale the batch 2 dtb using the updated unit table
+
+```{r}
+dtb2 <- read_rds('../data/136_updated_dtb2.rds') %>% mutate(Food_code = as.numeric(Food_code))
+
+unit <- read_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+
+dtb2_p <- dtb2 %>% 
+  select(mrn:Unit,fdrt, Por_eaten)
+
+dtb2_scale <- dtb2_p %>% 
+  left_join(unit, by = c("Food_NSC", "Unit")) %>% 
+  # and then scale the correct portion's values
+  mutate(Calories_kcal = Por_eaten * cal_psu,
+         total_weight = Por_eaten * gram_psu,
+         Protein_g = Por_eaten * Protein_psu,
+         Fat_g = Por_eaten * Fat_psu,
+         Carbohydrates_g = Por_eaten * Carbohydrate_psu,
+         Fibers_g = Por_eaten * Fiber_psu,
+         Sugars_g = Por_eaten * Sugars_psu,
+         dehydrated_weight = Por_eaten * dehydrated_psu) %>% 
+  select(-ends_with('psu'))
+
+# write out this updated dtb2!!!!
+dtb2_scale %>% write_csv('../data/149_finalized_dtb2.csv')
+```
+
+# Make the batch 2 meta table
+

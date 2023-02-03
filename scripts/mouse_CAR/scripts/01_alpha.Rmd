@@ -14,6 +14,9 @@ library(tidyverse)
 library(ggpubr)
 library(vegan)
 library(lubridate)
+library(vdbR)
+connect_database()
+
 ```
 # decide if the sub-optimal samples are trust worthy
 

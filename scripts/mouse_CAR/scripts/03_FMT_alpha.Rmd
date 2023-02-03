@@ -11,6 +11,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('asv_annotation_blast_ag')
+list_table_from_database()
 ```
 
 ```{r}
@@ -65,7 +71,8 @@ rumino <- taxa %>% filter(str_detect(clade_name, 'Rumino'))
 
 # g__Blautia|s__Ruminococcus_gnavus and g__Blautia|s__Ruminococcus_torques
 # use the family level
-rumino_fam <- taxa %>% filter(str_detect(clade_name, 'f__Ruminococcaceae')) %>% 
+rumino_fam <- taxa %>% 
+  filter(str_detect(clade_name, 'f__Ruminococcaceae')) %>% 
   group_by(sampleid) %>% 
   summarise(rumino_family = sum(relative_abundance)) %>% 
   right_join(FMT, by = "sampleid") %>% 
@@ -87,5 +94,95 @@ rumino_fam %>%
 										correct=FALSE)
 
 ggsave('../data/03_Ruminococcaceae_FMT.pdf', width = 8, height = 6)
+```
+```{r}
+# the above plot but for g__Blautia|s__Ruminococcus_gnavus only
+gnavus <- taxa %>% 
+  filter(str_detect(clade_name, 's__Ruminococcus_gnavus')) %>% 
+  right_join(FMT, by = "sampleid") %>% 
+  mutate(relative_abundance = if_else(is.na(relative_abundance), 0, relative_abundance))
+
+gnavus %>% 
+  filter(!Condition %in% c('Post-FMT 2','5th Week post-CAR T','4th Week post-CAR T')) %>% 
+  #arrange(Date_Collected) %>% 
+  mutate(condition_simple = factor(condition_simple, levels = order_level)) %>% 
+  ggboxplot(x = 'Group', y = 'relative_abundance', add = 'jitter', add.params = list( size = 3),color = 'Group',
+            xlab = '', ylab = 'Ruminococcus_gnavus relative abundance') +
+  scale_color_manual(values = color_key) +
+  facet_grid(. ~ condition_simple, scales = 'free') +
+  theme(axis.text.x=element_text(angle = 90, hjust = 0)) +
+  stat_compare_means(comparisons= list(c('Responder', 'Non-Responder')),
+										label= "p.format",
+										method= 'wilcox.test',
+										correct=FALSE)
+
+ggsave('../data/03_Ruminococcus_gnavus_FMT.pdf', width = 8, height = 6)
+```
+
+```{r}
+# bacterial composition throughout time for responder vs not responder
+genera <- taxa %>% 
+  #filter(!str_detect(clade_name, '^k__Viruses')) %>% 
+  mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(relative_abundance)) %>% 
+  ungroup() %>% 
+  mutate(ge = str_extract(genus, 'g__.+$')) %>%
+  left_join(FMT, by = "sampleid") %>% 
+  mutate(condition_simple = factor(condition_simple, levels = order_level)) %>% 
+  arrange(Date_Collected, Group, Mouse_num) %>% 
+  mutate(sid = str_glue('Condition {condition_simple}: Group {Group}: Mouse {Mouse_num}: {sampleid}')) 
+
+genera %>% distinct(Mouse_num, Group, Condition)
+colnames(genera)
+
+genera %>% 
+  ungroup() %>% 
+  distinct(genus) %>% nrow
+
+# find the genera > 0.1% in more than 10% samples
+#   left 
+keepgenera <- genera %>% 
+  filter(relab > 0.001) %>% 
+  count(genus) %>% 
+  filter(n > floor(nrow(FMT) * 0.1)) %>% 
+  pull(genus)
+```
+
+```{r}
+#to find colors for these features
+library(randomcoloR)
+set.seed(1)
+n <- length(keepgenera)
+palette <- distinctColorPalette(n)
+pie(rep(1, n), col=palette)
+
+# output this palette otherwise another random generated ...
+
+bar_palette <- genera %>%
+  filter(genus %in% keepgenera) %>%
+  distinct(ge) %>%
+  arrange(ge) %>%
+  mutate(color = palette)
+
+bar_palette %>% write_csv('../data/03_genus_bar_palette.csv')
+
+bar_plot_pal <- deframe(bar_palette)
+```
+
+
+```{r}
+# all samples
+genera %>% 
+  filter(genus %in% keepgenera) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'ge', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  #facet_wrap(Day ~ fiber, scales = 'free') +
+  scale_fill_manual(values = bar_plot_pal) +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+ggsave('../data/03_bar_all.pdf', width = 14, height = 7)
+```
+```{r}
+pheno <- read_csv('../data/01_pheno_with_alpha.csv')
 ```
 
