@@ -23,7 +23,7 @@ axis_title_size <- 10
 The microbiota data file (e.g., examples/example_data/microbiota_table.csv) must have a column with sample indices labeled 'index_column'. The remaining columns are expected to be amplicon sequence variant (ASV) labels or operational taxonomic unit (OTU) labels, i.e., the lowest level of taxonomy
 
 ```{r}
-dtb <- read_rds('../data/136_updated_dtb2.rds')
+dtb <- read_csv('../data/149_finalized_dtb2.csv')
 
 # the weight need to be relative so needs to normalize them 
 
@@ -331,21 +331,23 @@ out_combined  %>%
 # what are the top eating foods 
 
 ```{r}
-n_meal <- dtb %>% 
+dtb2 <- read_csv('../data/149_finalized_dtb2.csv')
+n_meal <- dtb2 %>% 
   count(mrn, fdrt, Meal) %>% 
   nrow()
 
-top_grp <- dtb %>% 
+top_grp <- dtb2 %>% 
   mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
   #filter(fgrp1 %in% c('9','6','7','3')) %>% 
   group_by(Food_code, description, fgrp1) %>% 
   summarise(total_per_code = sum(dehydrated_weight)) %>% 
   group_by(fgrp1) %>% 
   arrange(desc(total_per_code), .by_group = T)  %>% 
-  top_n(10) %>% 
+  top_n(3) %>% 
   left_join(key) %>% 
   ungroup() %>% 
-  mutate(gram_per_meal = total_per_code/n_meal)
+  mutate(gram_per_meal = total_per_code/n_meal) %>% 
+  mutate(description = str_sub(description, end = 50))
 
 ggbarplot(top_grp, "description", "gram_per_meal",xlab = '',ylab = 'Per meal average consumption (gram)',
   fill = "shortname", color = "shortname", 
@@ -357,6 +359,6 @@ ggbarplot(top_grp, "description", "gram_per_meal",xlab = '',ylab = 'Per meal ave
         axis.text.y = element_text(size=11),
         legend.title= element_blank())
 
-ggsave('../data/139_top_food_each_group.pdf', width = 15, height = 12)
+ggsave('../data/139_top_food_each_group_b2.png', width = 8, height = 6)
 ```
 

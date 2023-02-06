@@ -14,9 +14,6 @@ library(tidyverse)
 library(ggpubr)
 ```
 
-
-
-
 # please summarize how many patients and samples were exposed to our list of key antibiotics in batch 1 vs batch2 and list the antibiotics.
 
 The list of antibiotics: 'vancomycin', 'imipenem_cilastatin','meropenem','ertapenem', 'cefepime', 'linezolid','metronidazole','piperacillin_tazobactam'
@@ -159,21 +156,41 @@ out %>%
 # please plot fecal alpha diversity over time from both batch 1 and batch 2 side by side (can be faceted or on the same plot).
 
 ```{r}
-meta1 <- meta
+meta1  <- meta 
 meta2 <- read_rds('../data/137_stb.rds')
 
 stb_both <- bind_rows(
-  meta1 %>% select(sampleid, sdrt, simpson_reciprocal ) %>% mutate(batch = 'batch1'),
-  meta2 %>% select(sampleid, sdrt, simpson_reciprocal ) %>% mutate(batch = 'batch2')
+  meta1 %>% select(sampleid, sdrt, simpson_reciprocal, intensity, mrn ) %>% mutate(batch = 'batch1'),
+  meta2 %>% select(sampleid, sdrt, simpson_reciprocal , intensity, mrn) %>% mutate(batch = 'batch2')
 )
 
 stb_both %>% 
   ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = 0.5, size = 1, color = 'batch',palette = 'nejm',
             xlab = 'Day relative to HCT', shape = 'triangle',
-            ylab = expression(Microbiome~alpha~diversity),
-            title = expression(Microbiome~alpha~diversity),
+            ylab = 'Microbiome alpha diversity',
+            title = 'Microbiome alpha diversity',
             add = "loess", conf.int = TRUE, 
             add.params = list(color = 'batch',  size = 1)) +
   theme(aspect.ratio=1, legend.position = 'right') 
+```
+```{r}
+# split then to two panels each to different conditioning intensity
+stb_both %>% 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = 0.5, size = 1, color = 'intensity',palette = 'lancet',
+            facet.by = 'batch',
+            xlab = 'Day relative to HCT', shape = 'triangle',
+            ylab = 'Microbiome alpha diversity',
+            title = 'Microbiome alpha diversity',
+            add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'intensity',  size = 1)) +
+  #facet_grid(~ batch) +
+  theme(aspect.ratio=1, legend.position = 'right') 
+
+stb_both %>% 
+  count(batch)
+
+stb_both %>% 
+  distinct(mrn, batch) %>% 
+  count(batch)
 ```
 
