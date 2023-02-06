@@ -67,6 +67,8 @@ ggsave('../data/03_PH_alpha_FMT.pdf', width = 8, height = 6)
 taxa <- read_csv('../data/01_all_metaphlan.csv') %>% 
   filter(sampleid %in% FMT$sampleid)
 
+all <- read_csv('../data/01_all_metaphlan.csv')
+
 rumino <- taxa %>% filter(str_detect(clade_name, 'Rumino'))
 
 # g__Blautia|s__Ruminococcus_gnavus and g__Blautia|s__Ruminococcus_torques
@@ -97,17 +99,17 @@ ggsave('../data/03_Ruminococcaceae_FMT.pdf', width = 8, height = 6)
 ```
 ```{r}
 # the above plot but for g__Blautia|s__Ruminococcus_gnavus only
-gnavus <- taxa %>% 
-  filter(str_detect(clade_name, 's__Ruminococcus_gnavus')) %>% 
+bromii <- taxa %>% 
+  filter(str_detect(clade_name, 's__Ruminococcus_bromii')) %>% 
   right_join(FMT, by = "sampleid") %>% 
   mutate(relative_abundance = if_else(is.na(relative_abundance), 0, relative_abundance))
 
-gnavus %>% 
+bromii %>% 
   filter(!Condition %in% c('Post-FMT 2','5th Week post-CAR T','4th Week post-CAR T')) %>% 
   #arrange(Date_Collected) %>% 
   mutate(condition_simple = factor(condition_simple, levels = order_level)) %>% 
   ggboxplot(x = 'Group', y = 'relative_abundance', add = 'jitter', add.params = list( size = 3),color = 'Group',
-            xlab = '', ylab = 'Ruminococcus_gnavus relative abundance') +
+            xlab = '', ylab = 'Ruminococcus_bromii relative abundance') +
   scale_color_manual(values = color_key) +
   facet_grid(. ~ condition_simple, scales = 'free') +
   theme(axis.text.x=element_text(angle = 90, hjust = 0)) +
@@ -116,12 +118,12 @@ gnavus %>%
 										method= 'wilcox.test',
 										correct=FALSE)
 
-ggsave('../data/03_Ruminococcus_gnavus_FMT.pdf', width = 8, height = 6)
+ggsave('../data/03_Ruminococcus_bromii_FMT.pdf', width = 8, height = 6)
 ```
 
 ```{r}
 # bacterial composition throughout time for responder vs not responder
-genera <- taxa %>% 
+genera <- all %>% 
   #filter(!str_detect(clade_name, '^k__Viruses')) %>% 
   mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
   group_by(sampleid, genus) %>% 
@@ -147,6 +149,8 @@ keepgenera <- genera %>%
   count(genus) %>% 
   filter(n > floor(nrow(FMT) * 0.1)) %>% 
   pull(genus)
+
+keepgenera <- genera %>% distinct(ge)
 ```
 
 ```{r}
@@ -168,6 +172,8 @@ bar_palette <- genera %>%
 bar_palette %>% write_csv('../data/03_genus_bar_palette.csv')
 
 bar_plot_pal <- deframe(bar_palette)
+
+bar_plot_pal <- read_csv('../data/03_genus_bar_palette.csv') %>% deframe
 ```
 
 
@@ -184,5 +190,30 @@ ggsave('../data/03_bar_all.pdf', width = 14, height = 7)
 ```
 ```{r}
 pheno <- read_csv('../data/01_pheno_with_alpha.csv')
+```
+
+```{r}
+# the few samples 
+few <- all %>% 
+  filter(sampleid %in% c('PH18','PH19','PH20','PH21','PH22','PH23', 'PH24', 'PH25', 'PH26', 'PH131')) %>% 
+  mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(relative_abundance)) %>% 
+  ungroup() %>% 
+  mutate(ge = str_extract(genus, 'g__.+$')) %>%
+  left_join(FMT, by = "sampleid") %>% 
+  mutate(condition_simple = factor(condition_simple, levels = order_level)) %>% 
+  arrange(Date_Collected, Group, Mouse_num) %>% 
+  mutate(sid = str_glue('Condition {condition_simple}: Group {Group}: Mouse {Mouse_num}: {sampleid}')) 
+
+few %>% 
+  filter(genus %in% keepgenera) %>% 
+  ggbarplot(x = 'sid', y = 'relab', fill = 'ge', color = 'white' , xlab = '', ylab = 'Relative abundance') +
+  #facet_wrap(Day ~ fiber, scales = 'free') +
+  scale_fill_manual(values = bar_plot_pal) +
+  theme( axis.text.x = element_text(angle=90, hjust=0, size = 6.5),
+         legend.position = 'bottom') 
+
+ggsave('../data/03_bar_few.pdf', width = 14, height = 7)
 ```
 

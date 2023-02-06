@@ -1,0 +1,149 @@
+---
+title: "the CS samples"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_alpha_diversity_ag')
+get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_annotation_blast_color_ag')
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+# all CS samples
+all <- asv_alpha_diversity_ag %>% 
+  filter(str_detect(sampleid, '^CS'))
+
+pheno1 <- read_csv('../data/CS_experi1.csv')
+
+day30 <- pheno1 %>% 
+  filter(str_detect(Date_Collected, '30')) 
+
+color_key <- day30 %>% 
+  distinct(Condition) %>% 
+  mutate(color = c('#42B440','orange')) %>% 
+  deframe()
+
+alpha30 <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% day30$sampleid)
+
+alpha1 <- day30 %>% full_join(alpha30)
+
+alpha1 %>% 
+  ggboxplot(x = 'Condition', y = 'simpson_reciprocal', add = 'jitter', color = 'Condition', add.params = list(size = 3))  +
+  scale_color_manual(values = color_key) +
+  stat_compare_means() 
+
+ggsave('../data/05_d30_alpha.pdf', width = 4, height = 4)
+
+```
+
+```{r}
+# all of the days alpha plot
+alpha <- asv_alpha_diversity_ag %>% 
+  filter(sampleid %in% pheno1$sampleid)
+
+pheno1_all <- pheno1 %>% 
+  full_join(alpha ) %>% 
+  select(Mouse_num:count_total)
+
+pheno1_all %>% 
+  ggboxplot(x = 'Condition', y = 'simpson_reciprocal', add = 'jitter', facet.by = 'Date_Collected',
+            color = 'Condition', add.params = list(size = 3))  +
+  scale_color_manual(values = color_key) +
+  stat_compare_means() 
+
+ggsave('../data/05_all_pheno1.pdf', width = 6, height = 4)
+```
+
+
+```{r}
+# the bar plot
+counts_data <- get_counts_subset(pheno1$sampleid)
+
+dat <- counts_data %>% 
+  select(asv_key:count_total, count_relative) %>% 
+  left_join(asv_annotation_blast_color_ag %>% 
+              select(asv_key,color_label_group_distinct), by = "asv_key") %>% 
+  left_join(pheno1, by = "sampleid")
+
+asv_color_set <- asv_annotation_blast_color_ag %>% 
+  distinct(color,color_label_group_distinct,color_label_group,color_base) %>% 
+  select(color_label_group_distinct, color) %>% 
+  deframe()
+```
+
+```{r}
+stacked_bar <- ggplot(dat,aes(sampleid, count_relative, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  theme_classic() +
+  labs(title = '',
+       x = '',
+       y = 'Relative abundance') +
+  facet_grid(Condition ~ Date_Collected, scales = 'free') +
+  theme(axis.text.x = element_text(angle=90, hjust=1),
+        legend.position = "none") +
+  scale_fill_manual(values = asv_color_set)
+
+ggsave('../data/05_stacked_bar_pheno1.pdf', width = 8, height = 6)
+```
+
+```{r}
+pheno2 <- read_csv('../data/CS_pheno2.csv') %>% 
+  mutate(grp = if_else(str_detect(Condition, 'C$'), 'Control', 'High fat'),
+         donor = case_when(
+           str_detect(Condition, '1') ~ 'Donor1',
+           str_detect(Condition, '2') ~ 'Donor2',
+           str_detect(Condition, '3') ~ 'Donor3'
+         )) %>% 
+  left_join(asv_alpha_diversity_ag %>% select(sampleid, oligos_id))
+
+
+cts <- get_counts_subset(pheno2$sampleid)
+
+keepa <- cts %>% 
+  filter(count_relative > 0.0001) %>% 
+  count(asv_key) %>% 
+  filter(n > floor(nrow(pheno2) * 0.25)) %>% 
+  pull(asv_key)
+```
+
+```{r}
+cts_fil <- cts %>% 
+  filter(asv_key %in% keepa) %>% 
+  select(sampleid, asv_key,count_relative ) %>% 
+  spread(key = 'asv_key', value = 'count_relative', fill = 0) %>% 
+  column_to_rownames('sampleid')
+
+library(vegan)
+dist_ <- vegdist(cts_fil, method = 'bray')
+eigen <- pcoa(dist_)$values$Eigenvalues
+percent_var <- signif(eigen/sum(eigen), 3)*100
+bc <- cmdscale(dist_, k = 2)
+bc %>%
+  as.data.frame() %>%
+  rownames_to_column('sampleid') %>% 
+  ungroup() %>% 
+  inner_join(pheno2) %>% 
+  distinct() %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'donor', shape = 'grp') +
+  labs(title = 'PCOA of 1 Week After Diet + Gavage\nfrom three donors') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]"))  +
+  theme(aspect.ratio = 1,
+        legend.position = 'right')
+  #theme_void() +
+ggsave('../data/05_PCOA(bray-curtis) of three donors.pdf', width = 4, height = 4)
+```
+
