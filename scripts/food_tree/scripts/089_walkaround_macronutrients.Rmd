@@ -25,7 +25,7 @@ dtb1 <- read_csv('../data/149_finalized_dtb1.csv')
 full <- read_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv')
 
 
-byday_original <- dtb1 %>% 
+byday_original1 <- dtb1 %>% 
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal),
             d_protein = sum(Protein_g),
@@ -36,7 +36,7 @@ byday_original <- dtb1 %>%
   rename(drt = fdrt) %>% 
   inner_join(full %>% 
                rename(drt = sdrt) %>% 
-               select(mrn,drt, simpson_reciprocal,  Blautia, Enterococcus), by = c("mrn", "drt")) %>% 
+               select(mrn,drt, simpson_reciprocal,  Blautia, Enterococcus, intensity), by = c("mrn", "drt")) %>% 
   ungroup()
 
 ```
@@ -163,4 +163,15 @@ pvals <- macro_panel %>%
 #        plot = all)
 ```
 
+
+```{r}
+# number of meals
+s1 <-  dtb1 %>% 
+  distinct(mrn, Meal, fdrt)
+
+dtb2 <-read_csv('../data/149_finalized_dtb2.csv')
+
+ dtb2 %>% 
+  distinct(mrn, Meal, fdrt)
+```
 

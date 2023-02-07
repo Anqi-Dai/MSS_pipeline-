@@ -53,7 +53,7 @@ genus %>%
 ```
 
 ```{r}
-byday_original <- dtb2 %>% 
+byday_original2 <- dtb2 %>% 
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal),
             d_protein = sum(Protein_g),
@@ -66,6 +66,9 @@ byday_original <- dtb2 %>%
                inner_join(stb2 %>% select(sampleid, drt = sdrt, mrn, simpson_reciprocal, intensity)), 
              by = c("mrn", "drt")) %>% 
   ungroup()
+
+
+byday_original <- bind_rows(byday_original1, byday_original2)
 ```
 
 ```{r}
@@ -183,7 +186,7 @@ split3 <- byday_original %>%
       res = summary(lm(value ~ number, data = .x ))
       pval = round(res$coefficients[2, 'Pr(>|t|)'], 3)
       
-      ggscatter(data = .x,x = 'number', y = 'value', alpha = 0.3, xlab ='', 
+      ggscatter(data = .x,x = 'number', y = 'value', alpha = 0.1, xlab ='', 
                 ylab = '',size = 1.2, pch = 19, title =  str_glue('{.y}\nP-val: {pval}'),
                  add = "reg.line",  # Add regressin line
                add.params = list(color = "darkblue", fill = "gray59"), # Customize line
@@ -214,9 +217,9 @@ g <- cowplot::plot_grid(ablatives[[1]],ablatives[[2]],ablatives[[3]],ablatives[[
     ncol = 6,
     o = 'hv',labels = 'Ablative',label_y = -2,
     #labels = 'AUTO',
-    axis = 'bltr') 
+    axis = 'bltr')  
 
-ggsave(str_glue('../data/150_sameday_b2_conditioning_ablative.jpg'), width = 12, height = 8,  plot = g)
+ggsave(str_glue('../data/151_sameday__conditioning_ablative.jpg'), width = 12, height = 8,  plot = g)
 
 
 ```
@@ -231,7 +234,7 @@ g <- cowplot::plot_grid(nonablative[[1]],nonablative[[2]],nonablative[[3]],nonab
     #labels = 'AUTO',
     axis = 'bltr') 
 
-ggsave(str_glue('../data/150_sameday_b2_conditioning_nonablative.jpg'), width = 12, height = 8,  plot = g)
+ggsave(str_glue('../data/151_sameday__conditioning_nonablative.jpg'), width = 12, height = 8,  plot = g)
 ```
 ```{r}
 reduced <- split3[['reduced']]
@@ -242,6 +245,6 @@ g <- cowplot::plot_grid(reduced[[1]],reduced[[2]],reduced[[3]],reduced[[4]],redu
     #labels = 'AUTO',
     axis = 'bltr') 
 
-ggsave(str_glue('../data/150_sameday_b2_conditioning_reduced.jpg'), width = 12, height = 8,  plot = g)
+ggsave(str_glue('../data/151_sameday__conditioning_reduced.jpg'), width = 12, height = 8,  plot = g)
 ```
 
