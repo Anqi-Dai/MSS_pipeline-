@@ -1,0 +1,73 @@
+---
+title: "p2d food code intake"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+meta1 <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') 
+stb1 <- meta1 %>% 
+  select(sampleid, mrn:intensity,sdrt: EN) %>% select(-timebin)
+
+stb2 <- read_rds('../data/137_stb.rds') %>% 
+  select(colnames(stb1))
+
+dtb1 <- read_csv('../../food_tree/data/149_finalized_dtb1.csv')
+dtb2 <- read_csv('../../food_tree/data/149_finalized_dtb2.csv')
+
+DTB <- bind_rows(dtb1, dtb2) %>% 
+  mutate(pid = str_glue('P{as.numeric(as.factor(mrn))}')) %>% 
+  mutate(batch = if_else(mrn %in% dtb1$mrn, 'batch1', 'batch2')) %>% 
+  select(-food_all)
+
+DTB %>% write_csv('../data/152_combined_DTB.csv')
+
+# a table for the pid and the mrn 
+DTB %>% select(mrn, pid) %>% distinct() %>% write_csv('../data/152_pid_match.csv')
+```
+
+
+```{r}
+STB <- bind_rows(stb1, stb2) %>% 
+  inner_join(DTB %>% select(mrn, pid) %>% distinct()) %>% 
+  mutate(batch = if_else(sampleid %in% stb1$sampleid, 'batch1', 'batch2'))
+
+STB %>% write_csv('../data/152_combined_STB.csv')
+
+stb_pair <- STB %>%  
+  select(mrn, sdrt) %>% 
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2) 
+
+DTB_each_code <- DTB %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(food_code_total = sum(dehydrated_weight))
+
+mean_p2d_each_code_diet <-  function(mrn_, p1d_, p2d_){
+  df = DTB_each_code %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(Food_code) %>% 
+    summarise(ave_code = sum(food_code_total)/2)
+  return(df)
+}
+
+
+mean_p2d_each_code_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_each_code_diet(mrn, p1d, p2d)
+  }) %>% 
+  set_names(STB %>% pull(sampleid)) %>% 
+  bind_rows(.id = 'sampleid')
+```
+
