@@ -1,0 +1,44 @@
+---
+title: "eight versions of panel L"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+# unit <- read_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+# 
+# unit %>% 
+#   mutate(protein_per_g = Protein_psu/dehydrated_psu,
+#          fat_per_g = Fat_psu/dehydrated_psu,
+#          Carbohydrate_per_g = Carbohydrate_psu/dehydrated_psu,
+#          Fiber_per_g = Fiber_psu/dehydrated_psu,
+#          Sugars_per_g = Sugars_psu/dehydrated_psu) %>% 
+#   distinct(protein_per_g,fat_per_g, Carbohydrate_per_g,  Fiber_per_g, Sugars_per_g, .keep_all = T) %>% 
+#   select(Food_NSC:description, ends_with('per_g')) %>% 
+#   write_csv('../data/154_for_will_pergram_macronutrients.csv')
+```
+
+in combined batch 1 and batch 2
+  same-day vs 2-days prior (2 settings)
+  entire cohort vs MAC vs RIC vs NMA (4 settings)
+
+8 versions of panel L
+
+for meeting with Marcel
+
+have the script annotate with both Spearman and lm p values
+
+```{r}
+
+```
+
