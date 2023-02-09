@@ -220,3 +220,200 @@ META_mod %>%
   })
 ```
 
+# plot the results
+
+```{r}
+test <- read_csv('../data/153_model_fg_post_all2.csv')
+```
+
+```{r}
+plot_all_diversity_results <- function(fn, post_df_name){
+  post_df <- read_csv(fn)
+  post_coeff <- post_df %>% 
+        select(starts_with('b_fg')) %>% 
+        gather('item', 'coeff') %>% 
+        mutate(item = str_replace(item, 'b_fg_','')) %>% 
+         mutate(fgrp1 = case_when(
+          item ==  'milk' ~ '1',
+          item == 'meat' ~ '2',
+          item ==  'egg' ~ '3',
+          item ==  'legume' ~ '4',
+          item == 'grain' ~ '5',
+          item == 'fruit' ~ '6',
+          item == 'veggie' ~ '7',
+          item ==  'oils' ~ '8', 
+          item ==  'sweets' ~ '9'
+        ))  %>% 
+        left_join(key %>% select(fgrp1, color, shortname))  %>% 
+        mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
+      
+      fg_labels <- levels(post_coeff$shortname)
+      
+      
+      cross0 <- post_coeff %>%
+        group_by(item) %>% 
+        summarise(q2.5 = quantile(coeff, probs = 0.025),
+                  q97.5 = quantile(coeff, probs = 0.975)) %>% 
+        mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+      
+      div_post <- post_coeff %>% 
+        left_join(cross0) %>% 
+        ggplot(aes(x = coeff, y = shortname)) +
+        stat_pointinterval(.width = c(.66, .95)) +
+        geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+        labs(x = 'ln(diversity) change per 100g of food',
+             y = '', 
+             title = 'Diversity') +
+        theme_classic() +
+        theme(legend.position = 'none') +
+       # scale_color_manual(values = c("gray40", "#EC0000")) +
+        theme(axis.text=element_text(size=8, color  = 'black'),
+              axis.title=element_text(size=8),
+              aspect.ratio=1)
+      
+      coeff_bi <- post_df %>% 
+        select(starts_with('b_')) %>% 
+        select(!starts_with('b_fg')) %>% 
+        gather('item', 'coeff') %>% 
+        mutate(item_name = case_when(
+          item ==  'b_intensitynonablative' ~ 'Intensity: nonablative',
+          item == 'b_intensityablative' ~ 'Intensity: ablative',
+          item ==  'b_intensityreduced' ~ 'Intensity: reduced',
+          item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+          item == 'b_TPNTRUE' ~ 'TPN exposure',
+          item ==  'b_ENTRUE' ~ 'EN exposure'
+        )) %>% 
+        mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
+                                                        'Intensity: ablative', 'TPN exposure','EN exposure',
+                                                        'Empirical abx exposure'))) %>% 
+        mutate(grp = if_else(str_detect(item_name, 'Intensity'), 'Patient level', 'Sample level'))
+      
+      # modify it to be the look that we have discussed
+      diversity_factor <- coeff_bi %>% 
+        ggplot(aes(x = coeff, y = item_name)) +
+        stat_pointinterval(.width = c(.66, .95)) +
+        #scale_color_manual(values = c('#EC0000','#00468B')) +
+        geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+        facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+        labs(x = 'Coefficients',
+             y = 'Factor variables',
+             title = 'Diversity') +
+        theme_classic() +
+        theme(legend.position = 'none',
+              strip.background = element_blank(),
+              strip.text = element_blank(),
+              axis.text=element_text(size=8, color  = 'black'),
+              axis.title=element_text(size=8),
+              aspect.ratio=1/2) 
+      
+      res = cowplot::plot_grid(div_post, diversity_factor, nrow = 1, align = 'tblr', axis = 'hv' )
+      ggsave(str_glue('../data/153_post_combined_{post_df_name}.pdf'), width = 8, height = 6)
+}
+```
+
+```{r}
+fns <- c('../data/153_model_fg_post_all2.csv','../data/153_model_fg_post_batch1.csv','../data/153_model_fg_post_batch2.csv')
+
+namesfns <- c('all2','batch1','batch2')
+names(fns) <- namesfns
+
+fns %>% 
+  imap(function(.x, .y){
+    plot_all_diversity_results(.x, .y)
+  })
+```
+
+```{r}
+plot_split_res <- function(fn, df_name){
+ post_df <- read_csv(fn)
+ post_coeff <- post_df %>% 
+        select(starts_with('b_fg')) %>% 
+        gather('item', 'coeff') %>% 
+        mutate(item = str_replace(item, 'b_fg_','')) %>% 
+         mutate(fgrp1 = case_when(
+          item ==  'milk' ~ '1',
+          item == 'meat' ~ '2',
+          item ==  'egg' ~ '3',
+          item ==  'legume' ~ '4',
+          item == 'grain' ~ '5',
+          item == 'fruit' ~ '6',
+          item == 'veggie' ~ '7',
+          item ==  'oils' ~ '8', 
+          item ==  'sweets' ~ '9'
+        ))  %>% 
+        left_join(key %>% select(fgrp1, color, shortname))  %>% 
+        mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
+      
+      fg_labels <- levels(post_coeff$shortname)
+      
+      
+      cross0 <- post_coeff %>%
+        group_by(item) %>% 
+        summarise(q2.5 = quantile(coeff, probs = 0.025),
+                  q97.5 = quantile(coeff, probs = 0.975)) %>% 
+        mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+      
+      div_post <- post_coeff %>% 
+        left_join(cross0) %>% 
+        ggplot(aes(x = coeff, y = shortname)) +
+        stat_pointinterval(.width = c(.66, .95)) +
+        geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+        labs(x = 'ln(diversity) change per 100g of food',
+             y = '', 
+             title = 'Diversity') +
+        theme_classic() +
+        theme(legend.position = 'none') +
+       # scale_color_manual(values = c("gray40", "#EC0000")) +
+        theme(axis.text=element_text(size=8, color  = 'black'),
+              axis.title=element_text(size=8),
+              aspect.ratio=1)
+      
+      coeff_bi <- post_df %>% 
+        select(starts_with('b_')) %>% 
+        select(!starts_with('b_fg')) %>% 
+        gather('item', 'coeff') %>% 
+        mutate(item_name = case_when(
+          item ==  'b_Intercept' ~ 'Intercept',
+          item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+          item == 'b_TPNTRUE' ~ 'TPN exposure',
+          item ==  'b_ENTRUE' ~ 'EN exposure'
+        )) %>% 
+        mutate(item_name = factor(item_name, levels = c('Intercept',  'TPN exposure','EN exposure',
+                                                        'Empirical abx exposure'))) %>% 
+        mutate(grp = if_else(str_detect(item_name, 'Intercept'), 'Patient level', 'Sample level'))
+      
+      # modify it to be the look that we have discussed
+      diversity_factor <- coeff_bi %>% 
+        ggplot(aes(x = coeff, y = item_name)) +
+        stat_pointinterval(.width = c(.66, .95)) +
+        #scale_color_manual(values = c('#EC0000','#00468B')) +
+        geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+        facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+        labs(x = 'Coefficients',
+             y = 'Factor variables',
+             title = 'Diversity') +
+        theme_classic() +
+        theme(legend.position = 'none',
+              strip.background = element_blank(),
+              strip.text = element_blank(),
+              axis.text=element_text(size=8, color  = 'black'),
+              axis.title=element_text(size=8),
+              aspect.ratio=1/2) 
+      
+      res = cowplot::plot_grid(div_post, diversity_factor, nrow = 1, align = 'tblr', axis = 'hv' )
+      ggsave(str_glue('../data/153_post_conditioning_{df_name}.pdf'), width = 8, height = 6)
+}
+tibble(
+  fn = list.files('../data/', pattern = '153_model_fg_post_conditioning', full.names = T)
+) %>% mutate(names = str_replace(fn, '../data//153_model_fg_post_','')) %>% 
+  select(names, fn) %>% 
+  deframe %>% 
+  imap(function(.x, .y){
+    plot_split_res(.x, .y)
+  })
+
+
+
+
+```
+
