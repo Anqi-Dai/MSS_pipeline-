@@ -69,5 +69,15 @@ mean_p2d_each_code_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   }) %>% 
   set_names(STB %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid')
+
+each_code <- mean_p2d_each_code_df %>% 
+  spread('Food_code', 'ave_code', fill = 0) %>% 
+  full_join(STB, by = "sampleid") %>% 
+  select(-mrn)
+
+each_code %>% write_csv('../data/152_each_food_code_p2d_ave_intake_both_batches.csv')
+
+DTB %>% 
+  distinct(Food_code, description) %>% write_csv('../data/152_each_food_code_description.csv')
 ```
 

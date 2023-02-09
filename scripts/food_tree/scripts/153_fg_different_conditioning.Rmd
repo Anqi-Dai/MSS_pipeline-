@@ -1,0 +1,222 @@
+---
+title: "food groups to different conditioning"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(brms)   
+library(tidybayes)
+library(cowplot)
+theme_set(theme_tidybayes() + panel_border())
+ncores <- parallel::detectCores()
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
+```
+
+```{r}
+meta2 <- read_csv('../data/153_meta2.csv') %>% 
+  select(sampleid:fg_veggie)
+
+STB <- read_csv('../data/152_combined_STB.csv')
+
+meta1 <- read_csv('../data/046_meta1.csv') %>% 
+  select(sampleid:fg_veggie)
+
+META <- bind_rows(meta1, meta2) %>% 
+  full_join(STB, by = "sampleid") %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left'))
+
+META %>% write_csv('../data/153_combined_META.csv')
+```
+
+```{r}
+# histogram of the alpha of two batches along time
+META %>% 
+  gghistogram( x = 'simpson_reciprocal', bins = 50) +
+  facet_grid(batch~ intensity)
+
+ggsave('../data/153_alpha_conditioning.pdf')
+
+META %>% 
+  ggboxplot( x = 'timebin', y = 'simpson_reciprocal', add = 'jitter') +
+  facet_grid(batch~ intensity) +
+  theme(axis.text.x = element_text(angle = 90)) 
+ggsave('../data/153_timebin_alpha.pdf', width = 10)
+
+```
+
+# the function that takes a df of *meta* and then saves the prior and the post df
+
+```{r}
+model_formular <- log(simpson_reciprocal) ~ 0 + 
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               intensity +
+               empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+
+priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+```
+
+
+```{r}
+run_fg_model <- function(meta_df, meta_df_name) {
+  model_div = brm( model_formular,  
+              data = meta_df, 
+              warmup = 1000, iter = 3000, 
+              prior = priors,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T) 
+  
+  post_res = suppressWarnings(posterior_samples(model_div))
+  post_res %>%  write_csv(str_glue('../data/153_model_fg_post_{meta_df_name}.csv'))
+  prior_df <- prior_draws(model_div) 
+  prior_df %>% write_csv(str_glue('../data/153_model_fg_prior_{meta_df_name}.csv'))
+}
+
+
+```
+
+```{r}
+META_mod <- META %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100)
+```
+
+```{r}
+# pooled two batches 
+test <- run_fg_model(META_mod, 'all2')
+
+# each batch individually
+META_mod %>% 
+  split(.$batch) %>% 
+  imap(function(.x, .y){
+    run_fg_model(.x, .y)
+  })
+```
+
+```{r}
+model_formular_for_each_conditioning_level <-  log(simpson_reciprocal) ~ 
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               #intensity +
+               empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+
+priors_without_conditioning <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(2, 0.1), class = 'Intercept'))
+
+run_fg_model_for_each_conditioning_level <- function(meta_df, meta_df_name) {
+  model_div = brm( model_formular_for_each_conditioning_level,  
+              data = meta_df, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_without_conditioning,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T) 
+  
+  post_res = suppressWarnings(posterior_samples(model_div))
+  post_res %>%  write_csv(str_glue('../data/153_model_fg_post_conditioning_{meta_df_name}.csv'))
+  prior_df <- prior_draws(model_div) 
+  prior_df %>% write_csv(str_glue('../data/153_model_fg_prior_conditioning_{meta_df_name}.csv'))
+}
+
+get_prior(model_formular_for_each_conditioning_level, data = META_mod)
+```
+
+
+```{r}
+# pooled two batches and split on conditioning
+META_mod %>% 
+  split(.$intensity) %>% 
+  imap(function(.x, .y){
+    run_fg_model_for_each_conditioning_level(.x, .y)
+  })
+```
+
+```{r}
+# split on conditioning for each batch 
+META_mod %>% 
+  split(., list(.$batch, .$intensity)) %>% 
+  imap(function(.x, .y){
+    run_fg_model_for_each_conditioning_level(.x, .y)
+  })
+```
+
