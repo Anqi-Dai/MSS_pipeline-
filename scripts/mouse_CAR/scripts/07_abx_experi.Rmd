@@ -1,0 +1,83 @@
+---
+title: "abx experiment"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_annotation_blast_color_ag')
+```
+
+```{r}
+abx <- read_csv('../data/abx_experiment_pheno.csv') %>% 
+  inner_join(meta_mouse)  %>% # 26 samples 
+  mutate(grp = if_else(Group == '1B', 'control', 'treatment'))
+
+abx %>% write_csv('../data/abx_experiment_pheno_alpha.csv')
+```
+
+```{r}
+abx %>% 
+  ggboxplot( x = 'grp', y = 'inv', add = 'jitter',ylab = 'alpha diversity' ,
+             add.params = list(color = 'grp', size = 2)) +
+  facet_grid( ~ Condition) +
+  scale_color_manual(values = c('#42B440','#EC0000')) +
+  theme(axis.text.x = element_text(angle = 90))
+
+ggsave('../data/07_abx_experiment_alpha.pdf', height = 5)
+```
+```{r}
+# the bar plot using the same palette
+all  <- read_csv('../data/01_all_metaphlan.csv')
+
+genus_ <- all %>% 
+  mutate(genus = str_replace(clade_name, '\\|s__.+$','')) %>% 
+  group_by(sampleid, genus) %>% 
+  summarise(relab = sum(relative_abundance)) %>% 
+  ungroup() %>% 
+  mutate(ge = str_extract(genus, 'g__.+$'),
+         genus = str_replace(ge, 'g__', '')) %>% 
+  inner_join(abx) %>% 
+  select(-ge) %>% 
+  mutate(genus_cleaned = if_else(genus %in% asv_annotation_blast_color_ag$genus, genus, 'Other')) 
+
+# the genus that can find color in the 16s pal
+pals <- asv_annotation_blast_color_ag %>% 
+  filter(genus %in% genus_$genus) %>% 
+  distinct(genus,color_label_group_distinct, color) %>% 
+  add_row(genus = 'Other', color_label_group_distinct = 'other__other.164', color = '#BBBBBB') %>% 
+  rename(genus_cleaned = genus)
+
+genus_df <- genus_ %>% 
+  left_join(pals, by = "genus_cleaned")
+
+color_set <- pals %>% 
+  select(color_label_group_distinct, color) %>% 
+  deframe()
+```
+
+```{r}
+genus_df %>% 
+  ggplot(aes(sampleid, relab, fill = color_label_group_distinct) ) +
+  geom_bar(stat = "identity", position="fill", width = 1) +
+  theme_classic() +
+  labs(title = '',
+       x = '',
+       y = 'Relative abundance') +
+  theme(axis.text.x = element_text(angle = 90),
+        legend.position = "none") +
+  scale_fill_manual(values = color_set) +
+  facet_grid(grp ~ Condition, scales = 'free') 
+
+ggsave('../data/07_abx_bar.pdf', width = 5, height = 4)
+```
+

@@ -19,13 +19,15 @@ get_table_from_database('shotgun_lookup_ad')
 ```{r}
 shotgun <- read_csv('../data/final_comprehensive_UPDATED_simple.csv') %>% 
   inner_join(shotgun_lookup_ad) %>% 
-  select(fid, directory, center:toxicity) %>% 
+  select(fid, directory, projectid, center:toxicity) %>% 
   mutate(Sample = str_extract(directory, 'Sample_.+$')) %>% 
-  select(Sample, center:toxicity)
+  select(Sample, projectid, center:toxicity) %>% 
+  mutate(folder = str_glue('/home/daia1/my_workdir/samples/{Sample}')) %>% 
+  mutate(cmd = str_glue('cp -r {folder} /home/daia1/my_workdir/samples/concatenated/for_jonas_melody_data'))
 
 shotgun %>% 
-  select(folder) %>% 
-  write_csv('../data/16_shotgun_cart_sample.csv', col_names = F)
+  select(cmd) %>% 
+  write_csv('../data/16_shotgun_cart_sample_cmd.csv', col_names = F)
 
 ```
 

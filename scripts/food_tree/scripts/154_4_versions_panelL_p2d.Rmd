@@ -52,7 +52,7 @@ genera2 <- bind_rows(cts_genus1, cts_genus2) %>%
   mutate(relablog = log10(relab + 2*10^-6)) %>% 
   select(sampleid, genus, relablog) %>% 
   spread('genus', 'relablog', fill = zero_transform) %>% 
-  right_join(STB %>% select(sampleid, simpson_reciprocal)) %>% 
+  right_join(STB %>% select(sampleid, simpson_reciprocal, intensity)) %>% 
   mutate(Enterococcus = if_else(is.na(Enterococcus), zero_transform, Enterococcus),
          Blautia = if_else(is.na(Blautia), zero_transform, Blautia))
 ```
@@ -205,3 +205,170 @@ macro_panel <- p2d_all %>%
   mutate(xaxis = factor(xaxis, levels = c('Calorie','Carb','Sugar','Fiber','Protein','Fat')))
 ```
 
+```{r}
+library(facetscales)
+Blautia_lim <- floor(min(p2d_all$Blautia))
+entero_lim <- floor(min(p2d_all$Enterococcus))
+simpson_reciprocal_nlog_lim <- max(log(p2d_all$simpson_reciprocal))
+
+scales_y <- list(
+  `log(Simpson reciprocal)` = scale_y_continuous(limits = c(0, simpson_reciprocal_nlog_lim), breaks = seq(0, simpson_reciprocal_nlog_lim, 1)),
+  `log10(Blautia)` = scale_y_continuous(limits = c(Blautia_lim, 0), breaks = seq(Blautia_lim, 0, 2)),
+  `log10(Enterococcus)` = scale_y_continuous(limits = c(entero_lim, 0), breaks = seq(entero_lim, 0, 2))
+)
+
+# to use the max observed in the data
+cal_lim <- max(p2d_all$ave_cal)/1000
+protein_lim <- max(p2d_all$ave_Protein)
+d_fat_lim <- max(p2d_all$ave_fat)
+d_carb_lim <- max(p2d_all$ave_carb)
+d_fiber_lim <- max(p2d_all$ave_fiber)
+d_sugar_lim <- max(p2d_all$ave_Sugars)
+
+scales_x <- list(
+  `Calorie` = scale_x_continuous(limits = c(0, cal_lim), breaks = seq(0, cal_lim, 1)),
+  `Protein` = scale_x_continuous(limits = c(0, protein_lim), breaks = seq(0, protein_lim, 50)),
+  `Fat` = scale_x_continuous(limits = c(0, d_fat_lim), breaks = seq(0, d_fat_lim, 50)),
+  `Carb` = scale_x_continuous(limits = c(0, d_carb_lim), breaks = seq(0, d_carb_lim, 250)),
+  `Fiber` = scale_x_continuous(limits = c(0,d_fiber_lim), breaks = seq(0, d_fiber_lim, 20)),        
+  `Sugar` = scale_x_continuous(limits = c(0, d_sugar_lim), breaks = seq(0, d_sugar_lim, 100) )
+)
+```
+
+```{r}
+# to split to make each small panel so that I can annotate the p value from the lm and the spearman
+combined_split_each_fig <- macro_panel %>% 
+  split(., list(.$xaxis, .$yaxis)) %>% 
+    imap(function(.x, .y){
+      res = summary(lm(value ~ number, data = .x ))
+      pval = round(res$coefficients[2, 'Pr(>|t|)'], 2)
+      
+      # the spearman correlation
+      spearman_cor = cor.test(.x$number, .x$value, method = c( "spearman"))
+      spearman_rho = round(spearman_cor$estimate, 2)
+      spearman_pval = round(spearman_cor$p.value , 2)
+      
+      ggscatter(data = .x,x = 'number', y = 'value', alpha = 0.1, xlab ='', 
+                ylab = '',size = 1.2, pch = 19, 
+                title =  str_glue('{.y}\nlm pval: {pval}\nRho: {spearman_rho}\nrank pval:{spearman_pval}'),
+                 add = "reg.line",  # Add regressin line
+               add.params = list(color = "darkblue", fill = "gray59"), # Customize line
+               conf.int = TRUE, # Add confidence interval
+              ) +
+      #facet_grid_sc(rows = vars(yaxis), cols = vars(xaxis), scales = list(y = scales_y, x = scales_x)) +
+      theme_classic(base_size = 11) +
+      theme(aspect.ratio = 1,
+            panel.background = element_rect(fill = "gray97"),
+            panel.grid.major = element_blank(), 
+            plot.title = element_text(size=10),
+            #strip.background = element_blank(),
+            #strip.text = element_blank(),
+            panel.grid.minor = element_blank()
+           )
+    })
+
+g <- cowplot::plot_grid(combined_split_each_fig[[1]],combined_split_each_fig[[2]],combined_split_each_fig[[3]],combined_split_each_fig[[4]],combined_split_each_fig[[5]],combined_split_each_fig[[6]],combined_split_each_fig[[7]],combined_split_each_fig[[8]],combined_split_each_fig[[9]],combined_split_each_fig[[10]],combined_split_each_fig[[11]],combined_split_each_fig[[12]],combined_split_each_fig[[13]],combined_split_each_fig[[14]],combined_split_each_fig[[15]],combined_split_each_fig[[16]],combined_split_each_fig[[17]],combined_split_each_fig[[18]],
+    ncol = 6,
+    o = 'hv',labels = '',label_y = -2,
+    #labels = 'AUTO',
+    axis = 'bltr')  
+ggsave(str_glue('../data/154_p2d__combined.jpg'), width = 12, height = 8,  plot = g)
+```
+# split them both combined to the three conditioning levels
+
+```{r}
+split3 <- p2d_all %>% 
+  split(.$intensity) %>% 
+  map(function(small_df){
+    small_panel <- small_df %>% 
+        mutate(simpson_reciprocal_nlog  = log(simpson_reciprocal)) %>% 
+        rename(`log10(Blautia)` = Blautia,
+               `log10(Enterococcus)` = Enterococcus,
+               `log(Simpson reciprocal)` = simpson_reciprocal_nlog) %>% 
+       dplyr::select(`log(Simpson reciprocal)`, `log10(Blautia)`, `log10(Enterococcus)`,  ave_cal:ave_carb ) %>% 
+      mutate(ave_cal = ave_cal/1000) %>%  # now divide the value by 1000 to save some space in x axis text!!! 
+      gather('yaxis', 'value', `log(Simpson reciprocal)`:`log10(Enterococcus)`) %>% 
+      mutate(yaxis = factor(yaxis, levels = c('log(Simpson reciprocal)','log10(Blautia)','log10(Enterococcus)'))) %>% 
+      gather('xaxis', 'number', ave_cal:ave_carb) %>% 
+      mutate(xaxis = case_when(
+        xaxis == 'ave_cal' ~ 'Calorie',
+        xaxis == 'ave_carb' ~ 'Carb',
+        xaxis == 'ave_Sugars' ~ 'Sugar',
+        xaxis == 'ave_fiber' ~ 'Fiber',
+        xaxis == 'ave_Protein' ~ 'Protein',
+        xaxis == 'ave_fat' ~ 'Fat'
+      )) %>% 
+      mutate(xaxis = factor(xaxis, levels = c('Calorie','Carb','Sugar','Fiber','Protein','Fat')))
+    
+    small_panel_split_each <- small_panel %>%  split(., list(.$xaxis, .$yaxis)) 
+    
+  
+    small_panel_split_each_fig <- small_panel_split_each %>% 
+    imap(function(.x, .y){
+      res = summary(lm(value ~ number, data = .x ))
+      pval = round(res$coefficients[2, 'Pr(>|t|)'], 2)
+      
+      # the spearman correlation
+      spearman_cor = cor.test(.x$number, .x$value, method = c( "spearman"))
+      spearman_rho = round(spearman_cor$estimate, 2)
+      spearman_pval = round(spearman_cor$p.value , 2)
+      
+      ggscatter(data = .x,x = 'number', y = 'value', alpha = 0.1, xlab ='', 
+                ylab = '',size = 1.2, pch = 19, 
+               title =  str_glue('{.y}\nlm pval: {pval}\nRho: {spearman_rho}\nrank pval:{spearman_pval}'),
+                 add = "reg.line",  # Add regressin line
+               add.params = list(color = "darkblue", fill = "gray59"), # Customize line
+               conf.int = TRUE, # Add confidence interval
+              ) +
+      #facet_grid_sc(rows = vars(yaxis), cols = vars(xaxis), scales = list(y = scales_y, x = scales_x)) +
+      theme_classic(base_size = 11) +
+      theme(aspect.ratio = 1,
+            panel.background = element_rect(fill = "gray97"),
+            panel.grid.major = element_blank(), 
+            plot.title = element_text(size=10),
+            #strip.background = element_blank(),
+            #strip.text = element_blank(),
+            panel.grid.minor = element_blank()
+           )
+    })
+         
+  })
+
+# assemble figure
+ablatives <- split3[['ablative']]
+
+
+g <- cowplot::plot_grid(ablatives[[1]],ablatives[[2]],ablatives[[3]],ablatives[[4]],ablatives[[5]],ablatives[[6]],ablatives[[7]],ablatives[[8]],ablatives[[9]],ablatives[[10]],ablatives[[11]],ablatives[[12]],ablatives[[13]],ablatives[[14]],ablatives[[15]],ablatives[[16]],ablatives[[17]],ablatives[[18]],
+    ncol = 6,
+    o = 'hv',labels = 'Ablative',label_y = -2,
+    #labels = 'AUTO',
+    axis = 'bltr')  
+
+ggsave(str_glue('../data/154_p2d_combined_conditioning_ablative.jpg'), width = 12, height = 8,  plot = g)
+```
+
+
+```{r}
+nonablative <- split3[['nonablative']]
+
+
+g <- cowplot::plot_grid(nonablative[[1]],nonablative[[2]],nonablative[[3]],nonablative[[4]],nonablative[[5]],nonablative[[6]],nonablative[[7]],nonablative[[8]],nonablative[[9]],nonablative[[10]],nonablative[[11]],nonablative[[12]],nonablative[[13]],nonablative[[14]],nonablative[[15]],nonablative[[16]],nonablative[[17]],nonablative[[18]],
+    ncol = 6,
+    o = 'hv',labels = 'Nonablative',label_y = -2,
+    #labels = 'AUTO',
+    axis = 'bltr') 
+
+ggsave(str_glue('../data/154_p2d_combined_conditioning_nonablative.jpg'), width = 12, height = 8,  plot = g)
+```
+
+```{r}
+reduced <- split3[['reduced']]
+
+g <- cowplot::plot_grid(reduced[[1]],reduced[[2]],reduced[[3]],reduced[[4]],reduced[[5]],reduced[[6]],reduced[[7]],reduced[[8]],reduced[[9]],reduced[[10]],reduced[[11]],reduced[[12]],reduced[[13]],reduced[[14]],reduced[[15]],reduced[[16]],reduced[[17]],reduced[[18]],
+    ncol = 6,
+    o = 'hv',labels = 'reduced',label_y = -2,
+    #labels = 'AUTO',
+    axis = 'bltr') 
+
+ggsave(str_glue('../data/154_p2d_combined_conditioning_reduced.jpg'), width = 12, height = 8,  plot = g)
+```
