@@ -12,6 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_annotation_blast_color_ag')
 ```
 
 ```{r}
@@ -143,5 +147,32 @@ both_alpha %>%
   facet_grid(data ~ Group, scales = 'free')
 
 ggsave('../data/06_FMT_alpha.pdf', width = 5, height = 6)
+```
+```{r}
+# the genera in donor responder
+sub <- combined %>% 
+  mutate(Condition = as.character(Condition)) %>% 
+  filter(Condition %in% c('donor','Pre-A20'))
+
+# calculate the percentage of the shared genera relative to donor (a distribution)
+sub %>% 
+  split(.$Group) %>% 
+  map(function(each_group){
+    # calculate num of shared genera between donor and each preA20 mouse
+    
+    genera_in_donor =  each_group %>% filter(Condition == 'donor')
+    donor_genera_number = genera_in_donor %>% distinct(genus) %>% nrow
+    shared_dist <- each_group %>% 
+      filter(Condition != 'donor') %>% 
+      split(.$sampleid) %>% 
+      map(function(each_prea20_sample){
+        shared_num = length(intersect(each_prea20_sample$genus, genera_in_donor$genus))
+      }) %>% bind_rows(.id = 'sampleid') %>% 
+      gather('sampleid','shared_genera_num') %>% 
+      mutate(donor_genera_num = donor_genera_number) %>% 
+      mutate(perc = round(shared_genera_num/donor_genera_num*100,2))
+    return(mean(shared_dist$perc))
+  }) 
+  
 ```
 

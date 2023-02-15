@@ -1,0 +1,60 @@
+---
+title: "the clinical studies"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+can you please see if there are last-date of follow-up and vital status, relapse/POD and gvhd data for the patients in batch1 and batch2?
+
+```{r}
+pts <- read_csv('../data/pts_updated_through_june_2022.csv') %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  rename(mrn = MRN) %>% 
+  mutate(hct = lubridate::dmy(HCT))
+```
+
+
+```{r}
+
+# Relapse, Relapse Date
+# POD, POD Date
+# Status , Last Contact
+# gvhd data from the patients table
+ptb1 <- read_csv('../data/cleaned_patients/diet_patients_97.csv') 
+ptb2 <- read_csv('../data/129_new_76_full_patient_info.csv')
+
+ptb <- bind_rows(
+  ptb1 %>% select(mrn, hct) %>% mutate(batch = 'batch1'),
+  ptb2 %>% select(mrn, hct) %>% mutate(batch = 'batch2')
+)
+
+pts_tb <- pts %>% 
+  right_join(ptb, by = c("mrn", "hct")) %>% 
+  select(mrn, hct, batch, Relapse:Last_Contact)
+
+# the gvhd data
+library(vdbR)
+connect_database()
+get_table_from_database('patient_allo_ks_20221104')
+colnames(patient_allo_ks_20221104)
+
+ptb_gvhd <- patient_allo_ks_20221104 %>% 
+  right_join(ptb, by = c("mrn", "hct")) %>% 
+  select(mrn, hct, batch, starts_with('d100'))
+
+ptb_all <- pts_tb %>% 
+  full_join(ptb_gvhd, by = c("mrn", "hct", "batch"))
+
+ptb_all %>% write_csv('../data/156_combined_clinical_data.csv')
+```
+
