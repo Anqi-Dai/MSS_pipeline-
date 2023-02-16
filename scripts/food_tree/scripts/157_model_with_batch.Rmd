@@ -1,0 +1,87 @@
+---
+title: "model with batch factor"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(brms)   
+library(tidybayes)
+library(cowplot)
+theme_set(theme_tidybayes() + panel_border())
+ncores <- parallel::detectCores()
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
+```
+
+```{r}
+META <- read_csv('../data/153_combined_META.csv')
+```
+
+```{r}
+model_formular <- log(simpson_reciprocal) ~ 0 + 
+                fg_fruit+
+               fg_meat+
+               fg_milk+
+               fg_oils+
+                fg_egg+ 
+                fg_grain+
+                fg_sweets+  
+                fg_legume+
+                fg_veggie+
+               intensity +
+               empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin) +
+                (1 | batch)
+
+priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+```
+
+```{r}
+model_div_batch = brm( model_formular,  
+            data = META, 
+            warmup = 1000, iter = 3000, 
+            prior = priors,
+            cores = ncores, 
+            chains = 2, 
+             control = list(adapt_delta = 0.999),
+            seed = 123, sample_prior = T) 
+
+post_res = suppressWarnings(posterior_samples(model_div_batch))
+post_res %>%  write_csv(str_glue('../data/157_model_fg_post_batch.csv'))
+prior_df <- prior_draws(model_div_batch) 
+prior_df %>% write_csv(str_glue('../data/157_model_fg_prior_batch.csv'))
+
+summary(model_div_batch)
+```
+

@@ -252,21 +252,21 @@ plot_all_diversity_results <- function(fn, post_df_name){
       
       cross0 <- post_coeff %>%
         group_by(item) %>% 
-        summarise(q2.5 = quantile(coeff, probs = 0.025),
-                  q97.5 = quantile(coeff, probs = 0.975)) %>% 
-        mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+        summarise(q5 = quantile(coeff, probs = 0.05),
+                  q95 = quantile(coeff, probs = 0.95)) %>% 
+        mutate(Cross = if_else(q5 > 0 | q95 < 0, F, T))
       
       div_post <- post_coeff %>% 
         left_join(cross0) %>% 
-        ggplot(aes(x = coeff, y = shortname)) +
-        stat_pointinterval(.width = c(.66, .95)) +
+        ggplot(aes(x = coeff, y = shortname, col = Cross)) +
+        stat_pointinterval(.width = c(.66, .9)) +
         geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
         labs(x = 'ln(diversity) change per 100g of food',
              y = '', 
              title = 'Diversity') +
         theme_classic() +
         theme(legend.position = 'none') +
-       # scale_color_manual(values = c("gray40", "#EC0000")) +
+       scale_color_manual(values = c( "#EC0000", "gray40")) +
         theme(axis.text=element_text(size=8, color  = 'black'),
               axis.title=element_text(size=8),
               aspect.ratio=1)
@@ -291,7 +291,7 @@ plot_all_diversity_results <- function(fn, post_df_name){
       # modify it to be the look that we have discussed
       diversity_factor <- coeff_bi %>% 
         ggplot(aes(x = coeff, y = item_name)) +
-        stat_pointinterval(.width = c(.66, .95)) +
+        stat_pointinterval(.width = c(.66, .9)) +
         #scale_color_manual(values = c('#EC0000','#00468B')) +
         geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
         facet_wrap(grp~ . , scales = 'free', dir = 'v') +
@@ -307,7 +307,7 @@ plot_all_diversity_results <- function(fn, post_df_name){
               aspect.ratio=1/2) 
       
       res = cowplot::plot_grid(div_post, diversity_factor, nrow = 1, align = 'tblr', axis = 'hv' )
-      ggsave(str_glue('../data/153_post_combined_{post_df_name}.pdf'), width = 8, height = 6)
+      ggsave(str_glue('../data/153_post_combined_{post_df_name}_90.pdf'), width = 8, height = 6)
 }
 ```
 
@@ -349,9 +349,9 @@ plot_split_res <- function(fn, df_name){
       
       cross0 <- post_coeff %>%
         group_by(item) %>% 
-        summarise(q2.5 = quantile(coeff, probs = 0.025),
-                  q97.5 = quantile(coeff, probs = 0.975)) %>% 
-        mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+        summarise(q5 = quantile(coeff, probs = 0.05),
+                  q95 = quantile(coeff, probs = 0.95)) %>% 
+        mutate(Cross = if_else(q5 > 0 | q95 < 0, F, T))
       
       div_post <- post_coeff %>% 
         left_join(cross0) %>% 

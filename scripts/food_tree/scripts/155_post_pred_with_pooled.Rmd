@@ -145,7 +145,7 @@ two_diff <- map(maxs,  .f = function(maxi){
 two_diff_plot <-  two_diff %>% 
   filter(term %in% c('fg_fruit','fg_sweets', 'fg_veggie')) %>% 
   ggplot(aes(y = term, x = diff_max_ave )) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  stat_pointinterval(.width = c(.66, .9)) +
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
   #scale_color_manual(values = c('#A73030FF','#00468B')) +
   labs(x = 'Change in alpha diversity',
