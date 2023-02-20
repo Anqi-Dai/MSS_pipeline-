@@ -1,0 +1,64 @@
+---
+title: "Fiber types in foods"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+types <- readxl::read_excel('../data/148_both_batches_UNIT_table_EN_exclu_UPDATEDJP (1).xlsm', sheet = 3) %>% 
+  mutate(fraction = Percentage/100) %>% 
+  mutate(Food = str_to_lower(Food),
+         Food = str_replace(Food, 's$',''),
+         Food = str_replace(Food, '_$',''))
+
+DTB <- read_csv('../../food_tree/data/152_combined_DTB.csv')
+
+DTB %>% 
+  distinct(mrn, fdrt)
+```
+
+looking at cellulose over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
+similarly looking at soluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
+similarly looking at insoluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
+
+```{r}
+# find how many food_nsc have each of the "Food"
+unique_food <- types %>% 
+  distinct(Food) %>% pull(Food)
+
+unique_foodnsc <- DTB %>% 
+  mutate(Food_NSC = str_to_lower(Food_NSC)) %>% 
+  distinct(Food_NSC, Food_code, description) 
+
+found <- unique_food %>% 
+  set_names(unique_food) %>% 
+  map(function(food_str){
+    unique_foodnsc %>% 
+      filter(str_detect(Food_NSC, food_str))
+  })
+
+# the foods that have no matches
+notfound <- found %>% 
+  keep( ~ nrow(.) == 0)
+
+# names of the not found food
+names(notfound)
+
+```
+
+
+
+
+
+
+

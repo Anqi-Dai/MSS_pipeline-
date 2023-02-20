@@ -17,10 +17,12 @@ library(ggpubr)
 can you please see if there are last-date of follow-up and vital status, relapse/POD and gvhd data for the patients in batch1 and batch2?
 
 ```{r}
+# the below table has the more updated data 
 pts <- read_csv('../data/pts_updated_through_june_2022.csv') %>% 
   rename_all(~ gsub(" ", "_", .)) %>% 
   rename(mrn = MRN) %>% 
   mutate(hct = lubridate::dmy(HCT))
+colnames(pts)
 ```
 
 
@@ -40,7 +42,7 @@ ptb <- bind_rows(
 
 pts_tb <- pts %>% 
   right_join(ptb, by = c("mrn", "hct")) %>% 
-  select(mrn, hct, batch, Relapse:Last_Contact)
+  select(mrn, hct, batch, TIME_ANEUT_500, Relapse:Last_Contact)
 
 # the gvhd data
 library(vdbR)
@@ -56,5 +58,83 @@ ptb_all <- pts_tb %>%
   full_join(ptb_gvhd, by = c("mrn", "hct", "batch"))
 
 ptb_all %>% write_csv('../data/156_combined_clinical_data.csv')
+```
+
+# clinical analysis
+
+```{r}
+## Outcomes of interest
+#OS
+#TRM (transplant related mortality). TRM is defined as death not preceded by relapse(or progression of disesase)
+#Grade 2-4 GVHD diagnosis (for analysis of GVHD outcomes, exclude Graft type "T-cell depleted PBSC")
+#GRM (GVHD-related mortality) (for analysis of GVHD outcomes, exclude Graft type "T-cell depleted PBSC")
+#length of stay/duration of hospitalization, perhaps duration of hospitalization after engraftment
+
+## Predictors
+# total calorie intake averaged between day 0 and day of engraftment (TTANC)
+# total [each macronutrient] intake averaged between day 0 and day of engraftment (TTANC)
+# total [food group of interest, pick 1 or 2 or just systematically all of them] intake averaged between day 0 and day of engraftment (TTANC)
+# 
+# in multivariable Cox (or Fine-Gray cuminc cmprsk)  models that have terms for 
+# outcome ~ predictor + conditioning_intensity + graft_type
+
+# Tsoni thinks the role of medications in this analysis can be that if we find a relationship between one of the outcomes and one of the predictors, we can further check if the relationship holds after adding a term to account for patients on high doses of opioids (patient controlled analgesia, PCA device) as a surrogate of severe toxicity 
+```
+
+```{r}
+## Predictors
+# total calorie intake averaged between day 0 and day of engraftment (TTANC)
+# total [each macronutrient] intake averaged between day 0 and day of engraftment (TTANC)
+# total [food group of interest, pick 1 or 2 or just systematically all of them] intake averaged between day 0 and day of engraftment (TTANC)
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+# make a table withe daily total caloric intake
+DTB <- read_csv('../data/152_combined_DTB.csv') %>% 
+  mutate(fgrp1 = str_sub(as.character(Food_code), 1, 1))
+
+# a table of the daily each macro
+daily <- DTB %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(daycal = sum(Calories_kcal),
+            d_protein = sum(Protein_g),
+            d_fat = sum(Fat_g),
+            d_carb = sum(Carbohydrates_g),
+            d_fiber = sum(Fibers_g),
+            d_sugar = sum(Sugars_g))
+
+dailyfg <- DTB %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(dailyfg = sum(dehydrated_weight)) %>% 
+  left_join(key %>% select(fgrp1, shortname)) %>% 
+  mutate(shortname = str_glue('daily_{shortname}')) %>% 
+  select(mrn, fdrt, shortname, dailyfg) %>% 
+  spread('shortname', 'dailyfg', fill = 0)
+
+dailyall <- daily %>% 
+  full_join(dailyfg)
+```
+```{r}
+
+# calculate the above listed values
+# ignore the patients that had died before engraphment 
+pts <- ptb_all %>% 
+  filter(!is.na(TIME_ANEUT_500)) %>% 
+  pull(mrn)
+
+ave_ttanc <- pts %>% 
+  set_names(pts) %>% 
+  map(function(mrn_){
+    ttanc_day <- ptb_all %>% 
+      filter(mrn == mrn_) %>% 
+      pull(TIME_ANEUT_500)
+    total_days <- ttanc_day + 1
+    ave_values <- dailyall %>% 
+      filter(mrn == mrn_ & fdrt %in% 0:ttanc_day) %>% 
+      gather('group', 'gram', daycal:daily_Vegetables) %>% 
+      group_by(mrn, group) %>% 
+      summarise(ave_grp = sum(gram)/total_days)
+  }) %>% bind_rows()
+
+ave_ttanc_df <- ave_ttanc %>% 
+  spread('group','ave_grp')
 ```
 

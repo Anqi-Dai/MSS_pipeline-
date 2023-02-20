@@ -24,6 +24,21 @@ axis_title_size <- 10
 
 ```{r}
 META <- read_csv('../data/153_combined_META.csv')
+
+META_mod <- META %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative')),
+         batch = factor(batch)) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100)
 ```
 
 ```{r}
@@ -69,7 +84,7 @@ priors <- c(# for the food group variables
 
 ```{r}
 model_div_batch = brm( model_formular,  
-            data = META, 
+            data = META_mod, 
             warmup = 1000, iter = 3000, 
             prior = priors,
             cores = ncores, 
