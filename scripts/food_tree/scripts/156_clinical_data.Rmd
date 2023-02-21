@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(lubridate)
 ```
 
 can you please see if there are last-date of follow-up and vital status, relapse/POD and gvhd data for the patients in batch1 and batch2?
@@ -41,8 +42,7 @@ ptb <- bind_rows(
 )
 
 pts_tb <- pts %>% 
-  right_join(ptb, by = c("mrn", "hct")) %>% 
-  select(mrn, hct, batch, TIME_ANEUT_500, Relapse:Last_Contact)
+  right_join(ptb, by = c("mrn", "hct")) 
 
 # the gvhd data
 library(vdbR)
@@ -55,7 +55,16 @@ ptb_gvhd <- patient_allo_ks_20221104 %>%
   select(mrn, hct, batch, starts_with('d100'))
 
 ptb_all <- pts_tb %>% 
-  full_join(ptb_gvhd, by = c("mrn", "hct", "batch"))
+  full_join(ptb_gvhd, by = c("mrn", "hct", "batch")) %>% 
+  mutate(ANEUT_500_DATE = dmy(ANEUT_500_DATE)) %>% 
+  mutate(ttancday = as.numeric(ANEUT_500_DATE - hct
+)) %>% 
+  relocate(ttancday, .after = 'TIME_ANEUT_500') %>% 
+  # correct one patient engraftment date
+  mutate(ANEUT_500_DATE = if_else(ANEUT_500_DATE == '2021-11-16', '2021-10-23', as.character(ANEUT_500_DATE)),
+         ANEUT_500_DATE = ymd(ANEUT_500_DATE)) %>% 
+  mutate(ttancday = as.numeric(ANEUT_500_DATE - hct)) %>% 
+  select(-TIME_ANEUT_500)
 
 ptb_all %>% write_csv('../data/156_combined_clinical_data.csv')
 ```
@@ -65,10 +74,11 @@ ptb_all %>% write_csv('../data/156_combined_clinical_data.csv')
 ```{r}
 ## Outcomes of interest
 #OS
+#length of stay/duration of hospitalization, perhaps duration of hospitalization after engraftment
 #TRM (transplant related mortality). TRM is defined as death not preceded by relapse(or progression of disesase)
+
 #Grade 2-4 GVHD diagnosis (for analysis of GVHD outcomes, exclude Graft type "T-cell depleted PBSC")
 #GRM (GVHD-related mortality) (for analysis of GVHD outcomes, exclude Graft type "T-cell depleted PBSC")
-#length of stay/duration of hospitalization, perhaps duration of hospitalization after engraftment
 
 ## Predictors
 # total calorie intake averaged between day 0 and day of engraftment (TTANC)
@@ -111,21 +121,19 @@ dailyfg <- DTB %>%
 
 dailyall <- daily %>% 
   full_join(dailyfg)
-```
-```{r}
 
 # calculate the above listed values
-# ignore the patients that had died before engraphment 
-pts <- ptb_all %>% 
-  filter(!is.na(TIME_ANEUT_500)) %>% 
+# ignore the patients that had died before engraphtment 
+pts_ <- ptb_all %>% 
+  filter(!is.na(ttancday)) %>% 
   pull(mrn)
 
-ave_ttanc <- pts %>% 
-  set_names(pts) %>% 
+ave_ttanc <- pts_ %>% 
+  set_names(pts_) %>% 
   map(function(mrn_){
     ttanc_day <- ptb_all %>% 
       filter(mrn == mrn_) %>% 
-      pull(TIME_ANEUT_500)
+      pull(ttancday)
     total_days <- ttanc_day + 1
     ave_values <- dailyall %>% 
       filter(mrn == mrn_ & fdrt %in% 0:ttanc_day) %>% 
@@ -136,5 +144,63 @@ ave_ttanc <- pts %>%
 
 ave_ttanc_df <- ave_ttanc %>% 
   spread('group','ave_grp')
+```
+ 
+ 
+```{r}
+# I have attached a table for our 177 patients with the following data:  
+# 
+# weight data (including admission weight, BMI, discharge weight, weight loss)
+# nutritional needs (kilocalories/day, grams of protein/day)
+# nutritional risk (per the nutritional risk index, determined at time of admission)
+weight <- readxl::read_excel('../data/DietPatients_WeightData.xlsx') %>% 
+  mutate(mrn = as.numeric(MRN)) %>% 
+  filter(mrn %in% ptb_all$mrn) %>% 
+  rename_all(~ gsub(" ", "_", .)) %>% 
+  rename_all(~ gsub("\\(|\\)", "", .)) %>% 
+  select(mrn, Admission_wt_kg, `Admission_BMI_kg/m^2`,Discharge_wt_kg, Wt_change_kg,`Wt_change_%`,`Kcal_Needs_30_kcal/kg`,`Protein_Needs_1.5_gm/kg`, Nutritional_Risk_Index_NRI ) %>% 
+  mutate_if(is.character, as.numeric)
+colnames(weight)
+```
+ 
+ 
+```{r}
+# "/Volumes/vandenbrinklab/Angel_Dai/Nutrition_project/visits_nutrition_cohort"
+# key fields include
+# admit_date
+# discharge_date
+# if you just select the visit where the HCT date is in between the admit_date and the discharge_date  you will identify the main transplant hospitalization, and from that can calculate length of stay and, importantly, duration of hospitalization beyond engraftment, which I think is the clinical variable most likely to correlate with nutrition
+
+visits <- read_csv('/Volumes/vandenbrinklab/Angel_Dai/Nutrition_project/visits_nutrition_cohort/nutrition_cohort_visits_2023-02-16.csv')  %>% 
+  mutate(mrn = as.numeric(MRN)) %>% 
+  select(mrn, admit_date, discharge_date) %>% 
+  mutate(visit_int = interval(admit_date, discharge_date)) %>% 
+  inner_join(ptb_all %>% select(mrn, hct)) %>% 
+  mutate(hct_int =  interval(hct, hct)) %>% 
+  mutate(transplant_hospitalization = int_overlaps(visit_int, hct_int)) %>% 
+  distinct()
+
+transplant_stays <- visits %>% 
+  filter(transplant_hospitalization == 'TRUE') %>% 
+  # there is one entry needs to be removed seems wrong
+  arrange(mrn, admit_date) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  select(-ends_with('int')) %>% 
+  mutate(leng_of_stay = as.numeric(discharge_date - admit_date)) %>% 
+  full_join(ptb_all , by = c("mrn", "hct")) %>% 
+  # calculate duration of hospitalization beyond engraftment
+  mutate(discharge_day = as.numeric(discharge_date - hct)) %>% 
+  relocate(discharge_day, .after = 'batch') %>% 
+  mutate(beyond_engraftment = discharge_day - ttancday) %>% 
+  relocate(ttancday, .after = 'HCT') %>% 
+  relocate(beyond_engraftment, .after = 'ttancday') %>% 
+  select(-HCT)
+
+transplant_stays %>% 
+  write_csv('../data/156_transplant_data.csv')
+
+ave_ttanc_df %>% write_csv('../data/156_predictors.csv')
+
+colnames(transplant_stays)
 ```
 

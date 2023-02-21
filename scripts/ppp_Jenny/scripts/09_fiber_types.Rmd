@@ -52,10 +52,18 @@ notfound <- found %>%
   keep( ~ nrow(.) == 0)
 
 # names of the not found food
-names(notfound)
-
+names(DTB)
 ```
 
+```{r}
+# to find the unique description/food_code for the fiber subtype annotation
+toannotate <- DTB %>% 
+  distinct(Food_code, description, Fibers_g) %>% 
+  group_by(Food_code, description) %>% 
+  arrange(desc(Fibers_g), .by_group = T) %>% 
+  slice(1)
+
+```
 
 
 
