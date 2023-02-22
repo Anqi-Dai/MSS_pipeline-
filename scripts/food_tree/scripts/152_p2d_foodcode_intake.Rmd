@@ -38,6 +38,14 @@ DTB %>% select(mrn, pid) %>% distinct() %>% write_csv('../data/152_pid_match.csv
 
 
 ```{r}
+# convert to the newcode
+smoothies <- DTB %>% 
+  filter(Food_code %in% smoocode) %>% 
+  left_join(Will %>% select(Food_NSC, Food_code, new_code), by = c("Food_NSC", "Food_code"))
+```
+
+
+```{r}
 STB <- bind_rows(stb1, stb2) %>% 
   inner_join(DTB %>% select(mrn, pid) %>% distinct()) %>% 
   mutate(batch = if_else(sampleid %in% stb1$sampleid, 'batch1', 'batch2'))

@@ -17,19 +17,128 @@ library(ggpubr)
 ```{r}
 unit <- read_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
 
-will <- unit %>%
+en_unit <- DTB %>% filter(Meal == 'Enteral nutrition') %>% 
+  mutate(description = if_else(Food_NSC == 'Suplena 1.8', 'Enteral formula, suplena', description)) %>% 
+  distinct(Food_NSC,Unit, Food_code, description, .keep_all = T) %>% 
+  mutate(protein_per_g = Protein_g/dehydrated_weight,
+         fat_per_g = Fat_g/dehydrated_weight,
+         Carbohydrate_per_g = Carbohydrates_g/dehydrated_weight,
+         Fiber_per_g = Fibers_g/dehydrated_weight,
+         Sugars_per_g = Sugars_g/dehydrated_weight) %>% 
+  select(Food_NSC, Food_code, description, ends_with('per_g'))  %>% 
+  split(.$Food_code) %>% 
+  map_dfr(function(eachcode ){
+    eachcode %>% mutate(id = seq(nrow(eachcode)))
+  }) %>% 
+  mutate(new_code = str_glue('{Food_code}_{id}')) %>% 
+  select(-id)
+
+```
+
+```{r}
+psmoothie <- readxl::read_excel('../data/142b_batch1_diet_calories_check_subset_with_macros_peter.xlsx') %>% distinct()
+psmoothie %>% distinct(Food_NSC) %>% nrow
+
+unit <- read_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+length(intersect(psmoothie$Food_NSC, unit$Food_NSC))
+# which one is missing 
+setdiff(psmoothie$Food_NSC, unit$Food_NSC)
+
+smoocode <- psmoothie %>% distinct(Food_code) %>% pull(Food_code)
+
+smoodf <- unit %>%
+  filter( Food_code %in% smoocode)  %>% 
+  mutate(protein_per_g = Protein_psu/dehydrated_psu,
+         fat_per_g = Fat_psu/dehydrated_psu,
+         Carbohydrate_per_g = Carbohydrate_psu/dehydrated_psu,
+         Fiber_per_g = Fiber_psu/dehydrated_psu,
+         Sugars_per_g = Sugars_psu/dehydrated_psu) %>% 
+  select(Food_NSC, Food_code, description, ends_with('per_g')) %>% 
+  distinct(Food_code, description, protein_per_g, fat_per_g, Carbohydrate_per_g, Fiber_per_g, Sugars_per_g, .keep_all = T) %>% 
+  split(.$Food_code) %>% 
+  map_dfr(function(eachcode ){
+    eachcode %>% mutate(id = seq(nrow(eachcode)))
+  }) %>% 
+  mutate(new_code = str_glue('{Food_code}_{id}')) %>% 
+  select(-id) 
+```
+
+```{r}
+nonsmoo <-  unit %>%
+  filter(! Food_code %in% smoocode) %>% 
   mutate(protein_per_g = Protein_psu/dehydrated_psu,
          fat_per_g = Fat_psu/dehydrated_psu,
          Carbohydrate_per_g = Carbohydrate_psu/dehydrated_psu,
          Fiber_per_g = Fiber_psu/dehydrated_psu,
          Sugars_per_g = Sugars_psu/dehydrated_psu) %>%
-  distinct(protein_per_g,fat_per_g, Carbohydrate_per_g,  Fiber_per_g, Sugars_per_g, .keep_all = T) %>%
-  select(Food_NSC:description, ends_with('per_g'))
-
-
-will %>%
-  write_csv('../data/154_for_will_pergram_macronutrients.csv')
+  select(Food_NSC, Food_code, description, ends_with('per_g')) %>% 
+  distinct(Food_code, .keep_all = T) %>% 
+   split(.$Food_code) %>% 
+  map_dfr(function(eachcode ){
+    eachcode %>% mutate(id = seq(nrow(eachcode)))
+  }) %>% 
+  mutate(new_code = str_glue('{Food_code}_{id}')) %>% 
+  select(-id)
 ```
+
+
+```{r}
+Will <- bind_rows(en_unit, smoodf, nonsmoo)
+
+Will %>%
+  write_csv('../data/154_for_will_pergram_macronutrients_all.csv')
+```
+
+```{r}
+# need to have a new table with foodnsc foodcode -- new code
+smooall <- unit %>%
+  filter( Food_code %in% smoocode) %>% 
+  distinct(Food_NSC, Food_code)
+
+Will %>% 
+  filter(Food_code %in% smoocode) %>% 
+  distinct(new_code)
+```
+
+```{r}
+# but then there are 14 food codes that are in the diet table that don't appear in the macronutrients table
+redo <- unit %>%
+  mutate(protein_per_g = Protein_psu/dehydrated_psu,
+         fat_per_g = Fat_psu/dehydrated_psu,
+         Carbohydrate_per_g = Carbohydrate_psu/dehydrated_psu,
+         Fiber_per_g = Fiber_psu/dehydrated_psu,
+         Sugars_per_g = Sugars_psu/dehydrated_psu) %>%
+  distinct(Food_code, protein_per_g,fat_per_g, Carbohydrate_per_g,  Fiber_per_g, Sugars_per_g, .keep_all = T) %>%
+  select( Food_code, description, ends_with('per_g'))
+
+redo %>% distinct(Food_code) %>% nrow 
+
+p2d <- read_csv('../data/152_each_food_code_p2d_ave_intake_both_batches.csv') %>% 
+  gather %>% 
+  filter(str_detect(key, '^\\d')) %>% 
+  distinct(key) %>% 
+  mutate(key = as.numeric(key))
+
+length(intersect(redo$Food_code, p2d$key))
+setdiff(p2d$key, redo$Food_code)
+
+extra <- en_unit %>% 
+  select(colnames(redo))
+
+redoall <- bind_rows(redo, extra)
+
+redoall %>% write_csv('../data/154_redo_macronutrients_table.csv')
+```
+
+
+
+```{r}
+# I need to create new code for the smoothie ones and the one EN formular
+# I remain calm in all situations and it is going to be ok
+
+```
+
+
 
 in combined batch 1 and batch 2
   2-days prior 
