@@ -63,9 +63,62 @@ toannotate <- DTB %>%
   arrange(desc(Fibers_g), .by_group = T) %>% 
   slice(1)
 
+anyfiber <- toannotate %>% 
+  filter(Fibers_g > 0)
+
+# unit table
+unit <- read_csv('../../food_tree/data/148_both_batches_UNIT_table_EN_exclu.csv')
+
+unit %>% distinct(Food_code)
+
+DTB %>% filter(Meal == 'Enteral nutrition') %>% distinct(Food_code)
+
+setdiff(toannotate$Food_code, unit$Food_code)
+
+# find the things that have the 
+
+units <- unit %>% 
+  distinct(Food_code, description, Fiber_psu, dehydrated_psu, .keep_all = T) %>% 
+  group_by(Food_code, description) %>% 
+  arrange(desc(Fiber_psu), .by_group = T) %>% 
+  slice(1) %>% 
+  mutate(fiber_perc = round(Fiber_psu/dehydrated_psu*100, 2)) %>% 
+  filter(fiber_perc > 0) %>% 
+  select(Food_NSC:description, Fiber_psu, fiber_perc) %>% 
+  arrange(Food_code)
+
+# add the 5 EN ones
+en_unit <- DTB %>% filter(Meal == 'Enteral nutrition') %>% 
+  mutate(description = if_else(Food_NSC == 'Suplena 1.8', 'Enteral formula, suplena', description)) %>% 
+  distinct(Food_NSC,Unit, Food_code, description, .keep_all = T) %>% 
+  mutate(Fiber_psu = Fibers_g/Por_eaten,
+         dehydrated_psu = dehydrated_weight/Por_eaten) %>% 
+  mutate(fiber_perc = round(Fiber_psu/dehydrated_psu*100, 2)) %>% 
+  select(Food_NSC, Unit, Food_code,description, Fiber_psu, fiber_perc) %>% 
+  arrange(Food_NSC) %>% 
+  filter(fiber_perc > 0)
+
+all_units <- bind_rows(en_unit, units) %>% arrange(Food_code)
+
+all_units %>% write_csv('../data/09_unit_serving_food_fiber.csv')
 ```
 
 
+```{r}
+# ok Jenny sent a table, found the missing ones
+jenny <- readxl::read_excel('../data/148_both_batches_UNIT_table_EN_Fiber_Types_JP.xlsm', sheet = 3)
+
+# find the missing ones
+length(intersect(jenny$Food_code, all_units$Food_code))
+
+setdiff( all_units$Food_code, jenny$Food_code)
+
+need <- all_units %>% 
+  filter(! Food_code %in% jenny$Food_code) %>% 
+  arrange(Food_code)
+
+need %>% write_csv('../data/09_more_need_info.csv')
+```
 
 
 

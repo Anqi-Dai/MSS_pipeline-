@@ -1,0 +1,77 @@
+---
+title: "complete types"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+type1 <- readxl::read_excel('../data/148_both_batches_UNIT_table_EN_Fiber_Types_JP.xlsm', sheet = 3) %>% 
+  janitor::clean_names() %>% 
+  rename(soluble = soluble_yes_or_not)
+type2 <- readxl::read_excel('../data/09_more_need_info_Fiber_types_jenny.xlsx') %>% janitor::clean_names()
+
+full <- bind_rows(
+  type1 %>% select(food_code, description,fiber_type, soluble ) ,
+  type2 %>% select(food_code, description,fiber_type, soluble ) 
+) %>% distinct() %>% 
+  # correct some stupid misspelling
+  mutate(fiber_type = if_else(fiber_type == 'Ligning', 'Lignin',fiber_type))
+
+DTB <- read_csv('../../food_tree/data/152_combined_DTB.csv')
+
+all_need <- read_csv('../data/09_unit_serving_food_fiber.csv') %>% 
+  distinct(Food_code, .keep_all = T)
+# have I got all of the foodcode
+length(intersect(full$food_code, all_need$Food_code))
+# what is the missing one 
+setdiff( all_need$Food_code, full$food_code)
+# so I have got all of the data ! good
+```
+```{r}
+# How much cellulose do Allo-HCT patients eat over time? 
+# How much insoluble fiber do patients eat over time?
+# How much soluble fiber do patients eat over time?
+#   
+#   
+#   looking at cellulose over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
+# similarly looking at soluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
+# similarly looking at insoluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
+
+dups <- full %>% 
+  filter(duplicated(food_code))
+
+allfibertype <- full %>% 
+  filter(food_code %in% all_need$Food_code) %>% 
+  distinct(food_code, .keep_all = T)
+
+# all types of fiber
+alltype <- full %>% 
+  count(fiber_type, sort = T)
+
+dupsdf <- full %>% 
+  filter(food_code %in% dups$food_code)
+
+dupsdf %>% write_csv('../data/10_duplicated_6.csv')
+```
+
+```{r}
+# after the dups have been removed 
+# calculate daily intake of each food code 
+dailycode <- DTB %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(dcodefiber = sum(Fibers_g)) %>% 
+  janitor::clean_names()
+
+
+```
+

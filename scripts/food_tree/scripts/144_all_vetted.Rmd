@@ -451,3 +451,12 @@ combined %>% write_csv('../data/144_non_EN_unit_diet_metrics.csv')
 #   mutate(dehydrated_weight = total_g*(1-Water_g/100))
 
 ```
+
+```{r}
+psmoothie <- readxl::read_excel('../data/142b_batch1_diet_calories_check_subset_with_macros_peter.xlsx') %>% distinct()
+psmoothie %>% distinct(Food_NSC)
+
+unit <- read_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+length(intersect(psmoothie$Food_NSC, unit$Food_NSC))
+```
+

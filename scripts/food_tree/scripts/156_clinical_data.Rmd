@@ -144,6 +144,10 @@ ave_ttanc <- pts_ %>%
 
 ave_ttanc_df <- ave_ttanc %>% 
   spread('group','ave_grp')
+
+# why are there 2 patients that don't have any nutrition predictors
+pt2 <- setdiff(pts_, ave_ttanc_df$mrn)
+# since we only have diet data pre-transplant
 ```
  
  
@@ -194,12 +198,29 @@ transplant_stays <- visits %>%
   mutate(beyond_engraftment = discharge_day - ttancday) %>% 
   relocate(ttancday, .after = 'HCT') %>% 
   relocate(beyond_engraftment, .after = 'ttancday') %>% 
-  select(-HCT)
-
+  select(-HCT) %>% 
+  mutate(discharge_date_for_nutrition = if_else(discharge_date == '2017-02-04', '2017-02-06', as.character(discharge_date))) %>% 
+  relocate(discharge_date_for_nutrition, .after = 'hct') %>% 
+  relocate(ANEUT_500_DATE, .after = 'discharge_date_for_nutrition') %>% 
+  mutate(discharge_date_for_nutrition = ymd(discharge_date_for_nutrition),
+         leng_of_stay = as.numeric(discharge_date_for_nutrition - admit_date)) %>% 
+  relocate(leng_of_stay, .after = 'ANEUT_500_DATE') %>% 
+  mutate(beyond_engraftment = as.numeric(discharge_date_for_nutrition -ANEUT_500_DATE )) %>% 
+  relocate(beyond_engraftment, .after = 'leng_of_stay')
+  
+colnames(transplant_stays)
 transplant_stays %>% 
   write_csv('../data/156_transplant_data.csv')
+```
 
-ave_ttanc_df %>% write_csv('../data/156_predictors.csv')
+
+```{r}
+# combine to get the most comprehensive predcitor data I have
+allpred <- ave_ttanc_df %>% 
+  right_join(weight, by = "mrn")
+
+
+allpred %>% write_csv('../data/156_predictors.csv')
 
 colnames(transplant_stays)
 ```
