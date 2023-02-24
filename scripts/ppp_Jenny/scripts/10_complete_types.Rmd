@@ -46,32 +46,33 @@ setdiff( all_need$Food_code, full$food_code)
 #   looking at cellulose over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
 # similarly looking at soluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
 # similarly looking at insoluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
-
+ 
 dups <- full %>% 
   filter(duplicated(food_code))
-
-allfibertype <- full %>% 
-  filter(food_code %in% all_need$Food_code) %>% 
-  distinct(food_code, .keep_all = T)
-
-# all types of fiber
-alltype <- full %>% 
-  count(fiber_type, sort = T)
 
 dupsdf <- full %>% 
   filter(food_code %in% dups$food_code)
 
 dupsdf %>% write_csv('../data/10_duplicated_6.csv')
+
+# the cleaned dups 
+cleaneddup <- readxl::read_excel('../data/10_duplicated_6_Corrected_JP.xlsx')
+
+# merge it into the df
+completetype <- bind_rows(
+  full %>% 
+    filter(!food_code %in% dups$food_code),
+  cleaneddup 
+)
+
+completetype %>% write_csv('../data/patients_16s_data/10_patients_foods_fiber_type_all.csv')
+completetype %>% write_csv('../data/10_patients_foods_fiber_type_all.csv')
+ 
+
+# all types of fiber
+alltype <- completetype %>% 
+  count(fiber_type, sort = T)
 ```
 
-```{r}
-# after the dups have been removed 
-# calculate daily intake of each food code 
-dailycode <- DTB %>% 
-  group_by(mrn, fdrt, Food_code) %>% 
-  summarise(dcodefiber = sum(Fibers_g)) %>% 
-  janitor::clean_names()
 
-
-```
 
