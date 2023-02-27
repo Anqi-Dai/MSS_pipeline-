@@ -159,4 +159,19 @@ cel %>%
 ggsave('../data/patients_16s_data/11_fiber_Cellulose_daily_intake_gvhd.pdf', width = 4, height = 4)
 ggsave('../data/11_fiber_Cellulose_daily_intake_gvhd.pdf', width = 4, height = 4)
 ```
+```{r}
+# all of the types of fiber
+
+all_types %>% 
+  filter(fdrt %in% -30:30 & d100_a_gvhd %in% c('Y','N')) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, title = 'All fiber types',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+  scale_color_manual(values = color_key) +
+  scale_fill_manual(values = color_key) +
+  facet_grid(~ fiber_type) 
+
+ggsave('../data/patients_16s_data/11_fiber_all_daily_intake_gvhd.pdf', width = 15, height = 4)
+ggsave('../data/11_fiber_all_daily_intake_gvhd.pdf', width = 15, height = 4)
+```
 
