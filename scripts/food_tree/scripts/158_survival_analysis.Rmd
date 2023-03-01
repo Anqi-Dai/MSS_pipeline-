@@ -2,20 +2,98 @@
 title: "Survival analysis"
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    toc_depth: 3
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = F)
 ```
 
 ```{r}
 #library(biostatR); 
 library(tidyverse)
 library(survival);library(tidycmprsk)
+library(gtsummary)
 # theme_set(mskRvis::theme_biostat()); mskRvis::set_msk_palette()
 # theme_gtsummary_compact()
-df_main <- read_rds(file = '../data/df_main.Rds')
+predictor <- read_csv('../data/156_predictors.csv')
+df_main <- read_rds(file = '../data/df_main.Rds') %>% 
+  mutate(mrn = as.numeric(mrn)) %>% 
+  full_join(predictor %>% select(mrn, daily_Milk)) %>% 
+  relocate(daily_Milk, .after = 'daily_Fruits') %>% 
+  rename(Source = source)
+
 colnames(df_main)
+```
+# OS
+
+```{r OS}
+OS_mult_comb_fg <- coxph(Surv(OStime_landmark,OSevent) ~ daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk + Intensity + Source, data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of discharging; all fg")
+
+OS_mult_comb_macro <- coxph(Surv(OStime_landmark,OSevent) ~ 
+                              d_carb + 
+                              d_fat + 
+                              d_fiber +
+                              d_protein+ 
+                              d_sugar + 
+                              Intensity + 
+                              Source, data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of discharging; all macronutrients")
+
+
+OS_mult_comb_cal <- coxph(Surv(OStime_landmark,OSevent) ~ 
+                              daycal + 
+                              Intensity + 
+                              Source, data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of discharging; calories")
+```
+
+```{r}
+OS_mult_comb_fg
+OS_mult_comb_macro
+OS_mult_comb_cal
+```
+
+# TRM
+
+```{r TRM}
+TRM_mult_comb_fg <- crr(Surv(tevent_landmark,TRMevent) ~daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk  + Intensity + Source, data=df_main, failcode = "TRM")%>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; all fg")
+
+TRM_mult_comb_macro <- crr(Surv(tevent_landmark,TRMevent) ~ d_carb +d_fat + d_fiber +d_protein+ d_sugar  + Intensity + Source, data=df_main, failcode = "TRM")%>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; all macronutrients")
+
+TRM_mult_comb_cal <- crr(Surv(tevent_landmark,TRMevent) ~ daycal  + Intensity + Source, data=df_main, failcode = "TRM")%>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; calories")
+```
+
+```{r}
+TRM_mult_comb_fg
+TRM_mult_comb_macro
+TRM_mult_comb_cal
+```
+
+# GRM
+
+```{r GRM}
+GRM_mult_comb_fg <- crr(Surv(tevent_landmark,GRMevent) ~ daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk + Intensity + Source, data=df_main, failcode = "GRM")%>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; all fg")
+
+GRM_mult_comb_macro <- crr(Surv(tevent_landmark,GRMevent) ~  d_carb +d_fat + d_fiber +d_protein+ d_sugar  + Intensity + Source, data=df_main, failcode = "GRM")%>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; all macronutrients")
+
+GRM_mult_comb_cal <- crr(Surv(tevent_landmark,GRMevent) ~ daycal  + Intensity + Source, data=df_main, failcode = "GRM")%>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; calories")
+```
+
+```{r}
+GRM_mult_comb_fg
+GRM_mult_comb_macro
+GRM_mult_comb_cal
 ```
 

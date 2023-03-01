@@ -13,7 +13,8 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(vdbR)
 connect_database()
-get_ta
+list_table_from_database('tsne')
+get_table_from_database('tsne_ag')
 get_table_from_database('patient_allo_ag')
 get_table_from_database('samples_castori_ag')
 new <- read_csv('~/Desktop/complete_yearly_pull_data_2022-09-15.csv') %>% 
