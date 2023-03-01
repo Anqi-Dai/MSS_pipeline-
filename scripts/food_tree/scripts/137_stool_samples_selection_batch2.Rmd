@@ -16,6 +16,8 @@ library(lubridate)
 library(vdbR)
 connect_database()
 get_table_from_database('samples_castori_ag')
+get_table_from_database('asv_annotation_blast_ag')
+get_table_from_database('asv_annotation_blast_detailed_ag')
 ```
 ```{r}
 ptb <- read_csv('../data/129_new_76_full_patient_info.csv')

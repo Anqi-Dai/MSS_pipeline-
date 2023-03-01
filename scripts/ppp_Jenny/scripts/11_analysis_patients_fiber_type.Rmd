@@ -175,3 +175,51 @@ ggsave('../data/patients_16s_data/11_fiber_all_daily_intake_gvhd.pdf', width = 1
 ggsave('../data/11_fiber_all_daily_intake_gvhd.pdf', width = 15, height = 4)
 ```
 
+```{r}
+# randomly select one sample per patient 
+set.seed(666)
+
+type_unisample <- all_types %>% 
+  split(.$fiber_type) %>% 
+  map_dfr(function(df){
+    df %>%  group_by(mrn) %>% sample_n(size = 1, replace = F)
+  })
+
+
+type_unisample %>% 
+  filter( d100_a_gvhd %in% c('Y','N')) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.2, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, title = 'All fiber types one sample per pt',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+  scale_color_manual(values = color_key) +
+  scale_fill_manual(values = color_key) +
+  scale_y_sqrt() +
+  facet_grid(~ fiber_type)
+
+ggsave('../data/patients_16s_data/11_fiber_all_daily_intake_gvhd_one_sample_per_pt.pdf', width = 15, height = 4)
+ggsave('../data/11_fiber_all_daily_intake_gvhd_one_sample_per_pt.pdf', width = 15, height = 4)
+
+```
+
+```{r}
+
+solu_unisample <- all_soluble %>% 
+  split(.$soluble) %>% 
+  map_dfr(function(df){
+    df %>%  group_by(mrn) %>% sample_n(size = 1, replace = F)
+  })
+
+solu_unisample %>% 
+  filter( d100_a_gvhd %in% c('Y','N')) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.2, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, title = 'soluble',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+  facet_grid(~ soluble)  +
+  scale_color_manual(values = color_key) +
+  scale_fill_manual(values = color_key)+
+  scale_y_sqrt()
+
+ggsave('../data/patients_16s_data/11_fiber_all_soluble_daily_intake_one_sample_per_pt.pdf', width = 6, height = 4)
+ggsave('../data/11_fiber_all_soluble_daily_intake_one_sample_per_pt.pdf', width = 6, height = 4)
+```
+

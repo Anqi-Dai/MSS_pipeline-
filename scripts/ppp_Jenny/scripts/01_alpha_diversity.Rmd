@@ -15,6 +15,7 @@ dir <- '/Volumes/vandenBrinkLab/Diet-Microbiome Projects/Dietary Fiber/Shotgun D
 library(vdbR)
 connect_database()
 get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('asv_alpha_diversity_ag')
 ```
 
 ```{r}
