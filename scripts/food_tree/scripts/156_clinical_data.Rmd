@@ -28,7 +28,6 @@ colnames(pts)
 
 
 ```{r}
-
 # Relapse, Relapse Date
 # POD, POD Date
 # Status , Last Contact
@@ -49,7 +48,47 @@ library(vdbR)
 connect_database()
 get_table_from_database('patient_allo_ks_20221104')
 colnames(patient_allo_ks_20221104)
+get_table_from_database('samples_castori_ag')
+get_table_from_database('asv_alpha_diversity_ag')
+```
 
+```{r}
+# find the patients that had a second transplant
+
+
+all_hct2 <- pts %>% 
+  filter(mrn %in% ptb$mrn) %>% 
+  select(mrn, hct) %>% 
+  filter(duplicated(mrn))
+
+# find all of the hct and to mark which hct are we using their diet data
+
+at2 <- pts %>% 
+  filter(mrn %in% all_hct2$mrn) %>% 
+  select(mrn, hct) %>% 
+  left_join(ptb , by = c("mrn", "hct")) %>% 
+  select(mrn, hct, batch) %>% 
+  arrange(mrn, hct) %>% 
+  split(.$mrn) %>% 
+  map_dfr(function(df){
+    df %>% mutate(id = seq(1, nrow(.)))
+  })
+
+censor_pt <- at2 %>% 
+  group_by(mrn) %>% 
+  arrange(desc(id)) %>% 
+  slice(1) %>% 
+  filter(is.na(batch)) %>% 
+  pull(mrn)
+
+censor2 <- at2 %>% 
+  filter(mrn %in% censor_pt)
+
+censor2 %>% write_csv('../data/156_censor_2_patients_for_second_transplant.csv')
+```
+
+
+```{r}
 ptb_gvhd <- patient_allo_ks_20221104 %>% 
   right_join(ptb, by = c("mrn", "hct")) %>% 
   select(mrn, hct, batch, starts_with('d100'))
@@ -67,6 +106,13 @@ ptb_all <- pts_tb %>%
   select(-TIME_ANEUT_500)
 
 ptb_all %>% write_csv('../data/156_combined_clinical_data.csv')
+
+ptb_gvhd %>% count(d100_a_gvhd)
+
+needdata <- ptb_gvhd %>% 
+  filter(is.na(d100_a_gvhd))
+
+needdata %>% write_csv('../data/156_missing_GVHD_data.csv', na = '')
 ```
 
 # clinical analysis
@@ -96,6 +142,10 @@ ptb_all %>% write_csv('../data/156_combined_clinical_data.csv')
 # total calorie intake averaged between day 0 and day of engraftment (TTANC)
 # total [each macronutrient] intake averaged between day 0 and day of engraftment (TTANC)
 # total [food group of interest, pick 1 or 2 or just systematically all of them] intake averaged between day 0 and day of engraftment (TTANC)
+# average food diversity between the period 
+# the diversity close to the engraftment for the patients 
+
+
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 # make a table withe daily total caloric intake
 DTB <- read_csv('../data/152_combined_DTB.csv') %>% 
@@ -223,5 +273,140 @@ allpred <- ave_ttanc_df %>%
 allpred %>% write_csv('../data/156_predictors.csv')
 
 colnames(transplant_stays)
+```
+
+```{r}
+# find the stool sample that is closest to engraftment date for each patient
+transplant_data <- read_csv('../data/156_transplant_data.csv') %>% 
+  select(mrn,  ANEUT_500_DATE, hct)
+
+all_stool <- samples_castori_ag %>% 
+  filter(mrn %in% transplant_data$mrn) %>% 
+  select(mrn, sampleid, datecollection) %>% 
+  left_join(transplant_data, by = "mrn") %>% 
+  mutate(sdrengraft = as.numeric(datecollection - ANEUT_500_DATE)) %>% 
+  mutate(abssdrengraft = abs(sdrengraft)) %>% 
+  group_by(mrn) %>% 
+  slice_min(n = 1, order_by = abssdrengraft) %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal)) %>% 
+  arrange(mrn, abssdrengraft, sdrengraft) %>% 
+  distinct(mrn, .keep_all = T)
+
+all_stool %>% write_csv('../data/156_stool_close_to_engraftment.csv')
+all_stool %>% gghistogram(x = 'sdrengraft', xlab = 'stool sample collection relative to engraftment')
+```
+
+```{r}
+# take the earliest single sample collected after engraftment, as long as it was within 7 days
+first_in_7 <-  samples_castori_ag %>% 
+  filter(mrn %in% transplant_data$mrn) %>% 
+  select(mrn, sampleid, datecollection) %>% 
+  left_join(transplant_data, by = "mrn") %>% 
+  mutate(sdrengraft = as.numeric(datecollection - ANEUT_500_DATE)) %>% 
+  filter(sdrengraft %in% 0:7) %>% 
+  arrange(mrn, sdrengraft) %>% 
+  distinct(mrn, .keep_all = T) %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal)) %>% 
+  rename(first_in_w1 = simpson_reciprocal) %>% distinct() %>% 
+  distinct(mrn, .keep_all = T) 
+```
+
+```{r}
+# get the (median diversity of all samples collected between day 7-21)
+median_val <-  samples_castori_ag %>% 
+  filter(mrn %in% transplant_data$mrn) %>% 
+  select(mrn, sampleid, datecollection) %>% 
+  left_join(transplant_data, by = "mrn") %>% 
+  mutate(sdrt = as.numeric(datecollection - hct)) %>% 
+  filter(sdrt %in% 7:21) %>% 
+  inner_join(asv_alpha_diversity_ag %>% select(sampleid, simpson_reciprocal))  %>% 
+  group_by(mrn) %>% 
+  summarise(median_div = median(simpson_reciprocal)) %>% 
+  rename(median7_21 = median_div) %>% 
+  full_join(first_in_7 %>% select(mrn, first_in_w1))
+
+median_val %>% distinct(mrn)
+
+median_val %>% write_csv('../data/156_two_stool_alpha_engraftment.csv')
+```
+
+```{r}
+# to calculate the diet alpha diversity during 0:engraftment
+# per patient per day diversity
+
+
+faith2 <-  read_tsv('../data/139_batch2_faith_pd/alpha-diversity.tsv') %>% 
+  separate(...1, into = c('mrn', 'fdrt'), sep = '_', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
+
+DTB  %>% count(mrn, fdrt) %>% 
+  nrow
+```
+
+
+```{r}
+# need to redo the batch 1 faith
+dtb1 <- DTB %>% filter(batch == 'batch1')
+# the weight need to be relative so needs to normalize them 
+fc_table <- dtb1 %>% 
+  select(mrn, fdrt, Food_code, dehydrated_weight) %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(total = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  mutate(index_column = str_glue('P{mrn}_{fdrt}')) %>% 
+  select(index_column, Food_code, total)
+
+fcts <-  fc_table %>% 
+  spread(key = 'index_column', value = 'total', fill = 0) 
+fcts %>% 
+  write_tsv('../data/156_batch1_food_code_counts_matrix.tsv')
+```
+
+```{bash}
+biom convert -i ../data/156_batch1_food_code_counts_matrix.tsv -o ../data/156_batch1_food_code_counts_matrix.biom --to-hdf5 --table-type="Table"
+qiime tools import \
+  --input-path ../data/156_batch1_food_code_counts_matrix.biom \
+  --output-path ../data/156_batch1_food_code_counts_matrix.qza \
+  --type 'FeatureTable[Frequency]' 
+qiime tools import \
+  --input-path ../data/cleaned_tree/output_food_tree_datatree.newick \
+  --output-path ../data/cleaned_tree/output_food_tree_datatree.qza \
+  --type 'Phylogeny[Rooted]'
+qiime diversity alpha-phylogenetic \
+  --i-table ../data/156_batch1_food_code_counts_matrix.qza  \
+  --i-phylogeny ../data/cleaned_tree/output_food_tree_datatree.qza \
+  --p-metric faith_pd \
+  --o-alpha-diversity ../data/156_batch1_faith_pd.qza
+# export to tsv format
+qiime tools export --input-path ../data/156_batch1_faith_pd.qza --output-path ../data/156_batch1_faith_pd
+```
+
+```{r}
+faith1 <- read_tsv('../data/156_batch1_faith_pd/alpha-diversity.tsv')  %>% 
+  separate(...1, into = c('mrn', 'fdrt'), sep = '_', convert = T)  %>% 
+  mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
+```
+```{r}
+faith <- bind_rows(faith1, faith2)
+
+ave_ttanc_faith <- pts_ %>% 
+  set_names(pts_) %>% 
+  map(function(mrn_){
+    ttanc_day <- ptb_all %>% 
+      filter(mrn == mrn_) %>% 
+      pull(ttancday)
+    total_days <- ttanc_day + 1
+    ave_faith <- faith %>% 
+      filter(mrn == mrn_ & fdrt %in% 0:ttanc_day) %>% 
+      group_by(mrn) %>% 
+      summarise(ave_faith = sum(faith_pd)/total_days)
+  }) %>% bind_rows() 
+
+output <- ave_ttanc_faith %>% 
+  full_join(median_val, by = "mrn") 
+
+output %>% distinct(mrn )
+
+output %>% write_csv('../data/156_extra_predictors.csv')
 ```
 

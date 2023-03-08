@@ -1,0 +1,31 @@
+---
+title: "clinical data preparation"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(lubridate)
+DTB <- read_csv('../data/152_combined_DTB.csv')
+codes <- DTB %>% 
+  distinct(Food_code, description)
+```
+
+
+```{r}
+transplant_data <- read_csv("../data/156_transplant_data.csv") %>% 
+  mutate(POD_Date = dmy(POD_Date),
+         Relapse_Date = dmy(Relapse_Date),
+         d100_a_gvhd_onset = as_date(d100_a_gvhd_onset),
+         Last_Contact = dmy(Last_Contact))
+  
+# please see Teng repo for a more updated cleaning script
+
+```
+

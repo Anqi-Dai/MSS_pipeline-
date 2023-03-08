@@ -486,3 +486,48 @@ ggsave(str_glue('../data/154_p2d_combined_conditioning_reduced.jpg'), width = 12
 
 
 ```
+
+
+# make a table that is the previous two days consumption of foodnsc + unit
+
+```{r}
+# the unique combinations of the foodnsc + unit
+DTB %>% 
+  mutate(foodall = str_glue('{Food_NSC}__{Unit}')) %>% 
+  distinct(foodall) %>% 
+  nrow()
+
+STB <- read_csv('../data/152_combined_STB.csv')
+
+#
+all_daily_foodall <- DTB %>%
+   mutate(foodall = str_glue('{Food_NSC}__{Unit}')) %>% 
+  group_by(mrn, fdrt, foodall) %>%
+  summarise(total_daily_foodall = sum(dehydrated_weight))
+
+# the previous two days average for each stool sample
+
+stb_pair <- STB %>%
+  select(mrn, sdrt) %>%
+  transmute(mrn = mrn,
+            p1d = sdrt-1,
+            p2d = sdrt-2)
+
+mean_p2d_foodall <-  function(mrn_, p1d_, p2d_){
+  df = all_daily_foodall %>%
+    filter(mrn == mrn_) %>%
+    filter(fdrt %in% c(p1d_, p2d_  )) %>%
+    group_by(foodall) %>%
+    summarise(ave_foodall = sum(total_daily_foodall)/2)
+  return(df)
+}
+
+mean_p2d_df_foodall <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_foodall(mrn, p1d, p2d)
+  }) %>%
+  set_names(STB %>% pull(sampleid)) %>%
+  bind_rows(.id = 'sampleid')
+
+mean_p2d_df_foodall %>% write_csv('../data/154_average_p2d_intake_of_foodnsc_and_unit.csv')
+```
+

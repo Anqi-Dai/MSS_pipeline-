@@ -1,0 +1,33 @@
+---
+title: "PARADIGM"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+```
+
+```{r}
+# find the daily consecutive stool samples from the patients
+STB <- read_csv('../data/152_combined_STB.csv') %>% 
+  arrange(mrn, sdrt)
+
+dailys <- STB %>% 
+  split(.$mrn) %>% 
+  map_dfr(function(df){
+   df %>% group_by(seq_id = cumsum(c(1, diff(sdrt)) != 1)) %>% add_count(seq_id) %>% filter(n != 1)
+  })
+
+# distribution of the diversity
+div <- dailys %>% 
+  gghistogram( x = 'simpson_reciprocal')
+```
+

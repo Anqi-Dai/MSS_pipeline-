@@ -189,3 +189,24 @@ highfiber_pt %>%
 ggsave('../data/08_highfiber_pt_fg.pdf', width = 15, height = 25)
 ```
 
+```{r}
+# the top 5 patients
+top5 <- all_patients_groups_fiber %>% 
+  ungroup() %>% 
+  slice_max(order_by = n, n = 5)
+
+DTB %>% 
+  filter(mrn %in% top5$mrn & fdrt %in% 0:30) %>% 
+  mutate(fgrp1 = str_sub(as.character(Food_code), 1, 1)) %>% 
+  left_join(key %>% select(fgrp1, shortname))  %>% 
+  group_by(mrn, fdrt, shortname) %>% 
+  summarise(daily_fiber = sum(Fibers_g)) %>% 
+  mutate(shortname = fct_reorder(shortname, daily_fiber, .fun=median, .desc = F)) %>% 
+  #mutate(mrn = factor(mrn, levels =pt_order )) %>% 
+  ggboxplot(x = 'shortname', y = 'daily_fiber', orientation = 'horizontal',color = 'shortname', 
+            add = 'jitter', xlab = '',
+            ylab = 'Daily fiber intake from each food groups')
+ggsave('../data/08_Daily fiber intake from each food groups_top5.pdf')
+ggsave('../data/patients_16s_data/08_Daily fiber intake from each food groups_top5.pdf')
+```
+
