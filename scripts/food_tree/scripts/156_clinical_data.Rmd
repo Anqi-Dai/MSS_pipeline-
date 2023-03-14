@@ -184,7 +184,8 @@ ave_ttanc <- pts_ %>%
     ttanc_day <- ptb_all %>% 
       filter(mrn == mrn_) %>% 
       pull(ttancday)
-    total_days <- ttanc_day + 1
+    total_days <- dailyall %>% 
+      filter(mrn == mrn_ & fdrt %in% 0:ttanc_day) %>% nrow
     ave_values <- dailyall %>% 
       filter(mrn == mrn_ & fdrt %in% 0:ttanc_day) %>% 
       gather('group', 'gram', daycal:daily_Vegetables) %>% 
@@ -198,6 +199,8 @@ ave_ttanc_df <- ave_ttanc %>%
 # why are there 2 patients that don't have any nutrition predictors
 pt2 <- setdiff(pts_, ave_ttanc_df$mrn)
 # since we only have diet data pre-transplant
+
+
 ```
  
  
@@ -395,7 +398,8 @@ ave_ttanc_faith <- pts_ %>%
     ttanc_day <- ptb_all %>% 
       filter(mrn == mrn_) %>% 
       pull(ttancday)
-    total_days <- ttanc_day + 1
+    total_days <- faith %>% 
+      filter(mrn == mrn_ & fdrt %in% 0:ttanc_day) %>% nrow
     ave_faith <- faith %>% 
       filter(mrn == mrn_ & fdrt %in% 0:ttanc_day) %>% 
       group_by(mrn) %>% 
@@ -408,5 +412,80 @@ output <- ave_ttanc_faith %>%
 output %>% distinct(mrn )
 
 output %>% write_csv('../data/156_extra_predictors.csv')
+```
+# the pre and post engraftment correlation
+
+```{r}
+
+
+
+all_prepost <- pts_ %>% 
+  set_names(pts_) %>% 
+  map(function(mrn_){
+       ttanc_day <- ptb_all %>% 
+          filter(mrn == mrn_) %>% 
+          pull(ttancday)
+       
+    df = dailyall %>% 
+      filter(mrn == mrn_ & fdrt >= 0) %>% 
+      mutate(timegrp = if_else(fdrt %in% 0:ttanc_day, 'pre', if_else(fdrt > ttanc_day, 'post', 'before0'))) %>% 
+      select(-fdrt) %>% 
+      gather('grp', 'value', daycal:daily_Vegetables) %>% 
+      group_by(mrn, timegrp, grp) %>% 
+      summarise(ave_timebin = mean(value)) 
+  }) %>% bind_rows() %>% 
+  spread('timegrp', 'ave_timebin')
+
+all_prepost %>% 
+   ggscatter(x = 'pre', y = 'post',   alpha = 0.5,
+             conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
+  facet_wrap(~ grp, scales = 'free')
+
+ggsave('../data/156_ALL_pre_post.pdf', width = 10, height = 10)
+```
+
+```{r}
+# a linear model that takes into account conditioning intensity & graft source
+df_main <- read_csv('../data/df_main.csv')
+summary(df_main$tLOS)
+prepost_df <- all_prepost %>% 
+  left_join(ptb_all %>% select(mrn, source, intensity)) %>% 
+  left_join(df_main %>% select(mrn, tLOS))
+
+lm_res <- prepost_df %>% 
+  split(.$grp) %>% 
+  map(function(df) {
+    res = summary(lm(post ~ pre + source +intensity, data = df ))
+    return(tibble(pval = round(res$coefficients[2, 'Pr(>|t|)'], 3),
+           slope = round(res$coefficients[2, 'Estimate'], 3)))
+  }) %>% bind_rows(.id = 'grp') %>% 
+  select(grp, slope_of_pre = slope, pval)
+
+# an lmer that considers each day and each patient individually
+prepost_days <- pts_ %>% 
+  set_names(pts_) %>% 
+  map(function(mrn_){
+       ttanc_day <- ptb_all %>% 
+          filter(mrn == mrn_) %>% 
+          pull(ttancday)
+       
+    df = dailyall %>% 
+      filter(mrn == mrn_ & fdrt >= 0) %>% 
+      mutate(timegrp = if_else(fdrt %in% 0:ttanc_day, 'pre', if_else(fdrt > ttanc_day, 'post', 'before0'))) ao 
+  }) %>% bind_rows() 
+  
+
+lm_res_all <- prepost_df %>% 
+  split(.$grp) %>% 
+  map(function(df) {
+    res = summary(lm(tLOS ~ pre + post +source +intensity, data = df ))
+    return(tibble(
+      pre_pval = round(res$coefficients[2, 'Pr(>|t|)'], 3),
+      pre_slope = round(res$coefficients[2, 'Estimate'], 3),
+      post_pval = round(res$coefficients[3, 'Pr(>|t|)'], 3),
+      post_slope = round(res$coefficients[3, 'Estimate'], 3)))
+  }) %>% bind_rows(.id = 'grp')
 ```
 

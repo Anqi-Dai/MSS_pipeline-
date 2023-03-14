@@ -38,6 +38,32 @@ dailycode <- DTB %>%
 
 dailycode %>% write_csv('../data/patients_16s_data/11_pt_daily_fiber_type.csv')
 dailycode %>% write_csv('../data/11_pt_daily_fiber_type.csv')  
+key <- read_csv('../../food_tree/data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+dailyfgfiber <-  DTB %>%   
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(dfgfiber = sum(Fibers_g)) %>% 
+  left_join(pts %>% select(mrn, d100_a_gvhd)) %>% 
+  left_join(key %>% select(fgrp1, shortname))  
+
+dailyfgfiber %>% 
+  filter( d100_a_gvhd %in% c('Y','N') & fdrt <= 30) %>% 
+  ggscatter(x = 'fdrt', y = 'dfgfiber',  alpha = 0.05, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, ylab = 'Daily fiber intake from each group',
+            #title = 'soluble',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+   scale_color_manual(values = color_key) +
+   scale_fill_manual(values = color_key) +
+  facet_wrap(~ shortname, scales = 'free')
+ggsave('../data/11_daily_fiber_fg.pdf', width = 8, height = 6)
+
+DTB %>% 
+  distinct(mrn, fdrt) %>% 
+  ungroup() %>% 
+  count(mrn) %>% 
+  summary(n)
+  gghistogram(x = 'n')
+  
 ```
 
 ```{r}

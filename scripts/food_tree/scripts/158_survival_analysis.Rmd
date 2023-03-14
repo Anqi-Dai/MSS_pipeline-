@@ -23,9 +23,10 @@ library(tidycmprsk)
 library(survival)
 library(gtsummary)
 library(ggsurvfit)
+library(gtExtras)
 # theme_set(mskRvis::theme_biostat()); mskRvis::set_msk_palette()
 # theme_gtsummary_compact()
-
+ 
 few <- read_csv('../data/156_extra_predictors.csv')
 df_main <- read_csv('../data/df_main.csv') %>% 
   mutate(Source = source,
@@ -88,6 +89,10 @@ featlist <- c("d_carb_med",
               "daily_Oils_med",
               "daily_Sweets_med",
               "daily_Vegetables_med")
+
+df_main %>% count(TRMevent, OSevent)  %>% 
+  mutate(status = if_else(OSevent ==1, 'dead', 'alive')) %>% 
+  select(-OSevent)
 ```
 
 
@@ -96,6 +101,9 @@ featlist <- c("d_carb_med",
 ```{r OS}
 OS_mult_comb_fg <- coxph(Surv(OStime_landmark,OSevent) ~ daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk + Intensity + Source, data=df_main) %>% 
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of discharging; all fg")
+
+OS_mult_comb_age <- coxph(Surv(OStime_landmark,OSevent) ~ age, data=df_main %>% mutate(age = age/10)) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of discharging; age")
 
 OS_mult_comb_macro <- coxph(Surv(OStime_landmark,OSevent) ~ 
                               d_carb + 
@@ -115,15 +123,11 @@ OS_mult_comb_cal <- coxph(Surv(OStime_landmark,OSevent) ~
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of engraftment; calories")
 
 OS_mult_comb_alpha7_21 <- coxph(Surv(OStime_landmark,OSevent) ~ 
-                              median7_21 + 
-                              Intensity + 
-                              Source, data=df_main) %>% 
+                              median7_21 , data=df_main) %>% 
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of engraftment; alpha7_21")
 
 OS_mult_comb_alpha_w1 <- coxph(Surv(OStime_landmark,OSevent) ~ 
-                              first_in_w1 + 
-                              Intensity + 
-                              Source, data=df_main) %>% 
+                              first_in_w1 , data=df_main) %>% 
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of engraftment; first_in_w1")
 
 OS_mult_comb_ave_faith <- coxph(Surv(OStime_landmark,OSevent) ~ 
@@ -131,7 +135,52 @@ OS_mult_comb_ave_faith <- coxph(Surv(OStime_landmark,OSevent) ~
                               Intensity + 
                               Source, data=df_main) %>% 
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of engraftment; ave_faith") 
+
+OS_mult_comb_ave_both <- coxph(Surv(OStime_landmark,OSevent) ~ 
+                              daycal + 
+                              median7_21 +
+                              Intensity + 
+                              Source, data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of engraftment; both") 
+
+
+coxph(Surv(OStime_landmark,OSevent) ~ median7_21 , data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Univariable analysis for Overall Survival, landmarked at day of engraftment; alpha7_21")  %>% as_gt %>% gt::gtsave(filename = '../data/158_uni_alpha7_21_OS.png')
+
+coxph(Surv(OStime_landmark,OSevent) ~ first_in_w1 , data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Univariable analysis for Overall Survival, landmarked at day of engraftment; first_in_w1")  %>% as_gt %>% gt::gtsave(filename = '../data/158_uni_first_in_w1_OS.png')
 ```
+
+
+```{r teng_OS}
+OS_univ_comb <- df_main %>% 
+  select(OStime_landmark,
+         OSevent,
+         d_carb,
+         d_fat,
+         d_fiber,
+         d_protein,
+         d_sugar,
+         daycal,
+         daily_Eggs,
+         daily_Fruits, daily_Milk,
+         daily_Grains,
+         daily_Legumes,
+         daily_Meats,
+         daily_Oils,
+         daily_Sweets,
+         daily_Vegetables, Intensity, Source
+  ) %>% 
+  tbl_uvregression(method=survival::coxph,
+                   y=Surv(OStime_landmark,OSevent),
+                   formula= "{y} ~ {x} + Intensity + Source",
+                   exponentiate = TRUE
+  ) %>% bold_p() %>% modify_caption("OS landmarked at engraftment - Cox model adjusted for conditioning intensity and graft source")
+
+OS_univ_comb
+gt::gtsave(as_gt(OS_univ_comb), file = file.path('../data/158_OS_univ_comb.png'))
+```
+
 
 ```{r}
 OS_mult_comb_fg
@@ -163,7 +212,45 @@ TRM_mult_comb_first_in_w1 <- crr(Surv(tevent_landmark,TRMevent) ~ first_in_w1  +
 
 TRM_mult_comb_ave_faith <- crr(Surv(tevent_landmark,TRMevent) ~ ave_faith  + Intensity + Source, data=df_main, failcode = "TRM")%>% 
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; ave_faith")
+
+
+crr(Surv(tevent_landmark,TRMevent) ~ median7_21 , data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Univariable analysis for TRM, landmarked at day of engraftment; alpha7_21")  %>% as_gt %>% gt::gtsave(filename = '../data/158_uni_alpha7_21_TRM.png')
+
+crr(Surv(tevent_landmark,TRMevent) ~ first_in_w1 , data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Univariable analysis for TRM, landmarked at day of engraftment; first_in_w1")  %>% as_gt %>% gt::gtsave(filename = '../data/158_uni_first_in_w1_TRM.png')
 ```
+
+```{r}
+TRM_univ_comb <- df_main %>% 
+  select(tevent_landmark,
+         TRMevent,
+         d_carb,
+         d_fat,
+         d_fiber,
+         d_protein,
+         d_sugar,
+         daycal,
+         daily_Eggs,
+         daily_Fruits, daily_Milk,
+         daily_Grains,
+         daily_Legumes,
+         daily_Meats,
+         daily_Oils,
+         daily_Sweets,
+         daily_Vegetables, Intensity, Source
+  ) %>% 
+  tbl_uvregression(method=crr,
+                   y=Surv(tevent_landmark,TRMevent),
+                   method.args = list(failcode="TRM"),
+                   formula= "{y} ~ {x} + Intensity + Source",
+                   exponentiate = TRUE
+  ) %>% bold_p() %>% modify_caption("TRM landmarked at engraftment - Cox model adjusted for conditioning intensity and graft source")
+
+TRM_univ_comb 
+gt::gtsave(as_gt(TRM_univ_comb), file = file.path('../data/158_TRM_univ_comb.png'))
+```
+
 
 ```{r}
 TRM_mult_comb_fg
@@ -177,6 +264,7 @@ TRM_mult_comb_ave_faith
 # length of stay
 
 ```{r}
+#df_main <- df_main %>% filter(batch == 'batch1') 
 LOS_mult_comb_fg <- coxph(Surv(tLOS,LOS) ~ daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk + Intensity + Source, data=df_main) %>% 
   tbl_regression(exponentiate=TRUE,estimate_fun = function(x) style_ratio(x,digits=3)) %>% bold_p() %>% modify_caption("Length of stay after engraftment; all fg")
 
@@ -216,6 +304,38 @@ LOS_mult_comb_ave_faith <- coxph(Surv(tLOS,LOS) ~
   tbl_regression(exponentiate=TRUE, estimate_fun = function(x) style_ratio(x,digits=3)) %>% bold_p() %>% modify_caption("Length of stay after engraftment; ave_faith")
 ```
 
+
+```{r}
+LOS_univ_comb <- df_main %>% 
+  select(tLOS,
+         LOS,
+         d_carb,
+         d_fat,
+         d_fiber,
+         d_protein,
+         d_sugar,
+         daycal,
+         daily_Eggs,
+         daily_Fruits, daily_Milk,
+         daily_Grains,
+         daily_Legumes,
+         daily_Meats,
+         daily_Oils,
+         daily_Sweets,
+         daily_Vegetables, Intensity, Source
+  ) %>% 
+  tbl_uvregression(method=survival::coxph,
+                   y=Surv(tLOS,LOS),
+                   formula= "{y} ~ {x} + Intensity + Source",
+                   exponentiate = TRUE,
+                   estimate_fun = function(x) style_ratio(x,digits=3)
+  ) %>% bold_p() %>% modify_caption("Length of stay after engraftment - Cox model adjusted for conditioning intensity and graft source")
+
+LOS_univ_comb
+gt::gtsave(as_gt(LOS_univ_comb), file = file.path('../data/158_LOS_univ_comb.png'))
+```
+
+
 ```{r}
 LOS_mult_comb_fg
 LOS_mult_comb_macro
@@ -228,17 +348,18 @@ LOS_mult_comb_ave_faith
 ## % discharged VS days post engraftment
 
 ```{r}
-for (i in 1:length(featlist)){
-  
-  reg <- as.formula(paste0("Surv(tLOS,LOS)~",featlist[i]))
-  
-  print(survfit2(reg, data = df_main) %>%
+los_plots <- featlist %>% 
+  set_names(featlist) %>% 
+  map(function(feature_){
+    survfit2(as.formula(str_glue("Surv(tLOS,LOS)~{feature_}")), data = df_main) %>%
           ggsurvfit(type = "risk", linewidth = 0.8) +
-          add_pvalue("annotation",size=5) +
+          add_pvalue("annotation",size=3) +
           add_confidence_interval()+
-          ylab("Percentage of patients discharged alive")+
-          add_risktable()+ggtitle(featlist[i]))
-}
+          ylab("% patients discharged alive")+ggtitle(str_glue('{feature_}'))
+  })
+ 
+cowplot::plot_grid(plotlist = los_plots[7:15], align = 'hv', nrow = 2)
+ggsave('../data/158_LOS_features_2.pdf', width = 12)
 ```
 
 
@@ -269,6 +390,38 @@ GRM_mult_comb_first_in_w1 <- crr(Surv(tevent_landmark,GRMevent) ~ first_in_w1  +
 GRM_mult_comb_ave_faith <- crr(Surv(tevent_landmark,GRMevent) ~ ave_faith  + Intensity + Source, data=use, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; ave_faith")
 ```
+
+```{r}
+
+GRM_univ_comb <- df_main %>% 
+  filter(!is.na(d100_a_gvhd)) %>% 
+  select(tevent_landmark,
+         GRMevent,
+         d_carb,
+         d_fat,
+         d_fiber,
+         d_protein,
+         d_sugar,
+         daycal,
+         daily_Eggs,
+         daily_Fruits, daily_Milk,
+         daily_Grains,
+         daily_Legumes,
+         daily_Meats,
+         daily_Oils,
+         daily_Sweets,
+         daily_Vegetables, Intensity, Source
+  ) %>% 
+  tbl_uvregression(method=crr,
+                   y=Surv(tevent_landmark,GRMevent),
+                   method.args = list(failcode="GRM"),
+                   formula= "{y} ~ {x} + Intensity + Source",
+                   exponentiate = TRUE
+  ) %>% bold_p() %>% modify_caption("GRM landmarked at engraftment - Cox model adjusted for conditioning intensity and graft source")
+
+gt::gtsave(as_gt(GRM_univ_comb), file = file.path('../data/158_GRM_univ_comb.png'))
+```
+
 
 ```{r}
 GRM_mult_comb_fg

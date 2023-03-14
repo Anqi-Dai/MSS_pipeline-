@@ -1,0 +1,18 @@
+---
+title: "Figure 3 the model"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+Fig 3: Bayesean model for macronutrients (+ or - the acyclic graph. could just describe it in text form if want to save the graphic for a future paper)
+  coefficient plots (old supple S3A, B, C,  D, and E (all re-analyzed on both cohorts combined)

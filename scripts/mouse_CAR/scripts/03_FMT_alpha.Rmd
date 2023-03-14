@@ -217,3 +217,91 @@ few %>%
 ggsave('../data/03_bar_few.pdf', width = 14, height = 7)
 ```
 
+# to find the shared genus and percentage of between the slurry ad the mice samples
+
+```{r}
+slurry_responder <- c('PH131')
+slurry_df <- genera %>% 
+      filter(sampleid == slurry_responder)
+responder_A20 <- FMT %>% 
+  filter(Group == 'Responder' & Condition == 'Pre-A20') %>% 
+  pull(sampleid)
+
+
+# to find the shared genus and percentage of between the slurry and the pre-A20 samples
+shared <- responder_A20 %>% 
+  set_names(responder_A20) %>% 
+  map(function(samp){
+    A20_df = genera %>% filter(sampleid == samp)
+    shared_genera = intersect(A20_df$ge, slurry_df$ge)
+    relab_in_A20 = A20_df %>% 
+      filter(ge %in% shared_genera) %>% group_by(sampleid) %>% summarise(shared_relab = sum(relab))
+    relab_in_slurry = slurry_df %>% 
+      filter(ge %in% shared_genera) %>% group_by(sampleid) %>% summarise(shared_relab = sum(relab))
+    res = tibble(
+      shared_genus = paste(shared_genera,collapse = ', '),
+      relab_in_A20 = relab_in_A20$shared_relab,
+      relab_in_slurry = relab_in_slurry$shared_relab
+    )
+  }) %>% bind_rows(.id = 'sampleid')
+
+shared %>% write_csv('../data/03_shared_genera_between_PH131_and_A20_responder.csv')
+```
+
+```{r}
+these <- FMT %>% 
+  select(sampleid,Group, Condition ) %>% 
+  add_row(sampleid = 'PH131', Group = 'Responder', Condition = 'slurry') %>% 
+  filter(sampleid %in% c(responder_A20, 'PH131'))
+
+
+# find the spp > 0.01% in more than 20% samples
+keep_spp <- all %>% 
+  filter(sampleid %in% these$sampleid) %>% 
+  filter(relative_abundance > 0.0001) %>% 
+  count(clade_name) %>% 
+  filter(n > floor(nrow(these) * 0.2)) %>% 
+  pull(clade_name)
+
+# calculate the Bray curtis beta diversity 
+cts_fil <- all %>% 
+  filter(sampleid %in% these$sampleid) %>% 
+  filter(clade_name %in% keep_spp) %>% 
+  select(sampleid, clade_name,relative_abundance ) %>% 
+  spread(key = 'clade_name', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('sampleid')
+dist_ <- vegan::vegdist(cts_fil, method = 'bray')
+eigen <- cmdscale(dist_, eig = T)$eig
+percent_var <- signif(eigen/sum(eigen), 3)*100
+bc <- cmdscale(dist_, k = 2)
+beta_df <- bc %>%
+  as.data.frame() %>%
+  rownames_to_column('sampleid')  %>% 
+  full_join(these)
+
+pcoa_all <- beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'Condition', palette = 'lancet' ) +
+  labs(title = 'Responders') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'right')
+
+ggsave(
+  '../data/03_pcoa_10samples.pdf', width = 5, height = 4
+)
+```
+
+
+```{r}
+# the paired boxplot
+shared %>% 
+  gather('grp', 'relab', relab_in_A20:relab_in_slurry) %>%
+  mutate(relab = round(relab, 2)) %>% 
+  mutate(grp = factor(grp, levels = c('relab_in_slurry','relab_in_A20'))) %>% 
+  ggbarplot(x= 'sampleid', y = 'relab',fill = "grp", color = "grp", palette = "Paired",
+  label = TRUE,ylab = 'relative abundance',
+  position = position_dodge(0.8))
+ggsave('../data/03_shared_genera.pdf', width = 6, height = 5)
+ 
+```
+

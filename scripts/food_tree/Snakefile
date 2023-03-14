@@ -625,7 +625,7 @@ rule covert_tree_to_qza:
         qiime tools import \
             --input-path {input[0]} --output-path  {output[0]} --type 'Phylogeny[Rooted]'
         '''
-
+'''
 rule convert_food_to_biom:
     input:
         'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt.tsv'
@@ -650,13 +650,13 @@ rule cal_unweighted_unifrac_for_food:
     output:
         'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_distance_matrix.qza'
     shell:
-        '''
+        '
         qiime diversity beta-phylogenetic \
             --i-table {input.cts} \
             --i-phylogeny {input.tree} \
             --p-metric unweighted_unifrac \
             --o-distance-matrix {output[0]}
-        '''
+        '
 
 rule pcoa_unweighted_unifrac_food:
     input:
@@ -664,9 +664,9 @@ rule pcoa_unweighted_unifrac_food:
     output:
         'data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa.qza'
     shell:
-        '''qiime diversity pcoa \
+        'qiime diversity pcoa \
             --i-distance-matrix {input[0]} \
-            --o-pcoa {output[0]}'''
+            --o-pcoa {output[0]}'
 
 rule export_food_pcoa:
     input:
@@ -675,7 +675,7 @@ rule export_food_pcoa:
         directory('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa')
     shell:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
-
+'''
 ###########
 # microbe data
 # have to use qiime too cuz using R vegan the matrix dimension just don't seem right
@@ -732,7 +732,7 @@ rule export_stool_microbe_pcoa:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
 
 # the macronutrients procrustes (need to compute the bray curtis since I don't have a tree to compute the unifrac)
-'''
+
 
 rule convert_food_to_biom:
     input:
@@ -757,12 +757,10 @@ rule cal_bc_for_food:
     output:
         'data/finalized/paired/pNday/{time}_diet_macro_dehydrated_weight_per_pt_bc_distance_matrix.qza'
     shell:
-        '
-        qiime diversity beta \
+        'qiime diversity beta \
             --i-table {input[0]} \
             --p-metric braycurtis \
-            --o-distance-matrix {output[0]}
-        '
+            --o-distance-matrix {output[0]}'
 
 rule pcoa_bc_food:
     input:
@@ -781,7 +779,7 @@ rule export_food_pcoa:
         directory('data/finalized/paired/pNday/{time}_diet_macro_dehydrated_weight_per_pt_bc_pcoa')
     shell:
         'qiime tools export --input-path {input[0]} --output-path {output[0]}'
-'''
+
 
 # the loop variable for this part
 
@@ -814,9 +812,9 @@ stool_loop_vars = ['allstool_weighted']
 
 food_loop_vars = ['allstool_weighted']
 
-#food_loop_vars = ["single_p{}d".format(i) for i in range(1,11)]
+food_loop_vars = ["allstool_p{}d".format(i) for i in range(1,6)]
 
-#stool_loop_vars = ["single_p{}d".format(i) for i in range(1,11)]
+stool_loop_vars = ["allstool_p{}d_scts".format(i) for i in range(1,6)]
 
 
 rule stool:
@@ -826,7 +824,8 @@ rule stool:
 
 rule food:
     input:
-        expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = food_loop_vars)
+        #expand('data/finalized/paired/pNday/{time}_diet_foodID_dehydrated_weight_per_pt_unweighted_unifrac_pcoa',  time = food_loop_vars)
+        expand('data/finalized/paired/pNday/{time}_diet_macro_dehydrated_weight_per_pt_bc_pcoa',  time = food_loop_vars)
 
 rule funifrac_output:
     input: sample_dir+'/FINAL_97_unweighted_unifrac_distance_matrix'

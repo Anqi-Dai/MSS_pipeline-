@@ -1,0 +1,65 @@
+---
+title: "Figure 2"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+Fig 2: diet relates to microbiome
+ procrustes macronutrients
+ scatterplots
+   combined batch1 &2, 2-day-exposure
+       supplemental figure of the same-day exposure
+   for the key ones, (maybe calorie intake) show breakdowns by conditioning intensity
+   
+```{r}
+# use 091 to produce the p1d...p5d macronutrients table
+# use 022 to produce the p1d...p5d genus counts table
+# use the snakefile to calculate the pcoa
+# the below is the results from all of the patients
+fns_both <- tibble(
+  sfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_scts_stool_relab_species_braycurtis_pcoa$', full.names = T),
+  dfolder = list.files('../data/finalized/paired/pNday/', pattern = 'allstool_p.d_diet_macro_dehydrated_weight_per_pt_bc_pcoa$', full.names = T)
+) %>% 
+  mutate(ID = str_replace(sfolder, '_scts_stool_relab_species_braycurtis_pcoa', ''),
+         ID = str_replace(ID, '../data/finalized/paired/pNday//allstool_','')) %>% 
+  mutate(sfn = str_glue('{sfolder}/ordination.txt'),
+         dfn = str_glue('{dfolder}/ordination.txt'))
+
+# sum of squares
+procrustes_Nday <- map2_dfc(fns_both$dfn, fns_both$sfn, function(dfn, sfn){
+  dpcoa = read_tsv(dfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  spcoa = read_tsv(sfn, skip = 9, col_names = F)  %>% 
+    filter(! X1 %in% c('Biplot','Site constraints')) %>% 
+    column_to_rownames('X1') %>% 
+    as.matrix()
+  
+  procrustes_res = procrustes(X = dpcoa, Y = spcoa)
+  return( procrustes_res$ss)
+}) %>% 
+  gather(key = 'pNd', value = 'ss') %>% 
+  mutate(pNd = fns_both$ID)
+
+# convert it to a score so that the p2d is the highest
+procrustes_Nday_score <- procrustes_Nday %>% 
+  mutate(score = min(.$ss) - ss)
+
+
+procrustes_Nday_score %>% 
+  write_csv('../data/163_macro_procrustes_Nday_score.csv')
+```
+   
+   

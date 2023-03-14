@@ -1,0 +1,49 @@
+---
+title: "PCoA of the combined cohort"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+library(vdbR)
+connect_database()
+```
+
+
+```{r}
+# the diet pattern using bray curtis distance
+DTB <- read_csv('../data/152_combined_DTB.csv')
+
+dailys <- DTB %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(d_protein = sum(Protein_g),
+            d_fat = sum(Fat_g),
+            d_carb = sum(Carbohydrates_g),
+            d_fiber = sum(Fibers_g),
+            d_sugar = sum(Sugars_g))
+
+# need to calculate the relative proportion
+```
+
+
+```{r}
+
+dist_ <- vegan::vegdist(cts_fil, method = 'bray')
+eigen <- cmdscale(dist_, eig = T)$eig
+percent_var <- signif(eigen/sum(eigen), 3)*100
+bc <- cmdscale(dist_, k = 2)
+beta_df <- bc %>%
+  as.data.frame() %>%
+  rownames_to_column('sampleid')  %>% 
+  full_join(these)
+```
+
+

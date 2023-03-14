@@ -1,0 +1,65 @@
+---
+title: "macronutrient paper figure 1"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+Fig 1: we collected a lot of data, using a better data-collection instrument
+ histograms (old Fig1A, old 1B), taxUmaps (old 1D, 1F).
+ add new taxUmaps by each of the 5 macronutrients, just as in old 1D (calories)
+ the timecourses that relate to macronutrients (old 1G, I, and K)
+ 
+```{r}
+library(cowplot)
+library(ggimage)
+library(lemon)
+axis_text_size <- 10
+axis_title_size <- 10
+stip_txt_size <- 8
+alpha_val <- 0.05
+point_size <- 1.2
+scatter_col <- 'gray14'
+pick_point_size <- 1
+pick_line_size <- 0.5
+example_pt_line_size <- 0.3
+diet_line_color <- '#E41A1C'
+stool_line_color <- 'blue'
+umap_pt_size <- 1
+
+DTB <- read_csv('../data/152_combined_DTB.csv')
+META <- read_csv('../data/153_combined_META.csv')
+```
+
+```{r A}
+# the histogram of the N stool samples over transplant time
+stool_hist <- META %>% 
+  gghistogram(x = 'sdrt', xlab = 'Transplant day', ylab = 'Stool samples', color = 'white', fill = stool_line_color, alpha = 1) +
+  scale_x_continuous( breaks = seq(-10, 50, 20)) + 
+  theme(aspect.ratio=1, axis.text=element_text(size=axis_text_size))
+
+# the histogram of the N meals over transplant time
+diet_hist <- DTB %>% 
+  distinct(mrn, Meal, fdrt) %>% 
+  gghistogram(x = 'fdrt', xlab = 'Transplant day', ylab = 'Meals recorded', color = 'white', fill = diet_line_color, alpha = 1)+
+    scale_x_continuous( breaks = seq(-10, 50, 20)) + 
+  theme(aspect.ratio=1, axis.text=element_text(size=axis_text_size),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+diet_hist
+```
+```{r B}
+
+```
+ 
+ 
