@@ -1,0 +1,72 @@
+---
+title: "taxUMAP of the combined cohort"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vegan)
+library(vdbR)
+connect_database()
+```
+
+```{r}
+dtb <- read_csv('../data/152_combined_DTB.csv')
+
+# the weight need to be relative so needs to normalize them 
+
+
+fc_table <- dtb %>% 
+  select(mrn, fdrt, Food_code, dehydrated_weight) %>% 
+  group_by(mrn, fdrt, Food_code) %>% 
+  summarise(total = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  mutate(index_column = str_glue('P{mrn}_{fdrt}')) %>% 
+  select(index_column, Food_code, total)
+
+fc_total <- fc_table %>% 
+  group_by(index_column) %>% 
+  summarise(daily_total = sum(total))
+
+fc_df <- fc_table %>% 
+  left_join(fc_total) %>% 
+  mutate(daily_relative = total/daily_total) %>% 
+  select(index_column,Food_code, daily_relative ) %>% 
+  spread('Food_code', 'daily_relative', fill = 0)
+
+fc_df %>% write_csv('../data/162_food_code_relative.csv')
+
+dtb %>% distinct(mrn)
+```
+
+The taxonomy table (e.g., examples/example_data/taxonomy.csv) is expected to resolve higher taxonomic groups for each ASV/OTU in the microbiota table. The index of the taxonomy table should be ASV/OTU labels, while the columns of the taxonomy table should be higher taxonomic categories (e.g., kingdom, phylum, etc.). The columns must be ordered from left to right in decreasing taxonomic hierarchy,
+
+```{r}
+actual_foodids <- colnames(fc_df)[2:length(colnames(fc_df))]
+
+final.table <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv') %>% 
+  mutate(FoodID = as.character(FoodID))
+
+food_taxa <- final.table %>% 
+  filter(FoodID %in% actual_foodids) %>% 
+  select(ASV = FoodID, Kingdom = L1, Phylum = L2, Class = L3, Order = L4) 
+
+food_taxa %>% write_csv('../data/162_food_taxa.csv')
+
+top2level <- food_taxa %>% 
+  distinct(Kingdom, Phylum)
+
+```
+```{bash}
+<!-- ~/pipeline/scripts/food_tree/softwares/taxumap/run_taxumap.py -t 162_food_taxa.csv -m 162_food_code_relative.csv --agg_levels Kingdom/Phylum -n 173 --weights 1/0.5 -->
+```
+
+
+
