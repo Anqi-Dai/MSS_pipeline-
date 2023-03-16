@@ -13,4 +13,52 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(ggpubr)
 ```
+```{r}
+# omega 3 would be represented by Column BN 20:5 n-3 (g), BO 22:5 n-3 (g) and BP 22:6 n-3 (g).
+ptb_all <- read_csv('../../food_tree/data/156_transplant_data.csv') %>% 
+  select(mrn,ttancday, age, sex, starts_with('d100') )
+DTB <- read_csv('../../food_tree/data/152_combined_DTB.csv')
+
+nutrients <- readxl::read_excel('../../food_tree/data/source/2015-2016 FNDDS At A Glance - FNDDS Nutrient Values.xlsx', skip = 1) %>% janitor::clean_names() 
+colnames(nutrients)
+
+nutrientsdf <- nutrients %>% 
+  select(food_code,description = main_food_description, x20_5_n_3_g:x22_6_n_3_g)
+
+dailyoil <- DTB %>% 
+  group_by(mrn, fdrt ,Food_code ) %>% 
+  summarise(dailydrywt = sum(dehydrated_weight),
+            dailywetwt = sum(total_weight)) %>% 
+  rename(food_code = Food_code) %>% 
+  left_join(nutrientsdf, by = "food_code") %>% 
+  # calculate the weight in the total wet weight using the percentage
+  mutate(x20_5_n_3_g = dailywetwt * x20_5_n_3_g/100,
+         x22_5_n_3_g = dailywetwt * x22_5_n_3_g/100,
+         x22_6_n_3_g = dailywetwt * x22_6_n_3_g/100) %>% 
+  left_join(ptb_all, by = "mrn") 
+
+dailyoil %>% write_csv('../data/12_fatty_pt.csv')
+
+dailytotaloil <- dailyoil %>% 
+  select(mrn, fdrt, x20_5_n_3_g:x22_6_n_3_g) %>% 
+  gather('type', 'gram', x20_5_n_3_g:x22_6_n_3_g) %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(total_fatty = sum(gram)) %>% 
+  left_join(ptb_all %>% 
+              select(mrn,d100_a_gvhd))
+
+
+dailytotaloil %>% 
+  filter(  d100_a_gvhd %in% c('Y','N')) %>% 
+  ggscatter(x = 'fdrt', y = 'total_fatty', alpha = 0.05, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, title = '',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+  #facet_grid(~ soluble)  +
+  #scale_color_manual(values = color_key) +
+  #scale_fill_manual(values = color_key)+
+  scale_y_sqrt()
+
+# to find out if the 95107 EN has fatty acid or not
+
+```
 

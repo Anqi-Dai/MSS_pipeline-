@@ -11,15 +11,16 @@ knitr::opts_chunk$set(echo = TRUE)
 library(phytools)
 library(tidyverse)
 library(vdbR)
+library(data.tree)
 connect_database('~/dbConfig.txt')
 ```
 
 ```{r}
-tre <- read.newick('../data/cleaned_tree/output_food_tree_datatree.newick')
+tre <-   read.newick('../data/cleaned_tree/output_food_tree_datatree.newick')
 leaves <- tibble(
   fcode = tre$tip.label
 )
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+dtb <- read_csv('../data/152_combined_DTB.csv')
 
 n_meal <- dtb %>% 
   count(mrn, fdrt, Meal) %>% 
@@ -64,16 +65,16 @@ bars_ <- bars %>%
 
 ```{r}
 # the top several foods in each category
-top_each <- bars_ %>% 
-  select(Food_code,fg1_name, per_meal_ave ) %>% 
-  group_by(fg1_name) %>% 
-  arrange(desc(per_meal_ave)) %>% 
-  slice_max(n = 5, order_by = per_meal_ave) %>% 
-  ungroup() %>% 
-  inner_join(dtb %>% 
-               mutate(Food_code = as.character(Food_code)) %>% 
-               distinct(Food_code, description)) %>% 
-  split(.$fg1_name)
+# top_each <- bars_ %>% 
+#   select(Food_code,fg1_name, per_meal_ave ) %>% 
+#   group_by(fg1_name) %>% 
+#   arrange(desc(per_meal_ave)) %>% 
+#   slice_max(n = 5, order_by = per_meal_ave) %>% 
+#   ungroup() %>% 
+#   inner_join(dtb %>% 
+#                mutate(Food_code = as.character(Food_code)) %>% 
+#                distinct(Food_code, description)) %>% 
+#   split(.$fg1_name)
  
 ```
 
@@ -117,7 +118,7 @@ top_each <- bars_ %>%
  
 Need to make the annotation file to specify how the tree ring looks like
 
-```{r}
+```{r per_meal_ave_ring_annot}
 ring <- bars_ %>%  
   select(Food_code, ring_height = per_meal_ave, ring_color = color) %>% 
   mutate(Food_code = as.character(Food_code)) %>% 
@@ -134,10 +135,10 @@ ring %>%
 
 ```{r one_day}
 # add the annotation marker for the example daily meal for that patient 
-dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>% 
-  rename(food_desc = description) %>% 
-  inner_join(tree_df %>% mutate(Food_code = as.numeric(FoodID)), by = "Food_code") %>% 
-  mutate(log10wt = log10(dehydrated_weight))
+# dm5 <-  read_csv('../data/cleaned_diet_data/example_pt_dm5_diet.csv') %>% 
+#   rename(food_desc = description) %>% 
+#   inner_join(tree_df %>% mutate(Food_code = as.numeric(FoodID)), by = "Food_code") %>% 
+#   mutate(log10wt = log10(dehydrated_weight))
 
 # clade_markder <- dm5 %>% 
 #   select(description, clade_marker_color = color) %>% 
@@ -179,17 +180,30 @@ ring_itself <- tibble(
 ```{r}
 # add another layer of the ring as the text annotation of what the ring 2 food is
 # decided to not want this in the main figure cuz it's not population data 
-dm5_annot <- dm5 %>% 
-  #mutate(ring_height = log10wt,ring_height = ring_height/2) %>% 
-  select(description, annotation = item, annotation_background_color = color) %>% 
-  mutate(annotation_rotation = 90,
-         annotation_font_size = 3)  %>% 
-  gather('key','value', annotation:annotation_font_size) %>% 
-  select(description, key, value) 
-
-dm5_annot %>% write_tsv('../data/source/dm5_annotation.txt', col_names = F)
+# dm5_annot <- dm5 %>% 
+#   #mutate(ring_height = log10wt,ring_height = ring_height/2) %>% 
+#   select(description, annotation = item, annotation_background_color = color) %>% 
+#   mutate(annotation_rotation = 90,
+#          annotation_font_size = 3)  %>% 
+#   gather('key','value', annotation:annotation_font_size) %>% 
+#   select(description, key, value) 
+# 
+# dm5_annot %>% write_tsv('../data/source/dm5_annotation.txt', col_names = F)
 ```
     
+```{r}
+# remake the output_food_tree_datatree_name.newick file
+# make another tree with leave nodes as the name description so it is not some numbers
+final.table <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv')
+
+final_table_name <- final.table%>% 
+  mutate(newickstring_name = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{description}'))
+
+#### Make and export the tree ####
+foodTree <- as.Node(final_table_name, pathName = "newickstring_name")
+tree <- ToNewick(foodTree)
+cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree_name.newick')
+```
     
 ```{bash}
 #cat ../data/source/annotation.base.txt ../data/source/dm5_annotation.txt > ../data/cleaned_tree/Annot_tree.txt
@@ -197,12 +211,11 @@ cat ../data/source/annotation.base.txt ../data/source/ring_itself.txt > ../data/
 cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring_annot.txt > ../data/cleaned_tree/Annot_tree4.txt 
 ```
 
-
 ```{bash}
 # this runs in the source folder 
 # the key is that the tree and the annot file has to have the string of food name as leaves 
 ../../softwares/graphlan/graphlan_annotate.py --annot ../cleaned_tree/Annot_tree4.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
-../../softwares/graphlan/graphlan.py guide_1_new.xml ../../figs/paper/080_food_tree_ring.png --dpi 400 --size 3 --pad 0
+../../softwares/graphlan/graphlan.py guide_1_new.xml ../../data/080_food_tree_ring.png --dpi 400 --size 3 --pad 0
 
 ```
 

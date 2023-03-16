@@ -30,7 +30,7 @@ dailycode <- DTB %>%
   group_by(mrn, fdrt, Food_code) %>% 
   summarise(dcodefiber = sum(Fibers_g)) %>% 
   janitor::clean_names() %>% 
-  filter(dcodefiber > 0) %>% 
+  #filter(dcodefiber > 0) %>% 
   left_join(type, by = "food_code") %>% 
   ungroup() %>% 
   relocate(description, .after = 'soluble') %>% 
@@ -64,6 +64,25 @@ DTB %>%
   summary(n)
   gghistogram(x = 'n')
   
+pts %>% select(starts_with('d100')) %>% 
+  inner_join(read_csv('../../'))
+
+dailytotalfiber <- DTB %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(dailyfiber = sum(Fibers_g)) %>% 
+  ungroup %>% 
+  left_join(pts %>% select(mrn, d100_a_gvhd))
+
+dailytotalfiber %>% 
+  filter( d100_a_gvhd %in% c('Y','N') & fdrt <= 30) %>% 
+  ggscatter(x = 'fdrt', y = 'dailyfiber',  alpha = 0.05, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, ylab = 'Daily fiber intake from each group',
+            #title = 'soluble',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+   scale_color_manual(values = color_key) +
+   scale_fill_manual(values = color_key) 
+
+
 ```
 
 ```{r}
@@ -71,10 +90,14 @@ DTB %>%
 # similarly looking at soluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
 # similarly looking at insoluble fibers over time in patients with GVHD vs no GVHD (geom_point and geom_smooth, colored by GVHD day -30 to +30)
 
+dailytotaldry <- DTB %>% 
+  group_by(mrn, fdrt) %>% 
+  summarise(alldry = sum(dehydrated_weight))
+
 all_types <- dailycode %>% 
   group_by(mrn, d100_a_gvhd, fdrt, fiber_type) %>% 
   summarise(gram = sum(dcodefiber)) %>% 
-  ungroup()
+  ungroup() 
 
 all_types %>% write_csv('../data/patients_16s_data/11_patients_fiber_type_intake.csv')
 all_types %>% write_csv('../data/11_patients_fiber_type_intake.csv')
@@ -83,7 +106,7 @@ all_types %>% write_csv('../data/11_patients_fiber_type_intake.csv')
 ```{r}
 all_types %>% 
   filter(fdrt %in% -30:30) %>% 
-  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+  ggscatter(x = 'fdrt', y = 'fiber_perc', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, 
             add.params = list(color = 'forestgreen', size = 1)) +
   facet_grid(~ fiber_type) 
@@ -124,7 +147,8 @@ all_types %>%
 all_soluble <- dailycode %>% 
   group_by(mrn, d100_a_gvhd, fdrt, soluble) %>% 
   summarise(gram = sum(dcodefiber)) %>% 
-  ungroup()
+  ungroup()%>% left_join(dailytotaldry) %>% 
+  mutate(fiber_perc = gram/alldry*100)
 
 all_soluble %>% 
   ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
@@ -140,9 +164,13 @@ ggsave('../data/11_fiber_all_soluble_daily_intake.pdf', width = 6, height = 4)
 # now join a line of gvhd or not
 color_key <- c('#42B440','#EC0000')
 names(color_key) <- c('N','Y')
+all_types %>% 
+  distinct(mrn, d100_a_gvhd) %>% 
+  count(d100_a_gvhd)
+
 all_soluble %>% 
   filter( fdrt <= 30 & d100_a_gvhd %in% c('Y','N')) %>% 
-  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+  ggscatter(x = 'fdrt', y = 'fiber_perc', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, title = 'soluble',
             add.params = list(color = 'd100_a_gvhd', size = 1)) +
   facet_grid(~ soluble)  +
@@ -207,7 +235,7 @@ ggsave('../data/11_fiber_all_soluble_daily_intake_gvhd_week_median.pdf', width =
 
 all_types %>% 
   filter(fdrt <= 30 & d100_a_gvhd %in% c('Y','N')) %>% 
-  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+  ggscatter(x = 'fdrt', y = 'fiber_perc', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, title = 'All fiber types',
             add.params = list(color = 'd100_a_gvhd', size = 1)) +
   scale_color_manual(values = color_key) +
@@ -265,5 +293,8 @@ solu_unisample %>%
 
 ggsave('../data/patients_16s_data/11_fiber_all_soluble_daily_intake_one_sample_per_pt.pdf', width = 6, height = 4)
 ggsave('../data/11_fiber_all_soluble_daily_intake_one_sample_per_pt.pdf', width = 6, height = 4)
+```
+```{r}
+# use the percentage to combat the zero fiber eating thing 
 ```
 
