@@ -125,7 +125,7 @@ scales_x <- list(
 
 ```{r}
 macro_facets <- macro_panel %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, pch = 19,
+  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, shape = 16,
              add = "reg.line",  # Add regressin line
            add.params = list(color = "darkblue", fill = "gray59"), # Customize line
            conf.int = TRUE, # Add confidence interval
@@ -140,7 +140,7 @@ macro_facets <- macro_panel %>%
         panel.grid.minor = element_blank()
        ) 
 
-ggsave('../data/151_BOTH_sameday_macronutrients_microbiome.pdf', 
+ggsave('../data/151_combined_sameday_macronutrients_microbiome.pdf', 
        width = 180, height = 150,
        units = c("mm"),
        plot = macro_facets)

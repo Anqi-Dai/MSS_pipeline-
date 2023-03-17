@@ -7,13 +7,15 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+Now this is the script for making the updated Figure 1 with the combined cohort 173 patients.
+
 ```{r setting}
 library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(ggimage)
 library(lemon)
-axis_text_size <- 8
+axis_text_size <- 10
 axis_title_size <- 10
 stip_txt_size <- 8
 alpha_val <- 0.05
@@ -25,6 +27,7 @@ example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
 umap_pt_size <- 1
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv')
 
 # the colors for each food group specified and saved here
 fpalette <- tribble(
@@ -51,8 +54,8 @@ get_table_from_database('shotgun_lookup_ad')
 The first 2 need to be redo, since the data has been updated.
 
 ```{r load_table}
-dtb1 <- read_csv('../data/149_finalized_dtb1.csv')
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
+dtb  <- read_csv('../data/152_combined_DTB.csv')
+meta <- read_csv('../data/153_combined_META.csv')
 
 dtb %>% distinct(Food_code)
 
@@ -89,14 +92,12 @@ smoothie <- dtb %>%
   pull(Food_code)
 ```
 
-
 ```{r stool_alpha}
-
 stool_alpha <- meta %>% 
-  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size, 
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size,
             xlab = 'Day relative to HCT', shape = 'triangle',
-            ylab = expression(Microbiome~alpha~diversity),
-            title = expression(Microbiome~alpha~diversity),
+            #ylab = expression(Microbiome~alpha~diversity),
+            #title = expression(Microbiome~alpha~diversity),
             add = "loess", conf.int = TRUE, 
             add.params = list(color = stool_line_color, fill = "darkblue", size = 1)) +
    scale_x_continuous( breaks = seq(0, 50, 20)) + 
@@ -106,18 +107,18 @@ stool_alpha <- meta %>%
         aspect.ratio=1) +
   theme(axis.title = element_blank(),
         plot.title = element_blank())
-stool_alpha
+ggsave('../data/072_stool_alpha.pdf',width = 3, height = 3, dpi = 300, plot = stool_alpha)
 ```
 
 ```{r caloric_intake}
-day_calori <- dtb1 %>% 
+day_calori <- dtb %>% 
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal))
 
 # REMEMBER THAT IN AXIS LABLE YOU NEED TO TIMES THE 1000 BACK!!!!!!
 day_cal <- day_calori %>% 
   mutate(daycal = daycal/1000) %>% 
-  ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, pch = 16,
+  ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, shape = 16,
             xlab = 'Day relative to HCT',
             ylab = 'Daily caloric intake',
             title = 'Daily caloric intake',
@@ -130,21 +131,19 @@ day_cal <- day_calori %>%
         plot.title = element_text(size=axis_title_size),
         aspect.ratio=1)
 
-ggsave('../data/072_daycal.png',width = 3, height = 3)
+ggsave('../data/072_day_cal.pdf',width = 3, height = 3, dpi = 300, plot = day_cal)
 ```
 
 ```{r faith}
-# this faith pd is recently calculated in 2021-07
-faith <- read_tsv('../data/cleaned_diet_data/FINAL_97_faith_pd/alpha-diversity.tsv') %>% 
-  separate(...1, into = c('mrn', 'fdrt'), sep = 'd', convert = T)  %>% 
-  mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
+# this faith pd is all the combined data of the patients
+faith <- read_csv('../data/162_all_faith.csv')
 
 # REMEMBER THAT IN AXIS LABLE YOU NEED TO TIMES THE 1000 BACK!!!!!!
 diet_alpha <- faith %>% 
   mutate(faith_pd = faith_pd/1000) %>% 
   ggscatter('fdrt', 'faith_pd', 
              alpha = alpha_val,size = point_size, 
-            color = scatter_col, pch = 16, 
+            color = scatter_col, shape = 16, 
             ylab = 'Diet alpha diversity', 
             xlab = 'Day relative to HCT',
             title = 'Diet alpha diversity',
@@ -158,59 +157,54 @@ diet_alpha <- faith %>%
         ) + 
   theme(aspect.ratio=1)
 
-ggsave('../data/072_alphadiet.png',width = 3, height = 3)
+ggsave('../data/072_alphadiet.pdf',width = 3, height = 3, dpi = 300, plot = diet_alpha)
 ```
 
 ```{r food2}
 # make a combined version of the faith and the day_cal
-food <- day_calori %>% 
-  full_join(faith)
-
-food2 <- food %>% 
-  gather('type', 'value', daycal:faith_pd) %>% 
-  mutate(value = value/1000) %>% 
-  ggscatter('fdrt', 'value', 
-             alpha = 0.02,size = point_size, 
-            color = scatter_col, 
-            ylab = expression(Diet~alpha~diversity), 
-            xlab = 'Day relative to HCT',
-            title = 'Daily caloric intake',
-             add = "loess", conf.int = TRUE, 
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
-  facet_grid(type ~ .) +
-  scale_x_continuous( breaks = seq(0, 50, 20)) + 
-  theme_classic() +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        strip.background = element_blank(),
-        strip.text = element_blank(),
-        #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
-        ) + 
-  theme(aspect.ratio=1)
+# food <- day_calori %>% 
+#   full_join(faith)
+# 
+# food2 <- food %>% 
+#   gather('type', 'value', daycal:faith_pd) %>% 
+#   mutate(value = value/1000) %>% 
+#   ggscatter('fdrt', 'value', 
+#              alpha = 0.02,size = point_size, 
+#             color = scatter_col, 
+#             ylab = expression(Diet~alpha~diversity), 
+#             xlab = 'Day relative to HCT',
+#             title = 'Daily caloric intake',
+#              add = "loess", conf.int = TRUE, 
+#             add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
+#   facet_grid(type ~ .) +
+#   scale_x_continuous( breaks = seq(0, 50, 20)) + 
+#   theme_classic() +
+#   theme(axis.text=element_text(size=axis_text_size),
+#         axis.title=element_text(size=axis_title_size),
+#         plot.title = element_text(size=axis_title_size),
+#         strip.background = element_blank(),
+#         strip.text = element_blank(),
+#         #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
+#         ) + 
+#   theme(aspect.ratio=1)
 ```
-
 
 # fig1 top 3
 
-```{r}
-# the patient that is picked to showcase the timeline in data collection
-#pick <- read_csv('../figs/paper/data/patient_pick_d0_diet.csv')
+```{r umap}
+# dcoords <- read_csv('../data/016_umap_embedding_for_angel.csv')
+# link <- read_csv('../data/cleaned_diet_data/deidentify_dsample_map.csv')
+# coord <- dcoords %>% 
+#   inner_join(link) %>% 
+#   select(-fid, -pt)
+# 
+# fcts_fg <-  read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv')
 ```
 
-```{r umap}
-dcoords <- read_csv('../data/016_umap_embedding_for_angel.csv')
-link <- read_csv('../data/cleaned_diet_data/deidentify_dsample_map.csv')
-coord <- dcoords %>% 
-  inner_join(link) %>% 
-  select(-fid, -pt)
-
-fcts_fg <-  read_csv('../data/cleaned_diet_data/summarize_food_groups_pt_daily.csv')
-```
-
+The below umap is updated in the 162
 
 ```{r umap}
-key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv')
+
 
 fcts_fg_dom <- fcts_fg %>%
   group_by(mrn, fdrt) %>% 
@@ -489,25 +483,93 @@ tree <- ggdraw() +
   draw_image(p,   scale = 1.3) 
 ```
 
+# the macronutrients 3 by 2 panel inserted to the middle row
 
-# the macronutrients 3 by 2 panel inserted to the bottom row
+
+```{r}
+# the days that we know the patient didn't eat anythinng
+ptb <- read_csv('../data/156_transplant_data.csv')
+zerodays2 <- readxl::read_excel('../data/MissingDataCheck_DietStudy_New80Patients.xlsx') %>% 
+  mutate(mrn = as.numeric(mrn), date = ymd(date)) %>% 
+  filter(diet_data_status == '0') %>% 
+  inner_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(fdrt = as.numeric(date - hct)) %>% 
+  select(mrn, fdrt, diet_data_status)
+
+# zero eating days for batch 1
+# at the time P checked the previous 2 days of every one of the 800 stool samples
+# see if the zero days are zero in the current dtb
+zero1 <- read_csv('../data/111_800_stool_samples_check_PAAannotated.csv') %>% 
+  mutate(mrn = as.numeric(mrn), date = mdy(date)) %>% 
+  select(mrn, date, diet_data_status) %>% 
+  filter(diet_data_status == '0') %>% 
+  inner_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(fdrt = as.numeric(date - hct)) %>% 
+  #select(-hct, -date) %>% 
+  left_join(dtb, by = c("mrn", "fdrt"))
+
+# check the ones that I actually had food records are they really zero or there were indeed foods
+
+name97 <- bind_rows(
+  read_csv('../data/000_67_names.csv'),
+  read_csv('../data/001_30_names.csv')
+) %>% 
+  rename(mrn = MRN)
+
+check <- zero1 %>% 
+  filter(!is.na(Food_NSC)) %>% 
+  distinct(mrn, fdrt, date) %>% 
+  inner_join(name97)
+# I think I should trust the dtb data
+
+# imputing zeros for the zero eating days
+zerodays1 <- zero1 %>% 
+  filter(is.na(Meal)) %>% 
+  distinct(mrn,fdrt, diet_data_status) %>% 
+  select(colnames(zerodays2))
+
+zerodaysall <- bind_rows(zerodays1, zerodays2)
+
+#zerodaysall %>% write_csv('../data/072_total_patients_zero_eating_days.csv')
+```
+
 
 ```{r 3X2}
 # the macronutrients scatter plot
-m_all <- dtb1 %>%  
+# good I've checked there are no zeros that I need to be put in
+m_all <- dtb %>%  
   select(mrn, fdrt,Protein_g:Sugars_g ) %>% 
   gather('grp','gram', Protein_g:Sugars_g) %>% 
   mutate(grp = str_replace(grp, '_g$','')) %>% 
   group_by(mrn, fdrt, grp) %>% 
-  summarise(eachsum = sum(gram)) 
+  summarise(eachsum = sum(gram)) %>% 
+  spread('grp', 'eachsum')
 
-m_panel <- m_all %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.005, size = point_size, 
+# are there any NAs
+m_all %>% 
+  gather('key','value', Carbohydrates:Sugars) %>% 
+  filter(is.na(value)) %>% nrow
+
+dailymacro <- bind_rows(
+  m_all,
+  zerodaysall %>% 
+    mutate(Carbohydrates = 0, Fat= 0, Fibers= 0, Protein= 0, Sugars= 0) %>% 
+    select(colnames(m_all))
+) %>% gather('grp','eachsum', Carbohydrates:Sugars)
+  
+
+#dailymacro %>% write_csv('../data/072_all_daily_macronutrients.csv')
+```
+
+
+```{r 3X2}
+m_panel <- dailymacro %>% 
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.002, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Grams',
             add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
-  facet_wrap(~ grp, nrow = 1, scales = 'free_y') +
+  facet_wrap(~ grp, nrow = 3, scales = 'free_y') +
   scale_x_continuous( breaks = seq(0, 50, 20)) + 
   theme(axis.text=element_text(size=6),
         strip.background = element_blank(),
@@ -526,18 +588,35 @@ fg_all <- dtb %>%
   mutate(fgrp1 = as.numeric(fgrp1)) %>% 
   group_by(mrn, fdrt, fgrp1) %>% 
   summarise(eachsum = sum(dehydrated_weight)) %>% 
-  left_join(key)
+  left_join(key %>% select(fgrp1, shortname)) %>% 
+  select(-fgrp1) %>% 
+  spread('shortname','eachsum', fill = 0)
 
-fg_panel <- fg_all %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.005, size = point_size, 
+fg_total <- bind_rows(
+  fg_all,
+  zerodaysall %>% 
+    mutate(Eggs = 0, Fruits= 0, Grains= 0, Legumes= 0, Meats= 0, Milk= 0,Oils= 0,Sweets= 0,Vegetables= 0) %>% 
+    select(colnames(fg_all))
+) %>%  gather('grp','eachsum', Eggs:Vegetables)
+  
+
+#fg_total %>% write_csv('../data/072_all_daily_foodgroups.csv')
+  
+```
+
+
+```{r 3X3}
+fg_panel <- fg_total %>% 
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.002, size = point_size, 
             xlab = 'Day relative to HCT',
             ylab = 'Grams',
             add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
-  facet_wrap(~ shortname, 
+  facet_wrap(~ grp, 
              scales = 'free_y',
              nrow = 3, ) +
   scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  scale_y_sqrt() +
   theme(axis.text=element_text(size=6),
         strip.background = element_blank(),
         strip.text.x = element_text(size = stip_txt_size), 
@@ -572,6 +651,21 @@ top <- plot_grid(tree, fig1_umap, NA,
 f1 <-  plot_grid(top, bot,
                  rel_heights = c(1,1),
                  nrow = 2)
+
+subpanels <- plot_grid( m_panel, fg_panel,
+          nrow = 1, 
+          align = 'hv',
+          rel_widths =  c(1,1.5),
+          #rel_heights = c(1,1),
+          #labels = c('E','F', 'G', "H"),
+          axis = 'tblr') 
+
+ggsave('../data/072_subpanels.pdf',
+       width = 140,
+       height = 120,
+         #height = 60,  
+         units = c("mm"),
+         dpi = 400, plot = subpanels)
 
 ggsave('../figs/paper/F1_overview_072_raw.pdf',
        width = 220,

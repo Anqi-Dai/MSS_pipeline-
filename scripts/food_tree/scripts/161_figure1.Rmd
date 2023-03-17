@@ -58,8 +58,6 @@ diet_hist <- DTB %>%
         axis.ticks.x = element_blank())
 diet_hist
 ```
-```{r B}
 
-```
  
  

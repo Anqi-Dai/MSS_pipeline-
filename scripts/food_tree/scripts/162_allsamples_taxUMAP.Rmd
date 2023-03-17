@@ -175,6 +175,8 @@ faith2 <-  read_tsv('../data/139_batch2_faith_pd/alpha-diversity.tsv') %>%
   mutate(mrn = as.numeric(str_replace(mrn, 'P','')))
 
 faith <- bind_rows(faith1, faith2)
+
+faith %>% write_csv('../data/162_all_faith.csv')
 ```
 ```{r}
 out_faith <- OUT %>% 
