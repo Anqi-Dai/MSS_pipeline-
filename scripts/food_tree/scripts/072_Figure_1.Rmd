@@ -150,6 +150,7 @@ diet_alpha <- faith %>%
              add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
    scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  scale_y_continuous(limits = c(0, 2.5), breaks = seq(0, 2.5, 1) )
   theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),

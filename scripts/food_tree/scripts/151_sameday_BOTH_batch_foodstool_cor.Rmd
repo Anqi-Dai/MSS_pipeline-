@@ -115,7 +115,7 @@ d_sugar_lim <- max(byday_original$d_sugar)
 scales_x <- list(
   `Calorie` = scale_x_continuous(limits = c(0, cal_lim), breaks = seq(0, cal_lim, 1)),
   `Protein` = scale_x_continuous(limits = c(0, protein_lim), breaks = seq(0, protein_lim, 50)),
-  `Fat` = scale_x_continuous(limits = c(0, d_fat_lim), breaks = seq(0, d_fat_lim, 50)),
+  `Fat` = scale_x_continuous(limits = c(0, d_fat_lim), breaks = seq(0, d_fat_lim, 100)),
   `Carb` = scale_x_continuous(limits = c(0, d_carb_lim), breaks = seq(0, d_carb_lim, 250)),
   `Fiber` = scale_x_continuous(limits = c(0,d_fiber_lim), breaks = seq(0, d_fiber_lim, 20)),        
   `Sugar` = scale_x_continuous(limits = c(0, d_sugar_lim), breaks = seq(0, d_sugar_lim, 100) )
@@ -129,7 +129,8 @@ macro_facets <- macro_panel %>%
              add = "reg.line",  # Add regressin line
            add.params = list(color = "darkblue", fill = "gray59"), # Customize line
            conf.int = TRUE, # Add confidence interval
-          ) +
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n",label.x.npc = "center", label.y.npc = "top", cor.coef.name = c("rho"), size = 2)) +
   facet_grid_sc(rows = vars(yaxis), cols = vars(xaxis), scales = list(y = scales_y, x = scales_x)) +
   theme_classic(base_size = 11) +
   theme(aspect.ratio = 1,

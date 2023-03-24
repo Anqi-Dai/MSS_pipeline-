@@ -328,7 +328,7 @@ median_val <-  samples_castori_ag %>%
   rename(median7_21 = median_div) %>% 
   full_join(first_in_7 %>% select(mrn, first_in_w1))
 
-median_val %>% distinct(mrn)
+median_val %>% distinct(mrn)  
 
 median_val %>% write_csv('../data/156_two_stool_alpha_engraftment.csv')
 ```
@@ -487,5 +487,30 @@ lm_res_all <- prepost_df %>%
       post_pval = round(res$coefficients[3, 'Pr(>|t|)'], 3),
       post_slope = round(res$coefficients[3, 'Estimate'], 3)))
   }) %>% bind_rows(.id = 'grp')
+```
+
+# swap the NAs in the 37 patients missing GVHD data with the data I have got 
+
+```{r}
+added <- readxl::read_excel('../data/Missing GVHD pt list.xlsx')
+
+transplant_data <- read_csv('../data/156_transplant_data.csv')
+
+splits <- transplant_data %>% 
+  split(.$mrn %in% added$mrn)
+
+# swap the GVHD data only
+swapped <- splits %>% 
+  pluck('TRUE') %>% 
+  select(-starts_with('d100')) %>% 
+  inner_join(added, by = c("mrn", "hct", "batch"))
+
+# merge it back to the dataset 
+updated <- bind_rows(
+   splits %>% pluck('FALSE'),
+   swapped %>% select(colnames(transplant_data))
+)
+
+updated %>% write_csv('../data/156_transplant_data.csv')
 ```
 

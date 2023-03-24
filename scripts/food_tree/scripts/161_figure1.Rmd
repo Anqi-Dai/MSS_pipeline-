@@ -57,6 +57,17 @@ diet_hist <- DTB %>%
         axis.text.x = element_blank(),
         axis.ticks.x = element_blank())
 diet_hist
+
+hist_two <- plot_grid(diet_hist, stool_hist,
+                  nrow = 2,axis = 'lbrt', align = 'hv')
+
+hist_two
+
+ggsave('../data/161_hist2.pdf', height = 3)
+
+DTB %>% 
+  
+  count(mrn, fdrt, Meal)
 ```
 
  

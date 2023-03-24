@@ -1,0 +1,120 @@
+---
+title: "to look at the distribution of the food code intake per day"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+DTB <- read_csv('../data/152_combined_DTB.csv')
+```
+
+```{r}
+perdaycode <- DTB %>% 
+  group_by(Food_code, fdrt, mrn, description) %>% 
+  summarise(perdayfc = sum(dehydrated_weight)) %>% 
+  ungroup() %>% 
+  mutate(description = str_sub(description, 1, 30)) 
+
+
+perdaycode %>% 
+  gghistogram(x = 'perdayfc', fill = 'red') +
+  facet_wrap(~description , scales = 'free_y') + 
+  theme(text = element_text(size = 6))
+ggsave('../data/166_perday_fc.pdf', width = 40, height = 40, limitsize = FALSE)
+```
+
+```{r}
+# to look at the outlier that is defined as Q3 + 1.5 IQR
+perdaycode_wo_0 <- DTB %>% 
+  group_by(Food_code, fdrt, mrn, description) %>% 
+  summarise(perdayfc = sum(dehydrated_weight))
+
+outliers_wo_0 <- perdaycode_wo_0 %>% 
+  group_by(Food_code) %>% 
+  summarise(Q3 = quantile(perdayfc, probs = 0.75),
+            IQR = IQR(perdayfc)) %>% 
+  mutate(outlierval = Q3 + 1.5*IQR )
+
+whichoutlier <- perdaycode_wo_0 %>% 
+  left_join(outliers_wo_0 %>% select(Food_code, outlierval), by = "Food_code") %>% 
+  mutate(ifoutlier = if_else(perdayfc > outlierval, T, F)) %>% 
+  ungroup()
+
+# summarize at the foodcode level what is per for the outliers
+howmuchoutlier <- whichoutlier %>% 
+  count(Food_code, ifoutlier) %>% 
+  add_count(Food_code, wt = n, name = 'totalperfc') %>% 
+  mutate(perc = round(n/totalperfc*100, 2)) %>% 
+  filter(ifoutlier == 'TRUE')
+
+# to look at the first 10 foodcode with 25% outliers
+top10 <- howmuchoutlier %>% 
+  arrange(desc(perc)) %>% 
+  slice_max(order_by = perc, n = 10) %>% 
+  pull(Food_code)
+
+# what are the per day records of the outlier days 
+whateat <- whichoutlier %>% 
+  filter(Food_code %in% top10) %>% 
+  left_join(DTB %>% distinct(Food_code, description)) %>% 
+  arrange(desc(ifoutlier))
+
+# this patient had a lot of things on day -3
+ptb <- read_csv('../data/156_transplant_data.csv')
+
+pt_ <- whateat %>% 
+  slice(1) %>% pull(mrn)
+
+whatmrn <- DTB %>% 
+  filter(mrn == pt_ & fdrt == -3) 
+
+# so the patient had 2 fruit scone that day one for lunch and one for dinner
+```
+
+# to look at the max intake at food code level
+
+```{r}
+maxeachfc <- perdaycode_wo_0 %>%  ungroup() %>% 
+  group_by(Food_code, description) %>% 
+  slice_max(n = 1, order_by = perdayfc , with_ties = F) %>% 
+  rename(dailytotal = perdayfc) %>% 
+  arrange(desc(dailytotal))
+
+maxeachfc
+
+```
+
+# to look at the p2d average of each food group
+
+```{r}
+META <- read_csv('../data/153_combined_META.csv')
+
+maxofeach <- META %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(max) %>% 
+  gather('fg','p2d_ave')
+
+pt_lot <- META %>% 
+  slice_max(n = 1, order_by = fg_sweets) %>% 
+  pull(mrn)
+
+what2 <- DTB %>% 
+  filter(mrn == pt_lot & fdrt %in% c(0, -1))
+
+unit <- read_csv('../data/152')
+```
+
+# what is the process of the enteral nutrition
+
+
+

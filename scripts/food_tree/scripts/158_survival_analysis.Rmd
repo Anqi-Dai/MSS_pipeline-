@@ -15,7 +15,6 @@ knitr::opts_chunk$set(echo = TRUE, message = F)
 
 The analysis that don't need the gvhd outcome: OS, TRM and LOS(len of stay)
 
-
 ```{r}
 #library(biostatR); 
 library(tidyverse)
@@ -365,29 +364,23 @@ ggsave('../data/158_LOS_features_2.pdf', width = 12)
 
 # GRM
 
-```{r}
-# maybe make a subset and use the patients that we have got the gvhd data now
-use <- df_main %>% 
-  filter(!is.na(d100_a_gvhd))
-```
-
 ```{r GRM}
-GRM_mult_comb_fg <- crr(Surv(tevent_landmark,GRMevent) ~ daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk + Intensity + Source, data=use, failcode = "GRM")%>%
+GRM_mult_comb_fg <- crr(Surv(tevent_landmark,GRMevent) ~ daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk + Intensity + Source, data=df_main, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; all fg")
 
-GRM_mult_comb_macro <- crr(Surv(tevent_landmark,GRMevent) ~  d_carb +d_fat + d_fiber +d_protein+ d_sugar  + Intensity + Source, data=use, failcode = "GRM")%>%
+GRM_mult_comb_macro <- crr(Surv(tevent_landmark,GRMevent) ~  d_carb +d_fat + d_fiber +d_protein+ d_sugar  + Intensity + Source, data=df_main, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; all macronutrients")
 
-GRM_mult_comb_cal <- crr(Surv(tevent_landmark,GRMevent) ~ daycal  + Intensity + Source, data=use, failcode = "GRM")%>%
+GRM_mult_comb_cal <- crr(Surv(tevent_landmark,GRMevent) ~ daycal  + Intensity + Source, data=df_main, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; calories")
 
-GRM_mult_comb_median7_21 <- crr(Surv(tevent_landmark,GRMevent) ~ median7_21  + Intensity + Source, data=use, failcode = "GRM")%>%
+GRM_mult_comb_median7_21 <- crr(Surv(tevent_landmark,GRMevent) ~ median7_21  + Intensity + Source, data=df_main, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; median7_21")
 
-GRM_mult_comb_first_in_w1 <- crr(Surv(tevent_landmark,GRMevent) ~ first_in_w1  + Intensity + Source, data=use, failcode = "GRM")%>%
+GRM_mult_comb_first_in_w1 <- crr(Surv(tevent_landmark,GRMevent) ~ first_in_w1  + Intensity + Source, data=df_main, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; first_in_w1")
 
-GRM_mult_comb_ave_faith <- crr(Surv(tevent_landmark,GRMevent) ~ ave_faith  + Intensity + Source, data=use, failcode = "GRM")%>%
+GRM_mult_comb_ave_faith <- crr(Surv(tevent_landmark,GRMevent) ~ ave_faith  + Intensity + Source, data=df_main, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; ave_faith")
 ```
 
