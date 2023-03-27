@@ -12,5 +12,98 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(kableExtra)
+```
+
+```{r}
+DTB <- read_csv('../data/152_combined_DTB.csv')
+
+perdaycode_wo_0 <- DTB %>% 
+  group_by(Food_code, fdrt, mrn, description) %>% 
+  summarise(perdayfc = sum(dehydrated_weight)) %>% ungroup()%>% 
+  mutate(description = str_sub(description, 1, 30)) %>% 
+  mutate(description = fct_reorder(description, perdayfc,.fun = median, .desc = T)) 
+
+# do a boxplot of the fc that the max per day intake is > 100 grams 
+maxeachfc <- perdaycode_wo_0 %>%  
+  group_by(Food_code, description) %>% 
+  slice_max(n = 1, order_by = perdayfc , with_ties = F) %>% 
+  rename(dailytotal = perdayfc) %>% 
+  arrange(desc(dailytotal)) 
+
+max100 <- maxeachfc %>% filter(dailytotal > 100) %>% pull(Food_code)
+
+
+# perdaycode_wo_0 %>% 
+#   filter(Food_code %in% max100) %>% 
+#   ggboxplot(x = 'description', y = 'perdayfc',  orientation = "horizontal")
+# ggsave('../data/167_allfc_box.pdf', width = 6, height = 18)
+
+
+```
+
+```{r}
+# to look at the unit table with these food codes and specifically pay attention to the ones with different units 
+unit <- read_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+
+look <- unit %>% 
+  filter(Food_code %in% max100) %>% 
+  distinct(Unit, Food_code, cal_psu, .keep_all = T) 
+
+# look %>% 
+#   split(.$Food_code) %>% 
+#   map(function(df){
+#     df %>% arrange(Unit) %>% 
+#       kbl() %>% kable_paper("hover", full_width = F)
+#   })
+
+look %>% arrange(Food_code, Unit) %>% 
+      kbl() %>% kable_material_dark("hover", full_width = F)
+
+look %>% arrange(Food_code, Unit) %>% write_csv('../data/167_look_max100.csv')
+
+```
+
+```{r}
+library(openxlsx)
+
+output <- look %>% arrange(Food_code, Unit) %>% split(.$Food_code)
+
+wb <- createWorkbook()
+
+for (i in 1:length(output)) {
+  addWorksheet(wb, sheetName=names(output[i]))
+  writeData(wb, sheet=names(output[i]), x=output[[i]]) # Note [[]]
+}
+
+saveWorkbook(wb, "../data/167_look_max100.xlsx", overwrite = TRUE)
+```
+
+```{r}
+# the ones that need double check
+# 26100270 it is fine since it is four fish sticks
+27347100(chicken pot pie ounce )
+53230000 in the unit of g
+# what is this dumpling 58121620 it is fine too
+# what is about this 71901110 the greann planitain stuff it is fine 
+different value in calories in 83112500 we need to have different food code to itlian dressing 
+# Boost   VHC 530 Kcal?? it is fine
+
+
+
+# to the data that has been put into the computrtion of the new 40 patients 
+
+
+```
+
+
+```{r fix_creamy_dressing}
+# 83113500 ranch dressing 1oz or 1 packet 44 grams
+# 83112400 creamy italian 1oz or 1 packet 44 grams. 
+```
+
+
+```{r}
+# what is the 
 ```
 
