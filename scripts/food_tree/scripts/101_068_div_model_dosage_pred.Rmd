@@ -13,7 +13,7 @@ library(brms)
 library(ggpubr)
 library(tidybayes)
 library(cowplot)
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
+dtb <- read_csv('../data/152_combined_DTB.csv')
 theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
@@ -23,7 +23,7 @@ axis_title_size <- 10
 
 ```{r}
 # the mean food group intake from our data 
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+meta <- read_csv('../data/153_combined_META.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn)) %>% 
@@ -43,11 +43,15 @@ meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %
 ave_fg <- meta %>% 
   select(starts_with('fg')) %>% 
   summarise_all(funs(mean)) %>% 
-  gather
+  gather 
+
+sum(ave_fg$value)
 
 mean_fg <-  meta %>% 
   select(starts_with('fg')) %>% 
-  summarise_all(funs(mean))
+  summarise_all(funs(mean)) %>% 
+  gather 
+
 
 max_fg <- meta %>% 
   select(starts_with('fg')) %>% 
@@ -706,6 +710,7 @@ two_diff_plot <-  two_diff %>%
   group_by(term, shortname, grp) %>% 
   arrange(shortname, grp) %>% 
   mutate(xtxt = str_glue('{shortname}__{grp}')) %>% 
+  filter(grp == 'diff_max_ave' ) %>% 
   ggplot(aes(y = xtxt, x = post_diff, col =grp )) +
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
@@ -738,5 +743,183 @@ two_diff %>%
   group_by(term) %>% 
   count(diff_max_ave < 0) %>% 
   mutate(perc = n/4000*100)
+```
+
+#  the correct posterior simulation which takes into account of the sigma of the mean
+
+```{r}
+# to subset random 100 rows of the post_samples
+test <- post_samples %>% 
+  select(starts_with('b_fg'), b_intensityreduced, sigma) %>% 
+  slice_sample(n = 100)
+colnames(test)
+
+test_coeffb <- test %>% select(-sigma)
+
+max_fruit_ave <- max_ %>% select(key, max_fg_fruit) %>% spread('key','max_fg_fruit')
+max_sweets_ave <- max_ %>% select(key, max_fg_sweets) %>% spread('key','max_fg_sweets')
+max_veggie_ave <- max_ %>% select(key, max_fg_veggie) %>% spread('key','max_fg_veggie')
+
+cal_mean_max_fruit <- function(b_fg_fruit_,b_fg_meat_,b_fg_milk_,b_fg_oils_,b_fg_egg_,b_fg_grain_,b_fg_sweets_,b_fg_legume_,b_fg_veggie_,b_intensityreduced_ ){
+   res =
+     b_fg_egg_ * max_fruit_ave$b_fg_egg +
+     b_fg_fruit_ * max_fruit_ave$b_fg_fruit +
+     b_fg_grain_ * max_fruit_ave$b_fg_grain +
+     b_fg_legume_ * max_fruit_ave$b_fg_legume +
+     b_fg_meat_ * max_fruit_ave$b_fg_meat +
+     b_fg_milk_ * max_fruit_ave$b_fg_milk +
+     b_fg_oils_ * max_fruit_ave$b_fg_oils +
+     b_fg_sweets_ * max_fruit_ave$b_fg_sweets +
+     b_fg_veggie_ * max_fruit_ave$b_fg_veggie +
+     b_intensityreduced_  
+}
+
+cal_mean_max_sweets <- function(b_fg_fruit_,b_fg_meat_,b_fg_milk_,b_fg_oils_,b_fg_egg_,b_fg_grain_,b_fg_sweets_,b_fg_legume_,b_fg_veggie_,b_intensityreduced_ ){
+   res =
+     b_fg_egg_ * max_sweets_ave$b_fg_egg +
+     b_fg_fruit_ * max_sweets_ave$b_fg_fruit +
+     b_fg_grain_ * max_sweets_ave$b_fg_grain +
+     b_fg_legume_ * max_sweets_ave$b_fg_legume +
+     b_fg_meat_ * max_sweets_ave$b_fg_meat +
+     b_fg_milk_ * max_sweets_ave$b_fg_milk +
+     b_fg_oils_ * max_sweets_ave$b_fg_oils +
+     b_fg_sweets_ * max_sweets_ave$b_fg_sweets +
+     b_fg_veggie_ * max_sweets_ave$b_fg_veggie +
+     b_intensityreduced_  
+}
+
+cal_mean_max_veggie <- function(b_fg_fruit_,b_fg_meat_,b_fg_milk_,b_fg_oils_,b_fg_egg_,b_fg_grain_,b_fg_sweets_,b_fg_legume_,b_fg_veggie_,b_intensityreduced_ ){
+   res =
+     b_fg_egg_ * max_veggie_ave$b_fg_egg +
+     b_fg_fruit_ * max_veggie_ave$b_fg_fruit +
+     b_fg_grain_ * max_veggie_ave$b_fg_grain +
+     b_fg_legume_ * max_veggie_ave$b_fg_legume +
+     b_fg_meat_ * max_veggie_ave$b_fg_meat +
+     b_fg_milk_ * max_veggie_ave$b_fg_milk +
+     b_fg_oils_ * max_veggie_ave$b_fg_oils +
+     b_fg_sweets_ * max_veggie_ave$b_fg_sweets +
+     b_fg_veggie_ * max_veggie_ave$b_fg_veggie +
+     b_intensityreduced_  
+}
+mean_max_fruit <- pmap(test_coeffb, function(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced){
+    cal_mean_max_fruit(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced)
+  })%>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'ID') %>% 
+  gather('key','mean_max_fruit')%>% 
+  mutate(sigma = test$sigma) %>% mutate(div_mean_max_fruit = exp(mean_max_fruit))
+
+mean_max_sweet <- pmap(test_coeffb, function(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced){
+    cal_mean_max_sweets(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced)
+  })%>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'ID') %>% 
+  gather('key','mean_max_sweet')%>% 
+  mutate(sigma = test$sigma)%>% mutate(div_mean_max_sweet = exp(mean_max_sweet))
+
+mean_max_veggie <- pmap(test_coeffb, function(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced){
+    cal_mean_max_veggie(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced)
+  }) %>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'ID') %>% 
+  gather('key','mean_max_veggie') %>% 
+  mutate(sigma = test$sigma)%>% mutate(div_mean_max_veggie = exp(mean_max_veggie))
+```
+
+```{r}
+# the 500 random sampled predicted  diversity per each mean and sd combo
+
+sampled_div_fruit <- mean_max_fruit %>% 
+  select(sigma, div_mean_max_fruit) %>% 
+  pmap(function(sigma, div_mean_max_fruit){
+    rnorm(500, mean = div_mean_max_fruit, sd = sigma)
+  }) %>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'id') %>% 
+  gather()
+
+sampled_div_sweet <- mean_max_sweet %>% 
+  select(sigma, div_mean_max_sweet) %>% 
+  pmap(function(sigma, div_mean_max_sweet){
+    rnorm(500, mean = div_mean_max_sweet, sd = sigma)
+  }) %>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'id') %>% 
+  gather()
+
+sampled_div_veggie <- mean_max_veggie %>% 
+  select(sigma, div_mean_max_veggie) %>% 
+  pmap(function(sigma, div_mean_max_veggie){
+    rnorm(500, mean = div_mean_max_veggie, sd = sigma)
+  }) %>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'id') %>% 
+  gather()
+```
+
+```{r}
+ave_fg <- meta %>% 
+  select(starts_with('fg')) %>% 
+  summarise_all(funs(mean))
+
+
+
+
+cal_mean_all <- function(b_fg_fruit_,b_fg_meat_,b_fg_milk_,b_fg_oils_,b_fg_egg_,b_fg_grain_,b_fg_sweets_,b_fg_legume_,b_fg_veggie_,b_intensityreduced_ ){
+   res =
+     b_fg_egg_ * ave_fg$fg_egg +
+     b_fg_fruit_ * ave_fg$fg_fruit +
+     b_fg_grain_ * ave_fg$fg_grain +
+     b_fg_legume_ * ave_fg$fg_legume +
+     b_fg_meat_ * ave_fg$fg_meat +
+     b_fg_milk_ * ave_fg$fg_milk +
+     b_fg_oils_ * ave_fg$fg_oils +
+     b_fg_sweets_ * ave_fg$fg_sweets +
+     b_fg_veggie_ * ave_fg$fg_veggie +
+     b_intensityreduced_  
+}
+
+mean_all <- pmap(test_coeffb, function(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced){
+    cal_mean_all(b_fg_fruit,b_fg_meat,b_fg_milk,b_fg_oils,b_fg_egg,b_fg_grain,b_fg_sweets,b_fg_legume,b_fg_veggie,b_intensityreduced)
+  })%>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'ID') %>% 
+  gather('key','mean_all')%>% 
+  mutate(sigma = test$sigma)%>% mutate(div_mean_all = exp(mean_all))
+
+sampled_div_mean_all <- mean_all %>% 
+  select(sigma, div_mean_all) %>% 
+  pmap(function(sigma, div_mean_all){
+    rnorm(500, mean = div_mean_all, sd = sigma)
+  }) %>% set_names(seq(1, 100)) %>% 
+  bind_rows(.id = 'id') %>% 
+  gather()
+key
+```
+
+```{r}
+# combine the above results together and do the subtraction
+all_diff <- bind_cols(
+  sampled_div_mean_all = sampled_div_mean_all$value,
+  sampled_div_fruit = sampled_div_fruit$value,
+  sampled_div_sweet = sampled_div_sweet$value,
+  sampled_div_veggie = sampled_div_veggie$value
+) %>% 
+  mutate(Fruits = sampled_div_fruit - sampled_div_mean_all,
+         Sweets = sampled_div_sweet - sampled_div_mean_all,
+          Vegetables = sampled_div_veggie - sampled_div_mean_all
+) %>% 
+  select(-starts_with('sample')) %>% 
+  gather()
+
+all_diff %>% 
+  ggplot(aes(y = key, x = value )) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, linetype = "dashed", col = 'black') +
+  scale_color_manual(values = c('#A73030FF','#00468B')) +
+  labs(x = '',
+       y = '', 
+       title = 'Diversity prediction') +
+  theme_classic() +
+  theme(axis.text=element_text(size=8),
+        legend.position = 'none',
+        #axis.text.y = element_blank(),
+        axis.title=element_text(size=8),
+        aspect.ratio=1)
+
+  
 ```
 

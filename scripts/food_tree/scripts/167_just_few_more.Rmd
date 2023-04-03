@@ -81,29 +81,126 @@ saveWorkbook(wb, "../data/167_look_max100.xlsx", overwrite = TRUE)
 
 ```{r}
 # the ones that need double check
-# 26100270 it is fine since it is four fish sticks
-27347100(chicken pot pie ounce )
-53230000 in the unit of g
-# what is this dumpling 58121620 it is fine too
-# what is about this 71901110 the greann planitain stuff it is fine 
-different value in calories in 83112500 we need to have different food code to itlian dressing 
-# Boost   VHC 530 Kcal?? it is fine
+# 26100270 ----it is fine since it is four fish sticks
+#27347100(chicken pot pie ounce )--- fixed
+#53230000 in the unit of g --- fixed
+# what is this dumpling 58121620 --it is fine too
+# what is about this 71901110 the greann planitain stuff-- it is fine 
+#different value in calories in 83112500 we need to have different food code to itlian dressing ---fixed
+# Boost   VHC 530 Kcal??--- it is fine
 
 
 
 # to the data that has been put into the computrtion of the new 40 patients 
-
-
 ```
 
 
 ```{r fix_creamy_dressing}
 # 83113500 ranch dressing 1oz or 1 packet 44 grams
 # 83112400 creamy italian 1oz or 1 packet 44 grams. 
+
+ 
+# make a table for the two types of dressing nutrition values  so that I can join 
+twodressing <- bind_rows(
+  tibble(
+    grp = 'ranch', Food_code = 83113500, description = 'Ranch dressing', cal_psu = 189,gram_psu=44,  Protein_psu= 0.581, Fat_psu =19.6,Carbohydrate_psu=  2.6, Fiber_psu = 0, Sugars_psu=2.06, Water_psu = 20.1, dehydrated_psu = gram_psu - Water_psu
+  ),
+  tibble(
+    grp = 'Italian', Food_code = 83112400, description = 'Creamy Italian dressing', cal_psu = 118,gram_psu=44,  Protein_psu= 0.242, Fat_psu =10.8,Carbohydrate_psu=  4.93, Fiber_psu = 0, Sugars_psu=4.34, Water_psu = 26.7, dehydrated_psu = gram_psu - Water_psu
+  )
+)
+  
+fixed_dressing <- unit %>% 
+  filter(Food_code == 83112500) %>% 
+  mutate(grp = if_else(str_detect(Food_NSC, 'Italian'), 'Italian', 'ranch')) %>% 
+  select(Food_NSC, Unit, grp) %>% 
+  left_join(twodressing, by = "grp") %>% 
+  mutate(food_all = str_glue('{Food_NSC}:{Unit}')) %>% 
+  select(colnames(unit))
+colnames(unit)
 ```
 
 
 ```{r}
-# what is the 
+# fix the 27347100 chicken pot pie
+chickpie <- unit %>% 
+  filter(Food_code == 27347100) %>% 
+  mutate(cal_psu = if_else(Unit == 'ounce', cal_psu/5, cal_psu),
+         gram_psu = if_else(Unit == 'ounce', gram_psu/5, gram_psu),
+         Protein_psu = if_else(Unit == 'ounce', Protein_psu/5, Protein_psu),
+         Fat_psu = if_else(Unit == 'ounce', Fat_psu/5, Fat_psu),
+         Carbohydrate_psu = if_else(Unit == 'ounce', Carbohydrate_psu/5, Carbohydrate_psu),
+         Fiber_psu = if_else(Unit == 'ounce', Fiber_psu/5, Fiber_psu),
+         Sugars_psu = if_else(Unit == 'ounce', Sugars_psu/5, Sugars_psu),
+         Water_psu = if_else(Unit == 'ounce', Water_psu/5, Water_psu),
+         dehydrated_psu = if_else(Unit == 'ounce', dehydrated_psu/5, dehydrated_psu))
 ```
+
+```{r}
+# fix the 53230000 ginger cookie
+gincookie <- unit %>% 
+  filter(Food_code == 53230000) %>% 
+  mutate(cal_psu = if_else(Unit == 'g', cal_psu/30, cal_psu),
+         gram_psu = if_else(Unit == 'g', gram_psu/30, gram_psu),
+         Protein_psu = if_else(Unit == 'g', Protein_psu/30, Protein_psu),
+         Fat_psu = if_else(Unit == 'g', Fat_psu/30, Fat_psu),
+         Carbohydrate_psu = if_else(Unit == 'g', Carbohydrate_psu/30, Carbohydrate_psu),
+         Fiber_psu = if_else(Unit == 'g', Fiber_psu/30, Fiber_psu),
+         Sugars_psu = if_else(Unit == 'g', Sugars_psu/30, Sugars_psu),
+         Water_psu = if_else(Unit == 'g', Water_psu/30, Water_psu),
+         dehydrated_psu = if_else(Unit == 'g', dehydrated_psu/30, dehydrated_psu))
+```
+
+```{r anyothertofix}
+# find all possible units that look like gram/oz/ounce
+allunit <- unit %>% distinct(Unit)
+
+# check the ones that have cc/fl/fl oz/g/ounce/oz/oz ldl
+checkunit <- c('cc|fl|fl oz|g|ounce|oz|oz ldl')
+ 
+needcheck <- unit %>% 
+  filter(str_detect(Unit, checkunit)) %>% 
+  # remove the ones that I've already looked in the look table
+  filter(! Food_code %in% look$Food_code) %>% 
+  distinct(Food_code) %>% pull(Food_code)
+  
+  
+checkcodes <- unit %>% 
+  filter(Food_code %in% needcheck) %>% 
+  distinct(Food_code,description, Unit, cal_psu, gram_psu) %>% 
+  arrange(description, cal_psu)
+
+
+library(openxlsx)
+
+output <- checkcodes %>% arrange(description, cal_psu) %>% split(.$Food_code)
+
+wb <- createWorkbook()
+
+for (i in 1:length(output)) {
+  addWorksheet(wb, sheetName=names(output[i]))
+  writeData(wb, sheet=names(output[i]), x=output[[i]]) # Note [[]]
+}
+
+saveWorkbook(wb, "../data/167_look_morecodes.xlsx", overwrite = TRUE)
+
+#oz	22600200	Pork bacon, NS as to fresh, smoked or cured, cooked	137.385
+#oz	83106000	Italian dressing, made with vinegar and oil	106	44
+# no problem !
+```
+
+
+```{r}
+# make the DTB update it you can do it!!!!
+unchanged <- unit %>% 
+  filter(! Food_code %in% c(53230000, 27347100, 83112500))
+
+changed <- bind_rows(gincookie, fixed_dressing, chickpie)
+
+new <- bind_rows(unchanged, changed)
+
+
+new %>% write_csv('../data/148_both_batches_UNIT_table_EN_exclu.csv')
+```
+
 

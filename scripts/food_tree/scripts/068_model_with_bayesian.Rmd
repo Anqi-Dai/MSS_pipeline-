@@ -20,24 +20,27 @@ library(brms)
 library(ggpubr)
 library(tidybayes)
 library(cowplot)
-#dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
-dtb <- read_csv('../data/146_updated_dtb1.csv')
+library(ggridges)
+library(brmstools)
+
+dtb <- read_csv('../data/152_combined_DTB.csv')
 theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 axis_text_size <- 10
 axis_title_size <- 10
 
-dtb %>% 
-  distinct(mrn) %>% 
-  write_csv('../data/nutrition_patients_97_mrns.csv', col_names = T)
+# dtb %>% 
+#   distinct(mrn) %>% 
+#   write_csv('../data/nutrition_patients_97_mrns.csv', col_names = T)
 ```
+
 ## Loading meta data table
 
 ```{r load_meta}
-tb_rm <- read_csv('../data/112_has_missing_to_be_removed.csv')
 
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+
+meta <- read_csv('../data/153_combined_META.csv') %>% 
   #filter(!sampleid %in% tb_rm$sampleid) %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
@@ -216,9 +219,9 @@ mrn_figure <- mrn_forest %>%
 
 
 ```{r all_params_csv}
-ggsave('../figs/paper/S6_mrn_intercepts_forest.pdf',
+ggsave('../data/S6_mrn_intercepts_forest.pdf',
        width = 280,
-       height = 320, 
+       height = 400, 
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'pdf', plot = mrn_figure)
@@ -267,7 +270,7 @@ all_params <- bind_rows(mrn_part, others) %>%
   rename(median = median0.95,
          param = key) 
 all_params %>% 
-  write_csv('../figs/paper/Supplementary_table1_main_model_all_params_coeff_068.csv')
+  write_csv('../data/Supplementary_table1_main_model_all_params_coeff_068.csv')
 ```
 
 ## Posterior
@@ -350,7 +353,7 @@ title1 <- bquote(Outcome: log[e]~(Simpsons~reciprocal))
 
 div_post <- post_coeff %>% 
   left_join(cross0) %>% 
-  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
+  ggplot(aes(x = coeff, y = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'ln(diversity) change per 100g of food',
@@ -430,5 +433,50 @@ coeff_bi %>%
         aspect.ratio=1) 
 
 ggsave('../data/068_only_abx_diversity_bi.pdf', width = 3.5, height = 3)
+```
+
+```{r forest_fg}
+# make a forest plot of the fg coeff and annotate the percentage
+# sort the fg in the order of 
+
+# find the sorting order of the tree, which should be number of food codes in each fg
+fg_order <- dtb %>% distinct(Food_code) %>% mutate(fgrp1 = str_sub(as.character(Food_code),1, 1)) %>% 
+  count(fgrp1) %>% 
+  full_join(key) %>% arrange(n) %>% pull(shortname)
+
+# calculate the percentage of > 0 and < 0 and annotate that to the figure 
+percs <- post_coeff %>% 
+  count(shortname, coeff > 0) %>% 
+  mutate(perc =round(n/4000*100,1))  %>% select(-n) %>% 
+  spread('coeff > 0', 'perc') %>% 
+  rename(positive = 'TRUE', negative = 'FALSE')
+```
+
+
+```{r forest_fg}
+div_post_ridge <- post_coeff %>% 
+  mutate(shortname = factor(shortname, levels = fg_order)) %>% 
+  left_join(percs) %>%
+  ggplot(aes(x = coeff, y = shortname, fill = stat(x < 0))) +
+  stat_pointinterval(.width = c(.66, .95)) +stat_halfeye() + 
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+   geom_text(aes(x = -0.9, label = negative)) +
+  geom_text(aes(x = 1, label = positive)) +
+  scale_fill_manual(values = c("gray80", "skyblue")) +
+  labs(x = 'ln(diversity) change per 100g of food',
+       y = '', 
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  #scale_color_manual(values = c("#EC0000", "gray40")) +
+  theme(axis.text=element_text(size=8, color  = 'black'),
+        axis.title=element_text(size=8),
+        aspect.ratio=1)
+div_post_ridge
+
+div_post_ridge %>% 
+  write_rds('../data/068_div_post_ridge.rds')
+
+
 ```
 

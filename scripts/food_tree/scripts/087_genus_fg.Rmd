@@ -14,8 +14,8 @@ library(ggpubr)
 options(mc.cores = parallel::detectCores())
 rstan::rstan_options(auto_write = TRUE)
 ncores <- parallel::detectCores()
-dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') %>% 
+dtb <- read_csv('../data/152_combined_DTB.csv')
+meta <- read_csv('../data/153_combined_META.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn)) %>% 
@@ -37,7 +37,7 @@ axis_title_size <- 7
 # The food group predictors with genus as the outcome
 
 ```{r}
-cts <- read_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv') %>% 
+cts <- read_csv('../data/022_ALL173_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) 
 thre <- seq(0.0001, 0.002, 0.0001)
 thre %>% 
@@ -120,6 +120,30 @@ extra_full <- meta %>%
 ```
 
 ```{r}
+priors <- c(# for the food group variables
+            prior(normal(0, 1.2), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1.2), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity 
+            prior(normal(-3, 1), class = 'b', coef = "intensityreduced"),
+            prior(normal(-3, 1), class = 'b', coef = "intensityablative"),
+            prior(normal(-3, 1), class = 'b', coef = "intensitynonablative"))
+```
+
+
+```{r}
 ret_genus_extra <- selected_Enterobacteriaceae %>% 
   set_names(selected_Enterobacteriaceae) %>% 
   purrr::map(function(genus) {
@@ -170,26 +194,7 @@ gcts <- read_csv('../data/088_genus_relab_log10_wide.csv') %>%
 full <- meta %>% 
   inner_join(gcts)
 
-priors <- c(# for the food group variables
-            prior(normal(0, 1.2), class = 'b', coef = "fg_egg"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_fruit"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_grain"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_legume"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_meat"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_milk"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_oils"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_sweets"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_veggie"),
-            # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
-            # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
-            # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
-            # for the intensity 
-            prior(normal(-3, 1), class = 'b', coef = "intensityreduced"),
-            prior(normal(-3, 1), class = 'b', coef = "intensityablative"),
-            prior(normal(-3, 1), class = 'b', coef = "intensitynonablative"))
+
 ```
 
 ```{r}
@@ -227,7 +232,7 @@ ret_genus <- target_genera %>%
 # save the data
 prior_df <- ret_genus %>% 
   imap(~ prior_draws(.x) ) %>% 
-  bind_rows(.id = 'genus')
+  bind_rows(.id = 'genus') 
 prior_df %>% 
   write_csv('../data/087_genus_foodgroup_model_prior.csv')
 
@@ -393,7 +398,7 @@ library(cowplot)
 heatmap <-  plot_grid(  genus_fg_main,genus_fg_factor,
                   nrow = 2, labels = c('A','B'), rel_heights  = c(1, 0.6), align = 'hv', axis = 'tblr')
 
-ggsave( '../figs/paper/S8_heatmap_fg_genus_087.pdf',
+ggsave( '../data/S8_heatmap_fg_genus_087.pdf',
       width = 270,
        height = 220,
          #height = 60,

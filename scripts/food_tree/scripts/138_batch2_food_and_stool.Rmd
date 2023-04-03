@@ -69,8 +69,11 @@ mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
   set_names(stb %>% pull(sampleid)) %>% 
   bind_rows(.id = 'sampleid') %>% 
   spread(key = 'fg1_name', value = 'ave_fg', fill = 0) %>% 
-  inner_join(stb, by = "sampleid") 
+  inner_join(stb, by = "sampleid")
+```
 
+
+```{r}
 meta <- mean_p2d_df %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
@@ -91,7 +94,8 @@ meta %>% summary()
 summary(log(meta$simpson_reciprocal))
 sd(log(meta$simpson_reciprocal))
 
-
+meta %>% 
+  select(sampleid:fg_veggie) %>% write_csv('../data/138_meta2.csv')
 ```
 
 

@@ -23,7 +23,7 @@ axis_title_size <- 10
 ```
 
 ```{r}
-meta2 <- read_csv('../data/153_meta2.csv') %>% 
+meta2 <- read_csv('../data/138_meta2.csv') %>% 
   select(sampleid:fg_veggie)
 
 STB <- read_csv('../data/152_combined_STB.csv')

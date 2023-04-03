@@ -57,6 +57,12 @@ How about I scale the percentage of the interval that is on eather side of 0 to 
 
 ```{r}
 # calculate the percentage of interval that is >|< 0 for each genus/food combo
+dtb <- read_csv('../data/152_combined_DTB.csv')
+fg_order <- dtb %>% distinct(Food_code) %>% mutate(fgrp1 = str_sub(as.character(Food_code),1, 1)) %>% 
+  count(fgrp1) %>% 
+  full_join(key) %>% arrange(n) %>% pull(shortname)
+
+
 perc_side <- post %>% 
   group_by(genus,item ) %>% 
   count(coeff >= 0) %>% 
@@ -70,7 +76,7 @@ perc_side <- post %>%
   mutate(color = if_else(positive >= 0.75, 'maroon', if_else(negative >= 0.75, 'steelblue', 'white'))) %>% 
   mutate(mark = if_else(negative >= 0.99 | positive >= 0.99, '***', if_else(negative >= 0.975 | positive >= 0.975, '**', if_else(negative >= 0.95 | positive >= 0.95, '*', '')))) %>% 
   mutate(genus = factor(genus, levels = c('Enterococcus','Klebsiella','Cronobacter','Enterobacter','Citrobacter','Cedecea','Escherichia'))) %>% 
-  mutate(shortname = factor(shortname, levels = rev(c('Oils','Eggs','Legumes','Milk','Grains','Meats','Vegetables','Sweets','Fruits')))) 
+  mutate(shortname = factor(shortname, levels = fg_order)) 
 
 
 ```

@@ -57,7 +57,7 @@ diagram
 
 ```{r 2c_div_fg9}
 f2c <- read_rds('../data/068_div_post.rds')
-
+f2c <- read_rds('../data/068_div_post_ridge.rds')
 #f2d <- read_rds('../data/068_only3_sim.rds')
 f2d <- read_rds('../data/101_f2d_diversity_pred_two_diff.rds')
 
@@ -78,7 +78,7 @@ f2 <-  plot_grid(top,bottom,
                  rel_heights = c(1,1),
                  nrow = 2)
  
-ggsave('../figs/paper/F2_model_results_086.pdf',
+ggsave('../data/F2_model_results_086.pdf',
        width = 190,
        height = 120,
          #height = 60,
