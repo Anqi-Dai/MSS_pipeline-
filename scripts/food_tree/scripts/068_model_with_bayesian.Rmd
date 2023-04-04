@@ -449,7 +449,16 @@ percs <- post_coeff %>%
   count(shortname, coeff > 0) %>% 
   mutate(perc =round(n/4000*100,1))  %>% select(-n) %>% 
   spread('coeff > 0', 'perc') %>% 
-  rename(positive = 'TRUE', negative = 'FALSE')
+  rename(positive = 'TRUE', negative = 'FALSE') %>% 
+  mutate(pos_x = 0.8, neg_x = -0.9) %>% 
+  mutate(positive = str_glue('{positive}%'),
+         negative = str_glue('{negative}%'))
+
+                          # Install scales R package
+library("scales") 
+                                    # Amount of default colors
+hex_codes1 <- hue_pal()(2)                             # Identify hex codes
+hex_codes1   
 ```
 
 
@@ -457,20 +466,20 @@ percs <- post_coeff %>%
 div_post_ridge <- post_coeff %>% 
   mutate(shortname = factor(shortname, levels = fg_order)) %>% 
   left_join(percs) %>%
-  ggplot(aes(x = coeff, y = shortname, fill = stat(x < 0))) +
+  ggplot(aes(x = coeff, y = shortname, fill = stat(x > 0))) +
   stat_pointinterval(.width = c(.66, .95)) +stat_halfeye() + 
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-   geom_text(aes(x = -0.9, label = negative)) +
-  geom_text(aes(x = 1, label = positive)) +
-  scale_fill_manual(values = c("gray80", "skyblue")) +
+  geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = stat(x > 0))) +
+  geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =stat(x > 0))) +
+  #scale_fill_manual(values = c("gray80", "skyblue")) +
   labs(x = 'ln(diversity) change per 100g of food',
        y = '', 
        title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none') +
-  #scale_color_manual(values = c("#EC0000", "gray40")) +
-  theme(axis.text=element_text(size=8, color  = 'black'),
-        axis.title=element_text(size=8),
+  #scale_color_manual(values = c("#F8766D", "#00BFC4")) +
+  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
+        axis.title=element_text(size=axis_text_size),
         aspect.ratio=1)
 div_post_ridge
 

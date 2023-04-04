@@ -59,10 +59,13 @@ diagram
 f2c <- read_rds('../data/068_div_post.rds')
 f2c <- read_rds('../data/068_div_post_ridge.rds')
 #f2d <- read_rds('../data/068_only3_sim.rds')
-f2d <- read_rds('../data/101_f2d_diversity_pred_two_diff.rds')
+f2d <- read_rds('../data/101_f2d_diversity_pred_diff_with_sigma.rds')
 
-f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
+#f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
 f2e <- read_rds('../data/120_F2E_extra_genera.rds')
+
+ggsave('../data/086_f2e.pdf', width = 3,height = 3, plot = f2e)
+ggsave('../data/086_f2c.pdf', width = 3,height = 3, plot = f2c)
 ```
 
 
@@ -79,8 +82,8 @@ f2 <-  plot_grid(top,bottom,
                  nrow = 2)
  
 ggsave('../data/F2_model_results_086.pdf',
-       width = 190,
-       height = 120,
+       width = 250,
+       height = 180,
          #height = 60,
          units = c("mm"),
          dpi = 400, plot = f2)
