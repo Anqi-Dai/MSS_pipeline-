@@ -57,10 +57,8 @@ How about I scale the percentage of the interval that is on eather side of 0 to 
 
 ```{r}
 # calculate the percentage of interval that is >|< 0 for each genus/food combo
-dtb <- read_csv('../data/152_combined_DTB.csv')
-fg_order <- dtb %>% distinct(Food_code) %>% mutate(fgrp1 = str_sub(as.character(Food_code),1, 1)) %>% 
-  count(fgrp1) %>% 
-  full_join(key) %>% arrange(n) %>% pull(shortname)
+
+fg_order <- read_csv('../data/068_fg_sorting_order.csv') %>% pull(shortname)
 
 
 perc_side <- post %>% 

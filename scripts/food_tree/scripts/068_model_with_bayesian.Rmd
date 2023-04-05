@@ -312,8 +312,7 @@ post_coeff <- post_samples %>%
     item ==  'oils' ~ '8', 
     item ==  'sweets' ~ '9'
   ))  %>% 
-  left_join(key %>% select(fgrp1, color, shortname))  %>% 
-  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
+  left_join(key %>% select(fgrp1, color, shortname))
 
 fg_labels <- levels(post_coeff$shortname)
 
@@ -435,14 +434,16 @@ coeff_bi %>%
 ggsave('../data/068_only_abx_diversity_bi.pdf', width = 3.5, height = 3)
 ```
 
+# adjust the f2c
+
 ```{r forest_fg}
 # make a forest plot of the fg coeff and annotate the percentage
 # sort the fg in the order of 
 
 # find the sorting order of the tree, which should be number of food codes in each fg
-fg_order <- dtb %>% distinct(Food_code) %>% mutate(fgrp1 = str_sub(as.character(Food_code),1, 1)) %>% 
-  count(fgrp1) %>% 
-  full_join(key) %>% arrange(n) %>% pull(shortname)
+# fg_order <- dtb %>% distinct(Food_code) %>% mutate(fgrp1 = str_sub(as.character(Food_code),1, 1)) %>% 
+#   count(fgrp1) %>% 
+#   full_join(key) %>% arrange(n) %>% pull(shortname)
 
 # calculate the percentage of > 0 and < 0 and annotate that to the figure 
 percs <- post_coeff %>% 
@@ -450,9 +451,15 @@ percs <- post_coeff %>%
   mutate(perc =round(n/4000*100,1))  %>% select(-n) %>% 
   spread('coeff > 0', 'perc') %>% 
   rename(positive = 'TRUE', negative = 'FALSE') %>% 
+  mutate(neg_num = negative) %>% 
   mutate(pos_x = 0.8, neg_x = -0.9) %>% 
   mutate(positive = str_glue('{positive}%'),
          negative = str_glue('{negative}%'))
+
+# sort the fg in the negative perc desc order
+fg_order <- percs %>% arrange(neg_num) %>% pull(shortname)
+
+percs %>% arrange(neg_num) %>% select(shortname) %>% write_csv('../data/068_fg_sorting_order.csv')
 
                           # Install scales R package
 library("scales") 
@@ -464,13 +471,13 @@ hex_codes1
 
 ```{r forest_fg}
 div_post_ridge <- post_coeff %>% 
-  mutate(shortname = factor(shortname, levels = fg_order)) %>% 
   left_join(percs) %>%
-  ggplot(aes(x = coeff, y = shortname, fill = stat(x > 0))) +
+  mutate(shortname = factor(shortname, levels = fg_order)) %>% 
+  ggplot(aes(x = coeff, y = shortname, fill = after_stat(x > 0))) +
   stat_pointinterval(.width = c(.66, .95)) +stat_halfeye() + 
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = stat(x > 0))) +
-  geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =stat(x > 0))) +
+  geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = after_stat(x > 0))) +
+  geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =after_stat(x > 0))) +
   #scale_fill_manual(values = c("gray80", "skyblue")) +
   labs(x = 'ln(diversity) change per 100g of food',
        y = '', 

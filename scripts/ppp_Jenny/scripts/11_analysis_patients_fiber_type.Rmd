@@ -10,9 +10,14 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(tidyverse)
+library(tidyverse) 
 library(ggpubr)
 ```
+
+-Calculate the population median of fiber intake (days -10 to +30), from all the patients. Including zeros. 
+-Based on the population median, calculate the high and low fiber intake distribution (all patients combined).
+-Calculate the high and low fiber distribution in GVHD vs. No-GVHD patients.
+-Calculate the absolute fiber intake in grams for each fiber type (days -10 to +30), allocating values of zero for the remaining fiber types, in GVHD and No-GVHD patients.  
 
 ```{r}
 type <- read_csv('../data/10_patients_foods_fiber_type_all.csv')
@@ -23,6 +28,28 @@ pts <- read_csv('../../food_tree/data/156_transplant_data.csv') %>%
 colnames(pts)
 pts %>% count(d100_a_gvhd)
 ```
+
+```{r}
+# to get the patient info of 
+# -Median age
+# -Male/Female distribution
+# -Race and Ethnicity
+# -Hematological diagnosis
+# get the race from the original table
+ptb  <-  read_csv('../data/11_ptb_characteristics.csv')
+library(vdbR)
+connect_database()
+get_table_from_database('patient_allo_ks_20221104')
+race <- patient_allo_ks_20221104 %>% 
+  filter(mrn %in% pts$mrn) 
+
+ptbr <- ptb %>% 
+  left_join(race %>% select(mrn, race_dscrp,ethnicity ))
+  
+ptbr %>% write_csv('../data/11_ptb_characteristics.csv')
+
+```
+
 
 ```{r}
 # calculate daily intake of each food code 
@@ -95,9 +122,13 @@ dailytotaldry <- DTB %>%
   summarise(alldry = sum(dehydrated_weight))
 
 all_types <- dailycode %>% 
-  group_by(mrn, d100_a_gvhd, fdrt, fiber_type) %>% 
+  group_by(mrn, fdrt, fiber_type) %>% 
   summarise(gram = sum(dcodefiber)) %>% 
-  ungroup() 
+  ungroup() %>% 
+  filter(!is.na(fiber_type)) %>% 
+  spread('fiber_type','gram', fill = 0) %>% 
+  gather('fiber_type','gram', names(.)[3]:names(.)[ncol(.)])%>% 
+  left_join(pts %>% select(mrn, d100_a_gvhd))
 
 all_types %>% write_csv('../data/patients_16s_data/11_patients_fiber_type_intake.csv')
 all_types %>% write_csv('../data/11_patients_fiber_type_intake.csv')
@@ -145,10 +176,16 @@ all_types %>%
 
 ```{r soluble}
 all_soluble <- dailycode %>% 
-  group_by(mrn, d100_a_gvhd, fdrt, soluble) %>% 
+  group_by(mrn, fdrt, soluble) %>% 
   summarise(gram = sum(dcodefiber)) %>% 
-  ungroup()%>% left_join(dailytotaldry) %>% 
-  mutate(fiber_perc = gram/alldry*100)
+  ungroup() %>% 
+  filter(!is.na(soluble)) %>% 
+  spread('soluble','gram', fill = 0) %>% 
+  gather('soluble','gram', names(.)[3]:names(.)[ncol(.)])%>% 
+  left_join(pts %>% select(mrn, d100_a_gvhd))
+
+all_soluble %>% write_csv('../data/patients_16s_data/11_patients_fiber_soluble_intake.csv')
+all_soluble %>% write_csv('../data/11_patients_fiber_soluble_intake.csv')
 
 all_soluble %>% 
   ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
@@ -234,8 +271,8 @@ ggsave('../data/11_fiber_all_soluble_daily_intake_gvhd_week_median.pdf', width =
 # all of the types of fiber
 
 all_types %>% 
-  filter(fdrt <= 30 & d100_a_gvhd %in% c('Y','N')) %>% 
-  ggscatter(x = 'fdrt', y = 'fiber_perc', alpha = 0.05, shape = 16,xlab = 'transplant day',
+  filter(fdrt %in% -10:30 & d100_a_gvhd %in% c('Y','N')) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, title = 'All fiber types',
             add.params = list(color = 'd100_a_gvhd', size = 1)) +
   scale_color_manual(values = color_key) +
