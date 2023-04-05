@@ -108,6 +108,7 @@ final.table %>%
 
 ```{r}
 #### Make and export the tree ####
+# the below is the tree that is gonna be used in the procrustes since the food is represented by food_code
 foodTree <- as.Node(final.table, pathName = "newickstring")
 tree <- ToNewick(foodTree)
 cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree.newick')
@@ -116,15 +117,15 @@ cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree.newick')
 
 ```{r}
 # make another tree with leave nodes as the name description so it is not some numbers
-final.table <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv')
-
-final_table_name <- final.table%>% 
-  mutate(newickstring_name = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{description}'))
-
-#### Make and export the tree ####
-foodTree <- as.Node(final_table_name, pathName = "newickstring_name")
-tree <- ToNewick(foodTree)
-cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree_name.newick')
+# final.table <- read_csv('../data/source/final_table_for_writing_out_to_newick.csv')
+# 
+# final_table_name <- final.table%>% 
+#   mutate(newickstring_name = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{description}'))
+# 
+# #### Make and export the tree ####
+# foodTree <- as.Node(final_table_name, pathName = "newickstring_name")
+# tree <- ToNewick(foodTree)
+# cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree_name.newick')
 ```
 
 

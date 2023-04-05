@@ -41,9 +41,9 @@ f2a <- two_score %>%
   theme_classic()  +
   theme(aspect.ratio=1,
         legend.position = 'none',
-        axis.text=element_text(size=8), 
+        axis.text=element_text(size=axis_text_size), 
         legend.title  = element_blank(),
-        axis.title=element_text(size=8),
+        axis.title=element_text(size=axis_text_size),
         axis.text.x = element_text(angle=0, hjust=0.5)) 
     
 f2a
@@ -66,6 +66,34 @@ f2e <- read_rds('../data/120_F2E_extra_genera.rds')
 
 ggsave('../data/086_f2e.pdf', width = 3,height = 3, plot = f2e)
 ggsave('../data/086_f2c.pdf', width = 3,height = 3, plot = f2c)
+```
+
+```{r}
+# the legend for the genus fg panel
+legendd <- '../data/genus_fg_legend.png'
+legend <- ggdraw() +
+  draw_image(magick::image_read(legendd),   scale = 0.9) 
+
+
+# new version that is without the diversity prediction thing
+left <- cowplot::align_plots(f2a, f2c, align = 'v', axis = 'l')
+
+top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1, 2) )
+
+bottom <- plot_grid(  left[[2]],f2e, legend,
+                  nrow = 1, labels = c('C','D', NA), rel_widths  = c(1, 1,1), align = 'hv')
+
+f2 <-  plot_grid(top,bottom,
+                 rel_heights = c(1,1),
+                 nrow = 2)
+f2
+
+ggsave('../data/F2_model_results_086_new.pdf',
+       width = 250,
+       height = 170,
+         #height = 60,
+         units = c("mm"),
+         dpi = 400, plot = f2)
 ```
 
 
