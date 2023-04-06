@@ -11,6 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+axis_title_siza <- 11
 ```
 
 ```{r}
@@ -119,16 +120,52 @@ all_fam2_irep <- bind_rows(family2_irep,older )%>%
       mutate(iRep_zscore = scale(.$iRep, center = T, scale = T)[,1])
   }
     ) %>% 
-  bind_rows()  %>% 
-  inner_join(all %>% select(sampleid, sum_sugar)
-               )
-  
+  bind_rows()  %>%  
+  inner_join(all %>% select(sampleid, sum_sugar) )   
 ```
 ```{r}
 # if there is any sample that is not in the 145
+
 should <- read_csv('../data/135_selected_samples_for_irep_analysis.csv')
-them %>% 
-  filter(!sampleid %in% should$sampleid)
+
+them <- read_csv('../data/sum of sugar intake vs max zscore family(E,E).csv') %>% 
+  select(sampleid, samplebin, iRep, genus, p1d_Sweets, p2d_Sweets,p1d_Fruits, p2d_Fruits, iRep_zscore, pid, sum_sugar) %>% filter(sampleid %in% should$sampleid) %>% 
+  mutate(ave_sugar = sum_sugar/2)  %>% 
+  filter(!is.na(ave_sugar)) %>% 
+  split(.$genus) %>% 
+  map(function(df){
+    df %>% 
+      mutate(iRep_zscore = scale(.$iRep, center = T, scale = T)[,1])
+  }
+    ) %>% 
+  bind_rows() 
+
+# the color palette used in Jonas version
+genus_pal <- tibble(
+  genus = them %>% distinct(genus) %>% pull(genus),
+  colors = c('#cd2026','#326634','#ee2023','#991b1d') 
+) %>% 
+  deframe
+```
+```{r}
+ave_combined <- them %>% 
+  ggpubr::ggscatter(x = 'ave_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
+                    xlab = 'Sweets and fruits intake averaged (g)',
+                    ylab = 'Growth rate\n(standardized within genus) ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5)) +
+  scale_color_manual(values = genus_pal) +
+  theme(aspect.ratio = 1,
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        legend.position = 'top',
+        legend.title=element_blank())
+
+ggsave('../data/123_new_2fam_fig3top.pdf', height = 3, plot = ave_combined)
+them %>% distinct(pid)
 ```
 
 
@@ -176,43 +213,10 @@ axis_title_size <- 10
 ```
 
 
-```{r}
-ave_combined <- them %>% 
-  mutate(ave_sugar = sum_sugar/2) %>% 
-  ggpubr::ggscatter(x = 'ave_sugar', y = 'iRep_zscore',  color = 'genus',palette = 'lancet',
-                    xlab = 'Sweets and fruits intake averaged (g)',
-                    ylab = 'Growth rate\n(standardized within genus) ',
-                    add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5)) +
-  theme(aspect.ratio = 1,
-        axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        legend.position = 'right',
-        legend.title=element_blank())
-
-ggsave('../data/123_new_2fam_fig3top.pdf', height = 2, plot = ave_combined)
-them %>% distinct(pid)
-```
 
 
-```{r}
-them %>% 
-  #distinct(sampleid)
-  distinct(pid)
 
-# put the above two in the same row
-library(cowplot)
-g <- plot_grid(ave_fruit, ave_sweets, 
-    ncol = 2,
-    o = 'hv',
-    #labels = 'AUTO',
-    axis = 'bltr') 
-ggsave('../data/123_new_2fam_fig3top_split2.jpg', width = 200, height = 100, units = c("mm"),
-         dpi = 300, plot = g)
-```
+
 
 
 

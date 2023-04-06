@@ -73,10 +73,10 @@ perc_side <- post %>%
   left_join(key %>% select(item = fg1_name, shortname), by = "item") %>%
   mutate(color = if_else(positive >= 0.75, 'maroon', if_else(negative >= 0.75, 'steelblue', 'white'))) %>% 
   mutate(mark = if_else(negative >= 0.99 | positive >= 0.99, '***', if_else(negative >= 0.975 | positive >= 0.975, '**', if_else(negative >= 0.95 | positive >= 0.95, '*', '')))) %>% 
-  mutate(genus = factor(genus, levels = c('Enterococcus','Klebsiella','Cronobacter','Enterobacter','Citrobacter','Cedecea','Escherichia'))) %>% 
+  # order the columns by the number of stars in the columns
+  mutate(genus = factor(genus, 
+   levels =c('Enterococcus','Klebsiella','Escherichia','Enterobacter','Citrobacter','Cronobacter'))) %>% 
   mutate(shortname = factor(shortname, levels = fg_order)) 
-
-
 ```
 
 ```{r}
@@ -94,7 +94,7 @@ genus_fg_extra <- ggplot(perc_side, aes(x = genus, y = shortname)) +
   theme_void() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text.x = element_text(angle=90, hjust=1, size=axis_text_size),
+        axis.text.x = element_text(angle=45, vjust=0.9,hjust = 0.9, size=axis_text_size),
         axis.text.y=element_text(size=axis_text_size, hjust=0.95,vjust=0.2),
         axis.title=element_text(size=axis_title_size),
         legend.position = 'none',legend.text=element_text(size=8),

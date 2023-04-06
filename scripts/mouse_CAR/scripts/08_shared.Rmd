@@ -1,0 +1,63 @@
+---
+title: "shared between slurry and w1"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+# find the species shared between slurry and w1
+pheno <- read_csv('../data/01_FMT_pheno.csv')
+w1ressam <- pheno %>% 
+  filter(Group == 'Responder' & Condition == '1st Collection (2 days) post-CAR T cells')
+
+all <- read_csv('../data/01_all_metaphlan.csv')
+
+w1res <- all %>% 
+  filter(sampleid %in% w1ressam$sampleid) %>% 
+  distinct(clade_name)
+
+slurryres <- all %>% 
+  filter(sampleid %in% c('PH131')) %>% 
+  distinct(clade_name)
+```
+
+
+```{r}
+library(data.tree)
+overlapres <- tibble(shared = intersect(w1res$clade_name, slurryres$clade_name)) %>% 
+  mutate(splits = str_split_fixed(shared, pattern = '\\|', n = 7)) %>% 
+  mutate(kingdom = splits[,1],
+         phylum = splits[,2],
+         class = splits[,3],
+         order = splits[,4],
+         family = splits[,5],
+         genus = splits[,6],
+         species = splits[,7]) %>% 
+  select(-splits)
+
+final_table_name <- overlapres %>% 
+  mutate(newickstring_name = str_glue('foodtreeroot/{kingdom}/{phylum}/{class}/{order}/{family}/{genus}/{species}/{shared}'))
+#### Make and export the tree ####
+sharedtree <- as.Node(final_table_name, pathName = "newickstring_name")
+tree <- ToNewick(sharedtree)
+cat(tree, file = '../data/08_shared_tree.newick')
+
+```
+
+
+```{bash}
+/Users/daia1/pipeline/scripts/food_tree/softwares/graphlan/graphlan_annotate.py  ../data/08_shared_tree.newick ../data/guide_1_new.xml
+/Users/daia1/pipeline/scripts/food_tree/softwares/graphlan/graphlan.py ../data/guide_1_new.xml ../data/08_tree_ring.png --dpi 400 --size 3 --pad 0
+
+```
+
