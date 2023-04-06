@@ -618,6 +618,7 @@ kle_copies
 ```
 
 # assemble the figures together
+
 ```{r}
 f3c <- plot_grid(abx_ent, sweets_ent, fruits_ent, p11_irep, p11_copies ,
                   ncol = 1,axis = 'lbrt', align = 'hv') 

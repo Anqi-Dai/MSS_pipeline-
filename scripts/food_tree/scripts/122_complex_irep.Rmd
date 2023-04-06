@@ -52,7 +52,7 @@ ggplot(df, aes(x = sum_sugar, y = iRep_zscore)) + geom_point() +
                   geom = 'text',
                   aes(label = paste("p-value=", signif(..p.value.., digits = 3),
                                      sep = "")),
-                      label.x = 3, label.y = 3, size = 4)
+                      label.x = 3, label.y = 3, size = 2)
 
 df %>% distinct(pid)
 ```
@@ -204,6 +204,4 @@ mtext("Posterior prediction iRep ME model sum (sweets, fruit)")
 post<-extract.samples(mfam)
 plot(precis(mfam, depth=2))
 ```
-
-
 

@@ -124,6 +124,12 @@ all_fam2_irep <- bind_rows(family2_irep,older )%>%
                )
   
 ```
+```{r}
+# if there is any sample that is not in the 145
+should <- read_csv('../data/135_selected_samples_for_irep_analysis.csv')
+them %>% 
+  filter(!sampleid %in% should$sampleid)
+```
 
 
 ```{r}
