@@ -220,7 +220,7 @@ PTB %>%
 
 ```{r}
 library(gtsummary) 
-PTB <- read_csv('../data/cleaned_patients/diet_patients_97.csv')
+PTB <- read_csv('../data/156_combined_PTB.csv')
 
 final <- PTB %>% 
   select(age, sex, Disease = disease.simple, source,  intensity) %>% 
@@ -234,12 +234,17 @@ final <- PTB %>%
     Disease == 'CML' ~ 'Other',
     Disease == 'Hodgkins' ~ "Other",
     Disease == 'Myeloma' ~ 'Myeloma', 
-    Disease == 'AA' ~ 'Other'
+    Disease == 'AA' ~ 'Other',
+    Disease == 'other' ~ 'Other'
   )) %>% 
   mutate(source = case_when(
     source == 'unmodified' ~ "Unmodified bone marrow or PBSC",
     source == 'cord' ~ "Cord blood",
     source == 'TCD' ~ "T-cell depleted PBSC"
+  )) %>% 
+  mutate(sex = case_when(
+    sex == 'F' ~ "Female",
+    sex == 'M' ~ "Male"
   )) %>% 
   mutate(intensity = case_when(
     intensity == 'nonablative' ~ "Nonmyeloablative",
@@ -252,17 +257,18 @@ final <- PTB %>%
          sex = fct_reorder(sex, sex, .fun=length, .desc = T)) %>% 
   rename(`Graft type` = source, 
          #`HCT-CI` = ci,
-         `Intensity of conditioning regimen` = intensity ) 
+         `Intensity of conditioning regimen` = intensity ) %>% 
+  rename(Sex = sex, Age = age)
 
 final %>% 
   tbl_summary(
-    type = list(all_integer() ~ "continuous"), 
+    #type = list(all_double() ~ "continuous"), 
     statistic = list(all_continuous() ~ "{mean} ({sd})")
   ) %>%
   bold_labels() %>% 
   as_gt() %>%
   #gt::tab_footnote(footnote = "MDS/MPN = Myelodysplastic/myeloproliferative neoplasms") %>% 
-  gt::gtsave(filename = "../figs/paper/003_table_1_patient_summary.pdf")
+  gt::gtsave(filename = "../data/Table_1_patient_summary_003.pdf")
 
 ```
 

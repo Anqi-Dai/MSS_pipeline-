@@ -40,6 +40,8 @@ ptb <- bind_rows(
   ptb2 %>% select(mrn:disease.simple) %>% mutate(batch = 'batch2')
 )
 
+ptb %>% write_csv('../data/156_combined_PTB.csv')
+
 pts_tb <- pts %>% 
   right_join(ptb, by = c("mrn", "hct")) 
 

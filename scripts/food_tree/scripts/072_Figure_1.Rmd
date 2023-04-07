@@ -68,6 +68,8 @@ dtb %>% distinct(Food_NSC)
 
 dtb %>% count(mrn, fdrt) %>% 
   distinct(mrn, fdrt) 
+
+range(dtb$fdrt)
   
 ```
 
