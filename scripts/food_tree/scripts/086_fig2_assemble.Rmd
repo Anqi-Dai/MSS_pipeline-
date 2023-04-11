@@ -147,9 +147,6 @@ ggsave('../figs/paper/S4_div_entero_prior_086.pdf',
        width = 170, height = 60, units = c("mm"),
          dpi = 400, device = 'pdf', plot = prior)
 
-ggsave('../figs/paper/S4_div_entero_prior_086.jpg',
-       width = 170, height = 60, units = c("mm"),
-         dpi = 400, device = 'jpg', plot = prior)
 ```
 
 

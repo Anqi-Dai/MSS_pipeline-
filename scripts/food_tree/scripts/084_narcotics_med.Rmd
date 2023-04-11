@@ -103,6 +103,22 @@ nar_all %>%
   distinct(mrn)
 ```
 
+```{r}
+# clean the data for the second batch 
+df2 <- read_rds('/Volumes/vandenBrinkLab/Angel_Dai/batch2_medication_exposures.rds')
+ptb <- read_csv('../data/129_ptb2.csv')
+colnames(df2)
+narcotic <- df2 %>% 
+  filter(is_narcotic == "Y") %>% 
+  filter(grepl("PCA", med_name)) %>% 
+  mutate(mrn = as.numeric(MRN)) %>% 
+  filter(mrn %in% ptb$mrn) %>% 
+  select(mrn, start_date, stop_date)
+```
+
+
+
+
 ## decide if a patient was exposed to narcotics painkiller in the two days prior to a stool sample collection
 
 ```{r}
