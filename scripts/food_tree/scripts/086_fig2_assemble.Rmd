@@ -40,7 +40,7 @@ f2a <- two_score %>%
   scale_color_manual(values = c('black','gray60')) +
   theme_classic()  +
   theme(aspect.ratio=1,
-        legend.position = 'none',
+        #legend.position = 'none',
         axis.text=element_text(size=axis_text_size), 
         legend.title  = element_blank(),
         axis.title=element_text(size=axis_text_size),
@@ -56,32 +56,28 @@ diagram
 ```
 
 ```{r 2c_div_fg9}
-f2c <- read_rds('../data/068_div_post.rds')
+
 f2c <- read_rds('../data/068_div_post_ridge.rds')
 #f2d <- read_rds('../data/068_only3_sim.rds')
-f2d <- read_rds('../data/101_f2d_diversity_pred_diff_with_sigma.rds')
+
 
 #f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
 f2e <- read_rds('../data/120_F2E_extra_genera.rds')
 
-ggsave('../data/086_f2e.pdf', width = 3,height = 3, plot = f2e)
-ggsave('../data/086_f2c.pdf', width = 3,height = 3, plot = f2c)
+
 ```
 
 ```{r}
-# the legend for the genus fg panel
-legendd <- '../data/genus_fg_legend.png'
-legend <- ggdraw() +
-  draw_image(magick::image_read(legendd),   scale = 0.9) 
+
 
 
 # new version that is without the diversity prediction thing
 left <- cowplot::align_plots(f2a, f2c, align = 'v', axis = 'l')
 
-top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1, 2) )
+top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1.2, 1) )
 
-bottom <- plot_grid(  left[[2]],f2e, legend,
-                  nrow = 1, labels = c('C','D', NA), rel_widths  = c(1, 1,1), align = 'hv')
+bottom <- plot_grid(  left[[2]],f2e,
+                  nrow = 1, labels = c('C','D'), rel_widths  = c(1, 1), align = 'hv')
 
 f2 <-  plot_grid(top,bottom,
                  rel_heights = c(1,1),
@@ -89,7 +85,7 @@ f2 <-  plot_grid(top,bottom,
 f2
 
 ggsave('../data/F2_model_results_086_new.pdf',
-       width = 250,
+       width = 220,
        height = 170,
          #height = 60,
          units = c("mm"),
@@ -97,25 +93,7 @@ ggsave('../data/F2_model_results_086_new.pdf',
 ```
 
 
-```{r align}
-left <- cowplot::align_plots(f2a, f2c, align = 'v', axis = 'l')
 
-top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1, 2) )
-
-bottom <- plot_grid(  left[[2]],f2d,f2e, 
-                  nrow = 1, labels = c('C','D', 'E'), rel_widths  = c(1, 1, 1.1), align = 'hv')
-
-f2 <-  plot_grid(top,bottom,
-                 rel_heights = c(1,1),
-                 nrow = 2)
- 
-ggsave('../data/F2_model_results_086.pdf',
-       width = 250,
-       height = 180,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, plot = f2)
-```
 
 
 ```{r align}
@@ -147,26 +125,14 @@ enter_fac <- read_rds('../data/087_entero_genus_factor_forest.rds')
 fac2 <- plot_grid(  div_fac,enter_fac,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
-ggsave('../figs/paper/S5_div_entero_factor_086.pdf',
+ggsave('../data/S5_div_entero_factor_086.pdf',
        width = 170,
        height = 60, 
          #height = 60,
          units = c("mm"),
          dpi = 400, device = 'pdf', plot = fac2)
 
-ggsave('../figs/paper/S5_div_entero_factor_086.jpg',
-       width = 170,
-       height = 60, 
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'jpg', plot = fac2)
 
-ggsave('../figs/paper/S_div_factor_086.pdf',
-       width = 100,
-       height = 60, 
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf', plot = div_fac)
 ```
 
 # accompanying supp figures of the prior simulation of the div and enterococcus model

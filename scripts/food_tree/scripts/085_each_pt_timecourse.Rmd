@@ -146,6 +146,8 @@ ggsave('../data/085_example_patient_timecourse.pdf',
          units = c("mm"),
          dpi = 400, device = 'pdf',
        plot = example)
+
+
 ```
 
 

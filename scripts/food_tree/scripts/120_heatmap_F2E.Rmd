@@ -12,8 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(ggpubr)
 library(tidyverse)
-axis_title_size <- 8
-axis_text_size <- 8
+library(viridis)
+axis_title_size <- 10
+axis_text_size <- 10
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 ```
 
@@ -60,47 +61,55 @@ How about I scale the percentage of the interval that is on eather side of 0 to 
 
 fg_order <- read_csv('../data/068_fg_sorting_order.csv') %>% pull(shortname)
 
+# perc_side <- post %>% 
+#   group_by(genus,item ) %>% 
+#   count(coeff >= 0) %>% 
+#   mutate(perc = round(n/4000, 2)) %>% 
+#   mutate(side = if_else(`coeff >= 0` == 'TRUE', 'positive', 'negative')) %>% 
+#   ungroup() %>% 
+#   select(genus, item, perc, side) %>% 
+#   spread('side', 'perc') %>% 
+#   mutate(item = str_replace(item, 'b_','')) %>% 
+#   left_join(key %>% select(item = fg1_name, shortname), by = "item") %>%
+#   mutate(color = if_else(positive >= 0.75, 'maroon', if_else(negative >= 0.75, 'steelblue', 'white'))) %>% 
+#   mutate(mark = if_else(negative >= 0.99 | positive >= 0.99, '***', if_else(negative >= 0.975 | positive >= 0.975, '**', if_else(negative >= 0.95 | positive >= 0.95, '*', '')))) %>% 
+#   # order the columns by the number of stars in the columns
+#   mutate(genus = factor(genus, 
+#    levels =c('Enterococcus','Klebsiella','Escherichia','Enterobacter','Citrobacter','Cronobacter'))) %>% 
+#   mutate(shortname = factor(shortname, levels = fg_order)) 
+```
 
-perc_side <- post %>% 
+```{r}
+# calculate the percentage that is > 0 for each genus fg combo and color by that
+perc_pos <- post %>% 
   group_by(genus,item ) %>% 
-  count(coeff >= 0) %>% 
-  mutate(perc = round(n/4000, 2)) %>% 
-  mutate(side = if_else(`coeff >= 0` == 'TRUE', 'positive', 'negative')) %>% 
-  ungroup() %>% 
-  select(genus, item, perc, side) %>% 
-  spread('side', 'perc') %>% 
-  mutate(item = str_replace(item, 'b_','')) %>% 
-  left_join(key %>% select(item = fg1_name, shortname), by = "item") %>%
-  mutate(color = if_else(positive >= 0.75, 'maroon', if_else(negative >= 0.75, 'steelblue', 'white'))) %>% 
-  mutate(mark = if_else(negative >= 0.99 | positive >= 0.99, '***', if_else(negative >= 0.975 | positive >= 0.975, '**', if_else(negative >= 0.95 | positive >= 0.95, '*', '')))) %>% 
-  # order the columns by the number of stars in the columns
+  count(coeff > 0) %>% 
+  mutate(perc = round(n/4000*100, 2)) %>% 
+  filter(`coeff > 0` == 'TRUE') %>% 
+  mutate(item = str_replace(item, 'b_','')) %>%  
+  left_join(key %>% select(item = fg1_name, shortname), by = "item") %>% 
   mutate(genus = factor(genus, 
-   levels =c('Enterococcus','Klebsiella','Escherichia','Enterobacter','Citrobacter','Cronobacter'))) %>% 
+  levels =c('Enterococcus','Klebsiella','Escherichia','Enterobacter','Citrobacter','Cronobacter'))) %>% 
   mutate(shortname = factor(shortname, levels = fg_order)) 
 ```
 
 ```{r}
-col_key <- perc_side %>% 
-  ungroup() %>% 
-  distinct(color) %>% 
-  pull(color)
-names(col_key) <- col_key
-
-genus_fg_extra <- ggplot(perc_side, aes(x = genus, y = shortname)) +
-  geom_tile(aes(fill = color,  x = genus, y =  shortname), alpha = 0.5, color='gray0', width=1, height=1) +
-  geom_text(aes(label = mark, x = genus,y =  shortname),
-            nudge_y = -0.05, nudge_x = 0,size = 3) +
-  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
+genus_fg_extra <- ggplot(perc_pos, aes(x = genus, y = shortname)) +
+  geom_tile(aes(fill = perc,  x = genus, y =  shortname), alpha = 0.5, color='gray0', width=1, height=1) +
+ # scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
+  scale_fill_gradient(low = "white", high = "#F8766D") +
   theme_void() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
         axis.text.x = element_text(angle=45, vjust=0.9,hjust = 0.9, size=axis_text_size),
         axis.text.y=element_text(size=axis_text_size, hjust=0.95,vjust=0.2),
         axis.title=element_text(size=axis_title_size),
-        legend.position = 'none',legend.text=element_text(size=8),
+        #legend.position = 'none',
+        legend.text=element_text(size=8),
         legend.key = element_rect( colour = "gray50")) 
+
 genus_fg_extra %>% write_rds('../data/120_F2E_extra_genera.rds')
-ggsave('../data/120_F2E_extra_genera.pdf', width =  60,plot = genus_fg_extra,
+ggsave('../data/120_F2E_extra_genera.pdf', width =  80,plot = genus_fg_extra,
        height = 70, 
          units = c("mm"),
          dpi = 400)
