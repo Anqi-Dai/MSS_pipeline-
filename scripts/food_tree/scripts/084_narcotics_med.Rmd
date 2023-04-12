@@ -14,6 +14,7 @@ library(brms)
 library(ggpubr)
 library(tidybayes)
 ncores <- parallel::detectCores()
+axis_text_size <- 10
 ```
 
 ```{r}
@@ -107,16 +108,41 @@ nar_all %>%
 # clean the data for the second batch 
 df2 <- read_rds('/Volumes/vandenBrinkLab/Angel_Dai/batch2_medication_exposures.rds')
 ptb <- read_csv('../data/129_ptb2.csv')
-colnames(df2)
-narcotic <- df2 %>% 
-  filter(is_narcotic == "Y") %>% 
-  filter(grepl("PCA", med_name)) %>% 
+
+
+pcas <- df2 %>% 
+  filter(str_detect(route0, 'PCA IV') | str_detect(misc.info, 'PCA') | str_detect(drug_name_detail, 'PCA')) %>% 
   mutate(mrn = as.numeric(MRN)) %>% 
   filter(mrn %in% ptb$mrn) %>% 
-  select(mrn, start_date, stop_date)
+  select(mrn, start_date, stop_date) %>% 
+  inner_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(startday = as.numeric(start_date - hct),
+         stopday = as.numeric(stop_date - hct)) %>% 
+  # filter out certain periods that are not close to the current cohort transplant date
+  filter(startday > -46 & startday < 82) %>% 
+  mutate(nar_int = interval(start_date, stop_date))
+
+
+library(vdbR)
+connect_database('~/dbConfig.txt')
+get_table_from_database('samples_castori_ag')
+stb2 <- read_csv('../data/153_combined_META.csv') %>% filter(batch == 'batch2')
+# find if two intervals overlap
+stb_samp <- samples_castori_ag %>% 
+  filter(sampleid %in% stb2$sampleid) %>% 
+  select(sampleid, datecollection, mrn) %>% 
+  mutate(p1d = datecollection -1,
+         p2d = datecollection -2) %>% 
+  mutate(p2d_int = interval(p2d, p1d)) %>% 
+  inner_join(pcas %>% 
+               select(mrn, nar_int) ) %>% 
+  mutate(use_nar = int_overlaps(p2d_int, nar_int))
+
+use_pca <- stb_samp %>% filter(use_nar == 'TRUE') %>% distinct(sampleid)
+use_pca_pt <- stb_samp %>% filter(use_nar == 'TRUE') %>% distinct(mrn)
+
+
 ```
-
-
 
 
 ## decide if a patient was exposed to narcotics painkiller in the two days prior to a stool sample collection
@@ -127,7 +153,7 @@ connect_database('~/dbConfig.txt')
 get_table_from_database('samples_castori_ag')
 
 # find if two intervals overlap
-stb_samp <- samples_castori_ag %>% 
+stb_samp1 <- samples_castori_ag %>% 
   filter(sampleid %in% meta$sampleid) %>% 
   select(sampleid, datecollection, mrn) %>% 
   mutate(p1d = datecollection -1,
@@ -137,17 +163,28 @@ stb_samp <- samples_castori_ag %>%
                select(mrn, nar_int) ) %>% 
   mutate(use_nar = int_overlaps(p2d_int, nar_int))
 
-use_nar_samp <- stb_samp %>% 
+use_nar_samp <- stb_samp1 %>% 
   filter(use_nar == 'TRUE')
 # how many samples from how many patients
 use_nar_samp %>% 
   count(mrn)
+
+use_nar_samp1 <- use_nar_samp %>% 
+  distinct(sampleid) %>% pull(sampleid)
+
+
+```
+
+```{r}
+# the total list of the samples that were exposed to pca 
+pca_exposed <- c(use_nar_samp1, use_pca %>% pull(sampleid))
 ```
 
 
 ```{r}
+meta <- read_csv('../data/153_combined_META.csv')
 meta_new <- meta %>% 
-  mutate(narcotics = if_else(sampleid %in% use_nar_samp$sampleid, T, F))  %>% 
+  mutate(narcotics = if_else(sampleid %in% pca_exposed, T, F))  %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn)) %>% 
@@ -239,34 +276,39 @@ post_coeff <- post_samples %>%
     item ==  'sweets' ~ '9'
   ))  %>% 
   left_join(key) %>% 
-  left_join(key %>% select(fgrp1, color, shortname))  %>% 
-  mutate(shortname = fct_reorder(shortname, coeff, .fun=median, .desc = F)) 
+  left_join(key %>% select(fgrp1, color, shortname))  
 
-fg_colors <- key %>% 
-  select(shortname, color) %>% 
-  deframe()
+percs <- post_coeff %>% 
+  count(shortname, coeff > 0) %>% 
+  mutate(perc =round(n/4000*100,1))  %>% select(-n) %>% 
+  spread('coeff > 0', 'perc') %>% 
+  rename(positive = 'TRUE', negative = 'FALSE') %>% 
+  mutate(neg_num = negative) %>% 
+  mutate(pos_x = 0.8, neg_x = -0.9) %>% 
+  mutate(positive = str_glue('{positive}%'),
+         negative = str_glue('{negative}%'))
 
-cross0 <- post_coeff %>%
-  group_by(item) %>% 
-  summarise(q2.5 = quantile(coeff, probs = 0.025),
-            q97.5 = quantile(coeff, probs = 0.975)) %>% 
-  mutate(Cross = if_else(q2.5 > 0 | q97.5 < 0, F, T))
+fg_order <- read_csv('../data/068_fg_sorting_order.csv') %>% pull(shortname)
 
 pca_fg <- post_coeff %>% 
-  left_join(cross0) %>% 
-  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  left_join(percs) %>%
+  mutate(shortname = factor(shortname, levels = fg_order)) %>% 
+  ggplot(aes(x = coeff, y = shortname, fill = after_stat(x > 0))) +
+  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'Coefficients',
-       y = '',
+  geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = after_stat(x > 0))) +
+  geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =after_stat(x > 0))) +
+  #scale_fill_manual(values = c("gray80", "skyblue")) +
+  labs(x = 'ln(diversity) change per 100g of food',
+       y = '', 
        title = 'Diversity') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = c("#EC0000", "gray40")) +
-  theme(axis.text=element_text(size=11),
-        axis.title=element_text(size=11),
-        aspect.ratio=1) 
+  scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
+  scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
+  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
+        axis.title=element_text(size=axis_text_size),
+        aspect.ratio=1)
 
 ```
 
@@ -306,10 +348,24 @@ pca_bi <- coeff_bi %>%
         strip.background = element_blank(),
         strip.text = element_blank(),
         aspect.ratio=1/2) 
+
+
 ```
 
 ```{r}
 # combine them together to make one supplementary figure
+library(cowplot)
+title <- ggdraw() + 
+  draw_label(
+    "Fig S8",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
 pca <- cowplot::plot_grid(pca_fg, pca_bi, 
           nrow = 1, 
           align = 'hv',
@@ -317,23 +373,21 @@ pca <- cowplot::plot_grid(pca_fg, pca_bi,
           #rel_heights = c(1,1),
           labels = c('A','B'),
           axis = 'tblr') 
-pca
+
+combined <- plot_grid(
+  title, pca,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
 ```
 
 
 ```{r}
-ggsave('../figs/paper/S9_narcotics_PCA_084.pdf',  
-       width = 190,
-       height = 70,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf', plot = pca)
-ggsave('../figs/paper/S9_narcotics_PCA_084.jpg',  
-       width = 190,
-       height = 70,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'jpg', plot = pca)
+ggsave('../data/S8_narcotics_PCA_084.pdf',  
+      width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
+
 ```
 
 
