@@ -372,67 +372,7 @@ div_post
 ```
 
 
-```{r post_coeff_binary}
-coeff_bi <- post_samples %>% 
-  select(starts_with('b_')) %>% 
-  select(!starts_with('b_fg')) %>% 
-  gather('item', 'coeff') %>% 
-  mutate(item_name = case_when(
-    item ==  'b_intensitynonablative' ~ 'Intensity: nonablative',
-    item == 'b_intensityablative' ~ 'Intensity: ablative',
-    item ==  'b_intensityreduced' ~ 'Intensity: reduced',
-    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
-    item == 'b_TPNTRUE' ~ 'TPN exposure',
-    item ==  'b_ENTRUE' ~ 'EN exposure'
-  )) %>% 
-  mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
-                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
-                                                  'Empirical abx exposure'))) %>% 
-  mutate(grp = if_else(str_detect(item_name, 'Intensity'), 'Patient level', 'Sample level'))
 
-# modify it to be the look that we have discussed
-diversity_factor <- coeff_bi %>% 
-  ggplot(aes(x = coeff, y = item_name)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  facet_wrap(grp~ . , scales = 'free', dir = 'v') +
-  labs(x = 'Coefficients',
-       y = 'Factor variables',
-       title = 'Diversity') +
-  theme_classic() +
-  theme(legend.position = 'none',
-        strip.background = element_blank(),
-        strip.text = element_blank(),
-        aspect.ratio=1/2) 
-
-diversity_factor %>% 
-  write_rds('../data/068_diversity_factor_forest.rds')
-
-coeff_bi %>% 
-  filter(item == 'b_ENTRUE') %>% 
-  count(coeff < 0) %>% 
-  mutate(perc = n / sum(n)*100)
-
-
-coeff_bi %>% 
-  filter(!str_detect(item, 'intensity')) %>% 
-  ggplot(aes(x = coeff, y = item_name)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  facet_wrap(grp ~ . , scales = 'free', dir = 'v') +
-  labs(x = 'Coefficients',
-       y = 'Factor variables',
-       title = 'Diversity') +
-  theme_classic() +
-  theme(legend.position = 'none',
-        strip.background = element_blank(),
-        strip.text = element_blank(),
-        aspect.ratio=1) 
-
-ggsave('../data/068_only_abx_diversity_bi.pdf', width = 3.5, height = 3)
-```
 
 # adjust the f2c
 

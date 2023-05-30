@@ -55,15 +55,72 @@ diagram <- ggdraw() +
 diagram 
 ```
 
+
+
+
+
+
+
+```{r f2d_div_fac}
+coeff_bi <- post_all %>% 
+  select(starts_with('b_')) %>% 
+  select(!starts_with('b_fg')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item_name = case_when(
+    item ==  'b_intensitynonablative' ~ 'Intensity: nonablative',
+    item == 'b_intensityablative' ~ 'Intensity: ablative',
+    item ==  'b_intensityreduced' ~ 'Intensity: reduced',
+    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
+    item == 'b_TPNTRUE' ~ 'TPN exposure',
+    item ==  'b_ENTRUE' ~ 'EN exposure'
+  )) %>% 
+  mutate(item_name = factor(item_name, levels = c('Intensity: nonablative', 'Intensity: reduced',
+                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
+                                                  'Empirical abx exposure'))) %>% 
+  mutate(grp = if_else(str_detect(item_name, 'Intensity'), 'Patient level', 'Sample level'))
+
+
+percs <- times %>% 
+  count(weeks, coeff > 0) %>% 
+  mutate(perc =round(n/4000*100,1))  %>% select(-n) %>% 
+  spread('coeff > 0', 'perc', fill = 0) %>% 
+  rename(positive = 'TRUE', negative = 'FALSE') %>% 
+  mutate(neg_num = negative) %>% 
+  mutate(pos_x = 0.8, neg_x = -0.9) %>% 
+  mutate(positive = str_glue('{positive}%'),
+         negative = str_glue('{negative}%'))
+
+
+# modify it to be the look that we have discussed
+diversity_factor <- coeff_bi %>% 
+  ggplot(aes(x = coeff, y = item_name)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #scale_color_manual(values = c('#EC0000','#00468B')) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+  labs(x = 'Coefficients',
+       y = 'Factor variables',
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none',
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        aspect.ratio=1/2) 
+
+diversity_factor %>% 
+  write_rds('../data/068_diversity_factor_forest.rds')
+
+coeff_bi %>% 
+  filter(item == 'b_ENTRUE') %>% 
+  count(coeff < 0) %>% 
+  mutate(perc = n / sum(n)*100)
+
+```
+
+
 ```{r 2c_div_fg9}
 
-f2c <- read_rds('../data/068_div_post_ridge.rds')
-#f2d <- read_rds('../data/068_only3_sim.rds')
-
-
-#f2e <- read_rds('../data/087_entero_genus_fg_main.rds')
-f2e <- read_rds('../data/120_F2E_extra_genera.rds')
-
+f2e <- read_rds('../data/068_div_post_ridge.rds')
 
 ```
 
@@ -120,17 +177,32 @@ f2a_legend <- two_score %>%
 # accompanying supplementary figure
 
 ```{r}
+library(cowplot)
+title <- ggdraw() + 
+  draw_label(
+    "Fig S5",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
 div_fac <- read_rds('../data/068_diversity_factor_forest.rds')
 enter_fac <- read_rds('../data/087_entero_genus_factor_forest.rds')
 fac2 <- plot_grid(  div_fac,enter_fac,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
+combined <- plot_grid(
+  title, fac2,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
 ggsave('../data/S5_div_entero_factor_086.pdf',
-       width = 170,
-       height = 60, 
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf', plot = fac2)
+      width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
 
 
 ```

@@ -65,24 +65,24 @@ top3grp_sugar <- dtb %>%
 
 ```{r}
 # go back to the dtb to see the sugar data of those 
-top50 <- top3grp_sugar <- dtb %>% 
-  mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
-  filter(fgrp1 %in% c('9','6','7')) %>% 
-  group_by(Food_code, description, fgrp1) %>% 
-  summarise(total_sugar_per_code = sum(Sugars_g)) %>% 
-  ungroup() %>% 
-  arrange(desc(total_sugar_per_code)) %>% 
-  filter(fgrp1 %in% c('6')) %>% 
-  slice_head(n = 50)
-
-see <- dtb %>% 
-  distinct(Food_NSC, Food_code, description, Por_eaten, Unit, .keep_all = T) %>% 
-  select(Food_NSC:description) %>% 
-  distinct(Food_NSC, Food_code, .keep_all = T) %>% 
-  filter(Food_code %in% top50$Food_code) %>% 
-  filter(Sugars_g > 0 & str_detect(description, 'raw')) 
-
-see %>% write_csv('../data/099_raw_fruits_with_sugars.csv')
+# top50 <- top3grp_sugar <- dtb %>% 
+#   mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
+#   filter(fgrp1 %in% c('9','6','7')) %>% 
+#   group_by(Food_code, description, fgrp1) %>% 
+#   summarise(total_sugar_per_code = sum(Sugars_g)) %>% 
+#   ungroup() %>% 
+#   arrange(desc(total_sugar_per_code)) %>% 
+#   filter(fgrp1 %in% c('6')) %>% 
+#   slice_head(n = 50)
+# 
+# see <- dtb %>% 
+#   distinct(Food_NSC, Food_code, description, Por_eaten, Unit, .keep_all = T) %>% 
+#   select(Food_NSC:description) %>% 
+#   distinct(Food_NSC, Food_code, .keep_all = T) %>% 
+#   filter(Food_code %in% top50$Food_code) %>% 
+#   filter(Sugars_g > 0 & str_detect(description, 'raw')) 
+# 
+# see %>% write_csv('../data/099_raw_fruits_with_sugars.csv')
 ```
 
 
@@ -93,9 +93,21 @@ bars <- top3grp_sugar %>%
   gather('grp','gram',gram_sugar_per_meal: gram_per_meal) %>% 
   mutate(grp = if_else(grp == 'gram_sugar_per_meal', 'Sugar content', 'Total') ) %>% 
   mutate(grp = factor(grp, levels = c('Sugar content','Total'))) 
+
+library(cowplot)
+title <- ggdraw() + 
+  draw_label(
+    "Fig S9",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
   
 
-ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consumption (gram)',
+plot <- ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consumption (gram)',
   fill = "grp", color = "grp", palette = c("#FB9A99" ,"gray"),
   width = 0.7, 
   position = position_dodge(0.8)) +
@@ -104,12 +116,16 @@ ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consump
         axis.text.y = element_text(size=10, colour = x_txt_col),
         legend.title= element_blank())
 
+
+combined <- plot_grid(
+  title, plot,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
  
-ggsave('../data/S9_top10_eaten_foods_of_2__and_sugar_099.pdf',    width = 180,
-       height = 170,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400)
+ggsave('../data/S9_top10_eaten_foods_of_2__and_sugar_099.pdf',  width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
 
 ```
 

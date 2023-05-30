@@ -1,0 +1,84 @@
+---
+title: "Make the 2C the time panel"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(ggridges)
+library(tidybayes)
+ncores <- parallel::detectCores()
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
+```
+
+```{r}
+# find all of the coeff for the time week intervals
+weeks <- read_csv('../data/068_div_model_fg_post.csv') %>% select(starts_with('r_timebin')) %>% 
+  gather() %>% 
+  mutate(week = case_when(
+    str_detect(key, '\\[-14,-7\\)') ~ 'Week -2',
+    str_detect(key, '\\[-7,0\\)') ~ 'Week -1',
+    str_detect(key, '\\[0,7\\)') ~ 'Week 1',
+    str_detect(key, '\\[7,14\\)') ~ 'Week 2',
+    str_detect(key, '\\[14,21\\)') ~ 'Week 3',
+    str_detect(key, '\\[21,28\\)') ~ 'Week 4',
+    str_detect(key, '\\[28,35\\)') ~ 'Week 5',
+    str_detect(key, '\\[35,42\\)') ~ 'Week 6',
+    str_detect(key, '\\[42,49\\)') ~ 'Week 7',
+    str_detect(key, '\\[49,56\\]') ~ 'Week 8'
+  )) %>% 
+  mutate(week = factor(week, levels = rev(c("Week -2", "Week -1", "Week 1" , "Week 2" , "Week 3" , "Week 4",  "Week 5" , "Week 6" , "Week 7" , "Week 8" ))))
+
+weeks %>% count(week)
+```
+
+
+```{r}
+percs <- weeks %>% 
+  count(week, value > 0) %>% 
+  mutate(perc =round(n/4000*100,1))  %>% select(-n) %>% 
+  rename(`Intercept > 0` = `value > 0`) %>% 
+  spread('Intercept > 0', 'perc', fill = 0) %>% 
+  rename(positive = 'TRUE', negative = 'FALSE') %>% 
+  mutate(neg_num = negative) %>% 
+  mutate(pos_x = 1, neg_x = -1.8) %>% 
+  mutate(positive = str_glue('{positive}%'), 
+         negative = str_glue('{negative}%'))
+```
+
+
+```{r}
+time_post_ridge <- weeks %>% 
+  left_join(percs) %>%
+  ggplot(aes(x = value, y = week, fill = after_stat(x > 0))) +
+  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  geom_text(data = percs, aes(x = pos_x, y = week, label = positive, color = after_stat(x > 0))) +
+  geom_text(data = percs, aes(x = neg_x, y = week, label = negative, color =after_stat(x > 0))) +
+  #scale_fill_manual(values = c("gray80", "skyblue")) +
+  labs(x = 'Intercept',
+       y = '', 
+       title = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
+  scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
+  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
+        axis.title=element_text(size=axis_text_size),
+        aspect.ratio=1)
+time_post_ridge
+
+time_post_ridge %>% 
+  write_rds('../data/168_time_post_ridge.rds')
+```
+

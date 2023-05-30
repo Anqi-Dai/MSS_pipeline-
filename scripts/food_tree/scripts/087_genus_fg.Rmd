@@ -361,15 +361,28 @@ genus_fg_factor
 ```{r}
 # stack the two heatmap together
 library(cowplot)
+title <- ggdraw() + 
+  draw_label(
+    "Fig S7",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
 heatmap <-  plot_grid(  genus_fg_main,genus_fg_factor,
                   nrow = 2, labels = c('A','B'), rel_heights  = c(1, 0.6), align = 'hv', axis = 'tblr')
 
-ggsave( '../data/S8_heatmap_fg_genus_087.pdf',
-      width = 270,
-       height = 220,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf', plot = heatmap)
+combined <- plot_grid(
+  title, heatmap,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
+ggsave( '../data/S7_heatmap_fg_genus_087.pdf',
+     width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
 ```
 
 ## The Enterococcus genus as outcome
