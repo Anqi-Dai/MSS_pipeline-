@@ -22,6 +22,20 @@ axis_title_size <- 10
 ```
 
 ```{r}
+#  to see how many samples in each week 
+# and see if I can filter out weeks with too few samples
+META <- read_csv('../data/153_combined_META.csv')
+META %>% 
+  count(timebin) %>% arrange(n)
+
+# ok I can set a filtering threshold to be : has to have at least 1% (10) samples in one week bin
+num_thre <- nrow(META) * 0.01
+
+excluded_weeks <- c('Week -2','Week 7','Week 8') 
+```
+
+
+```{r}
 # find all of the coeff for the time week intervals
 weeks <- read_csv('../data/068_div_model_fg_post.csv') %>% select(starts_with('r_timebin')) %>% 
   gather() %>% 
@@ -37,7 +51,8 @@ weeks <- read_csv('../data/068_div_model_fg_post.csv') %>% select(starts_with('r
     str_detect(key, '\\[42,49\\)') ~ 'Week 7',
     str_detect(key, '\\[49,56\\]') ~ 'Week 8'
   )) %>% 
-  mutate(week = factor(week, levels = rev(c("Week -2", "Week -1", "Week 1" , "Week 2" , "Week 3" , "Week 4",  "Week 5" , "Week 6" , "Week 7" , "Week 8" ))))
+  filter(! week %in% excluded_weeks) %>% 
+  mutate(week = factor(week, levels = rev(c("Week -1", "Week 1" , "Week 2" , "Week 3" , "Week 4",  "Week 5" , "Week 6"  ))))
 
 weeks %>% count(week)
 ```
@@ -51,7 +66,7 @@ percs <- weeks %>%
   spread('Intercept > 0', 'perc', fill = 0) %>% 
   rename(positive = 'TRUE', negative = 'FALSE') %>% 
   mutate(neg_num = negative) %>% 
-  mutate(pos_x = 1, neg_x = -1.8) %>% 
+  mutate(pos_x = 1, neg_x = -1.4) %>% 
   mutate(positive = str_glue('{positive}%'), 
          negative = str_glue('{negative}%'))
 ```
@@ -63,8 +78,8 @@ time_post_ridge <- weeks %>%
   ggplot(aes(x = value, y = week, fill = after_stat(x > 0))) +
   stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  geom_text(data = percs, aes(x = pos_x, y = week, label = positive, color = after_stat(x > 0))) +
-  geom_text(data = percs, aes(x = neg_x, y = week, label = negative, color =after_stat(x > 0))) +
+  geom_text(data = percs, aes(x = pos_x, y = week, label = positive, color = after_stat(x > 0)), size = 2) +
+  geom_text(data = percs, aes(x = neg_x, y = week, label = negative, color =after_stat(x > 0)), size = 2) +
   #scale_fill_manual(values = c("gray80", "skyblue")) +
   labs(x = 'Intercept',
        y = '', 
@@ -75,7 +90,7 @@ time_post_ridge <- weeks %>%
   scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
   theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
         axis.title=element_text(size=axis_text_size),
-        aspect.ratio=1)
+        aspect.ratio=1) 
 time_post_ridge
 
 time_post_ridge %>% 

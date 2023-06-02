@@ -21,11 +21,11 @@ rstan_options(auto_write = TRUE)
 axis_text_size <- 10
 axis_title_size <- 10
 #dtb <- read_csv('../data/cleaned_diet_data/FINAL_97_with_code_all_foods_drt_with_EN_finalized.csv')
-dtb <- read_csv('../data/146_updated_dtb1.csv')
-meta <- read_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv') 
+dtb <- read_csv('../data/152_combined_DTB.csv')
+meta <- read_csv('../data/153_combined_META.csv') 
 ```
 ```{r}
-cts <- read_csv('../data/cleaned_stool/022_ALL_stool_samples_genus_counts.csv') %>% 
+cts <- read_csv('../data/022_ALL173_stool_samples_genus_counts.csv') %>% 
   filter(sampleid %in% meta$sampleid) 
 thre <- seq(0.0001, 0.002, 0.0001)
 thre %>% 
@@ -449,15 +449,15 @@ priors_genus_macro_fat <- c(
             prior(normal(-3, 1), class = 'b', coef = "intensityablative"),
             prior(normal(-3, 1), class = 'b', coef = "intensitynonablative"))
 
-
-Enterococcus_model <- brm( Enterococcus_mod,  
-              data = full, 
-              warmup = 1000, iter = 3000, 
-              prior = priors_genus_macro_fat,
-              cores = ncores, 
-              chains = 2, 
-              control = list(adapt_delta = 0.99),
-              seed = 123, sample_prior = T )
+# 
+# Enterococcus_model <- brm( Enterococcus_mod,  
+#               data = full, 
+#               warmup = 1000, iter = 3000, 
+#               prior = priors_genus_macro_fat,
+#               cores = ncores, 
+#               chains = 2, 
+#               control = list(adapt_delta = 0.99),
+#               seed = 123, sample_prior = T )
 ```
 
 
@@ -492,54 +492,54 @@ Enterococcus_model <- brm( Enterococcus_mod,
 
 ```{r}
 # check the priors
-mean_enterococcus_prior <- prior_draws(Enterococcus_model) %>% 
-  mutate(mean_genus = Intercept + 
-          b_ave_fiber * mean_macro$ave_fiber+
-           b_ave_fat * mean_macro$ave_fat+
-           b_ave_Sugars * mean_macro$ave_Sugars+
-           b_inten_re ) %>% 
-  select(mean_genus) %>% 
-  mutate(grp = 'mean_enterococcus') %>% 
-  rename(prior_res = mean_genus) %>% 
-  select(grp, prior_res)
-
-# calculate the percentage that falls within the actual range of the data
-mean_enterococcus_prior %>% 
-  count(prior_res >= min(full$Enterococcus) & prior_res <= max(full$Enterococcus)) %>% 
-  mutate(fraction = round(n /sum(n), 2))  %>% 
-  slice(2) %>% 
-  pull(fraction)
-
-# look at the post
-post_coeff <- posterior_samples(Enterococcus_model, '^b_') %>% 
-  select(starts_with('b_ave')) %>% 
-  gather('item', 'coeff') %>% 
-  mutate(item = str_replace(item, 'b_ave_','')) %>% 
-   mutate(item = case_when(
-    item ==  'fiber' ~ 'Fibers',
-    item == 'fat' ~ 'Fat',
-    item ==  'carb' ~ 'Carbohydrates',
-    TRUE ~ item
-  ))  %>% 
-  mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
-
-post_coeff %>% 
-  ggplot(aes(x = coeff, y = item)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
-  labs(x = 'Coefficients',
-       y = 'Macronutrients') +
-  theme_classic() +
-  theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
-
-ggsave('../figs/paper/090_macro_fat_Enterococcus_model.eps' ,width = 80,
-       height = 80,
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'eps')
+# mean_enterococcus_prior <- prior_draws(Enterococcus_model) %>% 
+#   mutate(mean_genus = Intercept + 
+#           b_ave_fiber * mean_macro$ave_fiber+
+#            b_ave_fat * mean_macro$ave_fat+
+#            b_ave_Sugars * mean_macro$ave_Sugars+
+#            b_inten_re ) %>% 
+#   select(mean_genus) %>% 
+#   mutate(grp = 'mean_enterococcus') %>% 
+#   rename(prior_res = mean_genus) %>% 
+#   select(grp, prior_res)
+# 
+# # calculate the percentage that falls within the actual range of the data
+# mean_enterococcus_prior %>% 
+#   count(prior_res >= min(full$Enterococcus) & prior_res <= max(full$Enterococcus)) %>% 
+#   mutate(fraction = round(n /sum(n), 2))  %>% 
+#   slice(2) %>% 
+#   pull(fraction)
+# 
+# # look at the post
+# post_coeff <- posterior_samples(Enterococcus_model, '^b_') %>% 
+#   select(starts_with('b_ave')) %>% 
+#   gather('item', 'coeff') %>% 
+#   mutate(item = str_replace(item, 'b_ave_','')) %>% 
+#    mutate(item = case_when(
+#     item ==  'fiber' ~ 'Fibers',
+#     item == 'fat' ~ 'Fat',
+#     item ==  'carb' ~ 'Carbohydrates',
+#     TRUE ~ item
+#   ))  %>% 
+#   mutate(item = fct_reorder(item, coeff, .fun=median, .desc = F)) 
+# 
+# post_coeff %>% 
+#   ggplot(aes(x = coeff, y = item)) +
+#   stat_pointinterval(.width = c(.66, .95)) +
+#   geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+#   labs(x = 'Coefficients',
+#        y = 'Macronutrients') +
+#   theme_classic() +
+#   theme(legend.position = 'none') +
+#   theme(axis.text=element_text(size=axis_text_size),
+#         axis.title=element_text(size=axis_title_size),
+#         aspect.ratio=1)
+# 
+# ggsave('../figs/paper/090_macro_fat_Enterococcus_model.eps' ,width = 80,
+#        height = 80,
+#          #height = 60,
+#          units = c("mm"),
+#          dpi = 400, device = 'eps')
 
 ```
 
@@ -677,7 +677,7 @@ names(col_key) <- col_key
 genus_macro_fat_main <- ggplot(post_res_genera, aes(x = genus, y = item)) +
   geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
   geom_text(aes(label = mark, x = genus,y =  item),
-            nudge_y = -0.1, nudge_x = 0,size = 5) +
+            nudge_y = -0.1, nudge_x = 0,size = 3) +
   scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
   theme_pubr() +
   theme(axis.title.x = element_blank(),
@@ -734,7 +734,7 @@ post_bi_res <- post_df %>%
 genus_macro_fat_factor <- ggplot(post_bi_res, aes(x = genus, y = item_name)) +
   geom_tile(aes(fill = color,  x = genus, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
   geom_text(aes(label = mark, x = genus,y =  item_name),
-            nudge_y = -0.1, nudge_x = 0,size = 5) +
+            nudge_y = -0.1, nudge_x = 0,size = 3) +
   scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI < 0 negative','75% CI > 0 positive')) +
   theme_pubr() +
   theme(axis.title.x = element_blank(),

@@ -289,28 +289,45 @@ post_res_genera <- post_df %>%
   select(genus, starts_with('b_fg')) %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   group_by(genus, item) %>% 
-  count(coeff > 0) %>% 
-  mutate(perc = round(n/4000*100, 2)) %>% 
-  filter(`coeff > 0` == 'TRUE') %>% 
-  mutate(item = str_replace(item, 'b_','')) %>%  
-  left_join(key %>% select(item = fg1_name, shortname), by = "item") %>% 
-  mutate(shortname = factor(shortname, levels = fg_order)) 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
+  mutate(item = str_replace(item, 'b_ave_','')) %>% 
+  mutate(item = str_to_title(item)) %>% 
+  mutate(item = str_replace(item, 'B_','')) %>% 
+  left_join(key %>% select(item = fg1_name, shortname))
 
 
-
+col_key <- post_res_genera %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key
 
 
 ```
 
 ```{r}
 genus_fg_main <- ggplot(post_res_genera, aes(x = genus, y = shortname)) +
-  geom_tile(aes(fill = perc,  x = genus, y =  shortname), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_tile(aes(fill = color,  x = genus, y =  shortname), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  shortname),
+            nudge_y = -0.1, nudge_x = 0,size = 3) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
   theme_pubr() +
-  scale_fill_gradient(low = "white", high = "#F8766D") +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
-        axis.text.x = element_text(angle=50, hjust=1, size=10),
-        axis.text.y=element_text(size=10),
+        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.y=element_text(size=11),
         axis.title=element_text(size=axis_title_size),
         #panel.grid.major = element_blank(), 
         #panel.grid.minor = element_blank(),
@@ -318,7 +335,7 @@ genus_fg_main <- ggplot(post_res_genera, aes(x = genus, y = shortname)) +
         panel.background=element_rect(colour="black"),
         legend.key = element_rect( colour = "gray50")) 
 genus_fg_main 
-
+ 
 ```
 
 ```{r}
@@ -331,9 +348,19 @@ post_df <- read_csv('../data/087_genus_foodgroup_model_post.csv', col_select = c
 post_bi_res <- post_df %>% 
   gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   group_by(genus, item) %>% 
-  count(coeff > 0) %>% 
-  mutate(perc = round(n/4000*100, 2)) %>% 
-  filter(`coeff > 0` == 'TRUE') %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
   mutate(item_name = case_when(
     item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
     item == 'b_TPNTRUE' ~ 'TPN exposure',
@@ -342,8 +369,10 @@ post_bi_res <- post_df %>%
 
 
 genus_fg_factor <- ggplot(post_bi_res, aes(x = genus, y = item_name)) +
-  geom_tile(aes(fill = perc,  x = genus, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
-  scale_fill_gradient(low = "white", high = "#F8766D") +
+  geom_tile(aes(fill = color,  x = genus, y =  item_name), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  item_name),
+            nudge_y = -0.1, nudge_x = 0,size = 3) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0','75% CI < 0 negative','75% CI > 0 positive')) +
   theme_pubr() +
   theme(axis.title.x = element_blank(),
         axis.title.y = element_blank(),
@@ -382,7 +411,7 @@ combined <- plot_grid(
 )
 
 ggsave( '../data/S7_heatmap_fg_genus_087.pdf',
-     width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
+     width = 210, height = 197, units = "mm", device = 'pdf', plot = combined)
 ```
 
 ## The Enterococcus genus as outcome
