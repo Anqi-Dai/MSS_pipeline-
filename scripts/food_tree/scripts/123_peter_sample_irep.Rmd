@@ -165,7 +165,11 @@ ave_combined <- them %>%
         legend.title=element_blank())
 
 ggsave('../data/123_new_2fam_fig3top.pdf', height = 3, plot = ave_combined)
-them %>% distinct(pid)
+
+# the number for fig3E
+them %>% distinct(pid) %>% nrow
+
+them %>% distinct(sampleid) %>% nrow
 ```
 
 

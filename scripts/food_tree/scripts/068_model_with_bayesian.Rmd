@@ -212,26 +212,35 @@ mrn_figure <- mrn_forest %>%
        title = '') +
   theme_classic() +
   theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=11),
-        axis.title=element_text(size=11),
-        aspect.ratio=1)
+  theme(axis.text=element_text(size=7),
+        axis.title=element_text(size=11))
+
+library(cowplot)
+title <- ggdraw() + 
+  draw_label(
+    "Fig S6",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
 ```
 
 
 ```{r all_params_csv}
-ggsave('../data/S6_mrn_intercepts_forest.pdf',
-       width = 280,
-       height = 400, 
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'pdf', plot = mrn_figure)
+combined <- plot_grid(
+  title, mrn_figure,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
 
-ggsave('../figs/paper/S6_mrn_intercepts_forest.jpg',
-       width = 280,
-       height = 320, 
-         #height = 60,
-         units = c("mm"),
-         dpi = 400, device = 'jpg', plot = mrn_figure)
+ggsave('../data/S6_mrn_intercepts_forest.pdf',
+     width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
+
+
 ```
 
 

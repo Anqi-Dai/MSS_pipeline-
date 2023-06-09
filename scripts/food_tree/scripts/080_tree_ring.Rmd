@@ -12,7 +12,7 @@ library(phytools)
 library(tidyverse)
 library(vdbR)
 library(data.tree)
-connect_database('~/dbConfig.txt')
+
 ```
 
 ```{r}

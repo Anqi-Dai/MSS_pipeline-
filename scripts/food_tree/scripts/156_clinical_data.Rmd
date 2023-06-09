@@ -516,3 +516,10 @@ updated <- bind_rows(
 updated %>% write_csv('../data/156_transplant_data.csv')
 ```
 
+```{r}
+# the median of the ttanc500 day
+median(transplant_data$ttancday, na.rm = T)
+range(transplant_data$ttancday, na.rm = T)
+summary(transplant_data$ttancday)
+```
+

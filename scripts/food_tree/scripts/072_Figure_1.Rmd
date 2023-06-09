@@ -57,6 +57,9 @@ The first 2 need to be redo, since the data has been updated.
 dtb  <- read_csv('../data/152_combined_DTB.csv')
 meta <- read_csv('../data/153_combined_META.csv')
 
+# how many stool samples per patient
+meta %>% count(mrn) %>% summarise(med = median(n))
+
 dtb %>% distinct(Food_code)
 
 # how many days of data among all of the patients?

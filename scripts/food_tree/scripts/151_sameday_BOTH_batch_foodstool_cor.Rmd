@@ -139,8 +139,11 @@ macro_facets <- macro_panel %>%
         strip.background = element_blank(),
         #strip.text = element_blank(),
         panel.grid.minor = element_blank()
-       ) 
+       )
+```
 
+
+```{r}
 ggsave('../data/151_combined_sameday_macronutrients_microbiome.pdf', 
        width = 180, height = 150,
        units = c("mm"),

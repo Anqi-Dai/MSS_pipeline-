@@ -1,0 +1,138 @@
+---
+title: "to find out the numbers for the manuscript"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(vdbR)
+connect_database()
+list_table_from_database('patient')
+get_table_from_database('patient_allo_ks_20221104')
+```
+
+```{r}
+# to find out the number and days of EN, TPN patients
+PTB <- read_csv('../data/156_combined_PTB.csv')
+
+support <- read_csv('../data/NutritionSupport_DietPatients.csv') %>% 
+  filter(MRN %in% PTB$mrn) %>% 
+  mutate(date = mdy(`Date Nutrition Support`)) %>% 
+  inner_join(PTB %>% select(MRN = mrn, hct))
+
+# TPN days  
+tpn <- support %>% 
+  filter(`Nutrition Support` == 'TPN') %>% 
+  select(mrn = MRN,
+         date,hct,
+         nutrition_support = `Nutrition Support`) %>% 
+  mutate(liquidday = as.numeric(date - hct))
+
+# summary of the TPN days of the patients
+tpn %>% distinct(mrn) %>% nrow
+summary(tpn$liquidday)
+```
+```{r}
+# EN days
+en <- support %>% 
+  filter(`Nutrition Support` == 'EN') %>% 
+  select(mrn = MRN,
+         date,hct,
+         nutrition_support = `Nutrition Support`) %>% 
+  mutate(liquidday = as.numeric(date - hct))
+
+# summary of the EN days of the patients
+en %>% distinct(mrn) %>% nrow
+summary(en$liquidday)
+```
+
+```{r}
+# the patients usage of the antibiotics
+# the abx data
+b2 <- read_rds('../data/batch2_medication_exposures.rds')
+# idk how Tsoni defined the broad spectrum antibiotics
+```
+
+
+```{r}
+# the fig 3 numbers F mouse data 
+alldat4 <- readRDS("../data/alldat4.rds")
+
+abxgrp <- alldat4 %>%
+  filter(abx_treatment == 'biapenem') %>%
+  select(Experiment, diet_treatment, abx_treatment, Group, Mouse_identifier,Log_CFUs_per_GramStool,day_factor_simple )%>%
+  filter(day_factor_simple != '3') %>%
+  spread('day_factor_simple', 'Log_CFUs_per_GramStool') %>%
+  rename(d0 = `0`, d7 = `6-7`) %>%
+  mutate(d70_foldchange = d7/d0)
+
+# summary of the fold change in the text for the abx treated group
+
+smoothie <- abxgrp %>% filter(diet_treatment == 'fruit_smoothie')
+vehicle <- abxgrp %>% filter(diet_treatment == 'diet_vehicle')
+```
+
+
+```{r}
+# the vehicle group
+summary(vehicle$d70_foldchange) 
+vehicle %>% nrow
+
+
+# the p value from wilcoxon test
+vehiclelong <- vehicle %>% select(-d70_foldchange) %>% 
+  gather('time', 'logCFU', d0:d7)
+
+compare_means(
+  logCFU ~ time,
+  data = vehiclelong,
+  method = "wilcox.test",
+  paired = T,
+  group.by = NULL,
+  ref.group = 'd0'
+)$p.format
+```
+
+```{r} 
+# the smoothie group
+summary(smoothie$d70_foldchange) 
+smoothie %>% nrow
+
+# the p value from wilcoxon test
+smoothielong <- smoothie %>% select(-d70_foldchange) %>% 
+  gather('time', 'logCFU', d0:d7)
+
+compare_means(
+  logCFU ~ time,
+  data = smoothielong,
+  method = "wilcox.test",
+  paired = T,
+  group.by = NULL,
+  ref.group = 'd0'
+)$p.format
+```
+
+```{r}
+# the p value between the week 1 smoothie VS vehicle in abx group
+abx <- alldat4 %>%
+  filter(abx_treatment == 'biapenem') %>%
+  select(Experiment, diet_treatment, abx_treatment, Group, Mouse_identifier,Log_CFUs_per_GramStool,day_factor_simple )%>%
+  filter(day_factor_simple == '6-7')
+
+compare_means(
+  Log_CFUs_per_GramStool ~ diet_treatment,
+  data = abx,
+  method = "wilcox.test",
+  paired = F,
+  group.by = NULL,
+  ref.group = 'diet_vehicle'
+)$p.format
+```
+

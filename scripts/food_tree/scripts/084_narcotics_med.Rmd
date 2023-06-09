@@ -198,6 +198,12 @@ meta_new <- meta %>%
          fg_sweets = fg_sweets/100,
          fg_veggie = fg_veggie/100)
 
+meta_new %>% count(narcotics)
+meta_new %>% filter(narcotics == 'TRUE') %>% distinct(mrn)
+```
+
+
+```{r}
 model_nar <- log(simpson_reciprocal)~ 0 +
                 fg_fruit+
                fg_meat+

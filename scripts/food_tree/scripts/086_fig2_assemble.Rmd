@@ -212,8 +212,8 @@ title <- ggdraw() +
 
 div_fac <- read_rds('../data/068_diversity_factor_forest.rds')
 enter_fac <- read_rds('../data/087_entero_genus_factor_forest.rds')
-fac2 <- plot_grid(  div_fac,enter_fac,
-                  nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
+fac2 <- plot_grid(  enter_fac,NA,
+                  nrow = 1)
 
 combined <- plot_grid(
   title, fac2,
@@ -223,7 +223,7 @@ combined <- plot_grid(
 )
 
 ggsave('../data/S5_div_entero_factor_086.pdf',
-      width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
+      width = 210, height = 137, units = "mm", device = 'pdf', plot = combined)
 
 
 ```
@@ -236,9 +236,29 @@ enter_prior <- read_rds('../data/087_prior_enterococcus_hist.rds')
 prior <- plot_grid(  div_prior,enter_prior,
                   nrow = 1, labels = c('A','B'), rel_widths = c(1, 1))
 
-ggsave('../figs/paper/S4_div_entero_prior_086.pdf',
-       width = 170, height = 60, units = c("mm"),
-         dpi = 400, device = 'pdf', plot = prior)
+   
+library(cowplot)
+title <- ggdraw() + 
+  draw_label(
+    "Fig S4",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+
+combined <- plot_grid(
+  title, prior,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
+ggsave('../data/S4_div_entero_prior_086.pdf',
+       width = 210, height = 77, units = "mm", device = 'pdf', plot = combined)
 
 ```
 
