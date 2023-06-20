@@ -66,7 +66,7 @@ percs <- weeks %>%
   spread('Intercept > 0', 'perc', fill = 0) %>% 
   rename(positive = 'TRUE', negative = 'FALSE') %>% 
   mutate(neg_num = negative) %>% 
-  mutate(pos_x = 1, neg_x = -1.4) %>% 
+  mutate(pos_x = 0.9, neg_x = -1) %>% 
   mutate(positive = str_glue('{positive}%'), 
          negative = str_glue('{negative}%'))
 ```

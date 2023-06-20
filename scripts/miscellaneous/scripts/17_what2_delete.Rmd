@@ -1,0 +1,42 @@
+---
+title: "what to delete in my sample folder"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+backed <- read_delim('../data/igosamples.txt', delim = '\t', col_names = 'folder') %>% 
+  filter(!str_detect(folder, '^-|^total')) %>% 
+  mutate(sample = str_extract(folder, 'Sample_.+$'),
+         sample = str_replace(sample, ':$','')) 
+
+mysg <- read_delim('../data/myshotgun.txt', delim = '\t', col_names = 'sample') %>% 
+  mutate(sample = str_extract(sample, 'Sample_.+$')) %>% 
+  filter(!is.na(sample))
+my16 <- read_delim('../data/myamplicon.txt', delim = '\t', col_names = 'sample') %>% 
+  mutate(sample = str_extract(sample, 'Sample_.+$'))
+
+myall <- bind_rows(mysg, my16)
+
+length(intersect(myall$sample, backed$sample))
+
+# the samples that are not in backed
+not <- myall %>% 
+  filter(! sample %in% backed$sample) %>% 
+  filter(! sample %in% backedpools$sample)
+
+# I suspect that the not is all the 16s that we have backed let's see
+backedpools <- backed %>% 
+  filter(str_detect(sample, 'pool')) %>% 
+  mutate(sample = str_replace(sample, 'complete_IGO.+$','complete'))
+```
+

@@ -93,12 +93,33 @@ percs <- coeff_bi %>%
 
 ```{r f2d_div_fac}
 # modify it to be the look that we have discussed
-f2d <- coeff_bi %>%
+f2_intensity <- coeff_bi %>%
+  filter(str_detect(item, 'intensity')) %>% 
+  ggplot(aes(x = coeff, y = item_name, fill = "#F8766D")) +
+  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() +
+  #geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  #scale_fill_manual(values = c("gray80", "skyblue")) +
+  #facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+  labs(x = 'Intercept',
+  y = '',
+  title = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  #scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
+  #scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
+  theme(axis.text=element_text(size=axis_text_size, color = 'black'),
+  axis.title=element_text(size=axis_text_size)  ,legend.position = 'none',
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        aspect.ratio=1/2) 
+
+f2_abx <- coeff_bi %>%
+  filter(!str_detect(item, 'intensity')) %>% 
   ggplot(aes(x = coeff, y = item_name, fill = after_stat(x > 0))) +
   stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   #scale_fill_manual(values = c("gray80", "skyblue")) +
-  facet_wrap(grp~ . , scales = 'free', dir = 'v') +
+  #facet_wrap(grp~ . , scales = 'free', dir = 'v') +
   labs(x = 'Intercept',
   y = '',
   title = '') +
@@ -113,8 +134,6 @@ f2d <- coeff_bi %>%
         aspect.ratio=1/2) 
 
 
-
-
 coeff_bi %>% 
   filter(item == 'b_ENTRUE') %>% 
   count(coeff < 0) %>% 
@@ -124,8 +143,8 @@ coeff_bi %>%
 
 
 ```{r 2c_div_fg9}
-f2c <- read_rds('../data/168_time_post_ridge.rds')
-f2e <- read_rds('../data/068_div_post_ridge.rds')
+f2_time <- read_rds('../data/168_time_post_ridge.rds')
+f2_fg <- read_rds('../data/068_div_post_ridge.rds')
  
 ```
 
@@ -149,16 +168,16 @@ left <- cowplot::align_plots(f2a, f2c, align = 'v', axis = 'l')
 
 
 
-top <- plot_grid(left[[1]], diagram, labels = c('A', 'B'),rel_widths  = c(1, 1) )
+top <- plot_grid(f2a, diagram, labels = c('A', 'B'),rel_widths  = c(1, 1) )
 
+bottom_left <- plot_grid(f2_abx, f2_intensity, labels = c('C', 'D'), nrow = 2 )
 
+bottom <- plot_grid(  bottom_left, f2_time,f2_fg,
+                  nrow = 1, labels = c(NA,'E','F'), rel_widths  = c(3, 2.5,2.5))
 
-bottom <- plot_grid(  left[[2]],f2d,f2e,
-                  nrow = 1, labels = c('C','D','E'), rel_widths  = c(1, 1,1))
-
-f2 <-  plot_grid(top,bottom,
-                 rel_heights = c(0.5,1),
-                 nrow = 2)
+f2 <-  plot_grid(f2a, diagram,f2_abx,f2_intensity,f2_time,f2_fg,
+                 labels = c('A', 'B', 'C', 'D', 'E','F'),rel_heights = c(1, 1,2),
+                 nrow = 3)
 f2
 
 combined <- plot_grid(
@@ -169,7 +188,7 @@ combined <- plot_grid(
 )
 
 ggsave('../data/F2_model_results_086_new.pdf',
-      width = 210, height = 167, units = "mm", device = 'pdf', plot = combined)
+      width = 210, height = 217, units = "mm", device = 'pdf', plot = combined)
 ```
 
 

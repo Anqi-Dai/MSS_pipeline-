@@ -61,22 +61,48 @@ How about I scale the percentage of the interval that is on eather side of 0 to 
 
 fg_order <- read_csv('../data/068_fg_sorting_order.csv') %>% pull(shortname)
 
-# perc_side <- post %>% 
-#   group_by(genus,item ) %>% 
-#   count(coeff >= 0) %>% 
-#   mutate(perc = round(n/4000, 2)) %>% 
-#   mutate(side = if_else(`coeff >= 0` == 'TRUE', 'positive', 'negative')) %>% 
-#   ungroup() %>% 
-#   select(genus, item, perc, side) %>% 
-#   spread('side', 'perc') %>% 
-#   mutate(item = str_replace(item, 'b_','')) %>% 
-#   left_join(key %>% select(item = fg1_name, shortname), by = "item") %>%
-#   mutate(color = if_else(positive >= 0.75, 'maroon', if_else(negative >= 0.75, 'steelblue', 'white'))) %>% 
-#   mutate(mark = if_else(negative >= 0.99 | positive >= 0.99, '***', if_else(negative >= 0.975 | positive >= 0.975, '**', if_else(negative >= 0.95 | positive >= 0.95, '*', '')))) %>% 
-#   # order the columns by the number of stars in the columns
-#   mutate(genus = factor(genus, 
-#    levels =c('Enterococcus','Klebsiella','Escherichia','Enterobacter','Citrobacter','Cronobacter'))) %>% 
-#   mutate(shortname = factor(shortname, levels = fg_order)) 
+perc_side <- post %>%
+  group_by(genus,item ) %>%
+  count(coeff >= 0) %>%
+  mutate(perc = round(n/4000, 2)) %>%
+  mutate(side = if_else(`coeff >= 0` == 'TRUE', 'positive', 'negative')) %>%
+  ungroup() %>%
+  select(genus, item, perc, side) %>%
+  spread('side', 'perc') %>%
+  mutate(item = str_replace(item, 'b_','')) %>%
+  left_join(key %>% select(item = fg1_name, shortname), by = "item") %>%
+  mutate(color = if_else(positive >= 0.75, 'maroon', if_else(negative >= 0.75, 'steelblue', 'white'))) %>%
+  mutate(mark = if_else(negative >= 0.99 | positive >= 0.99, '***', if_else(negative >= 0.975 | positive >= 0.975, '**', if_else(negative >= 0.95 | positive >= 0.95, '*', '')))) %>%
+  # order the columns by the number of stars in the columns
+  mutate(genus = factor(genus,
+   levels =c('Enterococcus','Klebsiella','Escherichia','Enterobacter','Citrobacter','Cronobacter'))) %>%
+  mutate(shortname = factor(shortname, levels = fg_order))
+
+col_key <- perc_side %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key
+
+genus_fg_extra <- ggplot(perc_side, aes(x = genus, y = shortname)) +
+  geom_tile(aes(fill = color,  x = genus, y =  shortname), alpha = 0.5, color='gray0', width=1, height=1) +
+  geom_text(aes(label = mark, x = genus,y =  shortname),
+            nudge_y = -0.05, nudge_x = 0,size = 3) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_void() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=90, hjust=1, size=axis_text_size),
+        axis.text.y=element_text(size=axis_text_size, hjust=0.95,vjust=0.2),
+        axis.title=element_text(size=axis_title_size),
+        legend.position = 'none',legend.text=element_text(size=8),
+        legend.key = element_rect( colour = "gray50"))
+
+
+ggsave('../data/120_log10_extra_genera6.pdf', width =  60,plot = genus_fg_extra,
+       height = 70, 
+         units = c("mm"),
+         dpi = 400)
 ```
 
 ```{r}

@@ -117,6 +117,9 @@ extra <- read_csv('../data/088_genus_relab_log10_wide.csv') %>%
 
 extra_full <- meta %>% 
   inner_join(extra)
+
+pathobioents <- c('Enterococcus', selected_Enterobacteriaceae )
+tibble(genus = pathobioents) %>% write_csv('../data/087_extra_6_genus_name.csv')
 ```
 
 ```{r}
