@@ -61,6 +61,8 @@ empirical_med1 <- med1 %>%
   select(-drug_name) %>% 
   mutate(together = str_glue('{drug_name_clean}__{route}')) %>%  
   filter(! together %in% c('vancomycin__IV','vancomycin__IVPB'))
+
+empirical_med1 %>% write_csv('../data/134_batch1_empirical_abx.csv')
 ```
 
 

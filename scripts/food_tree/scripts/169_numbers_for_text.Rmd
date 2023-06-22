@@ -136,3 +136,10 @@ compare_means(
 )$p.format
 ```
 
+```{r}
+# the broad spectrum abx data
+b2med <- read_csv('../data/137_batch2_empircal_oral.csv')
+b1med <- read_csv('../data/134_batch1_empirical_abx.csv')
+both <- bind_rows(b1med, b2med)
+```
+
