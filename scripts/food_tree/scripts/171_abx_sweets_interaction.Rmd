@@ -12,12 +12,19 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
-library(compositions)
-library(brms)
+library(brms)   
 library(ggpubr)
+library(tidybayes)
+library(cowplot)
+library(ggridges)
+library(brmstools)
 options(mc.cores = parallel::detectCores())
 rstan::rstan_options(auto_write = TRUE)
+theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+axis_text_size <- 10
+axis_title_size <- 10
 ```
 
 CLR works with counts, not relab. And also need to add a pseudocount
@@ -135,7 +142,8 @@ genus6 <- few %>% pull(genus)
 ret_genus6_interaction <- genus6 %>% 
   set_names(genus6) %>% 
   purrr::map(function(genus) {
-    mod =  brm( as.formula(str_glue('{genus}  ~ 
+    mod =  brm( as.formula(str_glue(
+              '{genus}  ~ 
                0 +
                 fg_fruit*empirical+
                 fg_meat*empirical+
@@ -169,26 +177,177 @@ post_df %>%
 ret_genus6_interaction$Enterococcus
 ```
 
+# food only 
+
 ```{r}
-post <- read_csv('../data/171_genus6_foodgroup_model_post_extra_few_interaction.csv') %>% 
-  select(genus, starts_with('b_fg')) %>% 
-  gather('item','coeff', names(.)[2]:names(.)[ncol(.)])
+post <- read_csv('../data/171_genus6_foodgroup_model_post_extra_few_interaction.csv') 
 
 colnames(post)
-plot(ret_genus6_interaction$Enterococcus)
+
 
 # the coefficients for the b_fg 
-b_fg_coeff <- post %>% select(starts_with('b_fg')) %>% select(-`b_fg_fruit:empiricalTRUE`) %>% 
-  gather('item','coeff')
+b_fg_coeff <- post %>% select(genus, starts_with('b_fg') ) %>% select(-`b_fg_fruit:empiricalTRUE`) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)])
 
-# to look at the distribution of those coefficients
-b_fg_coeff %>% gghistogram(x = 'coeff', facet.by = 'item') +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') 
+b_fg_coeff %>% 
+  #left_join(percs) %>%
+  #mutate(shortname = factor(shortname, levels = fg_order)) %>% 
+  ggplot(aes(x = coeff, y = item, fill = after_stat(x > 0))) +
+  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  #geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = after_stat(x > 0)), size = 2) +
+  #geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =after_stat(x > 0)), size = 2) +
+  facet_wrap(~ genus, scales = 'free') +
+  labs(x = 'CLR(relab) change per 100g of food',
+       y = '', 
+       title = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
+  scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
+  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
+        axis.title=element_text(size=axis_text_size),
+        aspect.ratio=1)
 
+ggsave('../data/171_fg_only_genus6.pdf', width = 15, height = 15)
+
+```
+
+# interaction between abx and food
+
+```{r}
 # to look at the distribution of the coeff for the interaction terms
-b_intera <- post %>% select(contains('empiricalTRUE')) %>% select(-`b_empiricalTRUE`,-`prior_b_empiricalTRUE`) %>% gather('item','coeff')
+b_intera <- post %>% select(genus, contains('empiricalTRUE')) %>% select(-`b_empiricalTRUE`,-`prior_b_empiricalTRUE`) %>% 
+ gather('item','coeff', names(.)[2]:names(.)[ncol(.)])
   
-b_intera %>% gghistogram(x = 'coeff', facet.by = 'item') +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') 
+
+b_intera %>% 
+  #left_join(percs) %>%
+  #mutate(shortname = factor(shortname, levels = fg_order)) %>% 
+  ggplot(aes(x = coeff, y = item, fill = after_stat(x > 0))) +
+  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  #geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = after_stat(x > 0)), size = 2) +
+  #geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =after_stat(x > 0)), size = 2) +
+  facet_wrap(~ genus, scales = 'free') +
+  labs(x = 'CLR(relab) change per 100g of food',
+       y = '', 
+       title = 'abx : food') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
+  scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
+  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
+        axis.title=element_text(size=axis_text_size),
+        aspect.ratio=1)
+
+ggsave('../data/171_fg_abx_genus6.pdf', width = 15, height = 15)
+
+```
+
+# the interaction model with diversity
+
+
+```{r}
+meta <- read_csv('../data/153_combined_META.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100)
+
+div_model  <- log(simpson_reciprocal) ~ 1 + 
+               fg_fruit*empirical+
+                fg_meat*empirical+
+                fg_milk*empirical+
+                fg_oils*empirical+
+                fg_egg*empirical+ 
+                fg_grain*empirical+
+                fg_sweets*empirical+  
+                fg_legume*empirical+
+                fg_veggie*empirical+
+  #empirical+
+               intensity +
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+
+div_priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # for the TPN 
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical 
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE")
+            # for the intensity 
+            # prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
+            # prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
+            # prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative")
+            )
+
+model_div <- brm( div_model,  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              prior = div_priors,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T) 
+
+get_prior(div_model,data = meta )
+
+# actually draw samples from the priors 
+samples_prior <- prior_draws(model_div)
+# save it for future use
+post_res <- suppressWarnings(posterior_samples(model_div)) 
+post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
+
+# the coefficients in the model
+coeffs <- get_prior(div_model,data = meta )
+coeff <- tibble(coeff = coeffs$coef)
+coeff %>% filter(str_detect(coeff, '^fg_')) %>% 
+  filter(!str_detect(coeff, ':'))
+```
+      
+```{r}
+post_res %>% 
+  select(starts_with('b_')) %>% 
+  gather('item','coeff') %>% 
+  mutate(grp = if_else(str_detect(item, ':'), 'interaction','single')) %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  facet_wrap(~ grp, scales = 'free') +
+  labs(x = 'ln(diversity) change per 100g of food',
+       y = '', 
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c("#EC0000", "gray40")) +
+  theme(axis.text=element_text(size=8, color  = 'black'),
+        axis.title=element_text(size=8),
+        aspect.ratio=1)
+
+ggsave('../data/171_diversity_interaction.pdf', width = 10, height = 10)
+
+meta %>% count(empirical)
+
 ```
 

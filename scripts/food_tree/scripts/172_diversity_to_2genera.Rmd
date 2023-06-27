@@ -67,7 +67,37 @@ g_relab %>%
 ggsave('../data/172_diversity_genus_relab_cor.pdf', width = 9)
 ```
 
+# count domination events (> 30%)
 
+```{r}
+domination <- g_relab %>% 
+  count(genus, relab > 0.3) %>% 
+  filter(`relab > 0.3` == 'TRUE') %>% 
+  mutate(dom_perc = round(n/1009*100, 0))
+
+domination %>% 
+  filter(dom_perc > 0) %>% 
+  write_csv('../data/172_has_domination30_genus.csv')
+  
+```
+
+# the lm(y:diversity ~ log10 relab of the top X genus) 
+
+```{r}
+passthregenus <- spearman_all %>% 
+  filter(passthre_perc > 15 ) 
+
+logrelab <- read_csv('../data/088_genus_relab_log10_wide.csv') %>% 
+  gather('genus','logrelab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  filter(genus %in% passthregenus$genus) %>% 
+  spread('genus','logrelab') %>% 
+  inner_join(meta %>% select(sampleid, simpson_reciprocal))
+
+response <- logrelab$simpson_reciprocal
+genuslog <- logrelab %>% select(-sampleid) %>% as.matrix()
+res <- lm(response ~ 1 + genuslog )
+summary(res)
+```
 
 
 
