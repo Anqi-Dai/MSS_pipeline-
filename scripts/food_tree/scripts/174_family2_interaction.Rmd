@@ -1,5 +1,5 @@
 ---
-title: "Interaction model with diversity"
+title: "interaction model with 2 family as outcome"
 author: "Anqi Dai"
 date: "`r Sys.Date()`"
 output: html_document
@@ -17,6 +17,7 @@ library(tidybayes)
 library(cowplot)
 library(ggridges)
 library(brmstools)
+library(compositions)
 options(mc.cores = parallel::detectCores())
 rstan::rstan_options(auto_write = TRUE)
 theme_set(theme_tidybayes() + panel_border())
@@ -26,9 +27,31 @@ axis_text_size <- 10
 axis_title_size <- 10
 ```
 
-# the interaction model with diversity
-
 ```{r}
+meta <- read_csv('../data/153_combined_META.csv')
+
+library(vdbR)
+connect_database()
+get_table_from_database('asv_annotation_blast_ag')
+
+cts <- get_counts_subset(meta$sampleid)
+cts_ <- cts %>% 
+  select(asv_key, sampleid, count)
+annot <- asv_annotation_blast_ag %>% 
+  filter(asv_key %in% cts_$asv_key)
+cts_all <- cts_ %>% 
+  left_join(annot %>%  select(asv_key, family), by  = 'asv_key') %>% 
+  group_by(sampleid, family) %>% 
+  summarise(cnt = sum(count)) %>% 
+  spread('sampleid', 'cnt', fill = 0) %>% 
+  filter(!is.na(family)) %>% 
+  column_to_rownames('family')
+
+clr_res <- clr(cts_all + 0.5) %>% 
+  as.data.frame()  %>% 
+  rownames_to_column('family') %>% 
+  gather('sampleid','clr', names(.)[2]:names(.)[ncol(.)])
+
 meta <- read_csv('../data/153_combined_META.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
   #mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
@@ -45,35 +68,14 @@ meta <- read_csv('../data/153_combined_META.csv') %>%
   mutate(intensityAblative = if_else(intensity == 'ablative', T, F),
          intensityNonablative = if_else(intensity == 'nonablative', T, F),
          intensityReduced = if_else(intensity == 'reduced', T, F))
-```
 
+clr_2 <- clr_res %>% filter(family %in% c('Enterobacteriaceae','Enterococcaceae')) %>% 
+  spread('family','clr')
 
-```{r}
-div_model  <- log(simpson_reciprocal) ~ 1 +
-               fg_fruit*empirical+
-                fg_meat*empirical+
-                fg_milk*empirical+
-                fg_oils*empirical+
-                fg_egg*empirical+ 
-                fg_grain*empirical+
-                fg_sweets*empirical+  
-                fg_legume*empirical+
-                fg_veggie*empirical+
-                empirical+
-               intensityAblative +
-                intensityNonablative+
-                intensityReduced +
-                TPN+
-                EN+
-               (1 | mrn) +
-                (1 | timebin)
+extra_full <- meta %>% 
+  inner_join(clr_2)
 
-get_prior(div_model,data = meta )
-```
-
-
-```{r}
-div_priors <- c(# for the food group variables
+priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_egg"),
             prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
             prior(normal(0, 1), class = 'b', coef = "fg_grain"),
@@ -102,54 +104,78 @@ div_priors <- c(# for the food group variables
             # for the intensity 
             prior(normal(0, 0.1), class = 'b', coef = "intensityReducedTRUE"),
             prior(normal(0, 0.1), class = 'b', coef = "intensityAblativeTRUE"),
-            prior(normal(0, 0.1), class = 'b', coef = "intensityNonablativeTRUE"),
-            # intercept
-            prior(normal(2, 0.1), class = 'Intercept')
+            prior(normal(0, 0.1), class = 'b', coef = "intensityNonablativeTRUE")
             )
+
 ```
 
-
 ```{r}
-model_div <- brm( div_model,  
-              data = meta, 
+few <- c('Enterobacteriaceae','Enterococcaceae')
+ 
+ret_family2_interaction <- few %>% 
+  set_names(few) %>% 
+  purrr::map(function(family) {
+    mod =  brm( as.formula(str_glue(
+              '{family}  ~ 
+               1 +
+                fg_fruit*empirical+
+                fg_meat*empirical+
+                fg_milk*empirical+
+                fg_oils*empirical+
+                fg_egg*empirical+ 
+                fg_grain*empirical+
+                fg_sweets*empirical+  
+                fg_legume*empirical+
+                fg_veggie*empirical+
+                 empirical+
+                intensityAblative +
+                intensityNonablative+
+                intensityReduced +
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)')),  
+                data = extra_full, 
               warmup = 1000, iter = 3000, 
-              prior = div_priors,
+              prior = priors,
               cores = ncores, 
               chains = 2, 
-               control = list(adapt_delta = 0.99),
-              seed = 123, sample_prior = T) 
+              control = list(adapt_delta = 0.99),
+              seed = 456, sample_prior = T) 
+  })
 
-
-
-# actually draw samples from the priors 
-samples_prior <- prior_draws(model_div)
-# save it for future use
-post_res <- suppressWarnings(posterior_samples(model_div)) 
-post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
-
-
+post_df <- ret_family2_interaction %>% 
+  imap(~ (suppressWarnings(posterior_samples(.x)) ))  %>% 
+  bind_rows(.id = 'family')  
+post_df %>% 
+  write_csv('../data/174_family2_foodgroup_model_post_extra_few_interaction.csv')
 ```
 
 ```{r}
-post_res %>% 
-  select(starts_with('b_')) %>% 
-  gather('item','coeff') %>% 
+post <- read_csv('../data/174_family2_foodgroup_model_post_extra_few_interaction.csv') 
+
+colnames(post)
+
+post %>%   
+  select(family, starts_with('b_')) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
   mutate(grp = if_else(str_detect(item, ':'), 'interaction','single')) %>% 
-  ggplot(aes(x = coeff, y = item)) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  ggplot(aes(x = coeff, y = item, fill = after_stat(x > 0))) +
+  stat_pointinterval(.width = c(.66, .95)) + stat_halfeye() + 
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  facet_wrap(~ grp, scales = 'free') +
-  labs(x = 'ln(diversity) change per 100g of food',
+  facet_wrap(family~ grp, scales = 'free') +
+  labs(x = ' change per 100g of food',
        y = '', 
-       title = 'Diversity') +
+       title = 'family') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = c("#EC0000", "gray40")) +
+  scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
+  scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
   theme(axis.text=element_text(size=8, color  = 'black'),
         axis.title=element_text(size=8),
         aspect.ratio=1)
 
-ggsave('../data/173_diversity_interaction.pdf', width = 12, height = 6)
-
+ggsave('../data/174_family2_interaction.pdf', width = 10, height = 10)
 
 ```
+

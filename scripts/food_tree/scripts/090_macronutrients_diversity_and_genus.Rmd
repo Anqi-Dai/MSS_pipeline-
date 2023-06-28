@@ -45,7 +45,7 @@ thre %>%
   gather('thre', 'num')
 target_genera <-  cts %>% 
   group_by(genus) %>% 
-  count(relab > 0.002) %>% 
+  count(relab > 0.0001) %>% 
   rename(criteria = names(.)[2]) %>% 
   filter(criteria == 'TRUE') %>% 
   arrange(-n) %>% 
@@ -194,10 +194,13 @@ full <- meta %>%
        ave_Sugars = ave_Sugars/100,
        ave_carb = ave_carb/100,
        ave_cal = ave_cal/1000
-       )
+       ) %>% 
+  mutate(intensityAblative = if_else(intensity == 'ablative', T, F),
+         intensityNonablative = if_else(intensity == 'nonablative', T, F),
+         intensityReduced = if_else(intensity == 'reduced', T, F))
 
 full %>%
-  write_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv')
+  write_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera90.csv')
 ```
 
 
