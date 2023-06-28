@@ -260,22 +260,29 @@ full %>%
 ### simpson reciprocal ~ ave_fiber + ave_fat + ave_Sugars + empirical + intensity + TPN + EN + ...
 
 ```{r}
-alpha_macro_fat <- log(simpson_reciprocal) ~ 0 +
-                ave_fiber +
-                ave_fat +
-                ave_Sugars +
-               intensity +
-               EN +
-                TPN +
-                empirical +
+alpha_macro_fat <- log(simpson_reciprocal) ~ 1 +
+                ave_fiber*empirical +
+                ave_fat*empirical +
+                ave_Sugars*empirical +
+               empirical+
+               intensityAblative +
+                intensityNonablative+
+                intensityReduced +
+                TPN+
+                EN+
                (1 | mrn) +
                 (1 | timebin)
+get_prior(formula = alpha_macro_fat, data = full)
 
 priors_alpha_macro_fat <- c(
             # for the macro nutrients
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fiber"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_fat"),
-            prior(normal(0, 0.4), class = 'b', coef = "ave_Sugars"),
+            prior(normal(0, 1), class = 'b', coef = "ave_fiber"),
+            prior(normal(0, 1), class = 'b', coef = "ave_fat"),
+            prior(normal(0, 1), class = 'b', coef = "ave_Sugars"),
+            # for the interaction terms
+            prior(normal(0, 1), class = 'b', coef = "ave_fiber:empiricalTRUE"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:ave_fat"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:ave_Sugars"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
@@ -283,9 +290,11 @@ priors_alpha_macro_fat <- c(
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
-            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
-            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+            prior(normal(0, 0.1), class = 'b', coef = "intensityReducedTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "intensityAblativeTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "intensityNonablativeTRUE"),
+            # intercept
+            prior(normal(2, 0.1), class = 'Intercept'))
 
 # vet the prior 
 model_alpha_macro_fat  <- brm( alpha_macro_fat,  
@@ -299,11 +308,36 @@ model_alpha_macro_fat  <- brm( alpha_macro_fat,
 
 
 post_res <- suppressWarnings(posterior_samples(model_alpha_macro_fat))
-post_res %>%  write_csv('../data/090_model_alpha_macro_fat_post.csv')
+post_res %>%  write_csv('../data/090_model_alpha_macro_fat_post_interaction.csv')
 
 prior_df <- prior_draws(model_alpha_macro_fat) 
 prior_df %>% 
-  write_csv('../data/090_model_alpha_macro_fat_prior.csv')
+  write_csv('../data/090_model_alpha_macro_fat_prior_interaction.csv')
+meta %>% count(empirical) %>% 
+  mutate(perc = round(n/sum(n)*100))
+```
+
+```{r}
+# interaction results visualization
+post_res %>% 
+  select(starts_with('b_')) %>% 
+  gather('item','coeff') %>% 
+  mutate(grp = if_else(str_detect(item, ':'), 'interaction','single')) %>% 
+  ggplot(aes(x = coeff, y = item)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  facet_wrap(~ grp, scales = 'free') +
+  labs(x = 'ln(diversity) change per 100g of food',
+       y = '', 
+       title = 'Diversity') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c("#EC0000", "gray40")) +
+  theme(axis.text=element_text(size=8, color  = 'black'),
+        axis.title=element_text(size=8),
+        aspect.ratio=1)
+
+ggsave('../data/090_diversity_interaction_macronutrients.pdf', width = 12, height = 6)
 ```
 
 

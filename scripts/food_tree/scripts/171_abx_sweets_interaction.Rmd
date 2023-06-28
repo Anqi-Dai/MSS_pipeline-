@@ -74,7 +74,7 @@ clr_res %>% filter(genus %in% few$genus) %>%
 ```{r}
 meta <- read_csv('../data/153_combined_META.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
-  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  #mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
   mutate(mrn = factor(mrn)) %>% 
   mutate(fg_egg = fg_egg/100,
          fg_fruit = fg_fruit/100,
@@ -84,7 +84,10 @@ meta <- read_csv('../data/153_combined_META.csv') %>%
          fg_milk = fg_milk/100,
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100) 
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(intensityAblative = if_else(intensity == 'ablative', T, F),
+         intensityNonablative = if_else(intensity == 'nonablative', T, F),
+         intensityReduced = if_else(intensity == 'reduced', T, F))
 
 clr_few <- clr_res %>% filter(genus %in% few$genus) %>% 
   spread('genus','clr')
@@ -95,45 +98,37 @@ extra_full <- meta %>%
 
 
 ```{r}
-model_genus_clr <- Enterococcus ~ 0 + 
-                fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
-                fg_grain+
-                fg_sweets+  
-                fg_legume+
-                fg_veggie+
-               intensity +
-               empirical+
-                TPN+
-                EN+
-               (1 | mrn) +
-                (1 | timebin)
-get_prior( model_genus_clr,  
-              data = extra_full)
-
+  
 priors <- c(# for the food group variables
-            prior(normal(0, 1.2), class = 'b', coef = "fg_egg"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_fruit"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_grain"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_legume"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_meat"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_milk"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_oils"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_sweets"),
-            prior(normal(0, 1.2), class = 'b', coef = "fg_veggie"),
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # interaction terms
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit:empiricalTRUE"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_veggie"),
             # for the TPN 
             prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
             # for the EN
             prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
             # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE")
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
             # for the intensity 
-            #prior(normal(-3, 1), class = 'b', coef = "intensityreduced"),
-            #prior(normal(-3, 1), class = 'b', coef = "intensityablative"),
-            #prior(normal(-3, 1), class = 'b', coef = "intensitynonablative")
+            prior(normal(0, 0.1), class = 'b', coef = "intensityReducedTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "intensityAblativeTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "intensityNonablativeTRUE")
             )
 ```
 
@@ -144,7 +139,7 @@ ret_genus6_interaction <- genus6 %>%
   purrr::map(function(genus) {
     mod =  brm( as.formula(str_glue(
               '{genus}  ~ 
-               0 +
+               1 +
                 fg_fruit*empirical+
                 fg_meat*empirical+
                 fg_milk*empirical+
@@ -154,7 +149,10 @@ ret_genus6_interaction <- genus6 %>%
                 fg_sweets*empirical+  
                 fg_legume*empirical+
                 fg_veggie*empirical+
-               intensity +
+                empirical+
+                intensityAblative +
+                intensityNonablative+
+                intensityReduced +
                 TPN+
                 EN+
                (1 | mrn) +
@@ -174,7 +172,7 @@ post_df <- ret_genus6_interaction %>%
 post_df %>% 
   write_csv('../data/171_genus6_foodgroup_model_post_extra_few_interaction.csv')
 
-ret_genus6_interaction$Enterococcus
+
 ```
 
 # food only 
@@ -184,66 +182,30 @@ post <- read_csv('../data/171_genus6_foodgroup_model_post_extra_few_interaction.
 
 colnames(post)
 
-
-# the coefficients for the b_fg 
-b_fg_coeff <- post %>% select(genus, starts_with('b_fg') ) %>% select(-`b_fg_fruit:empiricalTRUE`) %>% 
-  gather('item','coeff', names(.)[2]:names(.)[ncol(.)])
-
-b_fg_coeff %>% 
-  #left_join(percs) %>%
-  #mutate(shortname = factor(shortname, levels = fg_order)) %>% 
+post %>%   
+  select(genus, starts_with('b_')) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
+  mutate(grp = if_else(str_detect(item, ':'), 'interaction','single')) %>% 
   ggplot(aes(x = coeff, y = item, fill = after_stat(x > 0))) +
-  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
+  stat_pointinterval(.width = c(.66, .95)) + stat_halfeye() + 
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  #geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = after_stat(x > 0)), size = 2) +
-  #geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =after_stat(x > 0)), size = 2) +
-  facet_wrap(~ genus, scales = 'free') +
-  labs(x = 'CLR(relab) change per 100g of food',
+  facet_wrap(genus~ grp, scales = 'free') +
+  labs(x = ' change per 100g of food',
        y = '', 
-       title = '') +
+       title = 'genus') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
   scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
-  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
-        axis.title=element_text(size=axis_text_size),
+  theme(axis.text=element_text(size=8, color  = 'black'),
+        axis.title=element_text(size=8),
         aspect.ratio=1)
 
-ggsave('../data/171_fg_only_genus6.pdf', width = 15, height = 15)
+ggsave('../data/171_interaction_model_genus6.pdf', width = 23, height = 15)
 
 ```
 
-# interaction between abx and food
 
-```{r}
-# to look at the distribution of the coeff for the interaction terms
-b_intera <- post %>% select(genus, contains('empiricalTRUE')) %>% select(-`b_empiricalTRUE`,-`prior_b_empiricalTRUE`) %>% 
- gather('item','coeff', names(.)[2]:names(.)[ncol(.)])
-  
-
-b_intera %>% 
-  #left_join(percs) %>%
-  #mutate(shortname = factor(shortname, levels = fg_order)) %>% 
-  ggplot(aes(x = coeff, y = item, fill = after_stat(x > 0))) +
-  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  #geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = after_stat(x > 0)), size = 2) +
-  #geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =after_stat(x > 0)), size = 2) +
-  facet_wrap(~ genus, scales = 'free') +
-  labs(x = 'CLR(relab) change per 100g of food',
-       y = '', 
-       title = 'abx : food') +
-  theme_classic() +
-  theme(legend.position = 'none') +
-  scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
-  scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
-  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
-        axis.title=element_text(size=axis_text_size),
-        aspect.ratio=1)
-
-ggsave('../data/171_fg_abx_genus6.pdf', width = 15, height = 15)
-
-```
 
 
       

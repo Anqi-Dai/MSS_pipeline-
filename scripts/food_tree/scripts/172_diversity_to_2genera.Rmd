@@ -65,6 +65,8 @@ g_relab %>%
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", label.y.npc = "top", color = 'red'))
 ggsave('../data/172_diversity_genus_relab_cor.pdf', width = 9)
+
+spearman_all %>% write_csv('../data/172_spearman_all.csv')
 ```
 
 # count domination events (> 30%)
