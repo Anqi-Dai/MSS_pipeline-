@@ -1,0 +1,193 @@
+---
+title: "Figure 3E panel"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+irep <- read_csv('../data/114_combined_irep_915.csv') %>% 
+  select(sampleid:sdrt, iRep, best_species) %>% 
+  mutate(best_species = str_replace(best_species, '\\[',''),
+         best_species = str_replace(best_species, '\\]','')) %>% 
+  mutate(genus = str_extract(best_species, "[^\\s]+"))
+
+meta <- read_csv('../data/153_combined_META.csv')
+
+# the ones identify as from Enterococcus
+entero <- irep %>% 
+  filter(str_detect(best_species, 'Enterococcus')) %>% 
+  group_by(sampleid) %>% 
+  summarise(max_entero = max(iRep)) %>% 
+  inner_join(meta %>% select(sampleid, fg_sweets, empirical))
+
+entero %>% 
+  ggscatter(x = 'fg_sweets', y = 'max_entero',  
+            facet.by = 'empirical',
+            #color = 'genus',palette = 'lancet',
+                    xlab = 'Sweets',
+                    ylab = 'Growth rate ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5))
+```
+
+# find out the previous one day sweets intake of the samples 
+
+```{r}
+stools <- irep %>% 
+  distinct(sampleid, mrn, sdrt) %>% 
+  mutate(p1d = sdrt - 1)
+
+# calculate the previous one day sweets intake
+dtb <- read_csv('../data/152_combined_DTB.csv')
+
+fgrps_df <- dtb %>% 
+  select(mrn, fdrt, dehydrated_weight, Food_code) %>% 
+  mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
+  group_by(mrn, fdrt, fgrp1) %>% 
+  summarise(grp_tol = sum(dehydrated_weight))%>% 
+  mutate(fg1_name = case_when(
+    fgrp1 == '1' ~ 'fg_milk',
+    fgrp1 == '2' ~ 'fg_meat',
+    fgrp1 == '3' ~ 'fg_egg',
+    fgrp1 == '4' ~ 'fg_legume',
+    fgrp1 == '5' ~ 'fg_grain',
+    fgrp1 == '6' ~ 'fg_fruit',
+    fgrp1 == '7' ~ 'fg_veggie',
+    fgrp1 == '8' ~ 'fg_oils', 
+    fgrp1 == '9' ~ 'fg_sweets'
+  )) %>% 
+  select(-fgrp1) %>% 
+  spread('fg1_name','grp_tol', fill = 0) %>% 
+  select(mrn, p1d = fdrt, fg_sweets)
+
+p1d_irep <- stools %>%  
+  left_join(fgrps_df, by = c("mrn", "p1d")) %>% 
+  filter(!is.na(fg_sweets))
+
+should <- read_csv('../data/135_selected_samples_for_irep_analysis.csv')
+
+p1d_irep_df <- irep %>% 
+  left_join(p1d_irep, by = c("sampleid", "mrn", "sdrt")) %>% 
+  filter(!is.na(fg_sweets)) %>% 
+  filter(sampleid %in% should$sampleid) 
+```
+
+
+```{r}
+# do the correlation of the enterococcus and the p1d sweets 
+p1d_entero <- p1d_irep_df %>% 
+  filter(genus == 'Enterococcus') %>% 
+  group_by(sampleid, mrn, p1d, fg_sweets) %>% 
+  summarise(max_entero = max(iRep))  %>% 
+  rename(p1d_sweets = fg_sweets) %>% 
+  inner_join(meta %>% select(sampleid,  empirical)) %>% 
+  group_by(mrn) %>% 
+  slice_sample(n = 1)
+
+p1d_entero %>% 
+  ggscatter(x = 'p1d_sweets', y = 'max_entero',  
+            facet.by = 'empirical',
+            #color = 'genus',palette = 'lancet',
+                    xlab = 'Sweets',
+                    ylab = 'Growth rate ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5))
+```
+
+# that shit with the stardardization
+
+```{r}
+# this is the data with the p1d sweets
+zscore_p1d <- p1d_irep_df %>% 
+  split(.$genus) %>% 
+  map(function(df){
+    df %>% 
+      mutate(iRep_zscore = scale(.$iRep, center = T, scale = T)[,1])
+  }
+    ) %>% 
+  bind_rows()
+
+biggest <- zscore_p1d %>% 
+  group_by(sampleid) %>% 
+  arrange(desc(iRep_zscore), .by_group = T) %>% 
+  slice(1)
+
+them <- read_csv('../data/sum of sugar intake vs max zscore family(E,E).csv')
+
+genus_pal <- tibble(
+  genus = them %>% distinct(genus) %>% pull(genus),
+  colors = c('#cd2026','#326634','#ee2023','#991b1d') 
+) %>% 
+  deframe
+
+current <- biggest %>% 
+  filter(genus %in% them$genus) 
+ 
+current %>% 
+  ggscatter(x = 'fg_sweets', y = 'iRep_zscore',  color = 'genus',
+                    xlab = 'Sweets ',
+                    ylab = 'Growth rate\n(standardized within genus) ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5)) +
+  scale_color_manual(values = genus_pal) +
+  theme(aspect.ratio = 1,
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        legend.position = 'top',
+        legend.title=element_blank())
+
+current %>% ungroup %>% count(mrn, sort = T)
+```
+
+```{r}
+# what about the p2d sweets
+p2d_cor <- irep %>% 
+  filter(sampleid %in% should$sampleid) %>% 
+  inner_join(meta %>% select(sampleid, fg_sweets, empirical)) %>% 
+  split(.$genus) %>% 
+  map(function(df){
+    df %>% 
+      mutate(iRep_zscore = scale(.$iRep, center = T, scale = T)[,1])
+  }
+    ) %>% 
+  bind_rows() %>% 
+  group_by(sampleid) %>% 
+  arrange(desc(iRep_zscore), .by_group = T) %>% 
+  slice(1) %>% 
+  filter(genus %in% them$genus)
+
+p2d_cor %>% 
+  ggscatter(x = 'fg_sweets', y = 'iRep_zscore',  color = 'genus',
+                    xlab = 'Sweets ',
+                    ylab = 'Growth rate\n(standardized within genus) ',
+                    add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5)) +
+  scale_color_manual(values = genus_pal) +
+  theme(aspect.ratio = 1,
+        axis.text=element_text(size=11),
+        axis.title=element_text(size=11),
+        legend.position = 'top',
+        legend.title=element_blank())
+```

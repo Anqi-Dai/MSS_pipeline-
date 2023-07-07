@@ -205,57 +205,6 @@ full %>%
 
 
 
-```{r}
-# the high correlation between fat and protein 
-fat_pro_cor <- full %>% 
-  ggscatter(x = 'ave_fat', y = 'ave_Protein', alpha = 0.2, point = 16, 
-            xlab = 'Average fat intake', ylab = 'Average protein intake',
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))+
-  theme_classic() +
-  theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
-
-fat_pro_cor %>% write_rds('../data/090_fat_pro_cor.rds')
-
-
-# the correlation between fat and caloric intake
-fat_cal_cor <- full %>% 
-  ggscatter(x = 'ave_fat', y = 'ave_cal', alpha = 0.2, point = 16, 
-            xlab = 'Average fat intake', ylab = 'Average caloric intake',
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))+
-  theme_classic() +
-  theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
-
-fat_cal_cor %>% write_rds('../data/090_fat_cal_cor.rds')
-
-full %>% 
-  ggscatter(x = 'ave_fat', y = 'ave_Sugars', alpha = 0.2, point = 16, 
-            xlab = 'Average fat intake', ylab = 'Average sugar intake',
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))+
-  theme_classic() +
-  theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        aspect.ratio=1)
-```
-
 
 ### simpson reciprocal ~ ave_fiber + ave_fat + ave_Sugars + empirical + intensity + TPN + EN + ...
 

@@ -139,6 +139,7 @@ them <- read_csv('../data/sum of sugar intake vs max zscore family(E,E).csv') %>
   }
     ) %>% 
   bind_rows() 
+them %>% count(sampleid)
 
 # the color palette used in Jonas version
 genus_pal <- tibble(
@@ -146,6 +147,8 @@ genus_pal <- tibble(
   colors = c('#cd2026','#326634','#ee2023','#991b1d') 
 ) %>% 
   deframe
+
+simple <- them %>%select(sampleid, iRep_zscore, genus) 
 ```
 ```{r}
 ave_combined <- them %>% 
