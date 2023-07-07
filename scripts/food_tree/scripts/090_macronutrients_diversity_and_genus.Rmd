@@ -204,19 +204,31 @@ full %>%
 ```
 
 
-
-
 ### simpson reciprocal ~ ave_fiber + ave_fat + ave_Sugars + empirical + intensity + TPN + EN + ...
 
 ```{r}
-alpha_macro_fat <- log(simpson_reciprocal) ~ 1 +
-                ave_fiber*empirical +
-                ave_fat*empirical +
-                ave_Sugars*empirical +
-               empirical+
-               intensityAblative +
-                intensityNonablative+
-                intensityReduced +
+# to change the df a little bit 
+full <- read_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera90.csv') %>% 
+  mutate(abx = if_else(empirical == 'TRUE', 1, 0),
+         TPN = if_else(TPN == 'TRUE', 1, 0),
+         EN = if_else(EN == 'TRUE', 1, 0)) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>%
+  mutate(      ave_fiber_e= ave_fiber*abx,
+                ave_fat_e=ave_fat*abx,
+                ave_Sugars_e=ave_Sugars*abx)
+```
+
+
+```{r}
+alpha_macro_fat <- log(simpson_reciprocal) ~ 0 +
+                ave_fiber_e +
+                ave_fat_e +
+                ave_Sugars_e +
+                ave_fiber +
+                ave_fat +
+                ave_Sugars +
+               abx+
+               intensity +
                 TPN+
                 EN+
                (1 | mrn) +
@@ -229,21 +241,19 @@ priors_alpha_macro_fat <- c(
             prior(normal(0, 1), class = 'b', coef = "ave_fat"),
             prior(normal(0, 1), class = 'b', coef = "ave_Sugars"),
             # for the interaction terms
-            prior(normal(0, 1), class = 'b', coef = "ave_fiber:empiricalTRUE"),
-            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:ave_fat"),
-            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:ave_Sugars"),
+            prior(normal(0, 1), class = 'b', coef = "ave_fiber_e"),
+            prior(normal(0, 1), class = 'b', coef = "ave_fat_e"),
+            prior(normal(0, 1), class = 'b', coef = "ave_Sugars_e"),
             # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "TPN"),
             # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            prior(normal(0, 0.1), class = 'b', coef = "EN"),
             # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            prior(normal(0, 0.5), class = 'b', coef = "abx"),
             # for the intensity 
-            prior(normal(0, 0.1), class = 'b', coef = "intensityReducedTRUE"),
-            prior(normal(0, 0.1), class = 'b', coef = "intensityAblativeTRUE"),
-            prior(normal(0, 0.1), class = 'b', coef = "intensityNonablativeTRUE"),
-            # intercept
-            prior(normal(2, 0.1), class = 'Intercept'))
+            prior(normal(2, 1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, 1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, 1), class = 'b', coef = "intensitynonablative"))
 
 # vet the prior 
 model_alpha_macro_fat  <- brm( alpha_macro_fat,  
