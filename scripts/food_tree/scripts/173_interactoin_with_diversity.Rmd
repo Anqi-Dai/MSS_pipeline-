@@ -126,12 +126,13 @@ div_priors <- c(# for the food group variables
 
 ```{r}
 fitPrior <- brm(div_model, data=meta, 
+                family = 'gaussian',
                 prior=div_priors, 
            sample_prior = "only")
 # the below is the posterior predictive check 
 prior_c <- pp_check(fitPrior, type = "scatter_avg", ndraws = 100)$data
 pp_check(fitPrior, type = "boxplot", nreps = 10, notch = FALSE)
-
+pp_check(fitPrior)
 ```
 
 
@@ -144,6 +145,7 @@ prior_c %>%
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
+gghistogram(log(meta$simpson_reciprocal))
 ```
 
 # posterior predictive check 

@@ -28,11 +28,12 @@ entero <- irep %>%
   filter(str_detect(best_species, 'Enterococcus')) %>% 
   group_by(sampleid) %>% 
   summarise(max_entero = max(iRep)) %>% 
-  inner_join(meta %>% select(sampleid, fg_sweets, empirical))
+  inner_join(meta %>% select(sampleid, fg_sweets, empirical, mrn, timebin, intensity))%>% 
+  mutate(iRep_zscore = scale(max_entero, center = T, scale = T))
 
 entero %>% 
-  ggscatter(x = 'fg_sweets', y = 'max_entero',  
-            facet.by = 'empirical',
+  ggscatter(x = 'fg_sweets', y = 'iRep_zscore',  
+            #facet.by = 'empirical',
             #color = 'genus',palette = 'lancet',
                     xlab = 'Sweets',
                     ylab = 'Growth rate ',
@@ -41,6 +42,15 @@ entero %>%
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", size = 2.5))
+library(lmerTest)
+mod <-  lmer(max_entero ~ 
+              fg_sweets+
+               empirical + 
+               #intensity + 
+               (1 | mrn) +
+                (1 | timebin), REML = F, data = entero )
+ summary(mod)
+anova(mod)
 ```
 
 # find out the previous one day sweets intake of the samples 

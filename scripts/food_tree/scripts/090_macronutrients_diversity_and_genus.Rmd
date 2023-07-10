@@ -251,9 +251,9 @@ priors_alpha_macro_fat <- c(
             # for the empirical 
             prior(normal(0, 0.5), class = 'b', coef = "abx"),
             # for the intensity 
-            prior(normal(2, 1), class = 'b', coef = "intensityablative"),
-            prior(normal(2, 1), class = 'b', coef = "intensityreduced"),
-            prior(normal(2, 1), class = 'b', coef = "intensitynonablative"))
+            prior(normal(2, .1), class = 'b', coef = "intensityablative"),
+            prior(normal(2, .1), class = 'b', coef = "intensityreduced"),
+            prior(normal(2, .1), class = 'b', coef = "intensitynonablative"))
 
 # vet the prior 
 model_alpha_macro_fat  <- brm( alpha_macro_fat,  
