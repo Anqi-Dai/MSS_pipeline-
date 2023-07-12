@@ -29,7 +29,7 @@ g_relab <- read_csv('../data/022_ALL173_stool_samples_genus_counts.csv') %>%
 ```{r}
 
 # just calculate the spearman correlation and p value
-spearman_res <- g_relab %>% 
+spearman_res <- df %>% 
   split(.$genus) %>% 
   imap_dfr(function(.x, .y ){
     # the spearman correlation
@@ -37,7 +37,7 @@ spearman_res <- g_relab %>%
       spearman_rho = round(spearman_cor$estimate, 2)
       spearman_pval = round(spearman_cor$p.value , 2)
       return(list(genus = .y, rho = spearman_rho, pval = spearman_pval))
-  } )
+  } ) 
 
 # show the % of the samples that have the relab of the genus > 10^-4
 perc_thre <- g_relab %>% 

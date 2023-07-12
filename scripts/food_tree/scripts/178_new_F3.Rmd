@@ -1,0 +1,182 @@
+---
+title: "New F3"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(tidybayes)
+library(cowplot)
+theme_set(theme_pubr(base_size = 8))
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+```
+
+# the correlation
+
+```{r}
+res <- read_csv('../data/172_spearman_all.csv') %>% 
+  filter(passthre_perc > 10) %>% 
+  mutate(padj = p.adjust(pval)) %>% 
+  filter(padj < 0.05) %>% 
+  mutate(grp = if_else(rho >= 0, 'positive', 'negative')) %>% 
+  arrange(rho, desc(genus)) 
+
+corre <- res %>% 
+  ggbarplot(x = 'genus', y = 'rho', 
+            #sort.val = "asc",  
+          fill = "grp",          
+          color = "white",           
+          palette = "jco",           
+          sort.by.groups = FALSE,    
+          x.text.angle = 45,          
+          ylab = "",
+          xlab = FALSE) +
+  theme(axis.text = element_text(size = 10))
+corre
+```
+
+# the Enterococcus results
+
+```{r}
+entero <- read_csv('../data/171_entero_model_fg_post_interaction.csv')  %>% 
+  select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(key %>% select(fgrp1, color, shortname)) %>% 
+  mutate(shortname = case_when(
+        item ==  'milk_e' ~ 'abx + Milk',
+    item == 'meat_e' ~ 'abx + Meats',
+    item ==  'egg_e' ~ 'abx + Eggs',
+    item ==  'legume_e' ~ 'abx + Legumes',
+    item == 'grain_e' ~ 'abx + Grains',
+    item == 'fruit_e' ~ 'abx + Fruits',
+    item == 'veggie_e' ~ 'abx + Vegetables',
+    item ==  'oils_e' ~ 'abx + Oils', 
+    item ==  'sweets_e' ~ 'abx + Sweets',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'abx' ~ 'abx',
+    TRUE ~ `shortname`
+  ))
+
+entero %>% 
+  distinct(shortname) %>% pull(shortname)
+entero %>% 
+  distinct(item) %>% pull(item)
+```
+
+
+```{r}
+# deciding on how to order these terms 
+# find the q25 of the coeffs
+fg_order <- entero %>% filter(str_detect(item, '_e$')) %>% 
+  group_by(shortname) %>% 
+  tidybayes::median_qi(coeff , .width = c( .66)) %>% 
+  arrange(.lower) %>% pull(shortname)
+```
+
+
+```{r}
+total_order <- c('Vegetables','abx + Vegetables',
+                 'Oils','abx + Oils',
+                 'Fruits','abx + Fruits',
+                 'Meats','abx + Meats',
+                 'Legumes','abx + Legumes',
+                 'Eggs','abx + Eggs',
+                 'Milk','abx + Milk',
+                 'Grains','abx + Grains',
+                 'Sweets','abx + Sweets',
+                 "TPN" ,"EN" , 'abx', 'Ablative', 'Reduced', 'Nonablative')
+#tibble(ord = total_order) %>% write_csv('../data/178_coeff_order.csv')
+arrange_label <- tibble(ord = total_order) %>% 
+  mutate(shortname = str_replace(ord, 'abx \\+ ','')) %>% 
+  left_join(key %>% select(shortname, color)) %>% 
+  mutate(color = if_else(is.na(color), 'black', color))
+arrange_label
+```
+
+```{r}
+entero_df <- entero %>% 
+  mutate(shortname = factor(shortname, levels = total_order))
+ylabel_col <- arrange_label$color
+```
+
+```{r}
+entero_panel <- entero_df %>%   
+  ggplot(aes(x = coeff, y = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #geom_line(aes( color = shortname,  linetype = str_detect(shortname, 'abx \\+'))) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'CLR(Enterococcus) change', y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  #scale_color_manual(values = c("#EC0000", "gray40")) +
+  theme(axis.text.y = element_text(color = ylabel_col, size = 10),
+        axis.title=element_text(size=10),
+        aspect.ratio=1)
+
+
+```
+
+# the mouse experiment
+
+```{r}
+p <- '../data/F3_mouse.png'
+mouse <- ggdraw() +
+  draw_image(magick::image_read(p),   scale = 0.9) 
+mouse 
+```
+
+# assemble
+
+```{r}
+title <- ggdraw() + 
+  draw_label(
+    "Fig 3",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+bottom_row <- plot_grid(entero_panel,mouse, labels = c('B', 'C'), label_size = 12)
+f3 <- plot_grid(corre, bottom_row, labels = c('A', ''), label_size = 12, ncol = 1, rel_heights = c(1,1))
+
+
+combined <- plot_grid(
+  title, f3,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)
+
+ggsave('../data/F3_current_178.pdf',
+      width = 210, height = 250, units = "mm", device = 'pdf', plot = combined, dpi = 300)
+
+```
+

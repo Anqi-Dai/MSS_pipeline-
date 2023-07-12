@@ -278,6 +278,8 @@ meta %>% count(empirical) %>%
 
 ```{r}
 # interaction results visualization
+post_res <-  read_csv('../data/090_model_alpha_macro_fat_post_interaction.csv')
+
 post_res %>% 
   select(starts_with('b_')) %>% 
   gather('item','coeff') %>% 
@@ -285,7 +287,7 @@ post_res %>%
   ggplot(aes(x = coeff, y = item)) +
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  facet_wrap(~ grp, scales = 'free') +
+  #facet_wrap(~ grp, scales = 'free') +
   labs(x = 'ln(diversity) change per 100g of food',
        y = '', 
        title = 'Diversity') +
@@ -296,7 +298,7 @@ post_res %>%
         axis.title=element_text(size=8),
         aspect.ratio=1)
 
-ggsave('../data/090_diversity_interaction_macronutrients.pdf', width = 12, height = 6)
+ggsave('../data/090_diversity_interaction_macronutrients.pdf', width = 8, height = 8)
 ```
 
 
