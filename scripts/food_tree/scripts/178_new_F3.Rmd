@@ -24,22 +24,34 @@ key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_
 res <- read_csv('../data/172_spearman_all.csv') %>% 
   filter(passthre_perc > 10) %>% 
   mutate(padj = p.adjust(pval)) %>% 
-  filter(padj < 0.05) %>% 
+  mutate(sig05 = if_else(padj < 0.05, T, F)) %>% 
   mutate(grp = if_else(rho >= 0, 'positive', 'negative')) %>% 
-  arrange(rho, desc(genus)) 
+  arrange(rho, desc(genus)) %>%
+  mutate(y = 1 - padj)
+```
 
-corre <- res %>% 
-  ggbarplot(x = 'genus', y = 'rho', 
-            #sort.val = "asc",  
-          fill = "grp",          
-          color = "white",           
-          palette = "jco",           
-          sort.by.groups = FALSE,    
-          x.text.angle = 45,          
-          ylab = "",
-          xlab = FALSE) +
-  theme(axis.text = element_text(size = 10))
-corre
+```{r}
+entero_cor <- res %>% filter(genus == 'Enterococcus') %>% pull(rho)
+blautia_cor <- res %>% filter(genus == 'Blautia') %>% pull(rho)
+```
+
+
+```{r}
+corvo <- res %>% 
+  ggscatter( x = 'rho', y = 'y') +labs(y = '1 - P.adj', x ='Spearman correlation') +
+  scale_color_manual(values = c("gray", "black")) +
+  annotate("text", x = entero_cor, y = 0.9, label = "Enterococcus") +
+  annotate("text", x = blautia_cor, y = 0.9, label = "Blautia") +
+  xlim(-0.5, 0.8) +
+  geom_segment(aes(x = entero_cor, y = 1, xend = -0.4, yend = 0.92),
+                  arrow = arrow(length = unit(0.2, "cm"))) +
+  geom_segment(aes(x = blautia_cor, y = 1, xend = 0.65, yend = 0.92),
+                  arrow = arrow(length = unit(0.2, "cm"))) +
+  theme(axis.text = element_text( size = 10),
+        axis.title=element_text(size=10),
+        aspect.ratio=1/2)
+ 
+corvo
 ```
 
 # the Enterococcus results
@@ -138,7 +150,7 @@ entero_panel <- entero_df %>%
         axis.title=element_text(size=10),
         aspect.ratio=1)
 
-
+entero_panel
 ```
 
 # the mouse experiment
@@ -164,8 +176,9 @@ title <- ggdraw() +
     plot.margin = margin(0, 0, 0, 7)
   )
 
-bottom_row <- plot_grid(entero_panel,mouse, labels = c('B', 'C'), label_size = 12)
-f3 <- plot_grid(corre, bottom_row, labels = c('A', ''), label_size = 12, ncol = 1, rel_heights = c(1,1))
+
+f3 <- plot_grid(corvo, entero_panel,mouse, labels = c('A', 'B', 'C'), label_size = 12, ncol = 1,
+                align = 'vh', axis = 'lrtb', rel_heights = c(1,1.5,1.5))
 
 
 combined <- plot_grid(
@@ -176,7 +189,7 @@ combined <- plot_grid(
 )
 
 ggsave('../data/F3_current_178.pdf',
-      width = 210, height = 250, units = "mm", device = 'pdf', plot = combined, dpi = 300)
+      width = 210, height = 290, units = "mm", device = 'pdf', plot = combined, dpi = 300)
 
 ```
 
