@@ -172,12 +172,12 @@ top <- plot_grid(f2a, diagram, labels = c('A', 'B'),rel_widths  = c(1, 1) )
 
 bottom_left <- plot_grid(f2_abx, f2_intensity, labels = c('C', 'D'), nrow = 2 )
 
-bottom <- plot_grid(  bottom_left, f2_time,f2_fg,
-                  nrow = 1, labels = c(NA,'E','F'), rel_widths  = c(3, 2.5,2.5))
+bottom <- plot_grid(  macro_panel, fg_panel, 
+                  nrow = 1, labels = c('C','D'))
 
-f2 <-  plot_grid(f2a, diagram,f2_abx,f2_intensity,f2_time,f2_fg,
-                 labels = c('A', 'B', 'C', 'D', 'E','F'),rel_heights = c(1, 1,2),
-                 nrow = 3)
+f2 <-  plot_grid(top,bottom,
+                rel_heights = c(1,2),
+                 nrow = 2)
 f2
 
 combined <- plot_grid(

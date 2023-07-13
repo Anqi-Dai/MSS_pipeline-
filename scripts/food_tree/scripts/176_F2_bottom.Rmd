@@ -12,5 +12,170 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(cowplot)
+library(tidybayes)
+```
+
+# load the results table and format
+
+```{r}
+macro <- read_csv('../data/090_model_alpha_macro_fat_post_interaction.csv')
+fg <- read_csv('../data/171_div_model_fg_post_interaction.csv')
+
+fg_order <- c( 'Vegetables','abx + Vegetables',
+                 'Oils','abx + Oils',
+                 'Fruits','abx + Fruits',
+                 'Meats','abx + Meats',
+                 'Legumes','abx + Legumes',
+                 'Eggs','abx + Eggs',
+                 'Milk','abx + Milk',
+                 'Grains','abx + Grains',
+                 'Sweets','abx + Sweets',
+                 "TPN" ,"EN" , 'abx')
+
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+
+fg_label <- tibble(ord = fg_order) %>% 
+  mutate(shortname = str_replace(ord, 'abx \\+ ','')) %>% 
+  left_join(key %>% select(shortname, color)) %>% 
+  mutate(color = if_else(is.na(color), 'black', color))
+
+
+# to clean the y labels in both of the df
+cleaned_fg <- fg  %>% select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(key %>% select(fgrp1, color, shortname)) %>% 
+  mutate(shortname = case_when(
+        item ==  'milk_e' ~ 'abx + Milk',
+    item == 'meat_e' ~ 'abx + Meats',
+    item ==  'egg_e' ~ 'abx + Eggs',
+    item ==  'legume_e' ~ 'abx + Legumes',
+    item == 'grain_e' ~ 'abx + Grains',
+    item == 'fruit_e' ~ 'abx + Fruits',
+    item == 'veggie_e' ~ 'abx + Vegetables',
+    item ==  'oils_e' ~ 'abx + Oils', 
+    item ==  'sweets_e' ~ 'abx + Sweets',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'abx' ~ 'abx',
+    TRUE ~ `shortname`
+  )) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal'))
+
+```
+
+```{r}
+# order the macro panel
+
+cleaned_macro <-  macro %>% select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+  mutate(shortname = case_when(
+        item ==  'fiber_e' ~ 'abx + Fiber',  
+    item == 'fiber' ~ 'Fiber',
+    item ==  'fat_e' ~ 'abx + Fat',
+    item ==  'fat' ~ 'Fat',
+    item == 'Sugars_e' ~ 'abx + Sugars',
+    item == 'Sugars' ~ 'Sugars',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'abx' ~ 'abx'
+  ))
+
+cleaned_macro %>% distinct(item) %>% pull(item)
+# sort them by the order of the left side of middle q66
+macro_e_order <- cleaned_macro %>% filter(str_detect(item, '_e$')) %>% 
+  group_by(shortname) %>% 
+  tidybayes::median_qi(coeff , .width = c( .66)) %>% 
+  arrange(.lower) %>% pull(shortname)
+```
+
+```{r}
+cross0 <- cleaned_fg %>%
+   filter(grp == 'temporal') %>% 
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 >= 0 | q97.5 <= 0, F, T))
+
+fg_temporal <- cleaned_fg %>% 
+  filter(grp == 'temporal') %>% 
+  mutate(shortname = factor(shortname, levels = fg_label$ord)) %>% 
+  left_join(cross0) %>% 
+  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #geom_rect( data = cleaned_fg, aes(xmin = -Inf  , xmax = Inf,  ymin = shortname, ymax = shortname), fill = "grey", alpha = 0.8) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'ln(diversity) change', y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c("#EC0000", "black")) +
+  theme(axis.text.y = element_text( size = 10),
+        axis.title=element_text(size=10), 
+        aspect.ratio=1)    
+fg_temporal
+```
+
+```{r}
+# the fg  patient
+fg_pt <- cleaned_fg %>% 
+  filter(grp == 'patient') %>% 
+  mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
+  ggplot(aes(x = coeff, y = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  labs(x = 'ln(diversity) change', y = '') +
+   xlim(0.9, 3) +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text.y = element_text( size = 10),
+        axis.title=element_text(size=10), 
+        aspect.ratio=1/2)    
+
+```
+
+```{r}
+# assemble the ones for the fg
+fg_side <-  plot_grid(fg_temporal,fg_pt,
+                rel_heights = c(2,1),align = 'lb',axis = 'h',
+                 nrow = 2)
+fg_side
+```
+
+
+```{r}
+macro_panel <- cleaned_macro %>% 
+  ggplot(aes(x = coeff, y = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #geom_line(aes( color = shortname,  linetype = str_detect(shortname, 'abx \\+'))) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'ln(diversity) change', y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c("#EC0000", "gray40")) +
+  theme(axis.text.y = element_text(color = arrange_label$color, size = 10),
+        axis.title=element_text(size=10),
+        aspect.ratio=1)
 ```
 

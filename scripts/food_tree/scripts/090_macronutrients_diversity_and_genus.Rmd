@@ -280,7 +280,7 @@ meta %>% count(empirical) %>%
 # interaction results visualization
 post_res <-  read_csv('../data/090_model_alpha_macro_fat_post_interaction.csv')
 
-post_res %>% 
+macro_panel <- post_res %>% 
   select(starts_with('b_')) %>% 
   gather('item','coeff') %>% 
   mutate(grp = if_else(str_detect(item, ':'), 'interaction','single')) %>% 

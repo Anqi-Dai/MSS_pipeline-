@@ -512,7 +512,7 @@ updated <- bind_rows(
    splits %>% pluck('FALSE'),
    swapped %>% select(colnames(transplant_data))
 )
-
+ 
 updated %>% write_csv('../data/156_transplant_data.csv')
 ```
 
