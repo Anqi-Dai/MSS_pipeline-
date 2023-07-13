@@ -16,7 +16,7 @@ library(cowplot)
 library(tidybayes)
 ```
 
-# load the results table and format
+# fg panel
 
 ```{r}
 macro <- read_csv('../data/090_model_alpha_macro_fat_post_interaction.csv')
@@ -81,36 +81,7 @@ cleaned_fg <- fg  %>% select(starts_with('b_')) %>%
 
 ```
 
-```{r}
-# order the macro panel
 
-cleaned_macro <-  macro %>% select(starts_with('b_')) %>% 
-  gather('item', 'coeff') %>% 
-  mutate(item = str_replace(item, 'b_ave_',''),
-         item = str_replace(item, 'b_',''),
-         item = str_replace(item, 'intensity','')) %>% 
-  mutate(shortname = case_when(
-        item ==  'fiber_e' ~ 'abx + Fiber',  
-    item == 'fiber' ~ 'Fiber',
-    item ==  'fat_e' ~ 'abx + Fat',
-    item ==  'fat' ~ 'Fat',
-    item == 'Sugars_e' ~ 'abx + Sugars',
-    item == 'Sugars' ~ 'Sugars',
-    item ==  'nonablative' ~ 'Nonablative',
-    item ==  'reduced' ~ 'Reduced',
-    item ==  'ablative' ~ 'Ablative',
-    item ==  'TPN' ~ 'TPN',
-    item ==  'EN' ~ 'EN',
-    item ==  'abx' ~ 'abx'
-  ))
-
-cleaned_macro %>% distinct(item) %>% pull(item)
-# sort them by the order of the left side of middle q66
-macro_e_order <- cleaned_macro %>% filter(str_detect(item, '_e$')) %>% 
-  group_by(shortname) %>% 
-  tidybayes::median_qi(coeff , .width = c( .66)) %>% 
-  arrange(.lower) %>% pull(shortname)
-```
 
 ```{r}
 cross0 <- cleaned_fg %>%
@@ -163,7 +134,41 @@ fg_side <-  plot_grid(fg_temporal,fg_pt,
 fg_side
 ```
 
+# macro panel
 
+```{r}
+# order the macro panel
+
+cleaned_macro <-  macro %>% select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+  mutate(shortname = case_when(
+        item ==  'fiber_e' ~ 'abx + Fiber',  
+    item == 'fiber' ~ 'Fiber',
+    item ==  'fat_e' ~ 'abx + Fat',
+    item ==  'fat' ~ 'Fat',
+    item == 'Sugars_e' ~ 'abx + Sugars',
+    item == 'Sugars' ~ 'Sugars',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'abx' ~ 'abx'
+  ))
+
+cleaned_macro %>% distinct(item) %>% pull(item)
+# sort them by the order of the left side of middle q66
+macro_e_order <- cleaned_macro %>% filter(str_detect(item, '_e$')) %>% 
+  group_by(shortname) %>% 
+  tidybayes::median_qi(coeff , .width = c( .66)) %>% 
+  arrange(.lower) %>% pull(shortname)
+
+macro_order <- 
+```
+ 
 ```{r}
 macro_panel <- cleaned_macro %>% 
   ggplot(aes(x = coeff, y = shortname)) +
@@ -179,3 +184,4 @@ macro_panel <- cleaned_macro %>%
         aspect.ratio=1)
 ```
 
+  
