@@ -27,11 +27,12 @@ two_score <- bind_rows(
   procrustes_Nday_score %>% mutate(grp = 'Food group based'), 
   macro_pro %>% mutate(grp = 'Macronutrient based')
 )
+two_score %>% write_csv('../data/086_twoscore_procrustes.csv')
 ```
 
 
-```{r 2a_procrustes}
-f2a <- two_score %>% 
+```{r 2a_procrustes} 
+f2a <- two_score %>%  
   mutate(pNd = str_extract(pNd, '\\d')) %>% 
   arrange(desc(grp)) %>% 
   ggplot(aes(x = pNd, y = score, group = grp, color = grp)) +
@@ -43,16 +44,16 @@ f2a <- two_score %>%
   theme(aspect.ratio=1,
         legend.position = 'none',
         axis.text=element_text(size=axis_text_size), 
-        legend.title  = element_blank(),
         axis.title=element_text(size=axis_text_size),
+        #legend.title = element_blank(),
         axis.text.x = element_text(angle=0, hjust=0.5)) 
     
-f2a
+f2a %>% write_rds('../data/086_F2A_procrustes.rds')
 ```
 ```{r 2b_diagram}
-p <- '../figs/paper/cartoon_of_model.png'
+p <- '../data/cartoon_of_model.png'
 diagram <- ggdraw() +
-  draw_image(magick::image_read(p),   scale = 0.9) 
+  draw_image(magick::image_read(p),   scale =1) 
 diagram 
 ```
 
@@ -164,15 +165,10 @@ title <- ggdraw() +
 
 ```{r}
 # new version that is without the diversity prediction thing
-left <- cowplot::align_plots(f2a, f2c, align = 'v', axis = 'l')
-
-
 
 top <- plot_grid(f2a, diagram, labels = c('A', 'B'),rel_widths  = c(1, 1) )
 
-bottom_left <- plot_grid(f2_abx, f2_intensity, labels = c('C', 'D'), nrow = 2 )
-
-bottom <- plot_grid(  macro_panel, fg_panel, 
+bottom <- plot_grid(  macro_side, fg_side, 
                   nrow = 1, labels = c('C','D'))
 
 f2 <-  plot_grid(top,bottom,

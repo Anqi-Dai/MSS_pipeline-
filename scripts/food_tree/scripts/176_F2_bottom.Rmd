@@ -99,7 +99,7 @@ fg_temporal <- cleaned_fg %>%
   stat_pointinterval(.width = c(.66, .95)) +
   #geom_rect( data = cleaned_fg, aes(xmin = -Inf  , xmax = Inf,  ymin = shortname, ymax = shortname), fill = "grey", alpha = 0.8) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'ln(diversity) change', y = '') +
+  labs(x = '', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c("#EC0000", "black")) +
@@ -122,14 +122,11 @@ fg_pt <- cleaned_fg %>%
   theme(legend.position = 'none') +
   theme(axis.text.y = element_text( size = 10),
         axis.title=element_text(size=10), 
-        aspect.ratio=1/2)    
+        aspect.ratio=1/4.5)    
 
-```
-
-```{r}
 # assemble the ones for the fg
 fg_side <-  plot_grid(fg_temporal,fg_pt,
-                rel_heights = c(2,1),align = 'lb',axis = 'h',
+                rel_heights = c(3,1),align = 'vh',axis = 'lrtb',
                  nrow = 2)
 fg_side
 ```
@@ -157,7 +154,9 @@ cleaned_macro <-  macro %>% select(starts_with('b_')) %>%
     item ==  'TPN' ~ 'TPN',
     item ==  'EN' ~ 'EN',
     item ==  'abx' ~ 'abx'
-  ))
+  )) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal')) %>% 
+  mutate(grp = factor(grp, levels = c('temporal','patient')))
 
 cleaned_macro %>% distinct(item) %>% pull(item)
 # sort them by the order of the left side of middle q66
@@ -166,22 +165,123 @@ macro_e_order <- cleaned_macro %>% filter(str_detect(item, '_e$')) %>%
   tidybayes::median_qi(coeff , .width = c( .66)) %>% 
   arrange(.lower) %>% pull(shortname)
 
-macro_order <- 
+cross0_macro <- cleaned_macro %>%
+   filter(grp == 'temporal') %>% 
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 >= 0 | q97.5 <= 0, F, T))
+
+
+macro_order <- tibble(
+  shortname = c('Fat','abx + Fat',
+                 'Fiber','abx + Fiber',
+                 'Sugars','abx + Sugars',
+                 "TPN" ,"EN" , 'abx')
+) %>% inner_join(cleaned_macro %>% distinct(item, shortname)) %>% 
+  inner_join(cross0_macro %>% select(item, Cross))
+
 ```
  
 ```{r}
-macro_panel <- cleaned_macro %>% 
-  ggplot(aes(x = coeff, y = shortname)) +
+# make a df for the mapping of the added rectangles 
+macro_rect <- tibble(
+  xmin_ = -Inf, xmax_ = Inf,
+  ymin_ = 0, ymax_ = 0.1
+)
+```
+ 
+ 
+```{r}
+macro_temporal <- cleaned_macro %>% 
+  filter(grp == 'temporal') %>% 
+  mutate(shortname = factor(shortname, levels = macro_order$shortname)) %>% 
+  left_join(cross0_macro)  %>% 
+  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
   stat_pointinterval(.width = c(.66, .95)) +
-  #geom_line(aes( color = shortname,  linetype = str_detect(shortname, 'abx \\+'))) +
+  geom_rect(data=macro_rect, mapping=aes(xmin=1, xmax=2, ymin=3, ymax=4, fill='blue')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = 'ln(diversity) change', y = '') +
+  labs(x = '', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = c("#EC0000", "gray40")) +
-  theme(axis.text.y = element_text(color = arrange_label$color, size = 10),
-        axis.title=element_text(size=10),
-        aspect.ratio=1)
+  scale_color_manual(values = c("#EC0000", "black")) +
+  theme(axis.text.y = element_text( size = 10),
+        axis.title=element_text(size=10), panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
+        aspect.ratio=1/1.5)
+macro_temporal
+```
+
+
+```{r}
+macro_pt <- cleaned_macro %>% 
+  filter(grp == 'patient') %>% 
+  mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
+  ggplot(aes(x = coeff, y = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  labs(x = 'ln(diversity) change', y = '') +
+   xlim(1.5, 2.5) +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text = element_text( size = 10),
+          panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),
+        axis.title=element_text(size=10), 
+        aspect.ratio=1/2.5)
+
+macro_side <-  plot_grid(macro_temporal,macro_pt,
+                rel_heights = c(1.5,1),align = 'hv',axis = 'lrtb',
+                 nrow = 2)
+macro_side 
+```
+# the top part of the F2
+
+```{r}
+twoscore <- read_csv('../data/086_twoscore_procrustes.csv') 
+
+f2a <- twoscore %>%  
+  mutate(pNd = str_extract(pNd, '\\d')) %>% 
+  arrange(desc(grp)) %>% 
+  mutate(pNd =  factor(pNd)) %>% 
+  ggplot(aes(x = pNd, y = score, group = grp, linetype = grp)) +
+  geom_line(size = 0.3) +
+  geom_point(size = 1.3) +
+  labs(x = 'Number of previous days\nof dietary intake',y = 'Procrustes score') +
+  scale_linetype_manual(values = c('solid','dashed')) +
+  theme_classic()  +
+  theme(aspect.ratio=1/2,
+        legend.position = c(0.75,0.4),
+        axis.text=element_text(size=axis_text_size), 
+        axis.title=element_text(size=axis_text_size),
+        legend.title = element_blank(), 
+        axis.text.x = element_text(angle=0, hjust=0.5)) 
+f2a
+```
+
+
+```{r}
+p <- '../data/cartoon_of_model.png'
+diagram <- ggdraw() +
+  draw_image(magick::image_read(p),   scale =1) 
+diagram 
+```
+
+# assemble all parts of F2
+
+```{r}
+left <- plot_grid(f2a, macro_side,
+                  #labels = c('A', 'B'),
+                rel_heights = c(1,2.2),
+                  nrow = 2)
+right <- plot_grid(diagram, fg_side,
+                  #labels = c('A', 'B'),
+                rel_heights = c(1,4),
+                  nrow = 2)
+
+F2 <- plot_grid(left, right, nrow = 1)
+
+ggsave('../data/F2_model_results_176.pdf',
+      width = 210, height = 217, units = "mm", device = 'pdf', 
+      #plot = combined, 
+      dpi = 300)
 ```
 
   
