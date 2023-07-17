@@ -103,13 +103,13 @@ fg_temporal <- cleaned_fg %>%
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c("#EC0000", "black")) +
-  theme(axis.text.y = element_text( size = 10),
+  theme(axis.text = element_text( size = 10),panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
         axis.title=element_text(size=10), 
-        aspect.ratio=1)    
+        aspect.ratio=1.5)    
 fg_temporal
 ```
 
-```{r}
+```{r} 
 # the fg  patient
 fg_pt <- cleaned_fg %>% 
   filter(grp == 'patient') %>% 
@@ -120,9 +120,9 @@ fg_pt <- cleaned_fg %>%
    xlim(0.9, 3) +
   theme_classic() +
   theme(legend.position = 'none') +
-  theme(axis.text.y = element_text( size = 10),
-        axis.title=element_text(size=10), 
-        aspect.ratio=1/4.5)    
+  theme(axis.text = element_text( size = 10),
+         panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
+        aspect.ratio=1/3.1)    
 
 # assemble the ones for the fg
 fg_side <-  plot_grid(fg_temporal,fg_pt,
@@ -199,7 +199,7 @@ macro_temporal <- cleaned_macro %>%
   left_join(cross0_macro)  %>% 
   ggplot(aes(x = coeff, y = shortname, col = Cross)) +
   stat_pointinterval(.width = c(.66, .95)) +
-  geom_rect(data=macro_rect, mapping=aes(xmin=1, xmax=2, ymin=3, ymax=4, fill='blue')) +
+  #geom_rect(data=macro_rect, mapping=aes(xmin=1, xmax=2, ymin=3, ymax=4, fill='blue')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = '', y = '') +
   theme_classic() +
@@ -247,7 +247,7 @@ f2a <- twoscore %>%
   labs(x = 'Number of previous days\nof dietary intake',y = 'Procrustes score') +
   scale_linetype_manual(values = c('solid','dashed')) +
   theme_classic()  +
-  theme(aspect.ratio=1/2,
+  theme(aspect.ratio=1/1.5,
         legend.position = c(0.75,0.4),
         axis.text=element_text(size=axis_text_size), 
         axis.title=element_text(size=axis_text_size),
@@ -267,16 +267,38 @@ diagram
 # assemble all parts of F2
 
 ```{r}
+title <- ggdraw() + 
+  draw_label(
+    "Fig 2",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+```
+
+```{r}
 left <- plot_grid(f2a, macro_side,
                   #labels = c('A', 'B'),
                 rel_heights = c(1,2.2),
                   nrow = 2)
 right <- plot_grid(diagram, fg_side,
                   #labels = c('A', 'B'),
-                rel_heights = c(1,4),
+                rel_heights = c(1,5),
                   nrow = 2)
 
-F2 <- plot_grid(left, right, nrow = 1)
+f2 <-  plot_grid(left,right,
+                rel_widths = c(1,1),
+                 nrow = 1)
+
+combined <- plot_grid(
+  title, f2,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+) +theme(plot.margin = unit(c(1,1,1,1), "cm"))
 
 ggsave('../data/F2_model_results_176.pdf',
       width = 210, height = 217, units = "mm", device = 'pdf', 
