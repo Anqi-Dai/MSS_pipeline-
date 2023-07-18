@@ -15,41 +15,9 @@ library(ggpubr)
 library(brms)
 ```
 
-```{r}
-# correlate top genus abundance with diversity, check if entero and kleb have most negative correlation
-meta <- read_csv('../data/153_combined_META.csv')
-g_relab <- read_csv('../data/022_ALL173_stool_samples_genus_counts.csv') %>% 
-  filter(!is.na(genus)) %>% 
-  spread('genus','relab', fill = 0) %>% 
-  gather('genus','relab', names(.)[2]:names(.)[ncol(.)]) %>% 
-  inner_join(meta %>% select(sampleid, simpson_reciprocal)) 
-```
 
 
 ```{r}
-
-# just calculate the spearman correlation and p value
-spearman_res <- df %>% 
-  split(.$genus) %>% 
-  imap_dfr(function(.x, .y ){
-    # the spearman correlation
-      spearman_cor = cor.test(.x$simpson_reciprocal, .x$relab, method = c( "spearman"))
-      spearman_rho = round(spearman_cor$estimate, 2)
-      spearman_pval = round(spearman_cor$p.value , 2)
-      return(list(genus = .y, rho = spearman_rho, pval = spearman_pval))
-  } ) 
-
-# show the % of the samples that have the relab of the genus > 10^-4
-perc_thre <- g_relab %>% 
-  count(genus, relab > 10^-4) %>% 
-  filter(`relab > 10^-4` == 'TRUE') %>% 
-  mutate(passthre_perc = round(n/1009*100, 0))
-
-spearman_all <- spearman_res %>% 
-  left_join(perc_thre) %>% 
-  mutate(n = ifelse(is.na(n), 0, n),
-         passthre_perc = ifelse(is.na(passthre_perc), 0, passthre_perc))
-
 # to visualize the ones that passed the threshold to scatter plot
 selected <- spearman_all %>% 
   filter(passthre_perc > 10 & pval < 0.05) 
@@ -67,7 +35,7 @@ g_relab %>%
            cor.coeff.args = list(method = "spearman",  label.sep = "\n", label.x.npc = "left", label.y.npc = "top", color = 'red'))
 ggsave('../data/172_diversity_genus_relab_cor.pdf', width = 9)
 
-spearman_all %>% write_csv('../data/172_spearman_all.csv')
+
 ```
 
 # count domination events (> 30%)

@@ -17,41 +17,83 @@ library(cowplot)
 theme_set(theme_pubr(base_size = 8))
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 ```
+# prep the df for the volcano plot
+
+
+```{r}
+# correlate top genus abundance with diversity, check if entero and kleb have most negative correlation
+set.seed(1)
+meta <- read_csv('../data/153_combined_META.csv')
+g_relab <- read_csv('../data/022_ALL173_stool_samples_genus_counts.csv') %>% 
+  filter(!is.na(genus)) %>% 
+  spread('genus','relab', fill = 0) %>% 
+  gather('genus','relab', names(.)[2]:names(.)[ncol(.)]) %>% 
+  inner_join(meta %>% select(sampleid, simpson_reciprocal)) %>% 
+  mutate(pseudotiny = runif(nrow(.), min = 0, max = 10^-10) ) %>% 
+  mutate(changed_relab = relab + pseudotiny)
+
+# just calculate the spearman correlation and p value
+spearman_res <- g_relab %>% 
+  split(.$genus) %>% 
+  imap_dfr(function(.x, .y ){
+    # the spearman correlation 
+      spearman_cor = cor.test(.x$simpson_reciprocal, .x$changed_relab, method = c( "spearman"), exact = T)
+      return(list(genus = .y, rho = spearman_cor$estimate, pval = spearman_cor$p.value))
+  } ) 
+
+# the smallest nonzero p value 
+pvals <- spearman_res %>% 
+  filter(pval > 0) 
+tinypseudo <- min(pvals$pval)/10
+
+# show the % of the samples that have the relab of the genus > 10^-4
+perc_thre <- g_relab %>% 
+  count(genus, relab > 10^-4) %>% 
+  filter(`relab > 10^-4` == 'TRUE') %>% 
+  mutate(passthre_perc = round(n/1009*100, 0))
+
+spearman_all <- spearman_res %>% 
+  left_join(perc_thre) %>% 
+  mutate(n = ifelse(is.na(n), 0, n),
+         passthre_perc = ifelse(is.na(passthre_perc), 0, passthre_perc)) %>% 
+    filter(passthre_perc > 10) %>% 
+  mutate(changed_pval = if_else(pval == 0, pval + tinypseudo, pval)) %>% 
+  mutate(padj = p.adjust(changed_pval, method = 'BH'),
+         neglogp = -log10(padj)) %>% 
+  mutate(sig05 = if_else(padj < 0.05, 'FDR < 0.05', 'FDR >= 0.05')) %>% 
+  mutate(grp = if_else(rho >= 0, 'positive', 'negative')) %>% 
+  arrange(rho, desc(genus)) 
+
+
+spearman_all %>% write_csv('../data/172_spearman_all.csv')
+```
+
 
 # the correlation
 
 ```{r}
-res <- read_csv('../data/172_spearman_all.csv') %>% 
-  filter(passthre_perc > 10) %>% 
-  mutate(padj = p.adjust(pval)) %>% 
-  mutate(sig05 = if_else(padj < 0.05, T, F)) %>% 
-  mutate(grp = if_else(rho >= 0, 'positive', 'negative')) %>% 
-  arrange(rho, desc(genus)) %>%
-  mutate(y = 1 - padj)
-```
-
-```{r}
+res <- read_csv('../data/172_spearman_all.csv') 
 entero_cor <- res %>% filter(genus == 'Enterococcus') %>% pull(rho)
 blautia_cor <- res %>% filter(genus == 'Blautia') %>% pull(rho)
-```
+entero_y <- res %>% filter(genus == 'Enterococcus') %>% pull(neglogp)
+blautia_y <- res %>% filter(genus == 'Blautia') %>% pull(neglogp)
 
-
-```{r}
 corvo <- res %>% 
-  ggscatter( x = 'rho', y = 'y') +labs(y = '1 - P.adj', x ='Spearman correlation') +
-  scale_color_manual(values = c("gray", "black")) +
-  annotate("text", x = entero_cor, y = 0.9, label = "Enterococcus") +
-  annotate("text", x = blautia_cor, y = 0.9, label = "Blautia") +
-  xlim(-0.5, 0.8) +
-  geom_segment(aes(x = entero_cor, y = 1, xend = -0.4, yend = 0.92),
-                  arrow = arrow(length = unit(0.2, "cm"))) +
-  geom_segment(aes(x = blautia_cor, y = 1, xend = 0.65, yend = 0.92),
-                  arrow = arrow(length = unit(0.2, "cm"))) +
+  ggscatter( x = 'rho', y = 'neglogp', col = 'sig05', alpha = 0.5, shape = 16, palette = 'jco') +
+  labs(y = '- log10(adjusted p value)', x ='Spearman correlation') +
+  scale_color_manual(values = c('#EFC000FF','#0073C2FF')) +
+  annotate("text", x = entero_cor + 0.2, y = entero_y -1.5, label = "Enterococcus", size=3) +
+  annotate("text", x = blautia_cor-0.05, y = blautia_y-2.5, label = "Blautia", size=3) +
+  geom_segment(aes(x = entero_cor+ 0.09, y = entero_y-1, xend = entero_cor+0.01, yend = entero_y), arrow = arrow(length = unit(0.2, "cm"))) +
+  geom_segment(aes(x = blautia_cor, y = blautia_y-2, xend = blautia_cor, yend = blautia_y-0.01), arrow = arrow(length = unit(0.2, "cm"))) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   theme(axis.text = element_text( size = 10),
+        legend.position = c(0.8,0.3),legend.title = element_blank() ,
+        legend.text  = element_text(size=8),
         axis.title=element_text(size=10),
-        aspect.ratio=1/2)
+        aspect.ratio=1/1.3)
  
-corvo
+corvo 
 ```
 
 # the Enterococcus results
@@ -92,7 +134,8 @@ entero <- read_csv('../data/171_entero_model_fg_post_interaction.csv')  %>%
     item ==  'EN' ~ 'EN',
     item ==  'abx' ~ 'abx',
     TRUE ~ `shortname`
-  ))
+  )) %>% 
+  filter(! shortname %in% c('Nonablative','Reduced','Ablative'))
 
 entero %>% 
   distinct(shortname) %>% pull(shortname)
@@ -121,36 +164,52 @@ total_order <- c('Vegetables','abx + Vegetables',
                  'Milk','abx + Milk',
                  'Grains','abx + Grains',
                  'Sweets','abx + Sweets',
-                 "TPN" ,"EN" , 'abx', 'Ablative', 'Reduced', 'Nonablative')
+                 "TPN" ,"EN" , 'abx')
 #tibble(ord = total_order) %>% write_csv('../data/178_coeff_order.csv')
 arrange_label <- tibble(ord = total_order) %>% 
   mutate(shortname = str_replace(ord, 'abx \\+ ','')) %>% 
   left_join(key %>% select(shortname, color)) %>% 
   mutate(color = if_else(is.na(color), 'black', color))
-arrange_label
+
 ```
 
 ```{r}
+# color the most positive one with red: the abx + sweets        
+mostpos <- entero %>%   
+  group_by(shortname) %>% 
+  count(coeff > 0) %>% 
+  ungroup %>% 
+  filter(`coeff > 0` == 'TRUE') %>% 
+  arrange(desc(n)) %>% 
+  top_n(1) %>% 
+  pull(shortname)
+mostpos
+
+```
+
+
+```{r}
 entero_df <- entero %>% 
+  mutate(mark = if_else(shortname %in% mostpos, 'mostpos','others')) %>% 
   mutate(shortname = factor(shortname, levels = total_order))
-ylabel_col <- arrange_label$color
+
 ```
 
 ```{r}
 entero_panel <- entero_df %>%   
-  ggplot(aes(x = coeff, y = shortname)) +
+  ggplot(aes(x = coeff, y = shortname, col = mark)) +
   stat_pointinterval(.width = c(.66, .95)) +
-  #geom_line(aes( color = shortname,  linetype = str_detect(shortname, 'abx \\+'))) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'CLR(Enterococcus) change', y = '') +
+  annotate("text", x = 2, y = 18, label = "97.3% > 0", col = '#EC0000') + 
   theme_classic() +
   theme(legend.position = 'none') +
-  #scale_color_manual(values = c("#EC0000", "gray40")) +
-  theme(axis.text.y = element_text(color = ylabel_col, size = 10),
-        axis.title=element_text(size=10),
-        aspect.ratio=1)
+  scale_color_manual(values = c("#EC0000", "black")) +
+  theme(axis.text.y = element_text( size = 10),
+        axis.title=element_text(size=10),panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"), aspect.ratio=1.3 )
 
-entero_panel
+entero_panel 
+ggsave('../data/178_entero_panel.pdf', width = 4.5, height = 4.5, plot = entero_panel)
 ```
 
 # the mouse experiment
@@ -158,7 +217,7 @@ entero_panel
 ```{r}
 p <- '../data/F3_mouse.png'
 mouse <- ggdraw() +
-  draw_image(magick::image_read(p),   scale = 0.9) 
+  draw_image(magick::image_read(p),   scale = 1) 
 mouse 
 ```
 
@@ -177,16 +236,16 @@ title <- ggdraw() +
   )
 
 
-f3 <- plot_grid(corvo, entero_panel,mouse, labels = c('A', 'B', 'C'), label_size = 12, ncol = 1,
+f3 <- plot_grid(corvo, entero_panel,mouse, label_size = 12, ncol = 1,labels = c('A','B','C'),
                 align = 'vh', axis = 'lrtb', rel_heights = c(1,1.5,1.5))
 
-
+ 
 combined <- plot_grid(
   title, f3,
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-)
+)+theme(plot.margin = unit(c(1,6,1,4), "cm"))
 
 ggsave('../data/F3_current_178.pdf',
       width = 210, height = 290, units = "mm", device = 'pdf', plot = combined, dpi = 300)
