@@ -26,7 +26,7 @@ n_meal <- dtb %>%
   
 top3grp <- dtb %>% 
   mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
-  filter(fgrp1 %in% c('9','6')) %>% 
+  filter(fgrp1 %in% c('9')) %>% 
   group_by(Food_code, description, fgrp1) %>% 
   summarise(total_per_code = sum(dehydrated_weight)) %>% 
   group_by(fgrp1) %>% 
@@ -36,10 +36,9 @@ top3grp <- dtb %>%
   ungroup() %>% 
   mutate(gram_per_meal = total_per_code/n_meal) %>% 
   mutate(fg1_full_name = case_when(
-    fgrp1 == '6' ~ 'Fruits',
     fgrp1 == '9' ~ 'Sugars, Sweets & Beverages'
   )) %>% 
-  mutate(fg1_full_name = factor(fg1_full_name, levels = c( 'Fruits', 'Sugars, Sweets & Beverages'))) %>% 
+  mutate(fg1_full_name = factor(fg1_full_name, levels = c( 'Sugars, Sweets & Beverages'))) %>% 
   group_by(fg1_full_name) %>% 
   arrange(gram_per_meal, .by_group = T)
 
@@ -51,7 +50,7 @@ x_txt_col <- c(rep('#7D3C98', 10), rep('#db2589', 10))
 # or I just calculate the sugar in percent in those food code
 top3grp_sugar <- dtb %>% 
   mutate(fgrp1 = str_sub(Food_code, 1,1)) %>% 
-  filter(fgrp1 %in% c('9','6')) %>% 
+  filter(fgrp1 %in% c('9')) %>% 
   group_by(Food_code, description, fgrp1) %>% 
   summarise(total_sugar_per_code = sum(Sugars_g)) %>% 
   ungroup() %>% 
@@ -92,12 +91,27 @@ bars <- top3grp_sugar %>%
   select(description, fg1_full_name,gram_sugar_per_meal, gram_per_meal ) %>% 
   gather('grp','gram',gram_sugar_per_meal: gram_per_meal) %>% 
   mutate(grp = if_else(grp == 'gram_sugar_per_meal', 'Sugar content', 'Total') ) %>% 
-  mutate(grp = factor(grp, levels = c('Sugar content','Total'))) 
+  mutate(grp = factor(grp, levels = c('Sugar content','Total'))) %>% 
+  # there is something about the sugar in ginger ale and I need to do something
+  mutate(gram = if_else(description == 'Soft drink, ginger ale' & grp == 'Sugar content', 2.1185367*cola_sugar, gram)) %>% 
+  mutate(description = str_wrap(description, indent = 4, width = 30))
+
+# how to sort the bars 
+order_ <- bars %>% 
+  filter(grp == 'Total') %>% 
+  arrange(gram) %>% 
+  pull(description)
+```
+
+
+```{r}
+# the percentage of sugar in cola
+cola_sugar <- 0.7714132/0.8257381
 
 library(cowplot)
 title <- ggdraw() + 
   draw_label(
-    "Fig S9",
+    "Fig S8",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -107,13 +121,17 @@ title <- ggdraw() +
   )
   
 
-plot <- ggbarplot(bars, "description", "gram",xlab = '',ylab = 'Per meal average consumption (gram)',
-  fill = "grp", color = "grp", palette = c("#FB9A99" ,"gray"),
+plot <- bars %>% 
+  mutate(description = factor(description, levels = order_)) %>% 
+  ggbarplot( "description", "gram",
+                  xlab = '',ylab = 'Per meal average consumption (gram)',
+  fill = "grp", color = "grp", palette = c( "#ffbcdc", "#db2589"),
   width = 0.7, 
   position = position_dodge(0.8)) +
   coord_flip() +
-  theme(legend.position = 'bottom',
-        axis.text.y = element_text(size=10, colour = x_txt_col),
+  theme(
+        axis.text.y = element_text(size=10),
+        legend.position = 'bottom',
         legend.title= element_blank())
 
 
@@ -122,10 +140,9 @@ combined <- plot_grid(
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-)
-
+)+theme(plot.margin = unit(c(1,3,6,1), "cm"))
  
-ggsave('../data/S9_top10_eaten_foods_of_2__and_sugar_099.pdf',  width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
+ggsave('../data/S8_top10_eaten_foods_of_sweets_099.pdf',  width = 210, height = 297, units = "mm", device = 'pdf', plot = combined, dpi = 300)
 
 ```
 

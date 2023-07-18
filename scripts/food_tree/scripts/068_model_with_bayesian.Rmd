@@ -185,63 +185,7 @@ prior_diversity %>%
 ``` 
 
 
-```{r all_params_csv}
-# make 
-post_all <-  read_csv('../data/068_div_model_fg_post.csv')
 
-# the mrn ones need to be anonymized
-
-# make  a forest  plot of the mrn intercepts
-mrn_forest <- post_all %>% 
-  gather() %>% 
-  filter(str_detect(key, 'r_mrn')) %>% 
-  mutate(mrn = str_extract(key, '\\[.+,'),
-         mrn = str_replace(mrn, '\\[', ''),
-         mrn = str_replace(mrn, ',', ''),
-         patient = as.numeric(factor(mrn)),
-         pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
-         pid = str_glue('P{pid}'),
-         key = str_glue('r_mrn[{pid},Intercept]')) 
-
-mrn_figure <- mrn_forest %>% 
-  ggplot(aes(x = value, y = pid)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
-  labs(x = '',
-       y = '', 
-       title = '') +
-  theme_classic() +
-  theme(legend.position = 'none') +
-  theme(axis.text=element_text(size=7),
-        axis.title=element_text(size=11))
-
-library(cowplot)
-title <- ggdraw() + 
-  draw_label(
-    "Fig S6",
-    fontface = 'bold',
-    x = 0,
-    hjust = 0
-  ) +
-  theme(
-    plot.margin = margin(0, 0, 0, 7)
-  )
-```
-
-
-```{r all_params_csv}
-combined <- plot_grid(
-  title, mrn_figure,
-  ncol = 1,
-  # rel_heights values control vertical title margins
-  rel_heights = c(0.1, 1)
-)
-
-ggsave('../data/S6_mrn_intercepts_forest.pdf',
-     width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
-
-
-```
 
 
 ```{r}

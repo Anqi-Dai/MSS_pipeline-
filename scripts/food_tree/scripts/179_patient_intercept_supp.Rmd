@@ -1,0 +1,76 @@
+---
+title: "Supplementary for the patient intercept figure"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(cowplot)
+library(tidybayes)
+```
+
+```{r all_params_csv}
+# make 
+post_all <-  read_csv('../data/171_div_model_fg_post_interaction.csv')
+
+# the mrn ones need to be anonymized
+
+# make  a forest  plot of the mrn intercepts
+mrn_forest <- post_all %>% 
+  gather() %>% 
+  filter(str_detect(key, 'r_mrn')) %>% 
+  mutate(mrn = str_extract(key, '\\[.+,'),
+         mrn = str_replace(mrn, '\\[', ''),
+         mrn = str_replace(mrn, ',', ''),
+         patient = as.numeric(factor(mrn)),
+         pid = str_pad(as.character(patient), width = 2, side = 'left', pad = '0') ,
+         pid = str_glue('P{pid}'),
+         key = str_glue('r_mrn[{pid},Intercept]')) 
+
+mrn_figure <- mrn_forest %>% 
+  ggplot(aes(x = value, y = pid)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  geom_vline(xintercept = 0, col = 'red', linetype = 'dashed') +
+  labs(x = 'ln(diversity) change',
+       y = '', 
+       title = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text=element_text(size=10), 
+         panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),
+        axis.text.y=element_text(size=8))
+
+
+title <- ggdraw() + 
+  draw_label(
+    "Fig S5",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 0)
+  )
+```
+
+
+```{r all_params_csv}
+combined <- plot_grid(
+  title, mrn_figure,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 6)
+)+theme(plot.margin = unit(c(1,0,0,1), "cm"))
+  
+ggsave('../data/S5_mrn_intercepts_forest.pdf',  
+     width = 210, height = 297, units = "mm", device = 'pdf', plot = combined, dpi = 300)
+ 
+
+```
