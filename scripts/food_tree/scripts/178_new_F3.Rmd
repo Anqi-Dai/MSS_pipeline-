@@ -17,8 +17,8 @@ library(cowplot)
 theme_set(theme_pubr(base_size = 8))
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 ```
-# prep the df for the volcano plot
 
+# prep the df for the volcano plot
 
 ```{r}
 # correlate top genus abundance with diversity, check if entero and kleb have most negative correlation
@@ -68,32 +68,65 @@ spearman_all <- spearman_res %>%
 spearman_all %>% write_csv('../data/172_spearman_all.csv')
 ```
 
+```{r}
+res <- read_csv('../data/172_spearman_all.csv') %>% 
+  rename(Correlation = grp)
 
+# make a panel with only top 5 significant ones in either direction for the main figure 3
+main <- res %>% 
+  filter(sig05 == 'FDR < 0.05') %>% 
+  split(.$Correlation) %>% 
+  map(function(df){
+    df %>% mutate(absrho = abs(rho)) %>% slice_max(order_by =absrho, n = 5 )
+  }) %>% bind_rows()
+
+correbar <- main %>% 
+  ggbarplot(x = 'genus', y = 'rho', orientation = c( "horizontal"),
+            sort.val = "desc",   fill = "Correlation",  color = "white",    palette = "jco",     sort.by.groups = F,     ylab = "Spearman correlation",    xlab = '') +
+  theme(legend.position = c(.8,.8),axis.text=element_text(size=10),axis.title=element_text(size=10),legend.text  = element_text(size=8), legend.title = element_text(size = 8), 
+         aspect.ratio=1/1.3)
+```
+
+
+```{r}
+corre <- res %>% 
+  ggbarplot(x = 'genus', y = 'rho', 
+            #sort.val = "asc",  
+          fill = "grp",          
+          color = "white",           
+          palette = "jco",           
+          sort.by.groups = FALSE,    
+          x.text.angle = 45,          
+          ylab = "",
+          xlab = FALSE) +
+  theme(axis.text = element_text(size = 10))
+corre
+```
 # the correlation
 
 ```{r}
-res <- read_csv('../data/172_spearman_all.csv') 
-entero_cor <- res %>% filter(genus == 'Enterococcus') %>% pull(rho)
-blautia_cor <- res %>% filter(genus == 'Blautia') %>% pull(rho)
-entero_y <- res %>% filter(genus == 'Enterococcus') %>% pull(neglogp)
-blautia_y <- res %>% filter(genus == 'Blautia') %>% pull(neglogp)
-
-corvo <- res %>% 
-  ggscatter( x = 'rho', y = 'neglogp', col = 'sig05', alpha = 0.5, shape = 16, palette = 'jco') +
-  labs(y = '- log10(adjusted p value)', x ='Spearman correlation') +
-  scale_color_manual(values = c('#EFC000FF','#0073C2FF')) +
-  annotate("text", x = entero_cor + 0.2, y = entero_y -1.5, label = "Enterococcus", size=3) +
-  annotate("text", x = blautia_cor-0.05, y = blautia_y-2.5, label = "Blautia", size=3) +
-  geom_segment(aes(x = entero_cor+ 0.09, y = entero_y-1, xend = entero_cor+0.01, yend = entero_y), arrow = arrow(length = unit(0.2, "cm"))) +
-  geom_segment(aes(x = blautia_cor, y = blautia_y-2, xend = blautia_cor, yend = blautia_y-0.01), arrow = arrow(length = unit(0.2, "cm"))) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  theme(axis.text = element_text( size = 10),
-        legend.position = c(0.8,0.3),legend.title = element_blank() ,
-        legend.text  = element_text(size=8),
-        axis.title=element_text(size=10),
-        aspect.ratio=1/1.3)
- 
-corvo 
+# res <- read_csv('../data/172_spearman_all.csv') 
+# entero_cor <- res %>% filter(genus == 'Enterococcus') %>% pull(rho)
+# blautia_cor <- res %>% filter(genus == 'Blautia') %>% pull(rho)
+# entero_y <- res %>% filter(genus == 'Enterococcus') %>% pull(neglogp)
+# blautia_y <- res %>% filter(genus == 'Blautia') %>% pull(neglogp)
+# 
+# corvo <- res %>% 
+#   ggscatter( x = 'rho', y = 'neglogp', col = 'sig05', alpha = 0.5, shape = 16, palette = 'jco') +
+#   labs(y = '- log10(adjusted p value)', x ='Spearman correlation') +
+#   scale_color_manual(values = c('#EFC000FF','#0073C2FF')) +
+#   annotate("text", x = entero_cor + 0.2, y = entero_y -1.5, label = "Enterococcus", size=3) +
+#   annotate("text", x = blautia_cor-0.05, y = blautia_y-2.5, label = "Blautia", size=3) +
+#   geom_segment(aes(x = entero_cor+ 0.09, y = entero_y-1, xend = entero_cor+0.01, yend = entero_y), arrow = arrow(length = unit(0.2, "cm"))) +
+#   geom_segment(aes(x = blautia_cor, y = blautia_y-2, xend = blautia_cor, yend = blautia_y-0.01), arrow = arrow(length = unit(0.2, "cm"))) +
+#   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+#   theme(axis.text = element_text( size = 10),
+#         legend.position = c(0.8,0.3),legend.title = element_blank() ,
+#         legend.text  = element_text(size=8),
+#         axis.title=element_text(size=10),
+#         aspect.ratio=1/1.3)
+#  
+# corvo 
 ```
 
 # the Enterococcus results
@@ -236,7 +269,7 @@ title <- ggdraw() +
   )
 
 
-f3 <- plot_grid(corvo, entero_panel,mouse, label_size = 12, ncol = 1,labels = c('A','B','C'),
+f3 <- plot_grid(correbar, entero_panel,mouse, label_size = 12, ncol = 1,labels = c('A','B','C'),
                 align = 'vh', axis = 'lrtb', rel_heights = c(1,1.5,1.5))
 
  
