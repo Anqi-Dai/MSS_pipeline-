@@ -89,18 +89,35 @@ correbar <- main %>%
 
 
 ```{r}
-corre <- res %>% 
-  ggbarplot(x = 'genus', y = 'rho', 
-            #sort.val = "asc",  
-          fill = "grp",          
-          color = "white",           
-          palette = "jco",           
-          sort.by.groups = FALSE,    
-          x.text.angle = 45,          
-          ylab = "",
-          xlab = FALSE) +
-  theme(axis.text = element_text(size = 10))
-corre
+# make a panel with all the sig ones for the supplementary
+correbar_all <- res %>% 
+  filter(sig05 == 'FDR < 0.05') %>% 
+  ggbarplot(x = 'genus', y = 'rho', orientation = c( "horizontal"),
+            sort.val = "desc",   fill = "Correlation",  color = "white",    palette = "jco",     sort.by.groups = F,     ylab = "Spearman correlation",    xlab = '') +
+  theme(legend.position = c(.8,.8),axis.text=element_text(size=10),axis.title=element_text(size=10),legend.text  = element_text(size=8), legend.title = element_text(size = 8), 
+         aspect.ratio=1.8)
+
+
+title <- ggdraw() + 
+  draw_label(
+    "Fig S9",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+ 
+combined <- plot_grid(
+  title, correbar_all,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+)+theme(plot.margin = unit(c(1,1,1,1), "cm"))
+
+ggsave('../data/S9_genus_diversity_correlation_178.pdf',
+      width = 210, height = 290, units = "mm", device = 'pdf', plot = combined, dpi = 300)
 ```
 # the correlation
 
