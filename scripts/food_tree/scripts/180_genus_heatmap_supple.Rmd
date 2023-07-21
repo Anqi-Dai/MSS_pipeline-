@@ -1,0 +1,55 @@
+---
+title: "make the supp for the genus heatmap"
+author: "Anqi Dai"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)  
+```
+
+```{r}
+library(tidyverse) 
+library(ggtree)
+library(data.tree)
+library(vdbR)
+connect_database()
+get_table_from_database('asv_annotation_blast_ag')
+```
+
+# make a tree of those taxa genus
+
+```{r}
+# make a tree structure from the taxas
+genera <- read_csv('../data/171_post_res_genera.csv')
+
+taxas <- asv_annotation_blast_ag %>% 
+  filter(genus %in% genera$genus) %>% 
+  distinct(kingdom,phylum, class, ordr, family,genus  ) %>% 
+  mutate(
+    kingdom = str_glue('k__{kingdom}'),
+    phylum = str_glue('p__{phylum}'),
+    class = str_glue('c__{class}'),
+    ordr = str_glue('o__{ordr}'),
+    family = str_glue('f__{family}'),
+    newickstring = str_glue('foodtreeroot/{kingdom}/{phylum}/{class}/{ordr}/{family}/{genus}'),
+    taxanomy = str_glue('{kingdom};{phylum};{class};{ordr};{family};{genus}'))
+
+taxas_Tree <- as.Node(taxas, pathName = "newickstring")
+tree <- ToNewick(taxas_Tree)
+cat(tree, file = '../data/180_taxa_tree.newick')
+```
+
+# now plot this tree with ggtree
+
+```{r}
+tree <- read.tree("../data/180_taxa_tree.newick")
+
+ggtree(tree) + 
+  theme_tree() + 
+  geom_tiplab() +
+  geom_text(aes(label=.$node.label), hjust=-.3)
+
+```
+

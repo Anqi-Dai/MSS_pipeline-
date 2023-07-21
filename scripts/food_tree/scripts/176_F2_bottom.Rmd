@@ -307,3 +307,63 @@ ggsave('../data/F2_model_results_176.pdf',
 ```
 
   
+# supp for the intensity as intercept one 
+
+```{r}
+# the intercept from the enterococcus one with its CLR transformation
+entero <- read_csv('../data/171_entero_model_fg_post_interaction.csv')  %>% 
+  select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal'))%>% 
+  mutate(shortname = item,
+    shortname = case_when(
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    TRUE ~ `shortname`
+  ))
+ 
+entero_pt <- entero %>% 
+  filter(grp == 'patient') %>% 
+  mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
+  ggplot(aes(x = coeff, y = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  labs(x = 'CLR(Enterococcus) change', y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text = element_text( size = 10),
+         panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
+        aspect.ratio=1/3.1)   
+```
+```{r}
+# combine the three intercepts together 
+intensity_supp <-  plot_grid(macro_pt,fg_pt,entero_pt,
+                             labels = c('A','B','C'),
+                 nrow = 3)
+
+title <- ggdraw() + 
+  draw_label(
+    "Fig S4",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme( plot.margin = margin(0, 0, 0, 7))
+ 
+combined <- plot_grid(
+  title, intensity_supp,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+) +theme(plot.margin = unit(c(2,5,5,3), "cm"))
+
+ggsave('../data/S4_intensity_intercept_176.pdf',
+      width = 210, height = 297, units = "mm", device = 'pdf', 
+      #plot = combined, 
+      dpi = 300)
+```
+
+ 

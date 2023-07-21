@@ -39,7 +39,7 @@ cts <- get_counts_subset(meta$sampleid)
 cts_ <- cts %>% 
   select(asv_key, sampleid, count)
 annot <- asv_annotation_blast_ag %>% 
-  filter(asv_key %in% cts_$asv_key)
+  filter(asv_key ,..,%in% cts_$asv_key)
 cts_all <- cts_ %>% 
   left_join(annot %>%  select(asv_key, genus), by  = 'asv_key') %>% 
   group_by(sampleid, genus) %>% 
@@ -99,7 +99,8 @@ meta <- read_csv('../data/153_combined_META.csv') %>%
                 fg_legume_e=fg_legume*abx,
                 fg_veggie_e = fg_veggie*abx)
 
-clr_few <- clr_res %>% filter(genus %in% c('Enterococcus')) %>%
+clr_few <- clr_res %>% 
+  #filter(genus %in% c('Enterococcus')) %>%
   spread('genus','clr')
 
 # still use the log10 cuz that's what I have always been using this time
@@ -219,26 +220,50 @@ post_res %>% select(b_fg_sweets_e) %>%
 
 
 ```{r}
-genus6 <- few %>% pull(genus)  
-ret_genus6_interaction <- genus6 %>% 
-  set_names(genus6) %>% 
+cts <- read_csv('../data/022_ALL173_stool_samples_genus_counts.csv') %>% 
+  filter(sampleid %in% meta$sampleid) 
+
+target_genera <-  cts %>% 
+  group_by(genus) %>% 
+  count(relab > 0.0001) %>% 
+  rename(criteria = names(.)[2]) %>% 
+  filter(criteria == 'TRUE') %>% 
+  arrange(-n) %>% 
+  filter(genus != 'NA') %>% 
+  mutate(perc = round(n/nrow(meta)*100, 0)) %>% 
+  filter(perc > 10) %>% 
+  pull(genus)
+```
+
+
+```{r}
+ 
+ret_genus_interaction <- target_genera %>% 
+  set_names(target_genera) %>% 
   purrr::map(function(genus) {
     mod =  brm( as.formula(str_glue(
               '{genus}  ~ 
-               1 +
-                fg_fruit*empirical+
-                fg_meat*empirical+
-                fg_milk*empirical+
-                fg_oils*empirical+
-                fg_egg*empirical+ 
-                fg_grain*empirical+
-                fg_sweets*empirical+  
-                fg_legume*empirical+
-                fg_veggie*empirical+
-                empirical+
-                intensityAblative +
-                intensityNonablative+
-                intensityReduced +
+               0 +
+                intensity+
+               fg_fruit_e+
+                fg_meat_e+
+                fg_milk_e+
+                fg_oils_e+
+                fg_egg_e+
+                fg_grain_e+
+                fg_sweets_e+
+                fg_legume_e+
+                fg_veggie_e+
+                abx+
+               fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
                 TPN+
                 EN+
                (1 | mrn) +
@@ -249,14 +274,14 @@ ret_genus6_interaction <- genus6 %>%
               cores = ncores, 
               chains = 2, 
               control = list(adapt_delta = 0.99),
-              seed = 456, sample_prior = T) 
+              seed = 456) 
   })
 
-post_df <- ret_genus6_interaction %>% 
+post_df <- ret_genus_interaction %>% 
   imap(~ (suppressWarnings(posterior_samples(.x)) ))  %>% 
   bind_rows(.id = 'genus')  
 post_df %>% 
-  write_csv('../data/171_genus6_foodgroup_model_post_extra_few_interaction.csv')
+  write_csv('../data/171_genus_foodgroup_model_post_extra_few_interaction.csv')
 
 
 ```
@@ -291,4 +316,93 @@ ggsave('../data/171_interaction_model_genus6.pdf', width =23, height = 19)
 
 ```
 
+ 
+```{r}
+# make the heatmap with all of the genera 
+post_df <- read_csv('../data/171_genus_foodgroup_model_post_extra_few_interaction.csv',  col_select = c(1:25)) %>% 
+  select(genus, starts_with('b_'))
+
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+
+post_res_genera <- post_df %>% 
+  select(genus, starts_with('b_')) %>% 
+  gather('item','coeff', names(.)[2]:names(.)[ncol(.)]) %>% 
+  group_by(genus, item) %>% 
+  summarise(q50 = median(coeff),
+            q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975),
+            q12.5 = quantile(coeff, probs = 0.125),
+            q87.5 = quantile(coeff, probs = 0.875),
+            q1.25 = quantile(coeff, probs = 0.0125),
+            q98.75 = quantile(coeff, probs = 0.9875),
+            q0.5 = quantile(coeff, probs = 0.005),
+            q99.5 = quantile(coeff, probs = 0.995)
+            ) %>% 
+  ungroup() %>% 
+  mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  mutate(color = if_else(q87.5 < 0, 'steelblue', if_else(q12.5 > 0, 'maroon', 'white'))) %>% 
+ mutate(item = str_replace(item, 'b_fg_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+  mutate(shortname = case_when(
+    item ==  'milk' ~ 'Milk',
+    item == 'meat' ~ 'Meats',
+    item ==  'egg' ~ 'Eggs',
+    item ==  'legume' ~ 'Legumes',
+    item == 'grain' ~ 'Grains',
+    item == 'fruit' ~ 'Fruits',
+    item == 'veggie' ~ 'Vegetables',
+    item ==  'oils' ~ 'Oils', 
+    item ==  'sweets' ~ 'Sweets',
+    item ==  'milk_e' ~ 'abx + Milk',
+    item == 'meat_e' ~ 'abx + Meats',
+    item ==  'egg_e' ~ 'abx + Eggs',
+    item ==  'legume_e' ~ 'abx + Legumes',
+    item == 'grain_e' ~ 'abx + Grains',
+    item == 'fruit_e' ~ 'abx + Fruits',
+    item == 'veggie_e' ~ 'abx + Vegetables',
+    item ==  'oils_e' ~ 'abx + Oils', 
+    item ==  'sweets_e' ~ 'abx + Sweets',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'abx' ~ 'abx'
+  )) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal'))
+
+post_res_genera %>% distinct(shortname)
+
+post_res_genera %>% write_csv('../data/171_post_res_genera.csv')
+```
+ 
+```{r}
+
+col_key <- post_res_genera %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key
+
+genus_fg_main <- ggplot(post_res_genera, aes(x = genus, y = item)) +
+  geom_tile(aes(fill = color,  x = genus, y =  item), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = genus,y =  item),
+            nudge_y = -0.1, nudge_x = 0,size = 3) +
+  scale_fill_manual(values = col_key, labels = c('Less than 75% CI crosses 0', '75% CI < 0 negative','75% CI > 0 positive')) +
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),
+        axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=50, hjust=1, size=11),
+        axis.text.y=element_text(size=11),
+        axis.title=element_text(size=axis_title_size),
+        #panel.grid.major = element_blank(), 
+        #panel.grid.minor = element_blank(),
+        legend.position = 'top',
+        panel.background=element_rect(colour="black"),
+        legend.key = element_rect( colour = "gray50")) 
+genus_fg_main 
+
+ggsave('../data/171_genus_main.pdf', width = 15)
+```
  
