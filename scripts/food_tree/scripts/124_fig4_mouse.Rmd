@@ -1,7 +1,6 @@
 ---
-title: "fig 4 mouse data"
+title: "fig 3 mouse data"
 author: "Angel"
-date: "2022-09-27"
 output: html_document
 ---
 

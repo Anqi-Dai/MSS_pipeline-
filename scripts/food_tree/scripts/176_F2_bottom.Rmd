@@ -14,6 +14,8 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(tidybayes)
+axis_text_size <- 10
+axis_title_size <- 10
 ```
 
 # fg panel
@@ -99,7 +101,7 @@ fg_temporal <- cleaned_fg %>%
   stat_pointinterval(.width = c(.66, .95)) +
   #geom_rect( data = cleaned_fg, aes(xmin = -Inf  , xmax = Inf,  ymin = shortname, ymax = shortname), fill = "grey", alpha = 0.8) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = '', y = '') +
+  labs(x = 'ln(diversity) change', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c("#EC0000", "black")) +
@@ -125,8 +127,8 @@ fg_pt <- cleaned_fg %>%
         aspect.ratio=1/3.1)    
 
 # assemble the ones for the fg
-fg_side <-  plot_grid(fg_temporal,fg_pt,
-                rel_heights = c(3,1),align = 'vh',axis = 'lrtb',
+fg_side <-  plot_grid(fg_temporal,NA,
+                rel_heights = c(3,.1),align = 'vh',axis = 'lrtb',
                  nrow = 2)
 fg_side
 ```
@@ -208,7 +210,7 @@ macro_temporal <- cleaned_macro %>%
   theme(axis.text.y = element_text( size = 10),
         axis.title=element_text(size=10), panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
         aspect.ratio=1/1.5)
-macro_temporal
+
 ```
 
 
@@ -227,10 +229,11 @@ macro_pt <- cleaned_macro %>%
         axis.title=element_text(size=10), 
         aspect.ratio=1/2.5)
 
-macro_side <-  plot_grid(macro_temporal,macro_pt,
-                rel_heights = c(1.5,1),align = 'hv',axis = 'lrtb',
-                 nrow = 2)
-macro_side 
+macro_side <-  plot_grid(macro_temporal,NA,macro_pt,
+                rel_heights = c(1.5,-.8, 1),align = 'hv',axis = 'lrtb',
+                labels = c('C',NA, 'D'),label_y = .7,
+                 ncol = 1 )
+macro_side  
 ```
 # the top part of the F2
 
@@ -253,15 +256,15 @@ f2a <- twoscore %>%
         axis.title=element_text(size=axis_text_size),
         legend.title = element_blank(), 
         axis.text.x = element_text(angle=0, hjust=0.5)) 
-f2a
+
 ```
 
 
 ```{r}
 p <- '../data/cartoon_of_model.png'
 diagram <- ggdraw() +
-  draw_image(magick::image_read(p),   scale =1) 
-diagram 
+  draw_image(magick::image_read(p),   scale =.9 ,hjust = -.05) 
+diagram
 ```
 
 # assemble all parts of F2
@@ -277,20 +280,19 @@ title <- ggdraw() +
   theme(
     plot.margin = margin(0, 0, 0, 7)
   )
-```
 
-```{r}
-left <- plot_grid(f2a, macro_side,
-                  #labels = c('A', 'B'),
-                rel_heights = c(1,2.2),
-                  nrow = 2)
-right <- plot_grid(diagram, fg_side,
-                  #labels = c('A', 'B'),
-                rel_heights = c(1,5),
-                  nrow = 2)
+left <- plot_grid(f2a, NA, macro_side,
+                  labels = c('A', NA, NA),label_y = 1,
+                rel_heights = c(1,-.7, 3),
+                  ncol = 1) 
+
+right <- plot_grid(diagram,NA, fg_side,
+                labels = c('B',NA, 'E'),label_y = .8,
+                rel_heights = c(1,-.6,5),
+                  ncol = 1)
 
 f2 <-  plot_grid(left,right,
-                rel_widths = c(1,1),
+                rel_widths = c(1,1.2),
                  nrow = 1)
 
 combined <- plot_grid(
@@ -298,10 +300,10 @@ combined <- plot_grid(
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-) +theme(plot.margin = unit(c(1,1,1,1), "cm"))
+) +theme(plot.margin = unit(c(1,2,1,1), "cm"))
 
 ggsave('../data/F2_model_results_176.pdf',
-      width = 210, height = 217, units = "mm", device = 'pdf', 
+      width = 210, height = 197, units = "mm", device = 'pdf', 
       #plot = combined, 
       dpi = 300)
 ```
@@ -340,9 +342,9 @@ entero_pt <- entero %>%
 ```
 ```{r}
 # combine the three intercepts together 
-intensity_supp <-  plot_grid(macro_pt,fg_pt,entero_pt,
-                             labels = c('A','B','C'),
-                 nrow = 3)
+intensity_supp <-  plot_grid(fg_pt,entero_pt,
+                             labels = c('A','B'),
+                 nrow = 2)
 
 title <- ggdraw() + 
   draw_label(
@@ -358,7 +360,7 @@ combined <- plot_grid(
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-) +theme(plot.margin = unit(c(2,5,5,3), "cm"))
+) +theme(plot.margin = unit(c(2,5,10,3), "cm"))
 
 ggsave('../data/S4_intensity_intercept_176.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', 

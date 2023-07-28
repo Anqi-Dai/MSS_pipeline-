@@ -61,7 +61,7 @@ spearman_all <- spearman_res %>%
   mutate(padj = p.adjust(changed_pval, method = 'BH'),
          neglogp = -log10(padj)) %>% 
   mutate(sig05 = if_else(padj < 0.05, 'FDR < 0.05', 'FDR >= 0.05')) %>% 
-  mutate(grp = if_else(rho >= 0, 'positive', 'negative')) %>% 
+  mutate(Correlation = if_else(rho >= 0, 'higher diversity', 'lower diversity')) %>% 
   arrange(rho, desc(genus)) 
 
 
@@ -70,7 +70,7 @@ spearman_all %>% write_csv('../data/172_spearman_all.csv')
 
 ```{r}
 res <- read_csv('../data/172_spearman_all.csv') %>% 
-  rename(Correlation = grp)
+  mutate(Correlation = factor(Correlation, levels = c('lower diversity','higher diversity')))
 
 # make a panel with only top 5 significant ones in either direction for the main figure 3
 main <- res %>% 
@@ -84,7 +84,8 @@ correbar <- main %>%
   ggbarplot(x = 'genus', y = 'rho', orientation = c( "horizontal"),
             sort.val = "desc",   fill = "Correlation",  color = "white",    palette = "jco",     sort.by.groups = F,     ylab = "Spearman correlation",    xlab = '') +
   theme(legend.position = c(.8,.8),axis.text=element_text(size=10),axis.title=element_text(size=10),legend.text  = element_text(size=8), legend.title = element_text(size = 8), 
-         aspect.ratio=1/1.3)
+         aspect.ratio=1/1.3) +
+  guides(fill = guide_legend(title = "Correlated with"))
 ```
 
 
@@ -95,7 +96,8 @@ correbar_all <- res %>%
   ggbarplot(x = 'genus', y = 'rho', orientation = c( "horizontal"),
             sort.val = "desc",   fill = "Correlation",  color = "white",    palette = "jco",     sort.by.groups = F,     ylab = "Spearman correlation",    xlab = '') +
   theme(legend.position = c(.8,.8),axis.text=element_text(size=10),axis.title=element_text(size=10),legend.text  = element_text(size=8), legend.title = element_text(size = 8), 
-         aspect.ratio=1.8)
+         aspect.ratio=1.8) +
+  guides(fill = guide_legend(title = "Correlated with"))
 
 
 title <- ggdraw() + 
@@ -251,10 +253,10 @@ entero_panel <- entero_df %>%
   stat_pointinterval(.width = c(.66, .95)) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'CLR(Enterococcus) change', y = '') +
-  annotate("text", x = 2, y = 18, label = "97.3% > 0", col = '#EC0000') + 
+  annotate("text", x = 2, y = 18, label = "97.3% > 0", col = 'coral1') + 
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = c("#EC0000", "black")) +
+  scale_color_manual(values = c("coral1", "black")) +
   theme(axis.text.y = element_text( size = 10),
         axis.title=element_text(size=10),panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"), aspect.ratio=1.3 )
 

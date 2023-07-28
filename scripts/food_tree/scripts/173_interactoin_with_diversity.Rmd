@@ -122,6 +122,33 @@ div_priors <- c(# for the food group variables
             )
 ```
 
+
+
+
+
+
+```{r}
+model_div <- brm( div_model,  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              prior = div_priors,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T) 
+
+
+
+# actually draw samples from the priors 
+samples_prior <- prior_draws(model_div)
+# save it for future use
+post_res <- suppressWarnings(posterior_samples(model_div)) 
+post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
+
+
+```
+
+
 # prior predictive check  
 
 ```{r}
@@ -132,22 +159,10 @@ fitPrior <- brm(div_model, data=meta,
 # the below is the posterior predictive check 
 prior_c <- pp_check(fitPrior, type = "scatter_avg", ndraws = 100)$data
 prior_pred <-pp_check(fitPrior, type = "boxplot", nreps = 10, notch = FALSE)
-pp_check(fitPrior)
+#pp_check(fitPrior)
 ```
 
-
-```{r}
-# to see the pearson correlation of that 
-prior_c %>% 
-  ggscatter(x = 'y_obs', y = 'value',
-           add = "reg.line",  # Add regressin line
-           add.params = list(color = "blue", fill = "lightgray"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "pearson",  label.sep = "\n"))
-gghistogram(log(meta$simpson_reciprocal))
-```
-
+# for the S3
 # posterior predictive check 
 
 ```{r}
@@ -158,7 +173,7 @@ fit <- brm(div_model, data=meta,
 post_c <- pp_check(fit, type = "scatter_avg", ndraws = 100)$data
 
 post_pred <- pp_check(fit, type = "boxplot", nreps = 10, notch = FALSE)
-pp_check(fit) 
+#pp_check(fit) 
 ```
 
 ```{r}
@@ -200,50 +215,4 @@ ggsave('../data/S3_pp_check_173.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', 
       #plot = combined, 
       dpi = 300)
-```
-
-
-```{r}
-model_div <- brm( div_model,  
-              data = meta, 
-              warmup = 1000, iter = 3000, 
-              prior = div_priors,
-              cores = ncores, 
-              chains = 2, 
-               control = list(adapt_delta = 0.99),
-              seed = 123, sample_prior = T) 
-
-
-
-# actually draw samples from the priors 
-samples_prior <- prior_draws(model_div)
-# save it for future use
-post_res <- suppressWarnings(posterior_samples(model_div)) 
-post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
-
-
-```
-
-```{r}
-post_res %>% 
-  select(starts_with('b_')) %>% 
-  gather('item','coeff') %>% 
-  mutate(grp = if_else(str_detect(item, ':'), 'interaction','single')) %>% 
-  ggplot(aes(x = coeff, y = item)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  facet_wrap(~ grp, scales = 'free') +
-  labs(x = 'ln(diversity) change per 100g of food',
-       y = '', 
-       title = 'Diversity') +
-  theme_classic() +
-  theme(legend.position = 'none') +
-  scale_color_manual(values = c("#EC0000", "gray40")) +
-  theme(axis.text=element_text(size=8, color  = 'black'),
-        axis.title=element_text(size=8),
-        aspect.ratio=1)
-
-ggsave('../data/173_diversity_interaction.pdf', width = 12, height = 6)
-
-
 ```

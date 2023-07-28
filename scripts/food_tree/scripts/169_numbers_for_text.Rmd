@@ -143,3 +143,29 @@ b1med <- read_csv('../data/134_batch1_empirical_abx.csv')
 both <- bind_rows(b1med, b2med)
 ```
 
+# F2  main results
+
+```{r}
+macro <- read_csv('../data/090_model_alpha_macro_fat_post_interaction.csv')
+fg <- read_csv('../data/171_div_model_fg_post_interaction.csv')
+
+# to find the quantiles of the post_coeff
+macro %>% 
+  select(starts_with('b_')) %>% 
+  gather('item','coeff') %>% 
+  group_by(item) %>% 
+  tidybayes::median_qi(coeff, .width = c(.95))
+
+fg %>% 
+  select(starts_with('b_')) %>% 
+  gather('item','coeff') %>% 
+  group_by(item) %>% 
+  tidybayes::median_qi(coeff, .width = c(.95))
+
+entero%>% 
+  group_by(item) %>% 
+  tidybayes::median_qi(coeff, .width = c(.95))
+
+
+```
+
