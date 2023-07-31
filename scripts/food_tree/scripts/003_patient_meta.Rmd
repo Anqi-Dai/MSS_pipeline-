@@ -57,50 +57,50 @@ wt <- nutrition_demographics_ag %>%
 
 ```{r}
 # getting the conmorbitity index from the table
-list_table_from_database(pattern = 'comorbidity')
-get_table_from_database('comorbidity_index_ag')
-get_table_from_database('patients_msk_comorbidity_index_ag')
+# list_table_from_database(pattern = 'comorbidity')
+# get_table_from_database('comorbidity_index_ag')
+# get_table_from_database('patients_msk_comorbidity_index_ag')
+# 
+# ci_pt <- patients_msk_comorbidity_index_ag %>% 
+#   filter(mrn %in% dtb$mrn)
+# 
+# have_ci_pts <- ci_pt %>% 
+#   filter(!is.na(ci))
+# 
+# need_ci_pts <- setdiff(dtb$mrn, have_ci_pts %>% pull(mrn))
+# # the above is the list that I need to have the CI
+# 
+# length(intersect(wt, need_ci_pts))
+# 
+# need_info <- tibble(
+#   mrn = need_ci_pts
+# ) %>% 
+#   left_join(nutrition_demographics_ag %>% filter(mrn %in% dtb$mrn) %>% select(mrn, admit_wt))
+# 
+# need_info %>% 
+#   write_csv('../data/!question/patients_missing_CI_and_wt_diet.csv')
 
-ci_pt <- patients_msk_comorbidity_index_ag %>% 
-  filter(mrn %in% dtb$mrn)
-
-have_ci_pts <- ci_pt %>% 
-  filter(!is.na(ci))
-
-need_ci_pts <- setdiff(dtb$mrn, have_ci_pts %>% pull(mrn))
-# the above is the list that I need to have the CI
-
-length(intersect(wt, need_ci_pts))
-
-need_info <- tibble(
-  mrn = need_ci_pts
-) %>% 
-  left_join(nutrition_demographics_ag %>% filter(mrn %in% dtb$mrn) %>% select(mrn, admit_wt))
-
-need_info %>% 
-  write_csv('../data/!question/patients_missing_CI_and_wt_diet.csv')
-
-
-ci_needed <- ptb %>% 
-  filter(mrn %in% need_ci_pts) %>% 
-  dplyr::select(mrn, hct)
-
-ci_needed %>% 
-  write_csv('../data/!question/CI_needed.csv')
+# 
+# ci_needed <- ptb %>% 
+#   filter(mrn %in% need_ci_pts) %>% 
+#   dplyr::select(mrn, hct)
+# 
+# ci_needed %>% 
+#   write_csv('../data/!question/CI_needed.csv')
 ```
 
 ```{r}
 # all the weights of the patients
-filled <- read_csv('../data/!question/patients_missing_HCTCI_diet_peter.csv') %>% 
-  select(mrn, admit_wt)
-
-have_had <- nutrition_demographics_ag %>% 
-  filter(mrn %in% dtb$mrn) %>% 
-  select(mrn, admit_wt) %>% 
-  filter(!is.na(admit_wt))
-
-full_wt <- filled %>% 
-  full_join(have_had)
+# filled <- read_csv('../data/!question/patients_missing_HCTCI_diet_peter.csv') %>% 
+#   select(mrn, admit_wt)
+# 
+# have_had <- nutrition_demographics_ag %>% 
+#   filter(mrn %in% dtb$mrn) %>% 
+#   select(mrn, admit_wt) %>% 
+#   filter(!is.na(admit_wt))
+# 
+# full_wt <- filled %>% 
+#   full_join(have_had)
 ```
 
 
@@ -217,10 +217,11 @@ PTB %>%
   write_csv('../data/cleaned_patients/diet_patients_97.csv')
 ```
 
+# updated data for the new table 1
 
 ```{r}
 library(gtsummary) 
-PTB <- read_csv('../data/156_combined_PTB.csv')
+PTB <- read_csv('../data/156_combined_PTB.csv') 
 
 final <- PTB %>% 
   select(age, sex, Disease = disease.simple, source,  intensity) %>% 
@@ -269,7 +270,6 @@ final %>%
   as_gt() %>%
   #gt::tab_footnote(footnote = "MDS/MPN = Myelodysplastic/myeloproliferative neoplasms") %>% 
   gt::gtsave(filename = "../data/Table_1_patient_summary_003.pdf")
-
 ```
 
 

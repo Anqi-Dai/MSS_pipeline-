@@ -73,45 +73,98 @@ post_matrix <- post_df %>%
 
 hclust_obj <- hclust(dist(post_matrix), method = "complete")
 dendrogram <- as.dendrogram(hclust_obj)
-dendro <- ggdendrogram(dendrogram, rotate = TRUE) 
-ggsave('../data/180_dendro.pdf', width = 10, height = 10)
+dendro <- ggdendrogram(dendrogram, rotate = TRUE) +
+  theme(axis.text.x=element_blank(), plot.margin = unit(c(-3,0,-7,-1), "cm"))
+#ggsave('../data/180_dendro.pdf', width = 10, height = 10) 
+genus_odr <- dendrogram %>% labels
+dendro
 ```
 
-
-
+# make the heatmap and sort by the dendrogram genus
 
 ```{r}
-genera <- read_csv('../data/171_post_res_genera.csv')
+fg_order <- c( 'Vegetables','abx + Vegetables',
+                 'Oils','abx + Oils',
+                 'Fruits','abx + Fruits',
+                 'Meats','abx + Meats',
+                 'Legumes','abx + Legumes',
+                 'Eggs','abx + Eggs',
+                 'Milk','abx + Milk',
+                 'Grains','abx + Grains',
+                 'Sweets','abx + Sweets',
+                 "TPN" ,"EN" , 'abx')
+
+genera <- read_csv('../data/171_post_res_genera.csv') %>% 
+   mutate(mark = if_else(q99.5 < 0 | q0.5 > 0, '***', if_else(q98.75 < 0 | q1.25 > 0, '**', if_else(q97.5 < 0 | q2.5 > 0, '*', '')))) %>% 
+  filter(!item %in% c('nonablative','reduced','ablative')) %>% 
+  mutate(shortname = factor(shortname, levels = rev(fg_order)),
+         genus = factor(genus, levels = genus_odr))
+
+library(cowplot)
+title <- ggdraw() + 
+  draw_label(
+    "Fig S6",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(plot.margin = margin(0, 0, 0, 3))
 ```
 
+```{r} 
+axis_text_size <- 7
+axis_title_size <- 7
 
-```{r}
-# Load the necessary libraries
-library(ggplot2)
+col_key <- genera %>% 
+  ungroup() %>% 
+  distinct(color) %>% 
+  pull(color)
+names(col_key) <- col_key # will be mapped alphabetically 
 
+genus_fg_main <- ggplot(genera, aes(x = shortname, y = genus)) +
+  geom_tile(aes(fill = color,  x = shortname, y =  genus), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  geom_text(aes(label = mark, x = shortname,y =  genus),
+            nudge_y = -0.1, nudge_x = 0,size = 3) +
+  scale_fill_manual(values = col_key, labels = c('75% CI > 0 positive', '75% CI < 0 negative', 'Less than 75% CI crosses 0' )) +
+  theme_pubr() +
+  theme(axis.title.x = element_blank(),axis.title.y = element_blank(),
+        axis.text.x = element_text(angle=45, hjust=1, size=10),
+        axis.text.y=element_text(size=8),
+        legend.position = 'none',
+        panel.background=element_rect(colour="black"),
+        legend.key = element_rect( colour = "gray50")) 
 
-# Create a data matrix
-data <- matrix(rnorm(100), nrow = 10) %>% as.data.frame()
+# assemble the legend of the heatmap separately
+plothm <- ggplot(genera, aes(x = shortname, y = genus)) +
+  geom_tile(aes(fill = color,  x = shortname, y =  genus), alpha = 0.5, color='white', width=0.95, height=0.95) +
+  scale_fill_manual(values = col_key, labels = c('75% CI > 0 positive', '75% CI < 0 negative', 'Less than 75% CI crosses 0' ))   +
+  theme(legend.position = 'top',legend.title = element_blank(),
+        legend.key = element_rect( colour = "gray50")) 
+    
+legend <- as_ggplot(get_legend(plothm)   )  
 
-# Perform hierarchical clustering
-hclust_obj <- hclust(dist(data), method = "complete")
+dendropart <- plot_grid(
+  NA, dendro,NA, ncol = 1,rel_heights = c(-.48,.5, -.48),
+ align = 'hv', axis = 'lrtb'
+) +theme(plot.margin = unit(c(0,-3,0,0), "cm")) 
 
-# Create a dendrogram
-dendrogram <- as.dendrogram(hclust_obj)
+final_plot <- plot_grid(
+  genus_fg_main, dendropart,
+ nrow = 1, ncol = 2,rel_widths = c(2,1.3),
+ align = 'hv', axis = 'lrtb'
+) 
 
-# Plot the dendrogram
-dendro <- ggdendrogram(dendrogram, rotate = TRUE)
+combined <- plot_grid(
+  title,legend, final_plot,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.05,0.057, 1)
+) +theme(plot.margin = unit(c(1,.5,1,.5), "cm"))
 
-# Create a heatmap
-heatmap <- ggplot(data = data, aes(x = -10:-1, y = 1:10)) +
-  geom_tile() +
-  scale_fill_gradient(low = "white", high = "red")
-
-# Combine the dendrogram and heatmap
-final_plot <- ggarrange(heatmap, dendro, nrow = 2, ncol = 1)
-
-# Show the plot
-final_plot
+ggsave('../data/S6_genus_heatmap_180.pdf',
+      width = 210, height = 297, units = "mm", device = 'pdf', 
+      plot = combined, 
+      dpi = 300)
 
 ```
 

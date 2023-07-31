@@ -12,36 +12,10 @@ knitr::opts_chunk$set(echo = TRUE)
 library(scales)
 library(ggpubr)
 library(tidyverse)
-exp_title <- 'Experiments 10, 12, 13, 14'
-alldat4 <- readRDS("../data/alldat4.rds")
-library(vdbR)
-connect_database()
-get_table_from_database('asv_alpha_diversity_ag')
+old <- readRDS("../data/alldat4.rds")
 ```
 
 
-```{r}
-gg4 <- alldat4 %>% 
-  ggplot(aes(day_factor_simple, y=as.numeric(Log_CFUs_per_GramStool))) + 
-  geom_boxplot(aes(fill = diet_treatment), alpha = 0.7,  outlier.shape = NA) +
-  geom_jitter(width = 0.1, alpha = 0.4, shape = 16, size = 2) +
-  # geom_dotplot(dotsize=3, binaxis='y', stackdir='center', position=position_dodge(0.5), binwidth = 0.05) +
-  ylab("CFUs/gram of stool, Log10 Scale") +
-  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
-                labels = trans_format("log10", math_format(10^.x))) +
-  facet_grid(. ~abx_treatment + diet_treatment)+
-  ggtitle(exp_title) +
-  theme(axis.text.x = element_text(angle = 90, vjust =0.5, hjust = 0.5)) +
-  theme_classic() +
-  # geom_text_repel(data=alldat1, aes(Day,as.numeric(Log_CFUs_per_GramStool), label=Mouse_identifier), fontface='bold')+
-  theme(legend.position = "none")
-
-alldat4$Mouse_identifier %>% unique() %>% length()
-# wilxocon = 0.0012 for day 6-7
-# N = 36 mice across 4 independent experiments
-gg4
-# ggsave("biapenem_combo.pdf", plot = gg4, device = "pdf")
-```
 
 ```{r}
 #Just for targeted stats purposes of day 6-7 with stat_compare_means()
@@ -93,7 +67,15 @@ oneweek_fc <- dat07 %>%
 
 ```
 
-```{r f4_boxplot}
+# the mouse panel for fig 3
+
+```{r}
+# clean the data 
+alldat4 <- readxl::read_excel('../data/Sucrose Experiment_July2023.xlsx')     
+```
+
+
+```{r f3_boxplot}
 # make a nicer version of the fig4 with the day 0 and one week data and also with the control meaning no abx vehicle 
 # make one with all three timepoints 
 # make one with only day 0 and one week for the main paper
