@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
+set.seed(1)
 library(tidyverse)
 library(brms)   
 library(ggpubr)
@@ -123,10 +124,6 @@ div_priors <- c(# for the food group variables
 ```
 
 
-
-
-
-
 ```{r}
 model_div <- brm( div_model,  
               data = meta, 
@@ -158,8 +155,17 @@ fitPrior <- brm(div_model, data=meta,
            sample_prior = "only")
 # the below is the posterior predictive check 
 prior_c <- pp_check(fitPrior, type = "scatter_avg", ndraws = 100)$data
-prior_pred <-pp_check(fitPrior, type = "boxplot", nreps = 10, notch = FALSE)
-#pp_check(fitPrior)
+```
+
+
+```{r}
+set.seed(123)
+prior_pred <- pp_check(fitPrior, type = "boxplot", nreps = 10, notch = FALSE, alpha = 0) +
+  labs(y = 'log(microbiome alpha diversity)') +
+   scale_color_discrete(labels=c('observed distribution', 'simulated from prior predictive distribution')) +
+  theme(legend.position = 'bottom', legend.title = element_blank())
+  
+prior_pred 
 ```
 
 # for the S3
@@ -188,10 +194,14 @@ post_c %>%
 # I think it's a good fit from the posterior !
 ```
 
+
+
 ```{r}
-S3 <-  plot_grid(prior_pred,post_pred,
-                labels = c('A','B'),
-                 nrow = 2) 
+fg_pt <- read_rds('../data/176_fg_intensity.rds')
+
+S3 <- ggarrange(prior_pred, fg_pt,
+          labels = c("A", "B"), align = "v",
+          ncol = 1, nrow = 2)
  
 title <- ggdraw() + 
   draw_label(
@@ -209,9 +219,9 @@ combined <- plot_grid(
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-) +theme(plot.margin = unit(c(1,4,6,5), "cm"))
+) +theme(plot.margin = unit(c(1,3,1,3), "cm"))
 
-ggsave('../data/S3_pp_check_173.pdf',
+ggsave('../data/S3_pp_check_and_intensity_173.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', 
       #plot = combined, 
       dpi = 300)

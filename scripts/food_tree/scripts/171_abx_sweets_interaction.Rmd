@@ -39,7 +39,7 @@ cts <- get_counts_subset(meta$sampleid)
 cts_ <- cts %>% 
   select(asv_key, sampleid, count)
 annot <- asv_annotation_blast_ag %>% 
-  filter(asv_key ,..,%in% cts_$asv_key)
+  filter(asv_key %in% cts_$asv_key)
 cts_all <- cts_ %>% 
   left_join(annot %>%  select(asv_key, genus), by  = 'asv_key') %>% 
   group_by(sampleid, genus) %>% 
@@ -70,6 +70,8 @@ few <- read_csv('../data/087_extra_6_genus_name.csv')
 
 clr_res %>% filter(genus %in% few$genus) %>% 
   gghistogram(x = 'clr', facet.by = 'genus')
+
+clr_res %>% write_csv('../data/171_genus_CLR_res.csv')
 ```
 
 ```{r}
@@ -109,6 +111,13 @@ gcts <- read_csv('../data/088_genus_relab_log10_wide.csv') %>%
 
 extra_full <- meta %>% 
   inner_join(clr_few)
+
+clr_entero <- clr_res %>% 
+  filter(genus %in% c('Enterococcus'))
+
+extra_entero <- meta %>% 
+  inner_join(clr_entero) %>% 
+  rename(Enterococcus = clr)
 ```
 
 
@@ -147,7 +156,55 @@ priors <- c(# for the food group variables
             )
 ```
 
+
+
+
 # Enterococcus only
+
+```{r prior}
+# prior predictive check
+entero_model <- Enterococcus ~ 0 +
+                intensity+
+               fg_fruit_e+
+                fg_meat_e+
+                fg_milk_e+
+                fg_oils_e+
+                fg_egg_e+
+                fg_grain_e+
+                fg_sweets_e+
+                fg_legume_e+
+                fg_veggie_e+
+                abx+
+               fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+fitPrior_entero <- brm(entero_model, data=extra_entero, 
+                family = 'gaussian',
+                prior=priors,  control = list(adapt_delta = 0.99),
+           sample_prior = "only")
+```
+
+
+```{r prior}
+set.seed(123)
+prior_pred_entero <- pp_check(fitPrior_entero, type = "boxplot", nreps = 10, notch = FALSE, alpha = 0) +
+  labs(y = 'Enterococcus relative abundance CLR transformed') +
+   scale_color_discrete(labels=c('observed distribution', 'simulated from prior predictive distribution')) +
+  theme(legend.position = 'bottom', legend.title = element_blank())
+  
+prior_pred_entero 
+```
+
 
 ```{r}
 mod_entero =  brm(Enterococcus ~ 0 +
@@ -406,3 +463,64 @@ genus_fg_main
 ggsave('../data/171_genus_main.pdf', width = 15)
 ```
  
+# supp for the intensity as intercept one in enterococcus
+
+```{r}
+# the intercept from the enterococcus one with its CLR transformation
+entero <- read_csv('../data/171_entero_model_fg_post_interaction.csv')  %>% 
+  select(starts_with('b_')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal'))%>% 
+  mutate(shortname = item,
+    shortname = case_when(
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    TRUE ~ `shortname`
+  ))
+ 
+entero_pt <- entero %>% 
+  filter(grp == 'patient') %>% 
+  mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
+  ggplot(aes(x = coeff, y = shortname)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  labs(x = 'CLR(Enterococcus) change', y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text = element_text( size = 10),
+         panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
+        aspect.ratio=1/3.1)   
+
+
+
+S4 <- ggarrange(prior_pred_entero, entero_pt,
+          labels = c("A", "B"), align = "v",
+          ncol = 1, nrow = 2)
+
+title <- ggdraw() + 
+  draw_label(
+    "Fig S4",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+combined <- plot_grid(
+  title, S4,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+) +theme(plot.margin = unit(c(1,3,1,3), "cm"))
+
+ggsave('../data/S4_pp_check_and_intensity_enterococcus_171.pdf',
+      width = 210, height = 297, units = "mm", device = 'pdf', 
+      #plot = combined, 
+      dpi = 300)
+```
+

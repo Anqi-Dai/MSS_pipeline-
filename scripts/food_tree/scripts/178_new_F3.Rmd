@@ -12,6 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(ggpubr)
+library(scales)
 library(tidybayes)
 library(cowplot)
 theme_set(theme_pubr(base_size = 8))
@@ -120,32 +121,6 @@ combined <- plot_grid(
 
 ggsave('../data/S9_genus_diversity_correlation_178.pdf',
       width = 210, height = 290, units = "mm", device = 'pdf', plot = combined, dpi = 300)
-```
-# the correlation
-
-```{r}
-# res <- read_csv('../data/172_spearman_all.csv') 
-# entero_cor <- res %>% filter(genus == 'Enterococcus') %>% pull(rho)
-# blautia_cor <- res %>% filter(genus == 'Blautia') %>% pull(rho)
-# entero_y <- res %>% filter(genus == 'Enterococcus') %>% pull(neglogp)
-# blautia_y <- res %>% filter(genus == 'Blautia') %>% pull(neglogp)
-# 
-# corvo <- res %>% 
-#   ggscatter( x = 'rho', y = 'neglogp', col = 'sig05', alpha = 0.5, shape = 16, palette = 'jco') +
-#   labs(y = '- log10(adjusted p value)', x ='Spearman correlation') +
-#   scale_color_manual(values = c('#EFC000FF','#0073C2FF')) +
-#   annotate("text", x = entero_cor + 0.2, y = entero_y -1.5, label = "Enterococcus", size=3) +
-#   annotate("text", x = blautia_cor-0.05, y = blautia_y-2.5, label = "Blautia", size=3) +
-#   geom_segment(aes(x = entero_cor+ 0.09, y = entero_y-1, xend = entero_cor+0.01, yend = entero_y), arrow = arrow(length = unit(0.2, "cm"))) +
-#   geom_segment(aes(x = blautia_cor, y = blautia_y-2, xend = blautia_cor, yend = blautia_y-0.01), arrow = arrow(length = unit(0.2, "cm"))) +
-#   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-#   theme(axis.text = element_text( size = 10),
-#         legend.position = c(0.8,0.3),legend.title = element_blank() ,
-#         legend.text  = element_text(size=8),
-#         axis.title=element_text(size=10),
-#         aspect.ratio=1/1.3)
-#  
-# corvo 
 ```
 
 # the Enterococcus results
@@ -267,11 +242,64 @@ ggsave('../data/178_entero_panel.pdf', width = 4.5, height = 4.5, plot = entero_
 # the mouse experiment
 
 ```{r}
-p <- '../data/F3_mouse.png'
-mouse <- ggdraw() +
-  draw_image(magick::image_read(p),   scale = 1) 
-mouse 
+# clean the data  
+new <- readxl::read_excel('../data/Sucrose Experiment_July2023.xlsx')  %>% 
+  mutate(Log_CFUs_per_GramStool = (((((Colonies_counted*(100/Plated_volume_ul))/100)/(10^Dilution_factor) )*1000)/Stool_weight_mg)+1 ) %>%  
+  filter(Day != 1) %>% 
+  mutate(Day = factor(Day)) %>% 
+  separate(Treatment, into = c('diet_treatment','abx_treatment'), sep = ', ', remove = T) %>% 
+  mutate(diet_treatment = if_else(diet_treatment == 'Plain Hydrogel','vehicle','sucrose'),
+         abx_treatment = if_else(str_detect(abx_treatment, 'Bia'),'biapenem',abx_treatment),
+         diet_treatment = factor(diet_treatment, levels = c('vehicle','sucrose')),
+         abx_treatment = factor(abx_treatment, levels = c('PBS','biapenem')))
+new %>% count(abx_treatment)
 ```
+
+```{r}
+f3_mouse <- new %>% 
+  ggboxplot(x = 'Day', y = 'Log_CFUs_per_GramStool', add = 'dotplot',width = 0.3,fill = 'Day', alpha = 0.5,
+            xlab = '', ylab = 'Enterococcal\nLog10 CFU/gram',
+            add.params = list(size = 1, color = 'black', fill = 'Day',alpha = 1, shape = 16),
+            title = '') +
+  facet_grid(. ~abx_treatment + diet_treatment) +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
+                labels = trans_format("log10", math_format(10^.x))) +
+  scale_fill_manual(values = c('gray','#ffbcdc','deeppink2')) +
+  scale_color_manual(values = c('gray','#ffbcdc','deeppink2')) +
+  stat_compare_means(comparisons= list(c('0', '1 week')),
+            label= "p.signif",
+            method= 'wilcox.test',
+            exact=FALSE,
+						correct=FALSE) +
+  theme(axis.text =  element_text(size = 10),legend.position = 'none',aspect.ratio=3.5,
+        axis.title  =  element_text(size = 10))
+f3_mouse
+```
+
+```{r}
+# calculate the stats among the dark pink boxes     
+
+new_stats <- new %>% 
+  mutate(Day = as.character(Day)) %>% 
+  select(Log_CFUs_per_GramStool, diet_treatment, abx_treatment, Day)%>% 
+  mutate(grp = str_glue('{diet_treatment}_{abx_treatment}')) %>% 
+  filter(Day != '0')
+
+new_stats %>% 
+  ggboxplot(x = 'grp', y = 'Log_CFUs_per_GramStool', add = 'jitter',
+            xlab = '', ylab = 'CFUs/gram of stool, Log10 Scale',
+            add.params = list(size = 2, color = 'black', alpha = 0.5, shape = 16),
+            title = '') +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), labels = trans_format("log10", math_format(10^.x))) +
+  facet_grid( ~ Day) +
+  stat_compare_means(aes(label = after_stat(p.signif)),
+                 ref.group = "sucrose_biapenem",
+            method= 'wilcox.test')  +
+   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=.5))
+
+```
+
+
 
 # assemble
 
@@ -284,23 +312,23 @@ title <- ggdraw() +
     hjust = 0
   ) +
   theme(
-    plot.margin = margin(0, 0, 0, 7)
+    plot.margin = margin(0, 0, 0, 5)
   )
 
 
-f3 <- plot_grid(correbar, entero_panel,mouse, label_size = 12, ncol = 1,labels = c('A','B','C'),
-                align = 'vh', axis = 'lrtb', rel_heights = c(1,1.5,1.5))
+f3 <- plot_grid(correbar, entero_panel,f3_mouse, label_size = 12, ncol = 1,labels = c('A','B','C'),
+                align = 'vh', axis = 'lrtb', rel_heights = c(1,1.4,1))
 
  
 combined <- plot_grid(
   title, f3,
   ncol = 1,
   # rel_heights values control vertical title margins
-  rel_heights = c(0.1, 1)
-)+theme(plot.margin = unit(c(1,6,1,4), "cm"))
+  rel_heights = c(0.05, 1)
+)+theme(plot.margin = unit(c(1,7,1,1), "cm"))
 
 ggsave('../data/F3_current_178.pdf',
-      width = 210, height = 290, units = "mm", device = 'pdf', plot = combined, dpi = 300)
+      width = 210, height = 297, units = "mm", device = 'pdf', plot = combined, dpi = 300)
 
 ```
 

@@ -69,7 +69,7 @@ df_main <- read_csv('../data/df_main.csv') %>%
 # the diversity close to the engraftment for the patients 
 # average food diversity between the period 
 
-#colnames(df_main) 
+colnames(df_main) 
 
 df_main %>% select(-mrn) %>%  summary
 
