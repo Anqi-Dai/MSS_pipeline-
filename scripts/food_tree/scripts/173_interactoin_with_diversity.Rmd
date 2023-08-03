@@ -56,6 +56,7 @@ meta <- read_csv('../data/153_combined_META.csv') %>%
                 fg_sweets_e=fg_sweets*abx,
                 fg_legume_e=fg_legume*abx,
                 fg_veggie_e = fg_veggie*abx)
+
 ```
 
 

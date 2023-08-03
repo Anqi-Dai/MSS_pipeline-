@@ -89,7 +89,6 @@ correbar <- main %>%
   guides(fill = guide_legend(title = "Correlated with"))
 ```
 
-
 ```{r}
 # make a panel with all the sig ones for the supplementary
 correbar_all <- res %>% 
@@ -103,7 +102,7 @@ correbar_all <- res %>%
 
 title <- ggdraw() + 
   draw_label(
-    "Fig S9",
+    "Fig. S7",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -119,7 +118,7 @@ combined <- plot_grid(
   rel_heights = c(0.1, 1)
 )+theme(plot.margin = unit(c(1,1,1,1), "cm"))
 
-ggsave('../data/S9_genus_diversity_correlation_178.pdf',
+ggsave('../data/S7_genus_diversity_correlation_178.pdf',
       width = 210, height = 290, units = "mm", device = 'pdf', plot = combined, dpi = 300)
 ```
 
@@ -170,7 +169,6 @@ entero %>%
   distinct(item) %>% pull(item)
 ```
 
-
 ```{r}
 # deciding on how to order these terms 
 # find the q25 of the coeffs
@@ -179,7 +177,6 @@ fg_order <- entero %>% filter(str_detect(item, '_e$')) %>%
   tidybayes::median_qi(coeff , .width = c( .66)) %>% 
   arrange(.lower) %>% pull(shortname)
 ```
-
 
 ```{r}
 total_order <- c('Vegetables','abx + Vegetables',
@@ -213,7 +210,6 @@ mostpos <- entero %>%
 mostpos
 
 ```
-
 
 ```{r}
 entero_df <- entero %>% 
@@ -255,55 +251,50 @@ new <- readxl::read_excel('../data/Sucrose Experiment_July2023.xlsx')  %>%
 new %>% count(abx_treatment)
 ```
 
+```{r combined_data}
+newest <- readxl::read_excel('../data/Sucrose_All Experiments Consolidated .xlsx') %>% 
+  mutate(Log_CFUs_per_GramStool = (((((Colonies_counted*(100/Plated_volume_ul))/100)/(10^Dilution_factor) )*1000)/Stool_weight_mg)+1 ) %>%   
+  filter(Day != 1) %>% 
+  mutate(Day = factor(Day)) %>% 
+  separate(Treatment, into = c('diet_treatment','abx_treatment'), sep = ', ', remove = T) %>% 
+  mutate(diet_treatment = if_else(diet_treatment == 'Vehicle','vehicle','sucrose'),
+         abx_treatment = if_else(str_detect(abx_treatment, 'Bia'),'biapenem',abx_treatment),
+         diet_treatment = factor(diet_treatment, levels = c('vehicle','sucrose')),
+         abx_treatment = factor(abx_treatment, levels = c('PBS','biapenem')))
+```
+
 ```{r}
-f3_mouse <- new %>% 
-  ggboxplot(x = 'Day', y = 'Log_CFUs_per_GramStool', add = 'dotplot',width = 0.3,fill = 'Day', alpha = 0.5,
-            xlab = '', ylab = 'Enterococcal\nLog10 CFU/gram',
-            add.params = list(size = 1, color = 'black', fill = 'Day',alpha = 1, shape = 16),
-            title = '') +
-  facet_grid(. ~abx_treatment + diet_treatment) +
+# maybe I can plot in a different way 
+plotdf <- newest %>% 
+  arrange(abx_treatment,diet_treatment,  Day) %>% 
+  mutate(xvar = str_glue('{abx_treatment}__{diet_treatment}__{Day}'))
+
+plotdf %>% 
+  filter(str_detect(xvar, '3$')) %>% count(xvar)
+```
+
+```{r}
+f3_mouse <- plotdf %>% 
+  ggboxplot(x = 'xvar', y = 'Log_CFUs_per_GramStool',add = 'jitter', 
+             xlab = '', ylab = 'Enterococcal\nLog10 CFU/gram',
+            width = 0.6,color  = 'Day')+
+   scale_color_manual(values = c('gray','#ffbcdc','deeppink2')) +
+  stat_compare_means(comparisons= list(c('biapenem__sucrose__3', 'biapenem__vehicle__3'),
+                                       c('biapenem__sucrose__3', 'PBS__sucrose__3'),
+                                       c('biapenem__sucrose__3', 'PBS__vehicle__3'),
+                                     
+                                       c('biapenem__sucrose__6', 'biapenem__vehicle__6'),
+                                       c('biapenem__sucrose__6', 'PBS__sucrose__6'),
+                                       c('biapenem__sucrose__6', 'PBS__vehicle__6') ),
+            label= "p.signif", method= 'wilcox.test',tip.length = 0.04,exact=T,correct=T) +
   scale_y_log10(breaks = c(1 %o% 10^(-1:12)), 
                 labels = trans_format("log10", math_format(10^.x))) +
-  scale_fill_manual(values = c('gray','#ffbcdc','deeppink2')) +
-  scale_color_manual(values = c('gray','#ffbcdc','deeppink2')) +
-  stat_compare_means(comparisons= list(c('0', '1 week')),
-            label= "p.signif",
-            method= 'wilcox.test',
-            exact=FALSE,
-						correct=FALSE) +
-  theme(axis.text =  element_text(size = 10),legend.position = 'none',aspect.ratio=3.5,
-        axis.title  =  element_text(size = 10))
-f3_mouse
-```
-
-```{r}
-# calculate the stats among the dark pink boxes     
-
-new_stats <- new %>% 
-  mutate(Day = as.character(Day)) %>% 
-  select(Log_CFUs_per_GramStool, diet_treatment, abx_treatment, Day)%>% 
-  mutate(grp = str_glue('{diet_treatment}_{abx_treatment}')) %>% 
-  filter(Day != '0')
-
-new_stats %>% 
-  ggboxplot(x = 'grp', y = 'Log_CFUs_per_GramStool', add = 'jitter',
-            xlab = '', ylab = 'CFUs/gram of stool, Log10 Scale',
-            add.params = list(size = 2, color = 'black', alpha = 0.5, shape = 16),
-            title = '') +
-  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), labels = trans_format("log10", math_format(10^.x))) +
-  facet_grid( ~ Day) +
-  stat_compare_means(aes(label = after_stat(p.signif)),
-                 ref.group = "sucrose_biapenem",
-            method= 'wilcox.test')  +
-   theme(axis.text.x = element_text(angle = 45, vjust = 0.5, hjust=.5))
-
-```
-
+  theme(axis.text.x = element_blank(),axis.ticks.x=element_blank(),
+        axis.text =  element_text(size = 10),legend.position = 'none',aspect.ratio=1/1.3)
+  
 
 
 # assemble
-
-```{r}
 title <- ggdraw() + 
   draw_label(
     "Fig 3",
@@ -317,7 +308,7 @@ title <- ggdraw() +
 
 
 f3 <- plot_grid(correbar, entero_panel,f3_mouse, label_size = 12, ncol = 1,labels = c('A','B','C'),
-                align = 'vh', axis = 'lrtb', rel_heights = c(1,1.4,1))
+                align = 'vh', axis = 'lrtb', rel_heights = c(1,1.55,1))
 
  
 combined <- plot_grid(
@@ -330,5 +321,86 @@ combined <- plot_grid(
 ggsave('../data/F3_current_178.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', plot = combined, dpi = 300)
 
+```
+
+# the vardi test to see the change over time whether it is significant 
+
+```{r}
+# to plot the abx group data with lines concecting each mouse 
+abxgrp <- newest %>% 
+  filter(abx_treatment == 'biapenem')
+ 
+abxgrp %>% 
+  ggboxplot(x = 'Day', y = 'Log_CFUs_per_GramStool',
+            xlab = '', ylab = 'CFUs/gram of stool, Log10 Scale',
+            add.params = list(size = 2, color = 'Mouse_identifier', alpha = 0.5, shape = 16),
+            title = 'abx group') +
+   geom_line(aes(group = Mouse_identifier, color = Mouse_identifier), alpha = 1, size = 1.5) +
+  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), labels = trans_format("log10", math_format(10^.x))) +
+  facet_grid( ~ diet_treatment) +
+  #stat_compare_means(aes(label = after_stat(p.signif)),ref.group = "sucrose_biapenem", method= 'wilcox.test')  +
+   theme(axis.text.x = element_text(angle = 0, vjust = 0.5, hjust=.5))
+
+ggsave('../data/178_abx_mouse_line_connected.pdf', width = 10, height = 7)
+```
+
+
+
+```{r vardi}
+
+newest <- read_csv('../data/178_mouse_data.csv') 
+abxgrp <- newest %>% 
+  filter(abx_treatment == 'biapenem')
+
+
+library(clinfun)  
+# actually two groups in the abx grp
+
+vardidf <- abxgrp %>% 
+  select(diet_treatment:Mouse_identifier, Log_CFUs_per_GramStool) %>% 
+  mutate(grp = str_glue('{abx_treatment}__{diet_treatment}')) %>% 
+  select(-diet_treatment, -abx_treatment) %>% 
+  spread('Day','Log_CFUs_per_GramStool') 
+#vardidf %>% count(diet_treatment, abx_treatment, Mouse_identifier)
+vardidf
+vardicts <- vardidf %>% 
+  select(-Mouse_identifier, -grp) %>% as.matrix()
+
+vardigrp <- vardidf$grp
+  
+# Make pairwise comparisons between all the groups
+combos.to.test <-  data.frame(combn(unique(vardigrp),2))
+combos.to.test[] <- lapply(combos.to.test, as.character)
+stats.results <- plyr::ldply(combos.to.test, function(x) {
+  # x <- combos.to.test[[1]]
+  paste(x)
+  u <- aucVardiTest(vardicts, vardigrp, cgrps=x) 
+  u$p.value
+  return(data.frame(Grp.Vs = x[1],
+                    Gr = x[2],
+                    p.value = round(u$p.value, 3)))
+}) 
+
+
+#set thresholds for what asterisks mean
+stats.results$.id <- NULL
+p.value.star <- 0.05      
+p.value.double <- 0.01
+
+stats.results$sig[stats.results$p.value > p.value.star] <- " "
+stats.results$sig[stats.results$p.value <= p.value.star] <- "*"
+stats.results$sig[stats.results$p.value <= p.value.double] <- "**"
+print(stats.results, row.names = F)
+#newest %>% write_csv('../data/178_mouse_data.csv')
+```  
+
+```{r}
+# repeat the vardi test for only day 0 and 6 data
+d6 <-  abxgrp %>% 
+  select(diet_treatment:Mouse_identifier, Log_CFUs_per_GramStool) %>% 
+  filter(Day )
+  mutate(grp = str_glue('{abx_treatment}__{diet_treatment}')) %>% 
+  select(-diet_treatment, -abx_treatment) %>% 
+  spread('Day','Log_CFUs_per_GramStool') 
 ```
 
