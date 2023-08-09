@@ -61,7 +61,7 @@ mrn_figure <- mrn_forest %>%
 
 title <- ggdraw() + 
   draw_label(
-    "Fig S5",
+    "Fig. S4",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -77,7 +77,7 @@ combined <- plot_grid(
   rel_heights = c(0.1, 6)
 )+theme(plot.margin = unit(c(1,0,0,1), "cm"))
   
-ggsave('../data/S5_mrn_intercepts_forest_179.pdf',  
+ggsave('../data/S4_mrn_intercepts_forest_179.pdf',  
      width = 210, height = 297, units = "mm", device = 'pdf', plot = combined, dpi = 300)
  
 

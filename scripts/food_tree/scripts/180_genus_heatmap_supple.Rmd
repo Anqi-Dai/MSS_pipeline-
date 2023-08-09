@@ -103,7 +103,7 @@ genera <- read_csv('../data/171_post_res_genera.csv') %>%
 library(cowplot)
 title <- ggdraw() + 
   draw_label(
-    "Fig S6",
+    "Fig. S8",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -161,7 +161,7 @@ combined <- plot_grid(
   rel_heights = c(0.05,0.057, 1)
 ) +theme(plot.margin = unit(c(1,.5,1,.5), "cm"))
 
-ggsave('../data/S6_genus_heatmap_180.pdf',
+ggsave('../data/S8_genus_heatmap_180.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', 
       plot = combined, 
       dpi = 300)

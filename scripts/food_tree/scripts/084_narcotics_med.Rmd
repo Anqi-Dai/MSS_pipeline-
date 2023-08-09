@@ -196,29 +196,55 @@ meta_new <- meta %>%
          fg_milk = fg_milk/100,
          fg_oils = fg_oils/100,
          fg_sweets = fg_sweets/100,
-         fg_veggie = fg_veggie/100)
+         fg_veggie = fg_veggie/100) %>%    
+  mutate(abx = if_else(empirical == 'TRUE', 1, 0),
+         TPN = if_else(TPN == 'TRUE', 1, 0),
+         EN = if_else(EN == 'TRUE', 1, 0),
+         pca = if_else(narcotics == 'TRUE', 1, 0)) %>% 
+  mutate(      fg_fruit_e= fg_fruit*abx,
+                fg_meat_e=fg_meat*abx,
+                fg_milk_e=fg_milk*abx,
+                fg_oils_e=fg_oils*abx,
+                fg_egg_e=fg_egg*abx,
+                fg_grain_e=fg_grain*abx,
+                fg_sweets_e=fg_sweets*abx,
+                fg_legume_e=fg_legume*abx,
+                fg_veggie_e = fg_veggie*abx)
 
-meta_new %>% count(narcotics)
-meta_new %>% filter(narcotics == 'TRUE') %>% distinct(mrn)
+meta_new %>% count(narcotics) %>% filter(narcotics == 'TRUE')
 ```
 
 
 ```{r}
-model_nar <- log(simpson_reciprocal)~ 0 +
-                fg_fruit+
-               fg_meat+
-               fg_milk+
-               fg_oils+
-                fg_egg+ 
+meta_new %>% filter(narcotics == 'TRUE') %>% distinct(mrn) %>% nrow
+```
+
+
+```{r}
+model_nar <- log(simpson_reciprocal) ~ 0 +
+                intensity+
+               fg_fruit_e+
+                fg_meat_e+
+                fg_milk_e+
+                fg_oils_e+
+                fg_egg_e+
+                fg_grain_e+
+                fg_sweets_e+
+                fg_legume_e+
+                fg_veggie_e+
+                abx+
+               fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+
                 fg_grain+
-                fg_sweets+  
+                fg_sweets+
                 fg_legume+
                 fg_veggie+
-               intensity +
-               empirical+
                 TPN+
                 EN+
-                narcotics +
+                pca+
                (1 | mrn) +
                 (1 | timebin)
 
@@ -232,18 +258,29 @@ priors <- c(# for the food group variables
             prior(normal(0, 1), class = 'b', coef = "fg_oils"),
             prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
             prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
-            # for the TPN 
-            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # interaction terms
+            prior(normal(0, 1), class = 'b', coef = "fg_egg_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie_e"),
+            # for the TPN
+            prior(normal(0, 0.1), class = 'b', coef = "TPN"),
             # for the EN
-            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
-            # for the empirical 
-            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
-            # for narcotics
-            prior(normal(0, 0.1), class = 'b', coef = "narcoticsTRUE"),
-            # for the intensity 
-            prior(normal(2, 0.1), class = 'b', coef = "intensityreduced"),
-            prior(normal(2, 0.1), class = 'b', coef = "intensityablative"),
-            prior(normal(2, 0.1), class = 'b', coef = "intensitynonablative"))
+            prior(normal(0, 0.1), class = 'b', coef = "EN"),
+             # for the PCA
+            prior(normal(0, 0.1), class = 'b', coef = "pca"),
+            # for the empirical
+            prior(normal(0, 0.5), class = 'b', coef = "abx"),
+            # for the intensity
+            prior(normal( 2, .1), class = 'b', coef = "intensityablative"),
+            prior(normal( 2, .1), class = 'b', coef = "intensityreduced"),
+            prior(normal( 2, .1), class = 'b', coef = "intensitynonablative")
+            )
 
 model_narcotics <- brm( model_nar,  
               data = meta_new, 
@@ -254,22 +291,37 @@ model_narcotics <- brm( model_nar,
               chains = 2, 
               seed = 123, sample_prior = T) 
 
-post_samples  <- posterior_samples(model_narcotics, '^b_')
+
 
 post_pca <- suppressWarnings(posterior_samples(model_narcotics)) 
 
 post_pca %>%  write_csv('../data/084_narcotics_PCA_model_post.csv')
 ```
 
-```{r}
+```{r} 
+fg_order <- c( 'Vegetables','abx + Vegetables',
+                 'Oils','abx + Oils',
+                 'Fruits','abx + Fruits',
+                 'Meats','abx + Meats',
+                 'Legumes','abx + Legumes',
+                 'Eggs','abx + Eggs',
+                 'Milk','abx + Milk',
+                 'Grains','abx + Grains',
+                 'Sweets','abx + Sweets',
+                 "TPN" ,"EN" ,'PCA', 'abx')
+
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 
-post_samples <- read_csv('../data/084_narcotics_PCA_model_post.csv')
+fg_label <- tibble(ord = fg_order) %>% 
+  mutate(shortname = str_replace(ord, 'abx \\+ ','')) %>% 
+  left_join(key %>% select(shortname, color)) %>% 
+  mutate(color = if_else(is.na(color), 'black', color))
 
-post_coeff <- post_samples %>% 
-  select(starts_with('b_fg')) %>% 
+cleaned_pca <- post_pca  %>% select(starts_with('b_')) %>% 
   gather('item', 'coeff') %>% 
-  mutate(item = str_replace(item, 'b_fg_','')) %>% 
+  mutate(item = str_replace(item, 'b_fg_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
    mutate(fgrp1 = case_when(
     item ==  'milk' ~ '1',
     item == 'meat' ~ '2',
@@ -281,119 +333,96 @@ post_coeff <- post_samples %>%
     item ==  'oils' ~ '8', 
     item ==  'sweets' ~ '9'
   ))  %>% 
-  left_join(key) %>% 
-  left_join(key %>% select(fgrp1, color, shortname))  
+  left_join(key %>% select(fgrp1, color, shortname)) %>% 
+  mutate(shortname = case_when(
+        item ==  'milk_e' ~ 'abx + Milk',
+    item == 'meat_e' ~ 'abx + Meats',
+    item ==  'egg_e' ~ 'abx + Eggs',
+    item ==  'legume_e' ~ 'abx + Legumes',
+    item == 'grain_e' ~ 'abx + Grains',
+    item == 'fruit_e' ~ 'abx + Fruits',
+    item == 'veggie_e' ~ 'abx + Vegetables',
+    item ==  'oils_e' ~ 'abx + Oils', 
+    item ==  'sweets_e' ~ 'abx + Sweets',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'pca' ~ 'PCA',
+    item ==  'abx' ~ 'abx',
+    TRUE ~ `shortname`
+  )) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal'))
 
-percs <- post_coeff %>% 
-  count(shortname, coeff > 0) %>% 
-  mutate(perc =round(n/4000*100,1))  %>% select(-n) %>% 
-  spread('coeff > 0', 'perc') %>% 
-  rename(positive = 'TRUE', negative = 'FALSE') %>% 
-  mutate(neg_num = negative) %>% 
-  mutate(pos_x = 0.8, neg_x = -0.9) %>% 
-  mutate(positive = str_glue('{positive}%'),
-         negative = str_glue('{negative}%'))
+cross0 <- cleaned_pca %>%
+   filter(grp == 'temporal') %>% 
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 >= 0 | q97.5 <= 0, F, T))
 
-fg_order <- read_csv('../data/068_fg_sorting_order.csv') %>% pull(shortname)
-
-pca_fg <- post_coeff %>% 
-  left_join(percs) %>%
-  mutate(shortname = factor(shortname, levels = fg_order)) %>% 
-  ggplot(aes(x = coeff, y = shortname, fill = after_stat(x > 0))) +
-  stat_pointinterval(.width = c( .95, .95), size = 0.1) + stat_halfeye() + 
+pca_temporal <- cleaned_pca %>% 
+  filter(grp == 'temporal') %>% 
+  mutate(shortname = factor(shortname, levels = fg_label$ord)) %>% 
+  left_join(cross0) %>% 
+  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
+  stat_pointinterval(.width = c(.66, .95)) +
+  #geom_rect( data = cleaned_fg, aes(xmin = -Inf  , xmax = Inf,  ymin = shortname, ymax = shortname), fill = "grey", alpha = 0.8) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  geom_text(data = percs, aes(x = pos_x, y = shortname, label = positive, color = after_stat(x > 0))) +
-  geom_text(data = percs, aes(x = neg_x, y = shortname, label = negative, color =after_stat(x > 0))) +
-  #scale_fill_manual(values = c("gray80", "skyblue")) +
-  labs(x = 'ln(diversity) change per 100g of food',
-       y = '', 
-       title = 'Diversity') +
+  labs(x = 'ln(diversity) change', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = c( "#00BFC4", "#F8766D")) +
-  scale_fill_manual(values = c( "#00BFC4", "#F8766D")) +
-  theme(axis.text=element_text(size=axis_text_size, color  = 'black'),
-        axis.title=element_text(size=axis_text_size),
-        aspect.ratio=1)
-
-```
-
-```{r}
-coeff_bi <- post_samples %>% 
-  select(starts_with('b_')) %>% 
-  select(!starts_with('b_fg')) %>% 
-  gather('item', 'coeff') %>% 
-  mutate(item_name = case_when(
-    item ==  'b_intensitynonablative' ~ 'Intensity: nonablative',
-    item == 'b_intensityablative' ~ 'Intensity: ablative',
-    item ==  'b_intensityreduced' ~ 'Intensity: reduced',
-    item ==  'b_empiricalTRUE' ~ 'Empirical abx exposure',
-    item == 'b_TPNTRUE' ~ 'TPN exposure',
-    item ==  'b_ENTRUE' ~ 'EN exposure',
-    item == 'b_narcoticsTRUE' ~ 'PCA exposure'
-  )) %>% 
-  mutate(item_name = factor(item_name, levels = c('PCA exposure', 'Intensity: nonablative', 'Intensity: reduced',
-                                                  'Intensity: ablative', 'TPN exposure','EN exposure',
-                                                  'Empirical abx exposure'))) %>% 
-  mutate(grp = if_else(str_detect(item_name, 'Intensity'), 'Patient level', 'Sample level'))
+  scale_color_manual(values = c("#EC0000", "black")) +
+  theme(axis.text = element_text( size = 10),panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
+        axis.title=element_text(size=10), 
+        aspect.ratio=1.5)    
+pca_temporal
 
 
-pca_bi <- coeff_bi %>% 
-  ggplot(aes(x = coeff, y = item_name)) +
+pca_pt <- cleaned_pca %>% 
+  filter(grp == 'patient') %>% 
+  mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
+  ggplot(aes(x = coeff, y = shortname)) +
   stat_pointinterval(.width = c(.66, .95)) +
-  #scale_color_manual(values = c('#EC0000','#00468B')) +
-  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-   facet_wrap(grp~ . , scales = 'free', dir = 'v') +
-  labs(x = 'Coefficients',
-       y = '',
-       title = 'Diversity') +
+  labs(x = 'ln(diversity) change', y = '') +
+   #xlim(0.9, 3) +
   theme_classic() +
-  theme(legend.position = 'none',
-        axis.text=element_text(size=11),
-        axis.title=element_text(size=11),
-        strip.background = element_blank(),
-        strip.text = element_blank(),
-        aspect.ratio=1/2) 
-
-
+  theme(legend.position = 'none') +
+  theme(axis.text = element_text( size = 10),
+         panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
+        aspect.ratio=1/3.1) 
+pca_pt
 ```
 
-```{r}
-# combine them together to make one supplementary figure
+
+```{r} 
 library(cowplot)
+pca_all <-  plot_grid(pca_temporal,pca_pt,
+                rel_heights = c(2,1),align = 'vh',axis = 'lrtb',
+                 nrow = 2)
+
 title <- ggdraw() + 
   draw_label(
-    "Fig S8",
+    "Fig. S6",
     fontface = 'bold',
     x = 0,
     hjust = 0
   ) +
-  theme(
-    plot.margin = margin(0, 0, 0, 7)
-  )
+  theme( plot.margin = margin(0, 0, 0, 7))
 
-pca <- cowplot::plot_grid(pca_fg, pca_bi, 
-          nrow = 1, 
-          align = 'hv',
-          #rel_widths =  c(1,1),
-          #rel_heights = c(1,1),
-          labels = c('A','B'),
-          axis = 'tblr') 
-
+ 
 combined <- plot_grid(
-  title, pca,
+  title, pca_all,
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-)
+) +theme(plot.margin = unit(c(1,4,1,4), "cm"))
 
-```
-
-
-```{r}
-ggsave('../data/S8_narcotics_PCA_084.pdf',  
-      width = 210, height = 297, units = "mm", device = 'pdf', plot = combined)
-
+ggsave('../data/S6_pca_diversity_084.pdf',
+      width = 210, height = 297, units = "mm", device = 'pdf', 
+      plot = combined, 
+      dpi = 300)
 ```
 
 

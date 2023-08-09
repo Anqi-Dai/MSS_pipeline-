@@ -87,6 +87,9 @@ top3grp_sugar <- dtb %>%
 
 ```{r}
 # how about I plot it in bar plot and so I can have the sugar in gram per meal in the same bar to show the perc
+# the percentage of sugar in cola
+cola_sugar <- 0.7714132/0.8257381
+
 bars <- top3grp_sugar %>% 
   select(description, fg1_full_name,gram_sugar_per_meal, gram_per_meal ) %>% 
   gather('grp','gram',gram_sugar_per_meal: gram_per_meal) %>% 
@@ -105,13 +108,12 @@ order_ <- bars %>%
 
 
 ```{r}
-# the percentage of sugar in cola
-cola_sugar <- 0.7714132/0.8257381
+
 
 library(cowplot)
 title <- ggdraw() + 
   draw_label(
-    "Fig S8",
+    "Fig. S5",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -142,7 +144,7 @@ combined <- plot_grid(
   rel_heights = c(0.1, 1)
 )+theme(plot.margin = unit(c(1,3,6,1), "cm"))
  
-ggsave('../data/S8_top10_eaten_foods_of_sweets_099.pdf',  width = 210, height = 297, units = "mm", device = 'pdf', plot = combined, dpi = 300)
+ggsave('../data/S5_top10_eaten_foods_of_sweets_099.pdf',  width = 210, height = 297, units = "mm", device = 'pdf', plot = combined, dpi = 300)
 
 ```
 

@@ -150,9 +150,41 @@ post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
 # prior predictive check  
 
 ```{r}
+div_priors_smaller <- c(# for the food group variables
+            prior(normal(0, 0.1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_veggie"),
+            # interaction terms
+            prior(normal(0, 0.1), class = 'b', coef = "fg_egg_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_fruit_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_grain_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_legume_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_meat_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_milk_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_oils_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_sweets_e"),
+            prior(normal(0, 0.1), class = 'b', coef = "fg_veggie_e"),
+            # for the TPN
+            prior(normal(0, 0.1), class = 'b', coef = "TPN"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "EN"),
+            # for the empirical
+            prior(normal(0, 0.5), class = 'b', coef = "abx"),
+            # for the intensity
+            prior(normal( 2, .1), class = 'b', coef = "intensityablative"),
+            prior(normal( 2, .1), class = 'b', coef = "intensityreduced"),
+            prior(normal( 2, .1), class = 'b', coef = "intensitynonablative")
+            )
+
 fitPrior <- brm(div_model, data=meta, 
                 family = 'gaussian',
-                prior=div_priors, 
+                prior=div_priors_smaller, 
            sample_prior = "only")
 # the below is the posterior predictive check 
 prior_c <- pp_check(fitPrior, type = "scatter_avg", ndraws = 100)$data
@@ -176,10 +208,19 @@ prior_pred
 fit <- brm(div_model, data=meta, 
                 prior=div_priors, 
            sample_prior = "no")
+
+post_pred <- pp_check(fit, type = "boxplot", nreps = 10, notch = FALSE, alpha = 0)+
+  labs(y = 'log(microbiome alpha diversity)') +
+   scale_color_discrete(labels=c('observed distribution', 'simulated from posterior predictive distribution')) +
+  theme(legend.position = 'bottom', legend.title = element_blank())
+post_pred 
+
+
 # the below is the posterior predictive check 
 post_c <- pp_check(fit, type = "scatter_avg", ndraws = 100)$data
 
-post_pred <- pp_check(fit, type = "boxplot", nreps = 10, notch = FALSE)
+
+
 #pp_check(fit) 
 ```
 
@@ -196,17 +237,17 @@ post_c %>%
 ```
 
 
-
 ```{r}
 fg_pt <- read_rds('../data/176_fg_intensity.rds')
 
-S3 <- ggarrange(prior_pred, fg_pt,
+S3 <- ggarrange(post_pred, fg_pt,
           labels = c("A", "B"), align = "v",
+          label.y = 1,
           ncol = 1, nrow = 2)
  
 title <- ggdraw() + 
   draw_label(
-    "Fig S3",
+    "Fig. S3",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -220,9 +261,9 @@ combined <- plot_grid(
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-) +theme(plot.margin = unit(c(1,3,1,3), "cm"))
+) +theme(plot.margin = unit(c(2,3,6,3), "cm"))
 
-ggsave('../data/S3_pp_check_and_intensity_173.pdf',
+ggsave('../data/S3_postp_check_and_intensity_173.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', 
       #plot = combined, 
       dpi = 300)
