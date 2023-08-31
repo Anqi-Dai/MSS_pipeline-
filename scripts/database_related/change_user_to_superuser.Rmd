@@ -24,9 +24,9 @@ connect_database()
 get_table_from_database('test9')
 ```
 ```{sql, connection=con}
-ALTER USER sadeghik WITH SUPERUSER;
+ALTER USER Feblesb WITH SUPERUSER;
 ```
 
 ```{sql, connection=con}
-SELECT * FROM information_schema.table_privileges LIMIT 50;
+SELECT * FROM information_schema.tables LIMIT 50;
 ```

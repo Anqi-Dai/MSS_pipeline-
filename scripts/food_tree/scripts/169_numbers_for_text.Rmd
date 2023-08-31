@@ -177,3 +177,60 @@ dtb <- read_csv('../data/152_combined_DTB.csv')
 dtb %>% distinct(Food_code) %>% nrow
 ```
 
+# about broad spectrum antibiotics   
+
+```{r}
+PTB <- read_csv('../data/156_combined_PTB.csv')
+
+picked <-  c('vancomycin', 'imipenem_cilastatin','meropenem','ertapenem', 'cefepime', 'linezolid','metronidazole','piperacillin_tazobactam')
+
+med2 <- read_rds('../data/batch2_medication_exposures.rds') %>% 
+  select(MRN:stop_date, drug_name, route) %>% 
+  mutate(drug_name_clean = str_replace_all(drug_name, '-', '_')) %>% 
+  mutate(drug_name_clean = str_to_lower(drug_name_clean)) %>% 
+  mutate(drug_name_clean = case_when(
+    drug_name_clean == 'levofloxacin (levaquin)' ~ 'levofloxacin',
+    drug_name_clean == 'vancomycin invest' ~ 'vancomycin',
+    TRUE ~ drug_name_clean
+  )) %>% 
+  mutate(mrn = as.numeric(MRN)) %>% 
+  #filter(drug_name_clean %in% picked) %>% 
+  mutate(together = str_glue('{drug_name_clean}__{route}')) %>% 
+  filter(! together %in% c('vancomycin__IV')) 
+
+med1 <- read_rds('../data/tasks_nutrition_batch1_2022-11-29.rds') %>% 
+  select(MRN:stop_date, drug_name, route) %>% 
+  mutate(drug_name_clean = str_replace_all(drug_name, '-', '_')) %>% 
+  mutate(drug_name_clean = str_to_lower(drug_name_clean),
+         mrn = as.numeric(MRN))%>% 
+  mutate(together = str_glue('{drug_name_clean}__{route}')) %>% 
+  filter(! together %in% c('vancomycin__IV')) %>% 
+  select(colnames(med2))
+
+med_all <- bind_rows(med1, med2) %>% 
+  filter(mrn %in% PTB$mrn) 
+
+med_all %>% write_csv('../data/169_all_medication.csv')
+
+med_all <- read_csv('../data/169_all_medication.csv')
+med1 %>% filter(med_class1 == 'anti-infectives') %>% count(med_class2, sort = T)
+med1 %>% glimpse()
+# no: antiviral agents, antifungals, antituberculosis agents, antimalarial agents, amebicides, anthelmintics, leprostatics
+```
+
+```{r}
+# find out about days of using the empirical ones 
+meddf <- med_all %>% 
+  filter(drug_name_clean %in% picked) %>% 
+  left_join(PTB %>% select(mrn, hct)) %>% 
+  mutate(startday = as.numeric(start_date - hct))
+
+summary(meddf$startday)
+
+meddf %>% 
+  gghistogram(x = 'startday')
+
+
+meddf %>% distinct(mrn) %>% nrow
+```
+

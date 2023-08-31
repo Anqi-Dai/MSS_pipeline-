@@ -1,0 +1,36 @@
+---
+title: "find the shotgun samples"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+get_table_from_database('shotgun_lookup_ad')
+```
+
+```{r}
+# the sample table
+stb <- read_csv('../data/shotgun_italy_samp_outcome.csv')
+ptb <- read_csv('../data/OPBG_clinicaldata_w_prior_lines_11-30-2020 edited.csv')
+
+# matching between the sampleid from the files and the sampleid from the stb
+fns <- shotgun_lookup_ad %>% 
+  filter(str_detect(fid, '^CMT')) %>% 
+  select(projectid:fid) %>% 
+  mutate(pid = '', day = '') %>% 
+  arrange(desc(sampleid)) %>% 
+  select(projectid, sampleid, pid:day, fid)
+
+intersect(fns$sampleid, stb$sampleid)
+
+# I think I need to do this manually 
+fns %>% write_csv('../data/001_fns.csv')
+```

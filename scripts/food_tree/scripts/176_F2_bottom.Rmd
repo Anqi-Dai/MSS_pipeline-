@@ -98,7 +98,7 @@ fg_temporal <- cleaned_fg %>%
   mutate(shortname = factor(shortname, levels = fg_label$ord)) %>% 
   left_join(cross0) %>% 
   ggplot(aes(x = coeff, y = shortname, col = Cross)) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  stat_pointinterval(.width = c(.66, .95), fatten_point = 1.2) +
   #geom_rect( data = cleaned_fg, aes(xmin = -Inf  , xmax = Inf,  ymin = shortname, ymax = shortname), fill = "grey", alpha = 0.8) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'ln(diversity) change', y = '') +
@@ -117,7 +117,7 @@ fg_pt <- cleaned_fg %>%
   filter(grp == 'patient') %>% 
   mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
   ggplot(aes(x = coeff, y = shortname)) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  stat_pointinterval(.width = c(.66, .95), fatten_point = 1.2) +
   labs(x = 'ln(diversity) change', y = '') +
    xlim(0.9, 3) +
   theme_classic() +
@@ -202,10 +202,10 @@ macro_temporal <- cleaned_macro %>%
   mutate(shortname = factor(shortname, levels = macro_order$shortname)) %>% 
   left_join(cross0_macro)  %>% 
   ggplot(aes(x = coeff, y = shortname, col = Cross)) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  stat_pointinterval(.width = c(.66, .95), fatten_point = 1.2) +
   #geom_rect(data=macro_rect, mapping=aes(xmin=1, xmax=2, ymin=3, ymax=4, fill='blue')) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
-  labs(x = '', y = '') +
+  labs(x = 'ln(diversity) change', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c("#EC0000", "black")) +
@@ -221,7 +221,7 @@ macro_pt <- cleaned_macro %>%
   filter(grp == 'patient') %>% 
   mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
   ggplot(aes(x = coeff, y = shortname)) +
-  stat_pointinterval(.width = c(.66, .95)) +
+  stat_pointinterval(.width = c(.66, .95), fatten_point = 1.2) +
   labs(x = 'ln(diversity) change', y = '') +
    xlim(1.5, 2.5) +
   theme_classic() +
@@ -231,8 +231,8 @@ macro_pt <- cleaned_macro %>%
         axis.title=element_text(size=10), 
         aspect.ratio=1/2.5)
 
-macro_side <-  plot_grid(macro_temporal,NA,macro_pt,
-                rel_heights = c(1.5,-.8, 1),align = 'hv',axis = 'lrtb',
+macro_side <-  plot_grid(macro_pt,NA, macro_temporal,
+                rel_heights = c(1,-.8, 1.9),align = 'hv',axis = 'lrtb',
                 labels = c('C',NA, 'D'),label_y = .7,
                  ncol = 1 )
 macro_side  
@@ -252,13 +252,13 @@ f2a <- twoscore %>%
   labs(x = 'Number of previous days\nof dietary intake',y = 'Procrustes score') +
   scale_linetype_manual(values = c('solid','dashed')) +
   theme_classic()  +
-  theme(aspect.ratio=1/1.5,
+  theme(aspect.ratio=1/2,
         legend.position = c(0.75,0.4),
         axis.text=element_text(size=axis_text_size), 
         axis.title=element_text(size=axis_text_size),
         legend.title = element_blank(), 
         axis.text.x = element_text(angle=0, hjust=0.5)) 
-
+f2a
 ```
 
 
@@ -285,7 +285,7 @@ title <- ggdraw() +
 
 left <- plot_grid(f2a, NA, macro_side,
                   labels = c('A', NA, NA),label_y = 1,
-                rel_heights = c(1,-.7, 3),
+                rel_heights = c(1,-.35, 3.2),
                   ncol = 1) 
 
 right <- plot_grid(diagram,NA, fg_side,

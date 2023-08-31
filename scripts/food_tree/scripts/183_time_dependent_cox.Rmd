@@ -1,0 +1,44 @@
+---
+title: "time dependent cox"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(survival)
+```
+
+```{r}
+
+data(cancer, package="survival")
+# Load the data
+data(veteran)
+
+# Create a time-dependent covariate for tumor size
+tumor_size <- c(rep(10, 5), rep(15, 5), rep(20, 5), rep(25, 5))
+
+# Fit the Cox model
+model <- coxph(Surv(time, status) ~ trt + prior + karno + tt(tumor_size), data=veteran)
+
+# Summarize the results
+summary(model)
+
+```
+```{r}
+df_main <- read_csv('../data/df_main.csv')
+df_main %>% count(OStime_landmark,OSevent)
+```
+
+
+```{r}
+OS_mult_comb_fg <- coxph(Surv(OStime_landmark,OSevent) ~ daily_Eggs + daily_Fruits+ daily_Grains + daily_Legumes +daily_Meats + daily_Oils +daily_Sweets +daily_Vegetables + daily_Milk + Intensity + Source, data=df_main) %>% 
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of discharging; all fg")
+
+```
+
