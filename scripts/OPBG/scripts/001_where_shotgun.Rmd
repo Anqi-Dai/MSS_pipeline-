@@ -12,6 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 library(tidyverse)
 library(vdbR)
+library(vegan)
+library(ggpubr )
 connect_database()
 get_table_from_database('shotgun_lookup_ad')
 ```
@@ -32,5 +34,170 @@ fns <- shotgun_lookup_ad %>%
 intersect(fns$sampleid, stb$sampleid)
 
 # I think I need to do this manually 
-fns %>% write_csv('../data/001_fns.csv')
+#fns %>% write_csv('../data/001_fns.csv')
 ```
+
+```{r}
+# load the manually corrected files back
+stable <- readxl::read_excel('../data/001_fns.xls') %>% 
+  distinct(fid, .keep_all = T) %>% 
+  select(fid, pid, day)
+
+stable %>% distinct(pid, day)
+stable %>% distinct(fid)
+stable %>% distinct(pid)
+stable %>% count(pid)
+```
+
+
+```{r}
+# how many files I got back from metaphlan
+fns <- list.files('../data/shotgun_output/', pattern = 'txt$', full.names = T)
+
+taxa <- fns %>% 
+  set_names(fns) %>% 
+  map(~ read_tsv(., skip = 4, col_types = 'ccddd') %>% 
+          rename(clade_name = names(.)[1]) %>% 
+          select(clade_name, relative_abundance) %>% 
+          filter(str_detect(clade_name, 's__')) %>% 
+  mutate(relative_abundance = relative_abundance/100)) %>% 
+  bind_rows(.id = 'fid') %>% 
+  mutate(fid = str_replace(fid, '../data/shotgun_output//Sample_',''),
+         fid = str_replace(fid, '_IGO_.+$','')) %>% 
+  filter(str_detect(fid, '^CMT'))
+
+sampleids <- taxa %>% 
+  distinct(fid) %>% 
+  inner_join(stable)
+
+# what is the extra 4 in the shotgun files from cluster
+# these are the samples from MSK and not Italy.
+setdiff( sampleids %>% pull(fid), stable %>% distinct(fid) %>% pull(fid))
+
+
+# there are 2 samples that are having the different fid but are about the same pid and day 
+dups <- stable %>% 
+  count(pid, day, sort = T) %>% 
+  filter(n == 2) %>% 
+  inner_join(stable)
+```
+
+```{r}
+# to see those samples are they similar 
+# cuz we have to choose one
+# the BC distance
+cts_fil <- taxa %>% 
+  filter(fid %in% dups$fid) %>% 
+  select(fid, clade_name,relative_abundance ) %>% 
+  spread(key = 'clade_name', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('fid')
+
+dist_ <- vegdist(cts_fil, method = 'bray')
+eigen <- cmdscale(dist_, eig = T)$eig
+percent_var <- signif(eigen/sum(eigen), 3)*100
+bc <- cmdscale(dist_, k = 2)
+beta_df <- bc %>%
+  as.data.frame() %>%
+  rownames_to_column('fid')  %>% 
+  full_join(dups) 
+
+beta_df %>% 
+  ggscatter(x = 'V1', y = 'V2', color =  'pid', palette = 'lancet') +
+  labs(title = '') +
+  xlab(paste0("PC 1 [",percent_var[1],"%]")) +
+  ylab(paste0("PC 2 [",percent_var[2],"%]")) +
+  theme(aspect.ratio=1, legend.position = 'right')
+
+ggsave('../data/001_dups.pdf', height = 4, width = 4)
+```
+
+# sample overview 
+
+```{r}
+stable %>% 
+  gghistogram(x = 'day', facet.by = 'pid', color = 'white', fill = 'maroon',
+              ylab = 'Number of samples') +
+  scale_x_continuous(breaks = seq(-20, 190, 25))
+  
+ggsave('../data/001_sample_overview.pdf', width = 15, height = 10)
+```
+```{r}
+# more samples can be sequenced?
+missing <- stb %>% 
+  distinct(pid, timepoint, shipment) %>% 
+  left_join(stable %>% select(pid, timepoint = day) %>% distinct(pid, timepoint) %>% mutate(grp = 'sequenced')) 
+```
+```{r}
+# I feel the quality is concerning would be a good idea to check the qualities 
+# the trimming results
+bbmap_logs <- list.files('../data/shotgun_output/', '_bbmap_log.txt$', full.names = T)
+# this is for a pair of reads, reads in the whole sample
+   
+bb <- bbmap_logs %>% 
+  set_names(bbmap_logs) %>% 
+  map(~ suppressWarnings(read_tsv(., skip = 1, col_names = F, col_types = 'c', num_threads = 16)) %>% 
+      filter(str_detect(X1, 'Input:|Removed')) %>% 
+      rename(content = X1) %>% 
+      mutate(content = str_replace(content, 'reads.+$',''),
+             content = str_replace(content, '^.+\t','')) %>% 
+      mutate(content = as.numeric(content )) %>% 
+      mutate(type = c('total','trimmed')) %>% 
+      spread('type', 'content') ) %>% 
+  bind_rows(.id = 'fid') %>% 
+   mutate(fid = str_replace(fid, '../data/shotgun_output//Sample_',''),
+         fid = str_replace(fid, '_IGO.+txt','')) %>% 
+  filter(str_detect(fid, '^CMT'))
+```
+
+```{r}
+kneads <- list.files('../data/shotgun_output/', full.names = T, pattern = '_knead.log$')
+
+all <- kneads %>% 
+  set_names(kneads) %>% 
+  map(~ suppressWarnings(read_csv(., col_names = F, col_types = 'c', num_threads = 16)) %>% 
+        rename(content = names(.)[1]) %>% 
+        filter(str_detect(content, 'Total contaminate sequences in file')) %>% 
+  mutate(type = if_else(str_detect(content, 'hg38'), 'hg38','mm38')) %>% 
+  mutate(content = str_replace(content, '^.+: ','')) %>% 
+  distinct() %>% # R1 and R2 have the same number 
+  mutate(content = as.numeric(content))  )
+
+# find the ones that have 2 rows from the all
+right <- all %>%  
+  keep( ~nrow(.) == 2) %>% 
+  bind_rows(.id = 'fid') %>%
+  mutate(fid = str_replace(fid, '../data/shotgun_output//Sample_',''),
+         fid = str_replace(fid, '_IGO.+_knead.log','')) %>% 
+  spread('type', 'content') %>% 
+  mutate(hg38 = hg38*2,
+         mm38 = mm38*2) %>% 
+  filter(str_detect(fid, '^CMT'))
+
+qc <- bb %>% 
+  full_join(right) %>% 
+  mutate(trimmed_perc = round(trimmed/total*100, 2),
+         hg38_perc = round(hg38/total*100, 2),
+         mm38_perc = round(mm38/total*100, 2)) 
+
+qc %>% select(-fid) %>% 
+  summary
+
+# sample to be excluded 
+excludeone <- qc %>% 
+  slice_max(hg38_perc) %>% 
+  pull(fid)
+
+# another sample to be removed that is duplicated 
+exclude006 <- 'CMT006'
+
+# the current stb list 
+stb_new <- stable %>% 
+  filter(!fid %in% c(excludeone, exclude006))
+
+stb_new %>% write_csv('../data/001_stb.csv')
+
+taxa  %>% 
+  filter(fid %in% stb_new$fid) %>% 
+  write_csv('../data/001_taxa.csv')
+```
+
