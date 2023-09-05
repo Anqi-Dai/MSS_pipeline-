@@ -1,0 +1,99 @@
+---
+title: "the alpha diversity"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(janitor)
+```
+
+```{r}
+ptb <- read_csv('../data/OPBG_clinicaldata_w_prior_lines_11-30-2020 edited.csv') %>% 
+  clean_names() %>% 
+  mutate(pid = str_replace(pt_id_de_identified, 'N$',''),
+         pid = str_replace(pid, '4-B','4B'),
+         pid = str_replace(pid, '13-B','13')) %>% 
+  select(pid, age_at_infusion, gender, disease, disease_class, car_construct, cr_y_n, orr_y_n, toxicity_y_n, cytokine_release_syndrome_y_n,crs_grade) %>% 
+  rename(crs = cytokine_release_syndrome_y_n,
+         cr = cr_y_n, 
+         orr = orr_y_n,
+         toxicity = toxicity_y_n) %>% 
+  # remove three patients cuz they are on sponsored trial
+  filter(!is.na(gender)) %>% 
+  mutate(cr = if_else(cr == 'y', 'Y', cr))
+
+colnames(ptb)
+ptb %>% glimpse()
+```
+
+```{r}
+# eligible baseline stool sample before day 0 or close to day 0 
+stools <- stb_new %>% 
+  filter(pid %in% ptb$pid)
+
+stools %>% write_csv('../data/002_STB.csv')
+```
+
+```{r}
+removedisease <- ptb %>% 
+  count(disease, sort = T) %>% 
+  filter(n == 1) %>% 
+  pull(disease)
+
+alpha <- read_csv('../data/001_alpha_div.csv')
+
+# find the baseline samples that I'm gonna use 
+baseline <- stools %>% 
+  group_by(pid) %>% 
+  arrange(day) %>% 
+  slice_min(day) %>% 
+  # the baseline sample need to be close to day 0
+  filter(day < 2) %>% 
+  # remove the patient CMT026 for now
+  filter(pid != 'CMT026') %>% 
+  inner_join(alpha) %>% 
+  inner_join(ptb) %>% 
+  # remove three diseases that there are only one patient
+  filter(!disease %in% removedisease) %>% 
+  # remove the sample from CMT004B
+  filter(pid != 'CMT004B')
+```
+```{r}
+# finally I can look at within each disease
+baseline %>% 
+  split(.$disease) %>% 
+  imap(function(.x, .y){
+    .x %>% 
+      ggboxplot(x = 'toxicity', y ='inv', add = 'dotplot', ylab = 'alpha diversity', title = str_glue('disease: {.y}')) +
+      stat_compare_means(comparisons= list(c('Y', 'N')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+    
+    ggsave(str_glue('../data/002_alpha_tox_{.y}.pdf'), width = 4, height = 4)
+  })
+```
+
+```{r}
+baseline %>% 
+  split(.$disease) %>% 
+  imap(function(.x, .y){
+    .x %>% 
+      ggboxplot(x = 'cr', y ='inv', add = 'dotplot', ylab = 'alpha diversity', title = str_glue('disease: {.y}')) +
+      stat_compare_means(comparisons= list(c('Y', 'N')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+    
+    ggsave(str_glue('../data/002_alpha_cr_{.y}.pdf'), width = 4, height = 4)
+  })
+```
+

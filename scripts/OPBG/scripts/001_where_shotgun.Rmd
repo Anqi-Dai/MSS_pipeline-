@@ -190,14 +190,27 @@ excludeone <- qc %>%
 # another sample to be removed that is duplicated 
 exclude006 <- 'CMT006'
 
+excludesick <- 'CMT001PRE-BMT'
+
 # the current stb list 
 stb_new <- stable %>% 
-  filter(!fid %in% c(excludeone, exclude006))
+  filter(!fid %in% c(excludeone, exclude006, excludesick))
 
 stb_new %>% write_csv('../data/001_stb.csv')
 
 taxa  %>% 
   filter(fid %in% stb_new$fid) %>% 
   write_csv('../data/001_taxa.csv')
+
+
+# calculate all of the alpha diversity
+cts <- taxa %>% 
+  spread(key = 'clade_name', value = 'relative_abundance', fill = 0) %>% 
+  column_to_rownames('fid')
+
+div <- diversity(cts, index = 'inv') %>% 
+  enframe(name = 'fid', value = 'inv')
+
+div %>% write_csv('../data/001_alpha_div.csv')
 ```
 
