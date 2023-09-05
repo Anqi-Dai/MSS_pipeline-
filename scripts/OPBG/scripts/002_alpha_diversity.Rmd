@@ -16,7 +16,8 @@ library(janitor)
 ```
 
 ```{r}
-ptb <- read_csv('../data/OPBG_clinicaldata_w_prior_lines_11-30-2020 edited.csv') %>% 
+# the most updated ptb
+ptb <- readxl::read_excel('../data/OPBG_clinicaldata_v2.xlsx') %>% 
   clean_names() %>% 
   mutate(pid = str_replace(pt_id_de_identified, 'N$',''),
          pid = str_replace(pid, '4-B','4B'),
@@ -28,11 +29,37 @@ ptb <- read_csv('../data/OPBG_clinicaldata_w_prior_lines_11-30-2020 edited.csv')
          toxicity = toxicity_y_n) %>% 
   # remove three patients cuz they are on sponsored trial
   filter(!is.na(gender)) %>% 
-  mutate(cr = if_else(cr == 'y', 'Y', cr))
+  mutate(cr = if_else(cr == 'y', 'Y', cr)) %>% 
+  mutate(disease = if_else(disease %in% c('LMC BCR/ABL+','BCP-ALL'), 'B-ALL', disease))
 
 colnames(ptb)
-ptb %>% glimpse()
+ptb %>% mutate_if(is.character, as.factor) %>% 
+  summary
 ```
+
+```{r}
+# a table 1 of the above things
+library(gtsummary)
+ptb_clean <- ptb %>% 
+  select(-pid, -disease_class, -orr, -crs_grade) %>% 
+  rename(age = age_at_infusion) %>% 
+  rename_all(str_to_title) %>% 
+  rename(CR = Cr, CRS = Crs)
+
+
+
+ptb_clean %>% 
+  tbl_summary(
+    #type = list(all_double() ~ "continuous"), 
+    statistic = list(all_continuous() ~ "{mean} ({sd})")
+  ) %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  #gt::tab_footnote(footnote = "MDS/MPN = Myelodysplastic/myeloproliferative neoplasms") %>% 
+  gt::gtsave(filename = "../data/002_pt_all.pdf")
+```
+
+
 
 ```{r}
 # eligible baseline stool sample before day 0 or close to day 0 
@@ -43,6 +70,7 @@ stools %>% write_csv('../data/002_STB.csv')
 ```
 
 ```{r}
+stools <- read_csv('../data/002_STB.csv')
 removedisease <- ptb %>% 
   count(disease, sort = T) %>% 
   filter(n == 1) %>% 
@@ -55,45 +83,48 @@ baseline <- stools %>%
   group_by(pid) %>% 
   arrange(day) %>% 
   slice_min(day) %>% 
-  # the baseline sample need to be close to day 0
-  filter(day < 2) %>% 
+  # the baseline sample need to be up until day 0
+  filter(day < 1) %>% 
   # remove the patient CMT026 for now
   filter(pid != 'CMT026') %>% 
   inner_join(alpha) %>% 
   inner_join(ptb) %>% 
   # remove three diseases that there are only one patient
-  filter(!disease %in% removedisease) %>% 
-  # remove the sample from CMT004B
-  filter(pid != 'CMT004B')
-```
-```{r}
-# finally I can look at within each disease
-baseline %>% 
-  split(.$disease) %>% 
-  imap(function(.x, .y){
-    .x %>% 
-      ggboxplot(x = 'toxicity', y ='inv', add = 'dotplot', ylab = 'alpha diversity', title = str_glue('disease: {.y}')) +
-      stat_compare_means(comparisons= list(c('Y', 'N')),
-            label= "p.format",
-            method= 'wilcox.test',
-						correct=FALSE)
-    
-    ggsave(str_glue('../data/002_alpha_tox_{.y}.pdf'), width = 4, height = 4)
-  })
+  filter(!disease %in% removedisease) 
 ```
 
 ```{r}
+# the patients only in the baseline samples
+ptb_clean_BL <- ptb %>% 
+  select( -disease_class, -orr, -crs_grade) %>% 
+  rename(age = age_at_infusion) %>% 
+  rename_all(str_to_title) %>% 
+  rename(CR = Cr, CRS = Crs) %>% 
+  filter(Pid %in% baseline$pid) %>% 
+  select(-Pid)
+
+ptb_clean_BL %>% 
+  tbl_summary(
+    #type = list(all_double() ~ "continuous"), 
+    statistic = list(all_continuous() ~ "{mean} ({sd})")
+  ) %>%
+  bold_labels() %>% 
+  as_gt() %>%
+  #gt::tab_footnote(footnote = "MDS/MPN = Myelodysplastic/myeloproliferative neoplasms") %>% 
+  gt::gtsave(filename = "../data/002_pt_BL.pdf")
+```
+
+
+```{r}
 baseline %>% 
-  split(.$disease) %>% 
-  imap(function(.x, .y){
-    .x %>% 
-      ggboxplot(x = 'cr', y ='inv', add = 'dotplot', ylab = 'alpha diversity', title = str_glue('disease: {.y}')) +
+  select(-orr) %>% 
+  gather('grp', 'response', cr:toxicity) %>% 
+  ggboxplot(x = 'response', y ='inv', add = 'dotplot', ylab = 'alpha diversity', title = '') +
+  facet_grid(grp ~ disease) +
       stat_compare_means(comparisons= list(c('Y', 'N')),
             label= "p.format",
             method= 'wilcox.test',
 						correct=FALSE)
-    
-    ggsave(str_glue('../data/002_alpha_cr_{.y}.pdf'), width = 4, height = 4)
-  })
+ggsave('../data/002_baseline_two.pdf', width = 8, height = 7)
 ```
 
