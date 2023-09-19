@@ -232,10 +232,18 @@ axis_title_size <- 10
 ```
  
 ```{r}
+# the gvhd info
+clinical <- read_csv('../data/156_transplant_data.csv') 
+count(clinical$d100_a_gvhd)
+colnames(clinical)
+
 META <- read_csv('../data/153_combined_META.csv') %>% 
   select(sampleid, mrn, sdrt) %>% 
   left_join(shotgun_lookup_ad %>% distinct(sampleid, .keep_all = T) %>% select(sampleid, projectid)) %>% 
-  filter(sdrt %in% -10:30 & !is.na(projectid))
+  filter(sdrt %in% -10:30) %>% 
+  inner_join(clinical %>% select(mrn, d100_a_gvhd:d100_przepiorka_highest_overall_grade))
+
+META %>% write_csv('../data/123_stool_samples.csv')
 
 read_csv('../data/153_combined_META.csv') %>% 
   distinct(mrn) %>% 

@@ -24,15 +24,15 @@ axis_title_size <- 10
 macro <- read_csv('../data/090_model_alpha_macro_fat_post_interaction.csv')
 fg <- read_csv('../data/171_div_model_fg_post_interaction.csv')
 
-fg_order <- c( 'Vegetables','abx + Vegetables',
-                 'Oils','abx + Oils',
-                 'Fruits','abx + Fruits',
-                 'Meats','abx + Meats',
-                 'Legumes','abx + Legumes',
-                 'Eggs','abx + Eggs',
-                 'Milk','abx + Milk',
-                 'Grains','abx + Grains',
-                 'Sweets','abx + Sweets',
+fg_order <- c( 'Vegetables','abx * Vegetables',
+                 'Oils','abx * Oils',
+                 'Fruits','abx * Fruits',
+                 'Meats','abx * Meats',
+                 'Legumes','abx * Legumes',
+                 'Eggs','abx * Eggs',
+                 'Milk','abx * Milk',
+                 'Grains','abx * Grains',
+                 'Sweets','abx * Sweets',
                  "TPN" ,"EN" , 'abx')
 
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
@@ -62,15 +62,15 @@ cleaned_fg <- fg  %>% select(starts_with('b_')) %>%
   ))  %>% 
   left_join(key %>% select(fgrp1, color, shortname)) %>% 
   mutate(shortname = case_when(
-        item ==  'milk_e' ~ 'abx + Milk',
-    item == 'meat_e' ~ 'abx + Meats',
-    item ==  'egg_e' ~ 'abx + Eggs',
-    item ==  'legume_e' ~ 'abx + Legumes',
-    item == 'grain_e' ~ 'abx + Grains',
-    item == 'fruit_e' ~ 'abx + Fruits',
-    item == 'veggie_e' ~ 'abx + Vegetables',
-    item ==  'oils_e' ~ 'abx + Oils', 
-    item ==  'sweets_e' ~ 'abx + Sweets',
+        item ==  'milk_e' ~ 'abx * Milk',
+    item == 'meat_e' ~ 'abx * Meats',
+    item ==  'egg_e' ~ 'abx * Eggs',
+    item ==  'legume_e' ~ 'abx * Legumes',
+    item == 'grain_e' ~ 'abx * Grains',
+    item == 'fruit_e' ~ 'abx * Fruits',
+    item == 'veggie_e' ~ 'abx * Vegetables',
+    item ==  'oils_e' ~ 'abx * Oils', 
+    item ==  'sweets_e' ~ 'abx * Sweets',
     item ==  'nonablative' ~ 'Nonablative',
     item ==  'reduced' ~ 'Reduced',
     item ==  'ablative' ~ 'Ablative',
@@ -146,11 +146,11 @@ cleaned_macro <-  macro %>% select(starts_with('b_')) %>%
          item = str_replace(item, 'b_',''),
          item = str_replace(item, 'intensity','')) %>% 
   mutate(shortname = case_when(
-        item ==  'fiber_e' ~ 'abx + Fiber',  
+        item ==  'fiber_e' ~ 'abx * Fiber',  
     item == 'fiber' ~ 'Fiber',
-    item ==  'fat_e' ~ 'abx + Fat',
+    item ==  'fat_e' ~ 'abx * Fat',
     item ==  'fat' ~ 'Fat',
-    item == 'Sugars_e' ~ 'abx + Sugars',
+    item == 'Sugars_e' ~ 'abx * Sugars',
     item == 'Sugars' ~ 'Sugars',
     item ==  'nonablative' ~ 'Nonablative',
     item ==  'reduced' ~ 'Reduced',
@@ -178,9 +178,9 @@ cross0_macro <- cleaned_macro %>%
 
 
 macro_order <- tibble(
-  shortname = c('Fat','abx + Fat',
-                 'Fiber','abx + Fiber',
-                 'Sugars','abx + Sugars',
+  shortname = c('Fat','abx * Fat',
+                 'Fiber','abx * Fiber',
+                 'Sugars','abx * Sugars',
                  "TPN" ,"EN" , 'abx')
 ) %>% inner_join(cleaned_macro %>% distinct(item, shortname)) %>% 
   inner_join(cross0_macro %>% select(item, Cross))
@@ -222,7 +222,7 @@ macro_pt <- cleaned_macro %>%
   mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
   ggplot(aes(x = coeff, y = shortname)) +
   stat_pointinterval(.width = c(.66, .95), fatten_point = 1.2) +
-  labs(x = 'ln(diversity) change', y = '') +
+  labs(x = 'Patient intercept', y = '') +
    xlim(1.5, 2.5) +
   theme_classic() +
   theme(legend.position = 'none') +
@@ -235,7 +235,7 @@ macro_side <-  plot_grid(macro_pt,NA, macro_temporal,
                 rel_heights = c(1,-.8, 1.9),align = 'hv',axis = 'lrtb',
                 labels = c('C',NA, 'D'),label_y = .7,
                  ncol = 1 )
-macro_side  
+macro_side   
 ```
 # the top part of the F2
 

@@ -144,15 +144,15 @@ entero <- read_csv('../data/171_entero_model_fg_post_interaction.csv')  %>%
   ))  %>% 
   left_join(key %>% select(fgrp1, color, shortname)) %>% 
   mutate(shortname = case_when(
-        item ==  'milk_e' ~ 'abx + Milk',
-    item == 'meat_e' ~ 'abx + Meats',
-    item ==  'egg_e' ~ 'abx + Eggs',
-    item ==  'legume_e' ~ 'abx + Legumes',
-    item == 'grain_e' ~ 'abx + Grains',
-    item == 'fruit_e' ~ 'abx + Fruits',
-    item == 'veggie_e' ~ 'abx + Vegetables',
-    item ==  'oils_e' ~ 'abx + Oils', 
-    item ==  'sweets_e' ~ 'abx + Sweets',
+        item ==  'milk_e' ~ 'abx * Milk',
+    item == 'meat_e' ~ 'abx * Meats',
+    item ==  'egg_e' ~ 'abx * Eggs',
+    item ==  'legume_e' ~ 'abx * Legumes',
+    item == 'grain_e' ~ 'abx * Grains',
+    item == 'fruit_e' ~ 'abx * Fruits',
+    item == 'veggie_e' ~ 'abx * Vegetables',
+    item ==  'oils_e' ~ 'abx * Oils', 
+    item ==  'sweets_e' ~ 'abx * Sweets',
     item ==  'nonablative' ~ 'Nonablative',
     item ==  'reduced' ~ 'Reduced',
     item ==  'ablative' ~ 'Ablative',
@@ -179,15 +179,15 @@ fg_order <- entero %>% filter(str_detect(item, '_e$')) %>%
 ```
 
 ```{r}
-total_order <- c('Vegetables','abx + Vegetables',
-                 'Oils','abx + Oils',
-                 'Fruits','abx + Fruits',
-                 'Meats','abx + Meats',
-                 'Legumes','abx + Legumes',
-                 'Eggs','abx + Eggs',
-                 'Milk','abx + Milk',
-                 'Grains','abx + Grains',
-                 'Sweets','abx + Sweets',
+total_order <- c('Vegetables','abx * Vegetables',
+                 'Oils','abx * Oils',
+                 'Fruits','abx * Fruits',
+                 'Meats','abx * Meats',
+                 'Legumes','abx * Legumes',
+                 'Eggs','abx * Eggs',
+                 'Milk','abx * Milk',
+                 'Grains','abx * Grains',
+                 'Sweets','abx * Sweets',
                  "TPN" ,"EN" , 'abx')
 #tibble(ord = total_order) %>% write_csv('../data/178_coeff_order.csv')
 arrange_label <- tibble(ord = total_order) %>% 

@@ -303,6 +303,10 @@ LOS_mult_comb_ave_faith <- coxph(Surv(tLOS,LOS) ~
   tbl_regression(exponentiate=TRUE, estimate_fun = function(x) style_ratio(x,digits=3)) %>% bold_p() %>% modify_caption("Length of stay after engraftment; ave_faith")
 ```
 
+```{r}
+
+```
+
 
 ```{r}
 LOS_univ_comb <- df_main %>% 
@@ -354,6 +358,7 @@ los_plots <- featlist %>%
           ggsurvfit(type = "risk", linewidth = 0.8) +
           add_pvalue("annotation",size=3) +
           add_confidence_interval()+
+      coord_cartesian(xlim = c(0, 20)) +
           ylab("% patients discharged alive")+ggtitle(str_glue('{feature_}'))
   })
  

@@ -1,0 +1,31 @@
+---
+title: "how to visualize the interaction thing"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+META <- read_csv('../data/153_combined_META.csv')
+
+META %>% 
+  mutate(empirical = if_else(empirical == 'TRUE', 'abx exposed', 'abx NOT exposed')) %>% 
+  ggscatter(x = 'fg_sweets', y = 'simpson_reciprocal', facet.by = 'empirical',  
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
+  scale_x_sqrt()
+```
+
+

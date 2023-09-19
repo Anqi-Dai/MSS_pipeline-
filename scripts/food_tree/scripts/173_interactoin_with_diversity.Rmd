@@ -135,15 +135,99 @@ model_div <- brm( div_model,
                control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T) 
 
-
-
 # actually draw samples from the priors 
 samples_prior <- prior_draws(model_div)
 # save it for future use
 post_res <- suppressWarnings(posterior_samples(model_div)) 
 post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
+colnames(meta)
+```
+
+```{r}
+# use their function to see the interaction effects
+# I wanna use the original data types for this thing
+meta_original <- read_csv('../data/153_combined_META.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) 
+
+# %>% 
+#   mutate(fg_egg = fg_egg/100,
+#          fg_fruit = fg_fruit/100,
+#          fg_grain = fg_grain/100,
+#          fg_legume = fg_legume/100,
+#          fg_meat = fg_meat/100,
+#          fg_milk = fg_milk/100,
+#          fg_oils = fg_oils/100,
+#          fg_sweets = fg_sweets/100,
+#          fg_veggie = fg_veggie/100)
+
+mod_original <- log(simpson_reciprocal) ~ 0 +        
+                intensity+
+                empirical+
+               fg_fruit:empirical+
+                fg_meat:empirical+
+                fg_milk:empirical+
+                fg_oils:empirical+
+                fg_egg:empirical+
+                fg_grain:empirical+
+                fg_sweets:empirical+
+                fg_legume:empirical+
+                fg_veggie:empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+
+get_prior(mod_original,data = meta_original )
+
+div_priors_original <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_veggie"),
+            # interaction terms
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_veggie"),
+            # for the TPN
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity
+            prior(normal( 2, .1), class = 'b', coef = "intensityablative"),
+            prior(normal( 2, .1), class = 'b', coef = "intensityreduced"),
+            prior(normal( 2, .1), class = 'b', coef = "intensitynonablative")
+            )
+
+model_div_original <- brm( mod_original,  
+              data = meta_original, 
+              warmup = 1000, iter = 3000, 
+              prior = div_priors_original,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T) 
+inter <- plot(conditional_effects(model_div_original))
 
 
+library(cowplot)
+interaction_plots <- plot_grid(plotlist = list(inter[["fg_fruit:empirical"]],inter[["fg_meat:empirical"]], inter[["fg_milk:empirical"]], inter[["fg_oils:empirical"]], inter[["fg_egg:empirical"]], inter[["fg_grain:empirical"]], inter[["fg_sweets:empirical"]], inter[["fg_legume:empirical"]], inter[["fg_veggie:empirical"]] ),
+                              nrow = 3)
+ggsave('../data/173_interaction_diversity_conditional.pdf', width = 10, height = 8)
 ```
 
 
