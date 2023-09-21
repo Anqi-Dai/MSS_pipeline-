@@ -16,16 +16,50 @@ library(ggpubr)
 
 ```{r}
 META <- read_csv('../data/153_combined_META.csv')
+```
 
+
+```{r}
 META %>% 
-  mutate(empirical = if_else(empirical == 'TRUE', 'abx exposed', 'abx NOT exposed')) %>% 
-  ggscatter(x = 'fg_sweets', y = 'simpson_reciprocal', facet.by = 'empirical',  
+  mutate(log_div = log(simpson_reciprocal)) %>% 
+  #mutate(empirical = if_else(empirical == 'TRUE', 'abx exposed', 'abx NOT exposed')) %>% 
+  ggscatter(x = 'fg_sweets', y = 'log_div', color = 'empirical',
+            ylab = 'log(diversity)',
+            alpha = 0.3, shape = 16, 
             add = "reg.line",  # Add regressin line
            add.params = list(color = "blue", fill = "lightgray"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n")) +
-  scale_x_sqrt()
+           cor.coeff.args = list(method = "spearman",  label.sep = "\n", 
+                                 label.x.npc = "middle", label.y.npc = "top")) +
+  scale_x_sqrt() +
+  scale_y_sqrt() +
+  scale_fill_manual(values = c('darkgray','maroon')) +
+  scale_colour_manual(values = c('darkgray','maroon')) +
+  facet_wrap(~ empirical, labeller = 'label_both') +
+  theme(aspect.ratio = 1, legend.position = 'none')
+ggsave('../data/184_raw_data_sweets_abx.pdf', width = 7, height = 4)
 ```
 
+```{r}
+META %>% 
+  mutate(log_div = log(simpson_reciprocal)) %>% 
+  #mutate(empirical = if_else(empirical == 'TRUE', 'abx exposed', 'abx NOT exposed')) %>% 
+  ggscatter(x = 'fg_sweets', y = 'log_div', color = 'empirical',
+            ylab = 'log(diversity)',
+            alpha = 0.3, shape = 16, 
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "empirical", fill = "empirical"), # Customize line
+           conf.int = TRUE # Add confidence interval
+  ) +
+  stat_cor(aes(color = empirical), method = "spearman", label.x.npc = "middle", label.y.npc = "top",
+           size = 3) +
+  scale_x_sqrt() +
+  scale_y_sqrt() +
+  scale_fill_manual(values = c('darkgray','maroon')) +
+  scale_colour_manual(values = c('darkgray','maroon')) +
+  #facet_wrap(~ empirical, labeller = 'label_both') +
+  theme(aspect.ratio = 1, legend.position = 'none')
+ggsave('../data/184_raw_diversity_sweets_combined.pdf', width = 3.5, height = 3.5)
+```
 

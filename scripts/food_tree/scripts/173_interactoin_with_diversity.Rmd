@@ -26,6 +26,8 @@ ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 axis_text_size <- 10
 axis_title_size <- 10
+dtb <- read_csv('../data/152_combined_DTB.csv') 
+range(dtb$fdrt)
 ```
 
 # the interaction model with diversity
@@ -143,8 +145,9 @@ post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
 colnames(meta)
 ```
 
-```{r}
 # use their function to see the interaction effects
+
+```{r}
 # I wanna use the original data types for this thing
 meta_original <- read_csv('../data/153_combined_META.csv') %>% 
   mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
@@ -220,14 +223,77 @@ model_div_original <- brm( mod_original,
               cores = ncores, 
               chains = 2, 
                control = list(adapt_delta = 0.99),
-              seed = 123, sample_prior = T) 
-inter <- plot(conditional_effects(model_div_original))
+              seed = 123, sample_prior = T, file = '../data/173_interaction_conditional_model')
+```
 
 
+```{r plot_interaction}
+inter <- plot(conditional_effects(model_div_original, effects = 'empirical:fg_sweets'),ask = F ) +
+  scale_fill_manual(values = c('darkgray','maroon')) +
+  scale_colour_manual(values = c('darkgray','maroon')) +
+  ylim(0, 3) +
+  labs(y = 'Predicted log(diversity)') +
+  theme_classic() +
+  theme(aspect.ratio = 1, legend.position = 'none')
+
+dat <- conditional_effects(model_div_original)
+   
 library(cowplot)
 interaction_plots <- plot_grid(plotlist = list(inter[["fg_fruit:empirical"]],inter[["fg_meat:empirical"]], inter[["fg_milk:empirical"]], inter[["fg_oils:empirical"]], inter[["fg_egg:empirical"]], inter[["fg_grain:empirical"]], inter[["fg_sweets:empirical"]], inter[["fg_legume:empirical"]], inter[["fg_veggie:empirical"]] ),
                               nrow = 3)
 ggsave('../data/173_interaction_diversity_conditional.pdf', width = 10, height = 8)
+```
+
+```{r}
+g_sweets <- plot(conditional_effects(model_div_original, effects = 'fg_sweets:empirical'),
+     points = F, plot = F)[[1]] + 
+  scale_fill_manual(values = c('darkgray','maroon')) +
+  scale_colour_manual(values = c('darkgray','maroon')) +
+  ylim(0, 3) +
+  labs(y = 'Predicted log(diversity)') +
+  theme_classic() +
+  theme(aspect.ratio = 1, legend.position = 'none')
+
+vars <- tibble(var = names(dat)) %>% filter(str_detect(var, '\\:'))
+```
+
+
+```{r}
+gplots <- vars %>% 
+  pull(var) %>% 
+  set_names(vars %>% 
+  pull(var)) %>% 
+  map(function(var_){
+    plot(conditional_effects(model_div_original, effects = var_),
+     points = F, plot = F)[[1]] + 
+      scale_fill_manual(values = c('darkgray','maroon')) +
+      scale_colour_manual(values = c('darkgray','maroon')) +
+      ylim(0, 3.5) +
+      labs(y = 'Predicted log(diversity)') +
+      theme_classic() +
+      theme(aspect.ratio = 1, legend.position = 'none')
+  })
+interaction_plots <- plot_grid(plotlist =  gplots,
+                              nrow = 3)
+ggsave('../data/173_interaction_diversity_conditional_2.pdf', width = 10, height = 8)
+```
+
+
+
+```{r}
+# conditions <- brms::make_conditions(model_div_original, vars = "fg_sweets")
+# 
+# plot(conditional_effects(model_div_original, effects = 'fg_sweets:empirical', conditions = conditions),
+#      points = T, plot = F)[[1]] + theme_classic()
+```
+
+
+```{r}
+tt <- dat$`fg_sweets:empirical`$fg_sweets
+summary(tt$fg_sweets)
+sd(tt$fg_sweets)
+mean(tt$fg_sweets) + sd(tt$fg_sweets)
+mean(tt$fg_sweets) - sd(tt$fg_sweets)
 ```
 
 
