@@ -225,6 +225,9 @@ model_div_original <- brm( mod_original,
                control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T, file = '../data/173_interaction_conditional_model')
 ```
+```{r}
+
+```
 
 
 ```{r plot_interaction}
@@ -245,7 +248,7 @@ ggsave('../data/173_interaction_diversity_conditional.pdf', width = 10, height =
 ```
 
 ```{r}
-g_sweets <- plot(conditional_effects(model_div_original, effects = 'fg_sweets:empirical'),
+g_sweets <- plot(conditional_effects(model_div_original, effects = 'fg_sweets:empirical', surface = T, resolution = 10000),
      points = F, plot = F)[[1]] + 
   scale_fill_manual(values = c('darkgray','maroon')) +
   scale_colour_manual(values = c('darkgray','maroon')) +
@@ -255,6 +258,29 @@ g_sweets <- plot(conditional_effects(model_div_original, effects = 'fg_sweets:em
   theme(aspect.ratio = 1, legend.position = 'none')
 
 vars <- tibble(var = names(dat)) %>% filter(str_detect(var, '\\:'))
+```
+
+```{r}
+dat9 <- conditional_effects(model_div_original, effects = 'fg_sweets:empirical',  surface = T, resolution = 10000)[['fg_sweets:empirical']]
+
+dat9 %>% 
+  ggplot(aes(x = effect1__ )) +
+  geom_smooth(data = dat9,
+              aes(y = estimate__, ymin = lower__, ymax = upper__, fill = effect2__, color = effect2__),
+              stat = "identity",
+              alpha = 1/4, linewidth = 1/2)+ 
+   geom_point(data = META ,
+             aes(x = fg_sweets, y = log(simpson_reciprocal), color = empirical),
+             size = 2/3) +
+  scale_fill_manual(values = c('darkgray','maroon')) +
+  scale_colour_manual(values = c('darkgray','maroon')) +
+  scale_x_sqrt() +
+  scale_y_sqrt() +
+  ylim(0, 3) +
+  labs(y = 'Predicted log(diversity)') +
+  theme_classic() +
+  theme(aspect.ratio = 1, legend.position = 'none')
+
 ```
 
 
@@ -279,22 +305,6 @@ ggsave('../data/173_interaction_diversity_conditional_2.pdf', width = 10, height
 ```
 
 
-
-```{r}
-# conditions <- brms::make_conditions(model_div_original, vars = "fg_sweets")
-# 
-# plot(conditional_effects(model_div_original, effects = 'fg_sweets:empirical', conditions = conditions),
-#      points = T, plot = F)[[1]] + theme_classic()
-```
-
-
-```{r}
-tt <- dat$`fg_sweets:empirical`$fg_sweets
-summary(tt$fg_sweets)
-sd(tt$fg_sweets)
-mean(tt$fg_sweets) + sd(tt$fg_sweets)
-mean(tt$fg_sweets) - sd(tt$fg_sweets)
-```
 
 
 # prior predictive check  
