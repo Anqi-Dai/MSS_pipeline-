@@ -225,9 +225,7 @@ model_div_original <- brm( mod_original,
                control = list(adapt_delta = 0.99),
               seed = 123, sample_prior = T, file = '../data/173_interaction_conditional_model')
 ```
-```{r}
 
-```
 
 
 ```{r plot_interaction}
@@ -248,6 +246,7 @@ ggsave('../data/173_interaction_diversity_conditional.pdf', width = 10, height =
 ```
 
 ```{r}
+# the below is their default plot by brms
 g_sweets <- plot(conditional_effects(model_div_original, effects = 'fg_sweets:empirical', surface = T, resolution = 10000),
      points = F, plot = F)[[1]] + 
   scale_fill_manual(values = c('darkgray','maroon')) +
@@ -261,8 +260,17 @@ vars <- tibble(var = names(dat)) %>% filter(str_detect(var, '\\:'))
 ```
 
 ```{r}
-dat9 <- conditional_effects(model_div_original, effects = 'fg_sweets:empirical',  surface = T, resolution = 10000)[['fg_sweets:empirical']]
+dat_conditional <- conditional_effects(model_div_original, surface = T)
 
+condi_dat <- dat_conditional %>% 
+  keep(.p = str_detect(names(.), ':')) %>% 
+  bind_rows(.id = 'grp')     
+
+condi_dat %>% write_csv('../data/173_conditional_data.csv')
+```
+
+
+```{r}
 dat9 %>% 
   ggplot(aes(x = effect1__ )) +
   geom_smooth(data = dat9,
