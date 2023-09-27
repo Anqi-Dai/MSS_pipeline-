@@ -16,6 +16,7 @@ library(cowplot)
 library(tidybayes)
 axis_text_size <- 10
 axis_title_size <- 10
+META <- read_csv('../data/153_combined_META.csv')
 ```
 
 # fg panel
@@ -282,11 +283,121 @@ diagram
 
 
 ```{r}
-
+# the conditional effects plot
+library(wesanderson) 
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+conditional <- read_csv('../data/173_conditional_data.csv') %>% 
+  mutate(grp = str_replace(grp, '\\:empirical','')) %>% 
+  left_join(key %>% select(grp = fg1_name, shortname)) %>% 
+  mutate(shortname = factor(shortname, levels = rev( c('Vegetables',
+                 'Oils',
+                 'Fruits',
+                 'Meats',
+                 'Legumes',
+                 'Eggs',
+                 'Milk',
+                 'Grains',
+                 'Sweets'))))
+palette <- wes_palette("Royal1", 2)
+# the color for the strip background
+strip_color <- wes_palette("Royal1", 3)[3]
 ```
 
 
-# assemble all parts of F2
+```{r}
+conditional9 <- conditional %>%   
+  ggplot() +
+  geom_smooth(aes(x = effect1__, y = estimate__, ymin = lower__, ymax = upper__, fill = effect2__, color = effect2__),
+              stat = "identity",
+              alpha = .3, linewidth = 1.5)+ 
+  scale_fill_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  scale_colour_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  facet_wrap(~ shortname, nrow = 2, scales = 'free_x') +
+  ylim(0, 3.3) +
+  labs(y = 'Predicted log(diversity)', x = 'Food group consumed (grams)') +
+  theme_classic() +
+  theme(legend.position = c(0.2, 0.07), legend.title = element_text(size = 8, face="bold"),
+        legend.text = element_text( size=8, face="bold"),
+        legend.background = element_rect(fill="white",size=0.2, linetype="solid"),
+        #legend.background=element_rect(fill = alpha("white", 0)),
+      #legend.key=element_rect(fill = alpha("white", 0)),
+        aspect.ratio = 1, 
+        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
+     axis.text=element_text(size=8), axis.title=element_text(size=axis_text_size))    +
+  guides(fill = guide_legend(direction = "horizontal"), color = guide_legend(direction = "horizontal"))
+conditional9    
+```
+```{r}
+# maybe plot them in two different plots and then combine together
+row1fg <- c('Sweets','Grains', 'Milk','Eggs')
+rows2fg <- rev( c('Vegetables','Oils', 'Fruits', 'Meats', 'Legumes'))
+r1 <- conditional %>%   
+  filter(shortname %in% row1fg ) %>% 
+  ggplot() +
+  geom_smooth(aes(x = effect1__, y = estimate__, ymin = lower__, ymax = upper__, fill = effect2__, color = effect2__),
+              stat = "identity",
+              alpha = .5, linewidth = 1.5)+ 
+  scale_fill_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  scale_colour_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  facet_wrap(~ shortname, nrow = 1, scales = 'free_x') +
+  ylim(0, 3.3) +
+  labs(y = 'Predicted log(diversity)', x = '') +
+  theme_classic() +
+  theme(legend.position = 'none',
+        aspect.ratio = 1, 
+        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
+     axis.text=element_text(size=8), axis.title=element_text(size=axis_text_size))    
+r1
+```
+
+```{r}
+r2 <- conditional %>%   
+  filter(shortname %in% rows2fg ) %>% 
+  ggplot() +
+  geom_smooth(aes(x = effect1__, y = estimate__, ymin = lower__, ymax = upper__, fill = effect2__, color = effect2__),
+              stat = "identity",
+              alpha = .5, linewidth = 1.5)+ 
+  scale_fill_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  scale_colour_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  facet_wrap(~ shortname, nrow = 1, scales = 'free_x') +
+  ylim(0, 3.3) +
+  labs(y = 'Predicted log(diversity)', x = 'Food group consumed (grams)') +
+  theme_classic() +
+  theme(legend.position = c(0.2, 0.1), legend.title = element_text(size = 8, face="bold"),
+        legend.text = element_text( size=8, face="bold"),
+       legend.background=element_rect(fill = alpha("white", 0)),
+      legend.key=element_rect(fill = alpha("white", 0)),
+        aspect.ratio = 1, 
+        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
+     axis.text=element_text(size=8), axis.title=element_text(size=axis_text_size))    +
+  guides(fill = guide_legend(direction = "horizontal"), color = guide_legend(direction = "horizontal"))
+r2
+```
+```{r}
+# the raw data 
+rawsweets <- META %>% 
+  mutate(log_div = log(simpson_reciprocal)) %>% 
+  mutate(antibiotics = if_else(empirical == 'TRUE', 'exposed', 'not exposed')) %>% 
+  ggscatter(x = 'fg_sweets', y = 'log_div', color = 'antibiotics',
+            ylab = 'log(diversity)',xlab = 'Sweets consumed (grams)',
+            alpha = 0.1, shape = 16, 
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = 'antibiotics', fill = 'antibiotics', alpha = 0.3, size = 1.5), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "spearman",  label.sep = " \\n", cor.coef.name = c("rho"),p.accuracy = 0.01, r.accuracy = 0.01,label.x.npc = "left", label.y.npc = "bottom")) +
+  scale_x_sqrt() +
+  scale_y_sqrt() +
+  scale_fill_manual(values = palette) +
+  scale_colour_manual(values = palette) +
+  facet_grid(~ antibiotics, labeller = 'label_both') +
+  theme(aspect.ratio = 1, legend.position = 'none',strip.background = element_blank(), strip.text = element_blank(),
+     axis.text=element_text(size=6), axis.title=element_text(size=axis_text_size)) 
+rawsweets
+ggsave('../data/176_raw_sweets.pdf', width = 4, height = 2)
+```
+
+# assemble all parts of F2  
 
 ```{r}
 title <- ggdraw() + 
@@ -310,9 +421,32 @@ right <- plot_grid(diagram,NA, fg_side,
                 rel_heights = c(1,-.6,5),
                   ncol = 1)
 
-f2 <-  plot_grid(left,right,
+f2_top <-  plot_grid(left,right,
                 rel_widths = c(1,1.2),
                  nrow = 1)
+```
+
+```{r}
+# row1_right <- plot_grid(NA,r1,
+#                 #rel_widths = c(1,2),
+#                  nrow = 2)
+# row1 <- plot_grid(rawsweets,row1_right,
+#                 #rel_widths = c(1,2),
+#                  nrow = 1)
+# # f2_bottom_1 <- plot_grid(rawsweets,r1,
+# #                 rel_widths = c(1,2),
+# #                  nrow = 1)
+# f2_bottom <- plot_grid(row1,r2,
+#                  nrow = 2)
+```
+
+
+```{r}
+f2 <- plot_grid(f2_top,NA, conditional9,
+                rel_heights = c(1,-0.15, .5),
+                labels = c(NA,NA, 'F'), 
+                #align = 'hv',axis = 'lrtb',
+                 ncol = 1)
 
 combined <- plot_grid(
   title, f2,
@@ -322,9 +456,9 @@ combined <- plot_grid(
 ) +theme(plot.margin = unit(c(1,2,1,1), "cm"))
 
 ggsave('../data/F2_model_results_176.pdf',
-      width = 210, height = 197, units = "mm", device = 'pdf', 
+      width = 210, height = 297, units = "mm", device = 'pdf', 
       #plot = combined, 
-      dpi = 300)
+      dpi = 300)   
 ```
 
 ```{r}

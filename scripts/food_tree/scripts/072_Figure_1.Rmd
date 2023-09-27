@@ -14,6 +14,7 @@ library(tidyverse)
 library(ggpubr)
 library(cowplot)
 library(ggimage)
+library(ggrastr)
 library(lemon)
 axis_text_size <- 10
 axis_title_size <- 10
@@ -171,7 +172,7 @@ food2 <- food %>%
   ggscatter('fdrt', 'value',
              alpha = 0.02,size = point_size,
             color = scatter_col,
-            ylab = expression(Diet~alpha~diversity),
+            ylab = 'Diet alpha diversity',
             xlab = 'Day relative to HCT',
             title = 'Daily caloric intake',
              add = "loess", conf.int = TRUE,
@@ -223,14 +224,16 @@ color_key <- OUT %>%
   distinct( color, shortname) %>% select(shortname, color) %>% 
   deframe()
 ```
+
 # color by the dominant food group
 
 ```{r}
 out2_umap <- OUT %>% 
   #arrange(desc(n)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'shortname', alpha = 1,size = umap_pt_size , shape = 16,
-            xlab = 'TaxUMAP1', ylab = 'TaxUMAP2') +
+  ggplot() +
+  rasterise(geom_point(aes(x = taxumap1, y = taxumap2, color = shortname), alpha = 1,size = umap_pt_size , shape = 16), dpi = 300) +
   scale_color_manual(values = color_key) +
+    labs(x = 'TaxUMAP1', y = 'TaxUMAP2') +
   theme_classic() +
   #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
   theme(legend.position = "none",
@@ -247,7 +250,7 @@ out2_umap <- OUT %>%
     legend.box.background = element_rect(fill='transparent') ,
         aspect.ratio=1) +
   guides(colour = guide_legend(override.aes = list(alpha=1)))
-
+ggsave('../data/072_umap1_ras.pdf')
 ```
 
 # color by the daily cal intake
