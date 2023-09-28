@@ -87,9 +87,10 @@ macro_panel <- byday_original %>%
   mutate(xaxis = factor(xaxis, levels = c('daycal','d_carb','d_sugar','d_fiber','d_protein','d_fat'))) %>% 
   mutate(xaxis = if_else(str_detect(xaxis, '^d_'), str_replace(xaxis, 'd_',''), str_replace(xaxis, '^day','')),
          xaxis = if_else(str_detect(xaxis, 'cal'), str_replace(xaxis, 'cal','calorie'), xaxis),
+         xaxis = if_else(str_detect(xaxis, 'carb'), str_replace(xaxis, 'carb','carbohydrate'), xaxis),
          xaxis = str_to_title(xaxis),
          xaxis = str_glue('{xaxis}')) %>% 
-  mutate(xaxis = factor(xaxis, levels = c('Calorie','Carb','Sugar','Fiber','Protein','Fat')))
+  mutate(xaxis = factor(xaxis, levels = c('Calorie','Carbohydrate','Sugar','Fiber','Protein','Fat')))
 ```
 
 ```{r}
@@ -116,7 +117,7 @@ scales_x <- list(
   `Calorie` = scale_x_continuous(limits = c(0, cal_lim), breaks = seq(0, cal_lim, 1)),
   `Protein` = scale_x_continuous(limits = c(0, protein_lim), breaks = seq(0, protein_lim, 50)),
   `Fat` = scale_x_continuous(limits = c(0, d_fat_lim), breaks = seq(0, d_fat_lim, 100)),
-  `Carb` = scale_x_continuous(limits = c(0, d_carb_lim), breaks = seq(0, d_carb_lim, 250)),
+  `Carbohydrate` = scale_x_continuous(limits = c(0, d_carb_lim), breaks = seq(0, d_carb_lim, 250)),
   `Fiber` = scale_x_continuous(limits = c(0,d_fiber_lim), breaks = seq(0, d_fiber_lim, 20)),        
   `Sugar` = scale_x_continuous(limits = c(0, d_sugar_lim), breaks = seq(0, d_sugar_lim, 100) )
 )
@@ -125,21 +126,22 @@ scales_x <- list(
 
 ```{r}
 macro_facets <- macro_panel %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.05, xlab = '', ylab = '',size = 1.2, shape = 16,
+  ggscatter(x = 'number', y = 'value', alpha = 0.002, xlab = '', ylab = '',size = 1.2, shape = 16,
              add = "reg.line",  # Add regressin line
            add.params = list(color = "darkblue", fill = "gray59"), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = "\n",label.x.npc = "center", label.y.npc = "top", cor.coef.name = c("rho"), size = 2)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = ", ",label.x.npc = "left", label.y.npc = "bottom", cor.coef.name = c("rho"), size = 2, p.accuracy = 0.01, r.accuracy = 0.01)) +
   facet_grid_sc(rows = vars(yaxis), cols = vars(xaxis), scales = list(y = scales_y, x = scales_x)) +
   theme_classic(base_size = 11) +
   theme(aspect.ratio = 1,
-        panel.background = element_rect(fill = "gray97"),
+        panel.background = element_rect(fill = "gray97"),axis.title=element_text(size=axis_title_size),
+        plot.title = element_text(size=axis_title_size),
         panel.grid.major = element_blank(), 
-        strip.background = element_blank(),
-        #strip.text = element_blank(),
+        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
         panel.grid.minor = element_blank()
        )
+macro_facets
 ```
 
 
@@ -149,6 +151,10 @@ ggsave('../data/151_combined_sameday_macronutrients_microbiome.pdf',
        units = c("mm"),
        plot = macro_facets)
 ```
+
+
+
+
 ```{r}
 # since I need to annotate the p value of the slope I can't do it in facet wrap
 # need to manually arrange them

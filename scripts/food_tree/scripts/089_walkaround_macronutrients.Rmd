@@ -22,7 +22,7 @@ axis_title_size <- 10
 
 ```{r}
 dtb1 <- read_csv('../data/149_finalized_dtb1.csv')
-full <- read_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera34.csv')
+full <- read_csv('../data/090_all_samples_meta_p2d_fg9_dietall_genera90.csv')
 
 
 byday_original1 <- dtb1 %>% 

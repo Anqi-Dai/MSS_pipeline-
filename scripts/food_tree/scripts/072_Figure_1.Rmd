@@ -20,14 +20,15 @@ axis_text_size <- 10
 axis_title_size <- 10
 stip_txt_size <- 8
 alpha_val <- 0.05
-point_size <- 1.2
+point_size <- 0.2
 scatter_col <- 'gray14'
 pick_point_size <- 1
 pick_line_size <- 0.5
 example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
-umap_pt_size <- 1
+strip_color <- 'gray91'
+umap_pt_size <- 0.5
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 
 # the colors for each food group specified and saved here
@@ -50,7 +51,7 @@ get_table_from_database('asv_alpha_diversity_ag')
 get_table_from_database('shotgun_lookup_ad')
 ```
 
-# fig1 bottom 3
+# fig1 data summaries
 
 The first 2 need to be redo, since the data has been updated.
 
@@ -75,6 +76,20 @@ dtb %>% count(mrn, fdrt) %>%
 
 range(dtb$fdrt)
   
+
+# summary statistics 
+# median N samples per patient
+n_per_patient <- meta %>% 
+  count(mrn) 
+summary(n_per_patient$n)
+```
+
+```{r spectral_legend}
+pdf(file = "../figs/paper/F1_spectral_legend.pdf",   # The directory you want to save the file in
+    width = 4, # The width of the plot in inches
+    height = 4)
+display.brewer.pal(9, "Spectral")
+dev.off()
 ```
 
 ```{r}
@@ -98,9 +113,36 @@ smoothie <- dtb %>%
   pull(Food_code)
 ```
 
+# the top part 
+
+```{r stool_hist}
+# Tsoni says: I still think a little figure would be helpful. Perhaps best a small histogram of N samples and N meals recorded over transplant time. That would show both the depth of sampling and emphasize the temporal nature of the dataset
+# the histogram of the N stool samples over transplant time
+stool_hist <- meta %>% 
+  gghistogram(x = 'sdrt', xlab = 'Transplant day', ylab = 'Stool samples', color = 'white', fill = stool_line_color, alpha = 1) +
+  scale_x_continuous( breaks = seq(-10, 50, 20)) + 
+  annotate("text", x = 20, y = 110, label = "1,009\nstool samples", hjust = 0, size = 2) +
+  theme(aspect.ratio=1)
+stool_hist
+```
+
+```{r diet_hist}
+# the histogram of the N meals over transplant time
+diet_hist <- dtb %>% 
+  distinct(mrn, Meal, fdrt) %>% 
+  gghistogram(x = 'fdrt', xlab = 'Transplant day', ylab = 'Meals recorded', color = 'white', fill = diet_line_color, alpha = 1)+
+    scale_x_continuous( breaks = seq(-10, 50, 20)) + 
+  annotate("text", x = 5, y = 900, label = "173 patients,\n9,419 total meals\n40,702 food items", hjust = 0, size = 2) +
+  theme(aspect.ratio=1,axis.line=element_line(size=.5),
+        axis.title.x = element_blank(),
+        axis.text.x = element_blank())
+
+diet_hist
+```
+
 ```{r stool_alpha}
 stool_alpha <- meta %>% 
-  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = alpha_val, size = point_size,
+  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = 0.01, size = point_size,
             xlab = 'Day relative to HCT', shape = 'triangle',
             #ylab = expression(Microbiome~alpha~diversity),
             #title = expression(Microbiome~alpha~diversity),
@@ -116,81 +158,54 @@ stool_alpha <- meta %>%
 
 ```
 
-```{r caloric_intake}
+```{r food2}
 day_calori <- dtb %>% 
   group_by(mrn, fdrt) %>% 
   summarise(daycal = sum(Calories_kcal))
 
-# REMEMBER THAT IN AXIS LABLE YOU NEED TO TIMES THE 1000 BACK!!!!!!
-day_cal <- day_calori %>% 
-  mutate(daycal = daycal/1000) %>% 
-  ggscatter(x = 'fdrt', y = 'daycal', alpha = alpha_val, size = point_size, shape = 16,
-            xlab = 'Day relative to HCT',
-            ylab = 'Daily caloric intake',
-            color = scatter_col,
-             add = "loess", conf.int = TRUE, 
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +  
-   scale_x_continuous( breaks = seq(0, 50, 20)) + 
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        aspect.ratio=1)
-
-```
-
-```{r diet_alpha}
 # this faith pd is all the combined data of the patients
 faith <- read_csv('../data/162_all_faith.csv')
 
-# REMEMBER THAT IN AXIS LABLE YOU NEED TO TIMES THE 1000 BACK!!!!!!
-diet_alpha <- faith %>% 
-  mutate(faith_pd = faith_pd/1000) %>% 
-  ggscatter('fdrt', 'faith_pd', 
-             alpha = alpha_val,size = point_size, 
-            color = scatter_col, shape = 16, 
-            ylab = 'Diet alpha diversity', 
-            xlab = 'Day relative to HCT',
-             add = "loess", conf.int = TRUE, 
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
-   scale_x_continuous( breaks = seq(0, 50, 20)) + 
-  #scale_y_continuous(limits = c(0, 2.5), breaks = seq(0, 2.5, 1) )
-  theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        aspect.ratio=1) 
 
-```
-
-```{r food2}
-# make a combined version of the faith and the day_cal
+# make a separate version of the faith and the day_cal
 food <- day_calori %>%
   full_join(faith)
 
-food2 <- food %>%
-  gather('type', 'value', daycal:faith_pd) %>%
-  mutate(value = value/1000) %>%
-  ggscatter('fdrt', 'value',
-             alpha = 0.02,size = point_size,
+cal_time <- food %>% 
+  mutate(daycal = daycal/1000) %>%
+  ggscatter('fdrt', 'daycal',
+             alpha = 0.01,size = point_size,
             color = scatter_col,
-            ylab = 'Diet alpha diversity',
-            xlab = 'Day relative to HCT',
-            title = 'Daily caloric intake',
+            ylab = 'Caloric intake\n(X10e3 Kcal)',
+            xlab = 'Transplant day',
              add = "loess", conf.int = TRUE,
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
-  facet_grid(type ~ .) +
   scale_x_continuous( breaks = seq(0, 50, 20)) +
   theme_classic() +
   theme(axis.text=element_text(size=axis_text_size),
+        axis.title=element_text(size=axis_title_size),axis.title.x = element_blank(),
+        axis.text.x = element_blank(),
+        plot.title = element_text(size=axis_title_size),aspect.ratio=1) 
+
+dietalpha_time <- food %>% 
+  mutate(faith_pd = faith_pd/1000) %>%
+  ggscatter('fdrt', 'faith_pd',
+             alpha = 0.01,size = point_size,
+            color = scatter_col,
+            ylab = 'Diet alpha diversity\n(X10e3)',
+            xlab = 'Transplant day',
+             add = "loess", conf.int = TRUE,
+            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
+  scale_x_continuous( breaks = seq(0, 50, 20)) +
+  scale_y_continuous( breaks = seq(0, 2.5, 1)) +
+  theme_classic() +
+  theme(axis.text=element_text(size=axis_text_size),
         axis.title=element_text(size=axis_title_size),
-        plot.title = element_text(size=axis_title_size),
-        strip.background = element_blank(),
-        strip.text = element_blank(),
-        #plot.title = element_text(size=11, hjust = 0.5,  face = 'bold')
-        ) +
-  theme(aspect.ratio=1)
+        plot.title = element_text(size=axis_title_size),aspect.ratio=1) 
+
 ```
 
-# fig1 top 3
+# UMAPs
 
 ```{r}
 # calculate the dominant food group of that day
@@ -210,9 +225,7 @@ fg_sum <- dtb %>%
   group_by(mrn, fdrt) %>% 
   arrange(desc(fg_relab)) %>% 
   slice(1)
-```
 
-```{r}
 # find out why the few dots are on that far island
 OUT <- read_csv('../data/taxumap_embedding.csv') %>% 
   separate(index_column, into = c('mrn','fdrt'), sep = '_') %>% 
@@ -232,8 +245,8 @@ out2_umap <- OUT %>%
   #arrange(desc(n)) %>% 
   ggplot() +
   rasterise(geom_point(aes(x = taxumap1, y = taxumap2, color = shortname), alpha = 1,size = umap_pt_size , shape = 16), dpi = 300) +
+  labs(x = 'TaxUMAP1', y = 'TaxUMAP2') +
   scale_color_manual(values = color_key) +
-    labs(x = 'TaxUMAP1', y = 'TaxUMAP2') +
   theme_classic() +
   #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
   theme(legend.position = "none",
@@ -242,13 +255,11 @@ out2_umap <- OUT %>%
         axis.title=element_blank(),
         axis.text= element_blank(),
         axis.ticks = element_blank(),
-                 panel.background = element_rect(fill='transparent'), #transparent panel bg
+        panel.background = element_rect(fill='gray97'), #transparent panel bg
     plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
-    panel.grid.major = element_blank(), #remove major gridlines
-    panel.grid.minor = element_blank(), #remove minor gridlines
+    panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
     legend.background = element_rect(fill='transparent'), #transparent legend bg
-    legend.box.background = element_rect(fill='transparent') ,
-        aspect.ratio=1) +
+    legend.box.background = element_rect(fill='transparent') , aspect.ratio=1) +
   guides(colour = guide_legend(override.aes = list(alpha=1)))
 ggsave('../data/072_umap1_ras.pdf')
 ```
@@ -261,11 +272,11 @@ cal <- dtb %>%
   group_by(mrn, fdrt) %>% 
   summarise(total_cal = sum(Calories_kcal)) 
 out2_cal <- OUT %>% full_join(cal)
+
 out2_caloric <- out2_cal %>% 
-  #arrange(desc(n)) %>% 
   mutate(transform_cal = sqrt(total_cal)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'transform_cal', alpha = 1,size = umap_pt_size , shape = 16,
-            xlab = '', ylab = '') +
+    ggplot() +
+  rasterise(geom_point(aes(x = taxumap1, y = taxumap2, color = transform_cal), alpha = 1,size = umap_pt_size , shape = 16), dpi = 300) +
   paletteer::scale_color_paletteer_c("viridis::plasma") +
   theme_classic() +
   #lemon::coord_capped_cart(bottom = 'both', left = 'both') +
@@ -275,7 +286,7 @@ out2_caloric <- out2_cal %>%
         axis.title=element_blank(),
         axis.text= element_blank(),
         axis.ticks = element_blank(),
-         panel.background = element_rect(fill='transparent'), #transparent panel bg
+         panel.background = element_rect(fill='gray97'), #transparent panel bg
     plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
     panel.grid.major = element_blank(), #remove major gridlines
     panel.grid.minor = element_blank(), #remove minor gridlines
@@ -299,16 +310,16 @@ faith2 <-  read_tsv('../data/139_batch2_faith_pd/alpha-diversity.tsv') %>%
 faith <- bind_rows(faith1, faith2)
 
 faith %>% write_csv('../data/162_all_faith.csv')
-```
-```{r}
+
 out_faith <- OUT %>% 
   full_join(faith)
+
 library(viridis)
 umap_faith <- out_faith %>% 
   #arrange(desc(n)) %>% 
   mutate(log10faith = log10(faith_pd + 1)) %>% 
-  ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'faith_pd', alpha = 1,size = umap_pt_size, shape = 16,
-            xlab = '', ylab = '') +
+    ggplot() +
+  rasterise(geom_point(aes(x = taxumap1, y = taxumap2, color = faith_pd), alpha = 1,size = umap_pt_size , shape = 16), dpi = 300) +
   scale_color_viridis() +
   theme_classic() +
   theme(line = element_blank(),
@@ -317,7 +328,7 @@ umap_faith <- out_faith %>%
         axis.text= element_blank(),
         axis.ticks = element_blank(),
         aspect.ratio=1,
-                 panel.background = element_rect(fill='transparent'), #transparent panel bg
+                 panel.background = element_rect(fill='gray97'), #transparent panel bg
     plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
     panel.grid.major = element_blank(), #remove major gridlines
     panel.grid.minor = element_blank(), #remove minor gridlines
@@ -355,9 +366,8 @@ umap_time_df <- umap_time %>%
 
 umap_drt_high_to_low_bin <- umap_time_df %>% 
   arrange(desc(fdrt)) %>% 
-  #arrange(fdrt) %>% 
-   ggscatter(x = 'taxumap1', y = 'taxumap2', color = 'bin', alpha = 1, size = umap_pt_size, shape = 16,
-             xlab = '', ylab = '') + 
+    ggplot() +
+  rasterise(geom_point(aes(x = taxumap1, y = taxumap2, color = bin), alpha = 1,size = umap_pt_size , shape = 16), dpi = 300) +
    scale_color_manual(values = RColorBrewer::brewer.pal(9,"Spectral"))  +
    theme_classic() +
    theme(legend.position = "none",
@@ -366,7 +376,7 @@ umap_drt_high_to_low_bin <- umap_time_df %>%
          axis.title=element_blank(),
          axis.text= element_blank(),
          axis.ticks = element_blank(),
-              panel.background = element_rect(fill='transparent'), #transparent panel bg
+              panel.background = element_rect(fill='gray97'), #transparent panel bg
     plot.background = element_rect(fill='transparent', color=NA), #transparent plot bg
     panel.grid.major = element_blank(), #remove major gridlines
     panel.grid.minor = element_blank(), #remove minor gridlines
@@ -376,16 +386,6 @@ umap_drt_high_to_low_bin <- umap_time_df %>%
 
 ```
 
-
-
-
-
-
-
-
-
-
-
 ```{r tree}
 # import the tree from pdf to a ggplot kind of object
 p <- '../figs/paper/080_food_tree_ring.png'
@@ -393,12 +393,12 @@ tree <- ggdraw() +
   draw_image(p,   scale = 1.3) 
 ```
 
-# the macronutrients 3 by 2 panel inserted to the middle row
-
+# the macronutrients 3 by 2 grid
 
 ```{r}
 # the days that we know the patient didn't eat anythinng
-ptb <- read_csv('../data/156_transplant_data.csv')
+ptb <- read_csv('../data/156_transplant_data.csv') %>% mutate(hct = ymd(hct))
+
 zerodays2 <- readxl::read_excel('../data/MissingDataCheck_DietStudy_New80Patients.xlsx') %>% 
   mutate(mrn = as.numeric(mrn), date = ymd(date)) %>% 
   filter(diet_data_status == '0') %>% 
@@ -472,15 +472,15 @@ dailymacro <- bind_rows(
 
 ```{r 3X2}
 m_panel <- dailymacro %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.002, size = point_size, 
-            xlab = 'Day relative to HCT',
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.009, size = point_size, 
+            xlab = 'Transplant day',title = 'Macronutrients',
             ylab = 'Grams',
             add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
   facet_wrap(~ grp, nrow = 3, scales = 'free_y') +
   scale_x_continuous( breaks = seq(0, 50, 20)) + 
   theme(axis.text=element_text(size=6),
-        strip.background = element_blank(),
+        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
         strip.text.x = element_text(size = stip_txt_size), 
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
@@ -488,7 +488,7 @@ m_panel <- dailymacro %>%
 m_panel
 ```
 
-# the food group daily intake as a 3 by 3 grid panel
+# the food group  3 by 3 grid 
 
 ```{r 3X3}
 fg_all <- dtb %>%  
@@ -509,15 +509,9 @@ fg_total <- bind_rows(
 ) %>%  gather('grp','eachsum', Eggs:Vegetables)
   
 
-#fg_total %>% write_csv('../data/072_all_daily_foodgroups.csv')
-  
-```
-
-
-```{r 3X3}
 fg_panel <- fg_total %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.002, size = point_size, 
-            xlab = 'Day relative to HCT',
+   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.009, size = point_size, 
+            xlab = 'Transplant day',title = 'Food groups',
             ylab = 'Grams',
             add = "loess", conf.int = TRUE, 
             add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
@@ -527,44 +521,70 @@ fg_panel <- fg_total %>%
   scale_x_continuous( breaks = seq(0, 50, 20)) + 
   scale_y_sqrt() +
   theme(axis.text=element_text(size=6),
-        strip.background = element_blank(),
+       strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
         strip.text.x = element_text(size = stip_txt_size), 
         axis.title=element_text(size=axis_title_size),
         plot.title = element_text(size=axis_title_size),
         aspect.ratio=1)
 fg_panel
 ```
-
-
-# Assembling the final version of the figure 1
+ 
+# Assembling all 
 
 ```{r}
-stool_two <- plot_grid(stool_alpha,stool_alpha,
-                  nrow = 2,axis = 'lbrt', align = 'hv') 
+title <- ggdraw() + 
+  draw_label("Fig. 1",fontface = 'bold',x = 0,hjust = 0) +
+  theme(plot.margin = margin(0, 0, 0, 7))
+```
 
-bot <- plot_grid(food2, m_panel, fg_panel,  stool_two,
-          nrow = 1, 
+```{r}
+# assemble the 4 UMAPs
+maps <- plot_grid(out2_umap, out2_caloric, umap_faith, umap_drt_high_to_low_bin,
+          nrow = 2, hjust = 0,
           align = 'hv',
-          rel_widths =  c(1,1.2,1.4,1),
-          #rel_heights = c(1,1),
-          labels = c('E','F', 'G', "H"),
+          labels = c('C','D', 'E', "F"),
           axis = 'tblr')
+maps
+```
+
+```{r two_hist}
+# assemble the two hists
+two_hist <- plot_grid(diet_hist, stool_hist, 
+          nrow = 2, hjust = 0.5,
+          align = 'hv',
+          labels = c('A'),
+          axis = 'tblr')
+two_hist
+```
+
+```{r}
+# top row 
+top_row <- plot_grid(two_hist, NA, maps,
+          nrow = 1, 
+          align = 'hv',rel_widths = c(.8,1.5,1.5), 
+          labels = c(NA, 'B', NA),
+          axis = 'tblr')
+top_row
 ```
 
 
-```{r}
-middle_left <- plot_grid(day_cal,diet_alpha,
+```{r middle_row}
+stool_two <- plot_grid(NA,stool_alpha,
+                  nrow = 2,axis = 'lbrt', align = 'hv') 
+
+middle_food2 <- plot_grid(cal_time,dietalpha_time,
           nrow = 2, 
           align = 'hv',
           labels = c( 'G', "H"),
           axis = 'tblr')
 
-middle <- plot_grid(middle_left,m_panel, fg_panel, stool_alpha,
+middle_row <- plot_grid(NA,m_panel, fg_panel, stool_two,
           nrow = 1, 
           align = 'hv',
+          rel_widths =  c(.8,1.2,1.4,.8),
           labels = c(NA, 'I', 'J', "K"),
           axis = 'tblr')
-ggsave('../data/072_middle.pdf', width = 5)      
+     
 ```
 
 
@@ -572,69 +592,24 @@ ggsave('../data/072_middle.pdf', width = 5)
 top <- plot_grid(tree, fig1_umap, NA,
                  #labels = c('B', "C", "D"),
                   nrow = 1, rel_widths = c(1.5,1, 1), axis = 'lbrt', align = 'hv')
+```
 
+
+```{r}
 # assemble all
-f1 <-  plot_grid(top, bot,
-                 rel_heights = c(1,1),
-                 nrow = 2)
+f1 <-  plot_grid(top_row, middle_row,NA,
+                 rel_heights = c(1,1,1),
+                 nrow = 3)
 
+combined <- plot_grid(
+  title, f1,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.06, 1)
+) +theme(plot.margin = unit(c(1,1,1,1), "cm"))
 
-ggsave('../figs/paper/F1_overview_072_raw.pdf',
-       width = 220,
-       height = 140,
-         #height = 60,  
-         units = c("mm"),
-         dpi = 400, plot = f1)
+ggsave('../data/F1_overview_raw_072.pdf',
+      width = 210, height = 297, units = "mm", device = 'pdf', 
+      #plot = combined, 
+      dpi = 300)  
 ```
-
-```{r spectral_legend}
-pdf(file = "../figs/paper/F1_spectral_legend.pdf",   # The directory you want to save the file in
-    width = 4, # The width of the plot in inches
-    height = 4)
-display.brewer.pal(9, "Spectral")
-dev.off()
-```
-
-
-```{r}
-# Tsoni says: I still think a little figure would be helpful. Perhaps best a small histogram of N samples and N meals recorded over transplant time. That would show both the depth of sampling and emphasize the temporal nature of the dataset
-# the histogram of the N stool samples over transplant time
-stool_hist <- meta %>% 
-  gghistogram(x = 'sdrt', xlab = 'Transplant day', ylab = 'Count', color = 'white', fill = stool_line_color, alpha = 1) +
-  scale_x_continuous( breaks = seq(-10, 50, 20)) + 
-  theme(aspect.ratio=1)
-stool_hist
-
-```
-
-
-```{r}
-# the histogram of the N meals over transplant time
-diet_hist <- dtb %>% 
-  distinct(mrn, Meal, fdrt) %>% 
-  gghistogram(x = 'fdrt', xlab = 'Transplant day', ylab = 'Count', color = 'white', fill = diet_line_color, alpha = 1)+
-    scale_x_continuous( breaks = seq(-10, 50, 20)) + 
-  theme(aspect.ratio=1,axis.line=element_line(size=.5),
-        axis.title.x = element_blank(),
-        axis.text.x = element_blank(),
-        axis.ticks.x = element_blank())
-
-diet_hist
-```
-```{r}
-hist_two <- plot_grid(diet_hist, stool_hist,
-                  nrow = 2,axis = 'lbrt', align = 'hv')
-
-hist_two
-
-ggsave('../data/072_hist2.pdf', height = 3)
-```
-
-```{r}
-# summary statistics 
-# median N samples per patient
-n_per_patient <- meta %>% 
-  count(mrn) 
-summary(n_per_patient$n)
-```
-
