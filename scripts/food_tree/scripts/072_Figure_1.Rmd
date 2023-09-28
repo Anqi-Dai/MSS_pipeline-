@@ -28,7 +28,7 @@ example_pt_line_size <- 0.3
 diet_line_color <- '#E41A1C'
 stool_line_color <- 'blue'
 strip_color <- 'gray91'
-umap_pt_size <- 0.5
+umap_pt_size <- 0.2
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 
 # the colors for each food group specified and saved here
@@ -121,8 +121,9 @@ smoothie <- dtb %>%
 stool_hist <- meta %>% 
   gghistogram(x = 'sdrt', xlab = 'Transplant day', ylab = 'Stool samples', color = 'white', fill = stool_line_color, alpha = 1) +
   scale_x_continuous( breaks = seq(-10, 50, 20)) + 
-  annotate("text", x = 20, y = 110, label = "1,009\nstool samples", hjust = 0, size = 2) +
-  theme(aspect.ratio=1)
+  annotate("text", x = 20, y = 110, label = "1,009\nstool samples", hjust = 0, size = 1.5) +
+  theme_classic(base_size = 8) +
+  theme(aspect.ratio=1,   axis.title=element_text(size=axis_title_size))
 stool_hist
 ```
 
@@ -132,8 +133,10 @@ diet_hist <- dtb %>%
   distinct(mrn, Meal, fdrt) %>% 
   gghistogram(x = 'fdrt', xlab = 'Transplant day', ylab = 'Meals recorded', color = 'white', fill = diet_line_color, alpha = 1)+
     scale_x_continuous( breaks = seq(-10, 50, 20)) + 
-  annotate("text", x = 5, y = 900, label = "173 patients,\n9,419 total meals\n40,702 food items", hjust = 0, size = 2) +
+  annotate("text", x = 5, y = 900, label = "173 patients,\n9,419 total meals\n40,702 food items", hjust = 0, size = 1.5) +
+  theme_classic(base_size = 8) +
   theme(aspect.ratio=1,axis.line=element_line(size=.5),
+         axis.title=element_text(size=axis_title_size),
         axis.title.x = element_blank(),
         axis.text.x = element_blank())
 
@@ -142,20 +145,21 @@ diet_hist
 
 ```{r stool_alpha}
 stool_alpha <- meta %>% 
-  ggscatter(x = 'sdrt', y = 'simpson_reciprocal', alpha = 0.01, size = point_size,
-            xlab = 'Day relative to HCT', shape = 'triangle',
-            #ylab = expression(Microbiome~alpha~diversity),
-            #title = expression(Microbiome~alpha~diversity),
-            add = "loess", conf.int = TRUE, 
-            add.params = list(color = stool_line_color, fill = "darkblue", size = 1)) +
+     ggplot() +
+  rasterise(geom_point(aes(x = sdrt, y = simpson_reciprocal, shape = 'triangle'), alpha = 0.01,size = point_size , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = sdrt, y = simpson_reciprocal), method = "loess", formula = 'y ~ x', colour = stool_line_color ,  size = 1, fill = 'darkblue') +
+  labs( x = 'Transplant day',title = 'Microbiome\nalpha diversity', y = '') +
+  theme_classic(base_size = 8) +
    scale_x_continuous( breaks = seq(0, 50, 20)) + 
   theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
+        axis.title=element_text(size=8),
         plot.title = element_text(size=axis_title_size),
-        aspect.ratio=1) +
-  theme(axis.title = element_blank(),
-        plot.title = element_blank())
+        aspect.ratio=1) 
+stool_alpha
 
+ggsave('../data/072_stool_line.pdf',width = 40, height = 40, units = "mm", device = 'pdf', 
+      plot = stool_alpha, 
+      dpi = 300 )
 ```
 
 ```{r food2}
@@ -173,37 +177,45 @@ food <- day_calori %>%
 
 cal_time <- food %>% 
   mutate(daycal = daycal/1000) %>%
-  ggscatter('fdrt', 'daycal',
-             alpha = 0.01,size = point_size,
-            color = scatter_col,
-            ylab = 'Caloric intake\n(X10e3 Kcal)',
-            xlab = 'Transplant day',
-             add = "loess", conf.int = TRUE,
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
+        ggplot() +
+  rasterise(geom_point(aes(x = fdrt, y = daycal, shape = 'triangle'), alpha = 0.01,size = point_size , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = fdrt, y = daycal), method = "loess", formula = 'y ~ x', colour = diet_line_color ,  size = 1, fill = 'hotpink') +
+  labs( x = 'Transplant day',title = '', y = 'Caloric intake\n(X10e3 Kcal)') +
   scale_x_continuous( breaks = seq(0, 50, 20)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),axis.title.x = element_blank(),
+        axis.title=element_text(size=8),axis.title.x = element_blank(),
         axis.text.x = element_blank(),
         plot.title = element_text(size=axis_title_size),aspect.ratio=1) 
+cal_time
 
 dietalpha_time <- food %>% 
   mutate(faith_pd = faith_pd/1000) %>%
-  ggscatter('fdrt', 'faith_pd',
-             alpha = 0.01,size = point_size,
-            color = scatter_col,
-            ylab = 'Diet alpha diversity\n(X10e3)',
-            xlab = 'Transplant day',
-             add = "loess", conf.int = TRUE,
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1)) +
+       ggplot() +
+  rasterise(geom_point(aes(x = fdrt, y = faith_pd, shape = 'triangle'), alpha = 0.01,size = point_size , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = fdrt, y = faith_pd), method = "loess", formula = 'y ~ x', colour = diet_line_color ,  size = 1, fill = 'hotpink') +
+  labs( x = 'Transplant day',title = '', y = 'Diet alpha diversity\n(X10e3)') +
   scale_x_continuous( breaks = seq(0, 50, 20)) +
   scale_y_continuous( breaks = seq(0, 2.5, 1)) +
-  theme_classic() +
+  theme_classic(base_size = 8) +
   theme(axis.text=element_text(size=axis_text_size),
-        axis.title=element_text(size=axis_title_size),
+        axis.title=element_text(size=8),
         plot.title = element_text(size=axis_title_size),aspect.ratio=1) 
-
+dietalpha_time
 ```
+
+```{r}
+two_foodlines <- plot_grid(cal_time, NA, dietalpha_time, 
+                      rel_heights = c(1, -0.3, 1) ,
+          ncol = 1, hjust = 0.5,
+          align = 'hv',
+          axis = 'tblr')
+two_foodlines
+ggsave('../data/072_two_foodlines.pdf',width = 30, height = 60, units = "mm", device = 'pdf', 
+      plot = two_foodlines, 
+      dpi = 300 )
+```
+
 
 # UMAPs
 
@@ -472,9 +484,10 @@ dailymacro <- bind_rows(
 
 ```{r 3X2}
 m_panel <- dailymacro %>% 
+  mutate(grp = if_else(str_detect(grp, 'Carbohydrates'), str_replace(grp, 'Carbohydrates','Carbs'), grp)) %>% 
    ggplot() +
-  rasterise(geom_point(aes(x = fdrt, y = eachsum), alpha = 0.009,size = point_size , shape = 16), dpi = 300) +
-  geom_smooth(aes(x = fdrt, y = eachsum), method = "loess", colour = diet_line_color ,  size = 1, fill = 'hotpink') +
+  rasterise(geom_point(aes(x = fdrt, y = eachsum), alpha = 0.015,size = point_size , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = fdrt, y = eachsum), method = "loess", formula = 'y ~ x', colour = diet_line_color ,  size = 1, fill = 'hotpink') +
   labs( x = 'Transplant day',title = 'Macronutrients', y = 'Grams') +
   facet_wrap(~ grp, nrow = 3, scales = 'free_y') +
   scale_x_continuous( breaks = seq(0, 50, 20)) + 
@@ -511,8 +524,8 @@ fg_total <- bind_rows(
 
 fg_panel <- fg_total %>% 
      ggplot() +
-  rasterise(geom_point(aes(x = fdrt, y = eachsum), alpha = 0.009,size = point_size , shape = 16), dpi = 300) +
-  geom_smooth(aes(x = fdrt, y = eachsum), method = "loess", colour = diet_line_color ,  size = 1, fill = 'hotpink') +
+  rasterise(geom_point(aes(x = fdrt, y = eachsum), alpha = 0.015,size = point_size , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = fdrt, y = eachsum), method = "loess", formula = 'y ~ x', colour = diet_line_color ,  size = 1, fill = 'hotpink') +
   labs( x = 'Transplant day',title = 'Food groups', y = 'Grams') +
   facet_wrap(~ grp, 
              scales = 'free_y',
@@ -549,50 +562,44 @@ maps
 
 ```{r two_hist}
 # assemble the two hists
-two_hist <- plot_grid(diet_hist, stool_hist, 
-          nrow = 2, hjust = 0.5,
+two_hist <- plot_grid(diet_hist, NA, stool_hist, 
+                      rel_heights = c(1, -0.3, 1) ,
+          ncol = 1, hjust = 0.5,
           align = 'hv',
           labels = c('A'),
           axis = 'tblr')
 two_hist
+ggsave('../data/072_two_hist.pdf',width = 30, height = 60, units = "mm", device = 'pdf', 
+      plot = two_hist, 
+      dpi = 300 )
 ```
 
 ```{r}
 # top row 
-top_row <- plot_grid(two_hist, NA, maps,
+top_row <- plot_grid(NA, NA, maps,
           nrow = 1, 
-          align = 'hv',rel_widths = c(.8,1.5,1.5), 
-          labels = c(NA, 'B', NA),
+          align = 'hv',rel_widths = c(.6,1.5,1.5), 
+          labels = c('A', 'B', NA),
           axis = 'tblr')
 top_row
 ```
 
-
-```{r middle_row}
-stool_two <- plot_grid(NA,stool_alpha,
-                  nrow = 2,axis = 'lbrt', align = 'hv') 
-
-middle_food2 <- plot_grid(cal_time,dietalpha_time,
-          nrow = 2, 
-          align = 'hv',
-          labels = c( 'G', "H"),
-          axis = 'tblr')
-```
 
 
 ```{r middle_row}
 middle_row <- plot_grid(NA,m_panel, fg_panel, NA,
           nrow = 1, 
           align = 'hv',
-          rel_widths =  c(.8,1.2,1.7,.8),
-          labels = c(NA, 'I', 'J', "K"),
+          rel_widths =  c(.6,1.2,1.7,.6),
+          labels = c('G', 'I', 'J', "K"),
           axis = 'tblr')
 
 # assemble all
-f1 <-  plot_grid(top_row, middle_row,macro_facets,
+f1 <-  plot_grid(top_row, NA, middle_row,NA, macro_facets,
                  align = 'hv',axis = 'tblr',
-                 rel_heights = c(1,1,1),
-                 nrow = 3)
+                 labels = c(NA, NA, NA, NA, 'L'),
+                 rel_heights = c(1,-0.2, 1,-0.12, 1),
+                 ncol = 1)
 
 combined <- plot_grid(
   title, f1,
@@ -604,5 +611,5 @@ combined <- plot_grid(
 ggsave('../data/F1_overview_raw_072.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', 
       #plot = combined, 
-      dpi = 300)  
+      dpi = 300)   
 ```

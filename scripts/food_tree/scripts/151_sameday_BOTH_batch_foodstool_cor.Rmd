@@ -126,12 +126,11 @@ scales_x <- list(
 
 ```{r}
 macro_facets <- macro_panel %>% 
-  ggscatter(x = 'number', y = 'value', alpha = 0.002, xlab = '', ylab = '',size = 1.2, shape = 16,
-             add = "reg.line",  # Add regressin line
-           add.params = list(color = "darkblue", fill = "gray59"), # Customize line
-           conf.int = TRUE, # Add confidence interval
-           cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = ", ",label.x.npc = "left", label.y.npc = "bottom", cor.coef.name = c("rho"), size = 2, p.accuracy = 0.01, r.accuracy = 0.01)) +
+     ggplot() +
+  rasterise(geom_point(aes(x = number, y = value), alpha = 0.02,size = 1 , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = number, y = value), method = "lm", colour = 'darkblue' ,  size = 1, fill = 'gray59') +
+  labs( x = '',title = '', y = '') +
+  stat_cor(aes(x = number, y = value), method = "spearman",  label.sep = ", ",label.x.npc = "left", label.y.npc = "bottom", cor.coef.name = c("rho"), size = 2, p.accuracy = 0.01, r.accuracy = 0.01) +
   facet_grid_sc(rows = vars(yaxis), cols = vars(xaxis), scales = list(y = scales_y, x = scales_x)) +
   theme_classic(base_size = 11) +
   theme(aspect.ratio = 1,
