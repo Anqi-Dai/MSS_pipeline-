@@ -472,13 +472,13 @@ dailymacro <- bind_rows(
 
 ```{r 3X2}
 m_panel <- dailymacro %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.009, size = point_size, 
-            xlab = 'Transplant day',title = 'Macronutrients',
-            ylab = 'Grams',
-            add = "loess", conf.int = TRUE, 
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
+   ggplot() +
+  rasterise(geom_point(aes(x = fdrt, y = eachsum), alpha = 0.009,size = point_size , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = fdrt, y = eachsum), method = "loess", colour = diet_line_color ,  size = 1, fill = 'hotpink') +
+  labs( x = 'Transplant day',title = 'Macronutrients', y = 'Grams') +
   facet_wrap(~ grp, nrow = 3, scales = 'free_y') +
   scale_x_continuous( breaks = seq(0, 50, 20)) + 
+  theme_classic() +
   theme(axis.text=element_text(size=6),
         strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
         strip.text.x = element_text(size = stip_txt_size), 
@@ -510,16 +510,16 @@ fg_total <- bind_rows(
   
 
 fg_panel <- fg_total %>% 
-   ggscatter(x = 'fdrt', y = 'eachsum', alpha = 0.009, size = point_size, 
-            xlab = 'Transplant day',title = 'Food groups',
-            ylab = 'Grams',
-            add = "loess", conf.int = TRUE, 
-            add.params = list(color = diet_line_color, fill = "hotpink", size = 1))  +
+     ggplot() +
+  rasterise(geom_point(aes(x = fdrt, y = eachsum), alpha = 0.009,size = point_size , shape = 16), dpi = 300) +
+  geom_smooth(aes(x = fdrt, y = eachsum), method = "loess", colour = diet_line_color ,  size = 1, fill = 'hotpink') +
+  labs( x = 'Transplant day',title = 'Food groups', y = 'Grams') +
   facet_wrap(~ grp, 
              scales = 'free_y',
              nrow = 3 ) +
   scale_x_continuous( breaks = seq(0, 50, 20)) + 
   scale_y_sqrt() +
+  theme_classic() +
   theme(axis.text=element_text(size=6),
        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
         strip.text.x = element_text(size = stip_txt_size), 
@@ -577,27 +577,20 @@ middle_food2 <- plot_grid(cal_time,dietalpha_time,
           align = 'hv',
           labels = c( 'G', "H"),
           axis = 'tblr')
+```
 
-middle_row <- plot_grid(NA,m_panel, fg_panel, stool_two,
+
+```{r middle_row}
+middle_row <- plot_grid(NA,m_panel, fg_panel, NA,
           nrow = 1, 
           align = 'hv',
-          rel_widths =  c(.8,1.2,1.4,.8),
+          rel_widths =  c(.8,1.2,1.7,.8),
           labels = c(NA, 'I', 'J', "K"),
           axis = 'tblr')
-     
-```
 
-
-```{r}
-top <- plot_grid(tree, fig1_umap, NA,
-                 #labels = c('B', "C", "D"),
-                  nrow = 1, rel_widths = c(1.5,1, 1), axis = 'lbrt', align = 'hv')
-```
-
-
-```{r}
 # assemble all
-f1 <-  plot_grid(top_row, middle_row,NA,
+f1 <-  plot_grid(top_row, middle_row,macro_facets,
+                 align = 'hv',axis = 'tblr',
                  rel_heights = c(1,1,1),
                  nrow = 3)
 
@@ -605,7 +598,7 @@ combined <- plot_grid(
   title, f1,
   ncol = 1,
   # rel_heights values control vertical title margins
-  rel_heights = c(0.06, 1)
+  rel_heights = c(0.01, 1)
 ) +theme(plot.margin = unit(c(1,1,1,1), "cm"))
 
 ggsave('../data/F1_overview_raw_072.pdf',

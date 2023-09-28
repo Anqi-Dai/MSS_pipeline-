@@ -150,6 +150,7 @@ ggsave('../data/151_combined_sameday_macronutrients_microbiome.pdf',
        width = 180, height = 150,
        units = c("mm"),
        plot = macro_facets)
+macro_facets %>% write_rds('../data/151_macro_facets.RDS')
 ```
 
 
