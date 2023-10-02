@@ -215,8 +215,8 @@ cat ../data/cleaned_tree/Annot_tree2.txt ../data/source/ring_annot.txt > ../data
 # this runs in the source folder 
 # the key is that the tree and the annot file has to have the string of food name as leaves 
 ../../softwares/graphlan/graphlan_annotate.py --annot ../cleaned_tree/Annot_tree4.txt ../cleaned_tree/output_food_tree_datatree_name.newick  guide_1_new.xml
-../../softwares/graphlan/graphlan.py guide_1_new.xml ../../data/080_food_tree_ring.png --dpi 400 --size 3 --pad 0
-
+../../softwares/graphlan/graphlan.py guide_1_new.xml ../../data/080_food_tree_ring.pdf --dpi 300 --size 2.5 --pad 0
+# I can't generate pdf that is transparent so export it to png with transparent bg
 ```
 
 Succeeded!!!!!!!!!!!!! Now I have the ring added using graphlan!!! Perfectly aligned and the colors match!!!!!!!!
