@@ -316,15 +316,15 @@ conditional9 <- conditional %>%
   ylim(0, 3.3) +
   labs(y = 'Predicted log(diversity)', x = 'Food group consumed (grams)') +
   theme_classic() +
-  theme(legend.position = c(0.5, 0.05), legend.title = element_text(size = 8, face="bold"),
+  theme(legend.position = 'none', legend.title = element_text(size = 8, face="bold"),
         legend.text = element_text( size=8, face="bold"),
         #legend.background = element_rect(fill="white",size=0.2, linetype="solid"),
         legend.background=element_rect(fill = alpha("white", 0)),
        legend.key=element_rect(fill = alpha("white", 0)),
-        aspect.ratio = 1, 
+        aspect.ratio = 1/1.5, 
         strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
      axis.text=element_text(size=8), axis.title=element_text(size=axis_text_size))    +
-  guides(fill = guide_legend(direction = "horizontal"), color = guide_legend(direction = "horizontal"))
+  guides(fill = guide_legend(direction = "vertical"), color = guide_legend(direction = "vertical"))
 conditional9    
 ```
 
@@ -347,11 +347,34 @@ rawsweets <- META %>%
   scale_fill_manual(values = palette) +
   scale_colour_manual(values = palette) +
   facet_wrap(~ antibiotics, labeller = 'label_both', dir = 'v') +
-  theme(aspect.ratio = 1, legend.position = 'none',
+  theme(aspect.ratio = 1/1.5, legend.position = 'none',
         strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
      axis.text=element_text(size=8), axis.title=element_text(size=8)) 
 rawsweets
 
+```
+```{r}
+# for the legend
+forlegend <- conditional %>%   
+  ggplot() +
+  geom_smooth(aes(x = effect1__, y = estimate__, ymin = lower__, ymax = upper__, fill = effect2__, color = effect2__),
+              stat = "identity",
+              alpha = .3, linewidth = 1.5)+ 
+  scale_fill_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  scale_colour_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  facet_wrap(~ shortname, nrow = 3, scales = 'free_x') +
+  ylim(0, 3.3) +
+  labs(y = 'Predicted log(diversity)', x = 'Food group consumed (grams)') +
+  theme_classic() +
+  theme(legend.position = c(1,1), legend.title = element_text(size = 8, face="bold"),
+        legend.text = element_text( size=8, face="bold"),
+        #legend.background = element_rect(fill="white",size=0.2, linetype="solid"),
+        legend.background=element_rect(fill = alpha("white", 0)),
+       legend.key=element_rect(fill = alpha("white", 0)),
+        aspect.ratio = 1, 
+        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
+     axis.text=element_text(size=8), axis.title=element_text(size=axis_text_size))    +
+  guides(fill = guide_legend(direction = "vertical"), color = guide_legend(direction = "vertical"))
 ```
 
 # assemble all parts of F2  
@@ -359,7 +382,7 @@ rawsweets
 ```{r}
 title <- ggdraw() + 
   draw_label(
-    "Fig 2",
+    "Fig. 2",
     fontface = 'bold',
     x = 0,
     hjust = 0
@@ -384,18 +407,18 @@ f2_top <-  plot_grid(left,right,
 ```
 
 ```{r}
-# the legend for the panels 3*3
-legend9 <- get_legend(conditional9)   
-bottom_left <- plot_grid(rawsweets, )
-```
+# the legend for the panels 3*3 
+legend9 <- get_legend(forlegend)   
+bottom_left <- plot_grid(rawsweets, legend9, 
+                         ncol = 1, rel_heights = c(3,1))
 
+# combine the bottom left and the grid panels
+f2_bottom <- plot_grid(bottom_left,conditional9, rel_widths = c(1, 3) )
 
-
-```{r}
-f2 <- plot_grid(f2_top,NA, conditional9,
-                rel_heights = c(1,-0.15, .5),
+f2 <- plot_grid(f2_top,NA, f2_bottom,
+                rel_heights = c(1,-0.15, .7),
                 labels = c(NA,NA, 'F'), 
-                #align = 'hv',axis = 'lrtb',
+                align = 'hv',axis = 'lrtb',
                  ncol = 1)
 
 combined <- plot_grid(
@@ -410,6 +433,7 @@ ggsave('../data/F2_model_results_176.pdf',
       #plot = combined, 
       dpi = 300)   
 ```
+
 
 ```{r}
 # combine the three intercepts together 
