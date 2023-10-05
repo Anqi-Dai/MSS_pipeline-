@@ -92,8 +92,22 @@ interaction_terms <- tibble(
   mutate(ymin = seq(1, nrow(.)) - 0.5,
          ymax = seq(1, nrow(.)) + 0.5) %>% 
   filter(str_detect(shortname, '\\*')) %>% 
-  mutate(xmin = -Inf, xmax = Inf)
+  mutate(xmin = -Inf, xmax = Inf,
+         interaction_fill = 'interaction_fill')
 
+# this leaves me no choice but I need to fill the other blue area with the blue rectangles 
+blue_terms <- tibble(
+  shortname = fg_label$ord
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(!str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         blue_fill = 'blue_fill')
+```
+
+
+```{r}
 cross0 <- cleaned_fg %>%
    filter(grp == 'temporal') %>% 
   group_by(item) %>% 
@@ -106,19 +120,22 @@ fg_temporal <- cleaned_fg %>%
   mutate(shortname = factor(shortname, levels = fg_label$ord)) %>% 
   left_join(cross0) %>% 
   ggplot() +
-  stat_pointinterval(aes(x = coeff, y = shortname, col = Cross), .width = c(.66, .95), fatten_point = 1.2) +
-  geom_rect(data = interaction_terms, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = 'blue', alpha = .002)) +
+   stat_pointinterval(aes(x = coeff, y = shortname, col = Cross), .width = c(.66, .95), fatten_point = 1.2) +
+  geom_rect(data = interaction_terms, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = interaction_fill), alpha = .1) +
+  geom_rect(data = blue_terms, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = blue_fill) , alpha = .1) +
+  scale_fill_manual(values=c("interaction_fill" = "lightblue", "blue_fill" = "royalblue")) +
+  scale_color_manual(values = c("#EC0000", "black")) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'ln(diversity) change', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
-  scale_color_manual(values = c("#EC0000", "black")) +
-  scale_fill_manual(values = c("azure")) +
-  theme(axis.text = element_text( size = 10),panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
+  theme(axis.text = element_text( size = 10),
+        plot.background = element_rect(fill='transparent', color=NA), 
         axis.title=element_text(size=10), 
-        aspect.ratio=1.5)     
-fg_temporal
+        aspect.ratio=1.5)      
+fg_temporal       
 ```
+
 
 ```{r} 
 # the fg  patient
@@ -132,7 +149,7 @@ fg_pt <- cleaned_fg %>%
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text = element_text( size = 10),
-         panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
+         panel.background = element_rect(fill = "gray93",colour = "gray93",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
         aspect.ratio=1/3.1)    
 
 fg_pt %>% write_rds('../data/176_fg_intensity.rds')
@@ -329,7 +346,7 @@ conditional9
 ```
 
 
-```{r}
+```{r raw_sweets}
 # the raw data 
 rawsweets <- META %>% 
   mutate(log_div = log(simpson_reciprocal)) %>% 
@@ -341,14 +358,15 @@ rawsweets <- META %>%
            add.params = list(color = 'antibiotics', fill = 'antibiotics', alpha = 0.3, size = 1.5), # Customize line
            conf.int = TRUE, # Add confidence interval
            cor.coef = TRUE, # Add correlation coefficient.
-           cor.coeff.args = list(method = "spearman",  label.sep = " \\n", cor.coef.name = c("rho"),p.accuracy = 0.01, r.accuracy = 0.01,label.x.npc = "left", label.y.npc = "bottom", size = 2)) +
+           cor.coeff.args = list(method = "spearman",  label.sep = " \\n", cor.coef.name = c("rho"),p.accuracy = 0.01, r.accuracy = 0.01,label.x.npc = "left", label.y.npc = "bottom", size = 3.5)) +
   scale_x_sqrt() +
   scale_y_sqrt() +
   scale_fill_manual(values = palette) +
   scale_colour_manual(values = palette) +
   facet_wrap(~ antibiotics, labeller = 'label_both', dir = 'v') +
   theme(aspect.ratio = 1/1.5, legend.position = 'none',
-        strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
+          strip.background = element_blank(),
+        strip.text.x = element_blank(), 
      axis.text=element_text(size=8), axis.title=element_text(size=8)) 
 rawsweets
 
@@ -410,14 +428,13 @@ f2_top <-  plot_grid(left,right,
 # the legend for the panels 3*3 
 legend9 <- get_legend(forlegend)   
 bottom_left <- plot_grid(rawsweets, legend9, 
-                         ncol = 1, rel_heights = c(3,1))
+                         ncol = 1, rel_heights = c(3,1), labels = c('F','G'))
 
 # combine the bottom left and the grid panels
-f2_bottom <- plot_grid(bottom_left,conditional9, rel_widths = c(1, 3) )
+f2_bottom <- plot_grid(bottom_left,conditional9, rel_widths = c(1.2, 3) )
 
 f2 <- plot_grid(f2_top,NA, f2_bottom,
-                rel_heights = c(1,-0.15, .7),
-                labels = c(NA,NA, 'F'), 
+                rel_heights = c(1,-0.09, .7),
                 align = 'hv',axis = 'lrtb',
                  ncol = 1)
 
