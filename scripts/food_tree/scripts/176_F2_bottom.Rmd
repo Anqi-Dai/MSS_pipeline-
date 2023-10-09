@@ -137,7 +137,7 @@ fg_temporal
 ```
 
 
-```{r} 
+```{r fg_pt} 
 # the fg  patient
 fg_pt <- cleaned_fg %>% 
   filter(grp == 'patient') %>% 
@@ -149,7 +149,7 @@ fg_pt <- cleaned_fg %>%
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text = element_text( size = 10),
-         panel.background = element_rect(fill = "gray93",colour = "gray93",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
+         panel.background = element_rect(fill = "gray95",colour = "gray95",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
         aspect.ratio=1/3.1)    
 
 fg_pt %>% write_rds('../data/176_fg_intensity.rds')
@@ -223,7 +223,17 @@ interaction_terms_macro <- tibble(
   mutate(ymin = seq(1, nrow(.)) - 0.5,
          ymax = seq(1, nrow(.)) + 0.5) %>% 
   filter(str_detect(shortname, '\\*')) %>% 
-  mutate(xmin = -Inf, xmax = Inf)
+  mutate(xmin = -Inf, xmax = Inf,
+         interaction_fill = 'interaction_fill')
+
+blue_terms_macro <- tibble(
+  shortname = macro_order$shortname
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(!str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         blue_fill = 'blue_fill')
 
 macro_temporal <- cleaned_macro %>% 
   filter(grp == 'temporal') %>% 
@@ -231,21 +241,24 @@ macro_temporal <- cleaned_macro %>%
   left_join(cross0_macro)  %>% 
   ggplot() +
   stat_pointinterval(aes(x = coeff, y = shortname, col = Cross),.width = c(.66, .95), fatten_point = 1.2) +
-  geom_rect(data = interaction_terms_macro, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = 'blue', alpha = .002)) +
+ geom_rect(data = interaction_terms_macro, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = interaction_fill), alpha = .1) +
+  geom_rect(data = blue_terms_macro, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = blue_fill) , alpha = .1) +
+  scale_fill_manual(values=c("interaction_fill" = "lightblue", "blue_fill" = "royalblue")) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'ln(diversity) change', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c("#EC0000", "black")) +
-  scale_fill_manual(values = c("azure")) +
   theme(axis.text.y = element_text( size = 10),
-        axis.title=element_text(size=10), panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
+        plot.background = element_rect(fill='transparent', color=NA), 
+        axis.title=element_text(size=10), 
+        #panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
         aspect.ratio=1/1.5)
 macro_temporal
 ```
 
 
-```{r}
+```{r macro_pt}
 macro_pt <- cleaned_macro %>% 
   filter(grp == 'patient') %>% 
   mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
@@ -256,7 +269,7 @@ macro_pt <- cleaned_macro %>%
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text = element_text( size = 10),
-          panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),
+          panel.background = element_rect(fill = "gray96",colour = "gray96",size = 0.5, linetype = "solid"),
         axis.title=element_text(size=10), 
         aspect.ratio=1/2.5)
 
@@ -268,7 +281,7 @@ macro_side
 ```
 # the top part of the F2
 
-```{r}
+```{r f2a}
 twoscore <- read_csv('../data/086_twoscore_procrustes.csv') 
 
 f2a <- twoscore %>%  
@@ -291,7 +304,7 @@ f2a
 ```
 
 
-```{r}
+```{r diagram}
 p <- '../data/cartoon_of_model.png'
 diagram <- ggdraw() +
   draw_image(magick::image_read(p),   scale =.9 ,hjust = -.05) 
@@ -321,7 +334,7 @@ strip_color <- wes_palette("Royal1", 3)[3]
 ```
 
 
-```{r}
+```{r conditional9}      
 conditional9 <- conditional %>%   
   ggplot() +
   geom_smooth(aes(x = effect1__, y = estimate__, ymin = lower__, ymax = upper__, fill = effect2__, color = effect2__),
@@ -329,7 +342,7 @@ conditional9 <- conditional %>%
               alpha = .3, linewidth = 1.5)+ 
   scale_fill_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
   scale_colour_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
-  facet_wrap(~ shortname, nrow = 3, scales = 'free_x') +
+  facet_wrap(~ shortname, nrow = 2, scales = 'free_x') +
   ylim(0, 3.3) +
   labs(y = 'Predicted log(diversity)', x = 'Food group consumed (grams)') +
   theme_classic() +
@@ -338,7 +351,7 @@ conditional9 <- conditional %>%
         #legend.background = element_rect(fill="white",size=0.2, linetype="solid"),
         legend.background=element_rect(fill = alpha("white", 0)),
        legend.key=element_rect(fill = alpha("white", 0)),
-        aspect.ratio = 1/1.5, 
+        aspect.ratio = 1, 
         strip.background = element_rect(color="white", fill=strip_color, size=1.5,linetype="solid"),
      axis.text=element_text(size=8), axis.title=element_text(size=axis_text_size))    +
   guides(fill = guide_legend(direction = "vertical"), color = guide_legend(direction = "vertical"))
@@ -364,7 +377,7 @@ rawsweets <- META %>%
   scale_fill_manual(values = palette) +
   scale_colour_manual(values = palette) +
   facet_wrap(~ antibiotics, labeller = 'label_both', dir = 'v') +
-  theme(aspect.ratio = 1/1.5, legend.position = 'none',
+  theme(aspect.ratio = 1, legend.position = 'none',
           strip.background = element_blank(),
         strip.text.x = element_blank(), 
      axis.text=element_text(size=8), axis.title=element_text(size=8)) 
@@ -411,12 +424,12 @@ title <- ggdraw() +
 
 left <- plot_grid(f2a, NA, macro_side,
                   labels = c('A', NA, NA),label_y = 1,
-                rel_heights = c(1,-.35, 3.2),
+                rel_heights = c(1,-.25, 3.2),
                   ncol = 1) 
 
 right <- plot_grid(diagram,NA, fg_side,
                 labels = c('B',NA, 'E'),label_y = .8,
-                rel_heights = c(1,-.6,5),
+                rel_heights = c(1,-.45,5),
                   ncol = 1)
 
 f2_top <-  plot_grid(left,right,
@@ -431,13 +444,13 @@ bottom_left <- plot_grid(rawsweets, legend9,
                          ncol = 1, rel_heights = c(3,1), labels = c('F','G'))
 
 # combine the bottom left and the grid panels
-f2_bottom <- plot_grid(bottom_left,conditional9, rel_widths = c(1.2, 3) )
+f2_bottom <- plot_grid(bottom_left,conditional9, rel_widths = c(1,4 ) )
 
 f2 <- plot_grid(f2_top,NA, f2_bottom,
-                rel_heights = c(1,-0.09, .7),
+                rel_heights = c(1,-0.09, .6),
                 align = 'hv',axis = 'lrtb',
                  ncol = 1)
-
+  
 combined <- plot_grid(
   title, f2,
   ncol = 1,

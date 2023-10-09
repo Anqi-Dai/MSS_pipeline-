@@ -23,10 +23,17 @@ library(ggpubr)
 type <- read_csv('../data/10_patients_foods_fiber_type_all.csv')
 DTB <- read_csv('../../food_tree/data/152_combined_DTB.csv')
 # join with gvhd info of the patients
-pts <- read_csv('../../food_tree/data/156_transplant_data.csv') %>% 
+allpt <- read_csv('../../food_tree/data/156_transplant_data.csv') %>% 
   mutate(d100_a_gvhd = if_else(d100_a_gvhd == 'NE', 'N/E', d100_a_gvhd))
 colnames(pts)
 pts %>% count(d100_a_gvhd)
+```
+
+
+```{r}
+# new pts
+pts <- read_csv('../data/selected_pts.csv') %>% 
+  filter(!is.na(mrn)) %>% inner_join(allpt)
 ```
 
 ```{r}
@@ -65,6 +72,7 @@ dailycode <- DTB %>%
 
 dailycode %>% write_csv('../data/patients_16s_data/11_pt_daily_fiber_type.csv')
 dailycode %>% write_csv('../data/11_pt_daily_fiber_type.csv')  
+
 key <- read_csv('../../food_tree/data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 dailyfgfiber <-  DTB %>%   
   mutate(fgrp1 = str_sub(Food_code, 1, 1)) %>% 
@@ -119,7 +127,7 @@ dailytotalfiber %>%
 
 dailytotaldry <- DTB %>% 
   group_by(mrn, fdrt) %>% 
-  summarise(alldry = sum(dehydrated_weight))
+  summarise(alldry = sum(dehydrated_weight)) 
 
 all_types <- dailycode %>% 
   group_by(mrn, fdrt, fiber_type) %>% 
@@ -136,8 +144,8 @@ all_types %>% write_csv('../data/11_patients_fiber_type_intake.csv')
 
 ```{r}
 all_types %>% 
-  filter(fdrt %in% -30:30) %>% 
-  ggscatter(x = 'fdrt', y = 'fiber_perc', alpha = 0.05, shape = 16,xlab = 'transplant day',
+  filter(fdrt %in% -10:30) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, 
             add.params = list(color = 'forestgreen', size = 1)) +
   facet_grid(~ fiber_type) 
@@ -205,16 +213,26 @@ all_types %>%
   distinct(mrn, d100_a_gvhd) %>% 
   count(d100_a_gvhd)
 
-all_soluble %>% 
-  filter( fdrt <= 30 & d100_a_gvhd %in% c('Y','N')) %>% 
-  ggscatter(x = 'fdrt', y = 'fiber_perc', alpha = 0.05, shape = 16,xlab = 'transplant day',
+all_soluble %>%  
+  filter( fdrt %in% -10:30 & d100_a_gvhd %in% c('Y','N')) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, title = 'soluble',
             add.params = list(color = 'd100_a_gvhd', size = 1)) +
   facet_grid(~ soluble)  +
   scale_color_manual(values = color_key) +
   scale_fill_manual(values = color_key)+
-  scale_y_sqrt()
+  scale_y_sqrt() 
 
+all_soluble %>%  
+  filter( fdrt %in% -10:30 & d100_a_gvhd %in% c('Y','N')) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, title = 'soluble',
+            add.params = list(color = 'soluble', size = 1)) +
+  facet_grid(~ d100_a_gvhd)  +
+  scale_color_manual(values = c('lightblue','orange')) +
+  scale_fill_manual(values = c('blue','yellow'))+
+  scale_y_sqrt() 
+ggsave('../data/11_fiber_all_soluble_daily_intake_gvhd_2.pdf', width = 6, height = 4)
 ggsave('../data/patients_16s_data/11_fiber_all_soluble_daily_intake_gvhd.pdf', width = 6, height = 4)
 ggsave('../data/11_fiber_all_soluble_daily_intake_gvhd.pdf', width = 6, height = 4)
 ```
@@ -333,5 +351,42 @@ ggsave('../data/11_fiber_all_soluble_daily_intake_one_sample_per_pt.pdf', width 
 ```
 ```{r}
 # use the percentage to combat the zero fiber eating thing 
+```
+
+```{r}
+median_now <- median(meta$mean_fiber)
+meta <- read_csv('~/pipeline/scripts/food_tree/data/090_all_samples_meta_p2d_fg9_dietall_genera90.csv') %>% 
+  inner_join( pts)%>% 
+  filter(sdrt %in% 7:21)%>% 
+  group_by(mrn) %>% 
+  summarise(ave_div = mean(simpson_reciprocal),
+            mean_fiber = mean(ave_fiber)) %>% 
+  mutate(mean_fiber = mean_fiber * 100) %>% 
+  mutate(grp = if_else(mean_fiber >= median_now, 'high', 'low'))
+
+meta  %>% 
+  ggscatter(x = 'mean_fiber', y = 'ave_div',
+            xlab = 'Prior 2 day fiber intake averaged by patient', ylab = 'microbiome alpha diversity averaged by patient',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  theme(aspect.ratio=1)
+ggsave('../data/11_alpha_and_fiber.pdf')
+```
+
+```{r}
+meta %>% 
+  ggboxplot(x = 'grp', y = 'ave_div', add = 'jitter') +
+  stat_compare_means(comparisons= list(c('high', 'low')),
+            label= "p.format",
+            method= 'wilcox.test',
+						correct=FALSE)
+ggsave('../data/11_box_low_and_high.pdf')
+```
+
+```{r}
+
 ```
 

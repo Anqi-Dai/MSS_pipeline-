@@ -82,7 +82,7 @@ every_pt_list <-  pids %>%
         axis.line = element_line(colour = 'black', size = axis_line_thickness),
         axis.title.y.right = element_text(color = stool_line_color),
          axis.ticks = element_line(colour = "black", size = axis_line_thickness), 
-        aspect.ratio=1/1.5)
+        aspect.ratio=1/2)
   })
 
 ```
@@ -105,35 +105,140 @@ whole_list <-  pids %>%
     sec.axis = sec_axis(~./scale_factor)) +
     labs(x = 'Transplant day', y = '', title = str_glue('{.x}')) + 
       
-  theme(axis.text=element_text(size=axis_text_size),
+  theme(axis.text=element_text(size=7),
         axis.title=element_text(size=5),
-        plot.title = element_text(size=axis_text_size),
+        plot.title = element_text(size=8),
         axis.title.y = element_text(color = diet_line_color),
         axis.line = element_line(colour = 'black', size = axis_line_thickness),
         axis.ticks = element_line(colour = "black", size = axis_line_thickness), 
         axis.title.x = element_blank(), 
         axis.text.y = element_blank(), 
         axis.title.y.right = element_text(color = stool_line_color),
-        aspect.ratio=1/1.5)
+        aspect.ratio=1/2)
   })
 
 # arrange the above into a facet-wrap
 ```
 
-
 ```{r}
-all <- plot_grid(plotlist =   whole_list,
-                  ncol = 9)
+# to put those to two pages, and each page is A4 size 
+title <- ggdraw() + 
+  draw_label(
+    "Fig. S2",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+all <- plot_grid(plotlist =   whole_list[1:40],
+                  ncol = 5)
+
+combined <- plot_grid(
+  title, all,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+) +theme(plot.margin = unit(c(1,1,2,1), "cm"))
 
 ggsave('../data/085_all_patients_timecourse.pdf', 
-       width = 210,
-       height = 350,
-         #height = 60,  
-         units = c("mm"),
-         dpi = 300, plot = all)
+       width = 210, 
+       height = 297,
+         units = c("mm"), 
+         dpi = 300, plot = combined)     
+```
 
 
+```{r}
+# page 2:
+title <- ggdraw() + 
+  draw_label(
+    "Fig. S2 (Continued)",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
 
+all <- plot_grid(plotlist =   whole_list[41:80],
+                  ncol = 5)
+
+combined <- plot_grid(
+  title, all,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+) +theme(plot.margin = unit(c(1,1,2,1), "cm"))
+
+ggsave('../data/085_all_patients_timecourse_2.pdf', 
+       width = 210, 
+       height = 297,
+         units = c("mm"), 
+         dpi = 300, plot = combined) 
+```
+
+```{r}
+# page 3
+title <- ggdraw() + 
+  draw_label(
+    "Fig. S2 (Continued)",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+all <- plot_grid(plotlist =   whole_list[81:120],
+                  ncol = 5)
+
+combined <- plot_grid(
+  title, all,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+) +theme(plot.margin = unit(c(1,1,2,1), "cm"))
+
+ggsave('../data/085_all_patients_timecourse_3.pdf', 
+       width = 210, 
+       height = 297,
+         units = c("mm"), 
+         dpi = 300, plot = combined) 
+```
+
+```{r}
+# page 4
+title <- ggdraw() + 
+  draw_label(
+    "Fig. S2 (Continued)",
+    fontface = 'bold',
+    x = 0,
+    hjust = 0
+  ) +
+  theme(
+    plot.margin = margin(0, 0, 0, 7)
+  )
+
+all <- plot_grid(plotlist =   whole_list[121:158],
+                  ncol = 5)
+
+combined <- plot_grid(
+  title, all,
+  ncol = 1,
+  # rel_heights values control vertical title margins
+  rel_heights = c(0.1, 1)
+) +theme(plot.margin = unit(c(1,1,4.5,1), "cm"))
+
+ggsave('../data/085_all_patients_timecourse_4.pdf', 
+       width = 210, 
+       height = 297,
+         units = c("mm"), 
+         dpi = 300, plot = combined) 
 ```
 
 ```{r}
@@ -146,8 +251,7 @@ ggsave('../data/085_example_patient_timecourse.pdf',
          units = c("mm"),
          dpi = 400, device = 'pdf',
        plot = example)
+``` 
 
-
-```
 
 

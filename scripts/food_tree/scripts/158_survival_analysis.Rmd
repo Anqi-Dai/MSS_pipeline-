@@ -65,7 +65,11 @@ df_main <- read_csv('../data/df_main.csv') %>%
          daily_Sweets_med = ifelse(daily_Sweets > median(daily_Sweets,na.rm=T),"Above median", "Below median"),
          daily_Vegetables_med = ifelse(daily_Vegetables > median(daily_Vegetables,na.rm=T),"Above median", "Below median"),
          daily_Milk_med = ifelse(daily_Milk > median(daily_Milk,na.rm=T),"Above median", "Below median")
-  )
+  ) %>% 
+  # !!!!! remove the TCD patients for now
+  filter(source != 'TCD')
+
+
 # the diversity close to the engraftment for the patients 
 # average food diversity between the period 
 
@@ -94,7 +98,6 @@ df_main %>% count(TRMevent, OSevent)  %>%
   select(-OSevent)
 ```
 
-
 # OS
 
 ```{r OS}
@@ -112,7 +115,7 @@ OS_mult_comb_macro <- coxph(Surv(OStime_landmark,OSevent) ~
                               d_sugar + 
                               Intensity + 
                               Source, data=df_main) %>% 
-  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of engraftment; all macronutrients")
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for Overall Survival, landmarked at day of engraftment; all macronutrients") %>% as_gt %>% gt::gtsave(filename = '../data/158_multi__OS_macro.png')
 
 
 OS_mult_comb_cal <- coxph(Surv(OStime_landmark,OSevent) ~ 
@@ -198,7 +201,7 @@ TRM_mult_comb_fg <- crr(Surv(tevent_landmark,TRMevent) ~daily_Eggs + daily_Fruit
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; all fg")
 
 TRM_mult_comb_macro <- crr(Surv(tevent_landmark,TRMevent) ~ d_carb +d_fat + d_fiber +d_protein+ d_sugar  + Intensity + Source, data=df_main, failcode = "TRM")%>% 
-  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; all macronutrients")
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; all macronutrients") %>% as_gt %>% gt::gtsave(filename = '../data/158_multi__TRM_macro.png')
 
 TRM_mult_comb_cal <- crr(Surv(tevent_landmark,TRMevent) ~ daycal  + Intensity + Source, data=df_main, failcode = "TRM")%>% 
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for TRM, landmarked at day of discharging; calories")
@@ -303,9 +306,6 @@ LOS_mult_comb_ave_faith <- coxph(Surv(tLOS,LOS) ~
   tbl_regression(exponentiate=TRUE, estimate_fun = function(x) style_ratio(x,digits=3)) %>% bold_p() %>% modify_caption("Length of stay after engraftment; ave_faith")
 ```
 
-```{r}
-
-```
 
 
 ```{r}
@@ -374,7 +374,7 @@ GRM_mult_comb_fg <- crr(Surv(tevent_landmark,GRMevent) ~ daily_Eggs + daily_Frui
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; all fg")
 
 GRM_mult_comb_macro <- crr(Surv(tevent_landmark,GRMevent) ~  d_carb +d_fat + d_fiber +d_protein+ d_sugar  + Intensity + Source, data=df_main, failcode = "GRM")%>%
-  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; all macronutrients")
+  tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; all macronutrients") %>% as_gt %>% gt::gtsave(filename = '../data/158_multi__GRM_macro.png')
 
 GRM_mult_comb_cal <- crr(Surv(tevent_landmark,GRMevent) ~ daycal  + Intensity + Source, data=df_main, failcode = "GRM")%>%
   tbl_regression(exponentiate=TRUE) %>% bold_p() %>% modify_caption("Multivariable analysis for GRM, landmarked at day of discharging; calories")
