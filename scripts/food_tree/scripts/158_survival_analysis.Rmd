@@ -96,6 +96,9 @@ featlist <- c("d_carb_med",
 df_main %>% count(TRMevent, OSevent)  %>% 
   mutate(status = if_else(OSevent ==1, 'dead', 'alive')) %>% 
   select(-OSevent)
+tt <- df_main %>% 
+  select(d100_a_gvhd:d100_upper_gi_stage)
+
 ```
 
 # OS

@@ -299,15 +299,15 @@ post_pca %>%  write_csv('../data/084_narcotics_PCA_model_post.csv')
 ```
 
 ```{r} 
-fg_order <- c( 'Vegetables','abx + Vegetables',
-                 'Oils','abx + Oils',
-                 'Fruits','abx + Fruits',
-                 'Meats','abx + Meats',
-                 'Legumes','abx + Legumes',
-                 'Eggs','abx + Eggs',
-                 'Milk','abx + Milk',
-                 'Grains','abx + Grains',
-                 'Sweets','abx + Sweets',
+fg_order <- c( 'Vegetables','abx * Vegetables',
+                 'Oils','abx * Oils',
+                 'Fruits','abx * Fruits',
+                 'Meats','abx * Meats',
+                 'Legumes','abx * Legumes',
+                 'Eggs','abx * Eggs',
+                 'Milk','abx * Milk',
+                 'Grains','abx * Grains',
+                 'Sweets','abx * Sweets',
                  "TPN" ,"EN" ,'PCA', 'abx')
 
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
@@ -335,15 +335,15 @@ cleaned_pca <- post_pca  %>% select(starts_with('b_')) %>%
   ))  %>% 
   left_join(key %>% select(fgrp1, color, shortname)) %>% 
   mutate(shortname = case_when(
-        item ==  'milk_e' ~ 'abx + Milk',
-    item == 'meat_e' ~ 'abx + Meats',
-    item ==  'egg_e' ~ 'abx + Eggs',
-    item ==  'legume_e' ~ 'abx + Legumes',
-    item == 'grain_e' ~ 'abx + Grains',
-    item == 'fruit_e' ~ 'abx + Fruits',
-    item == 'veggie_e' ~ 'abx + Vegetables',
-    item ==  'oils_e' ~ 'abx + Oils', 
-    item ==  'sweets_e' ~ 'abx + Sweets',
+        item ==  'milk_e' ~ 'abx * Milk',
+    item == 'meat_e' ~ 'abx * Meats',
+    item ==  'egg_e' ~ 'abx * Eggs',
+    item ==  'legume_e' ~ 'abx * Legumes',
+    item == 'grain_e' ~ 'abx * Grains',
+    item == 'fruit_e' ~ 'abx * Fruits',
+    item == 'veggie_e' ~ 'abx * Vegetables',
+    item ==  'oils_e' ~ 'abx * Oils', 
+    item ==  'sweets_e' ~ 'abx * Sweets',
     item ==  'nonablative' ~ 'Nonablative',
     item ==  'reduced' ~ 'Reduced',
     item ==  'ablative' ~ 'Ablative',
@@ -362,24 +362,52 @@ cross0 <- cleaned_pca %>%
             q97.5 = quantile(coeff, probs = 0.975)) %>% 
   mutate(Cross = if_else(q2.5 >= 0 | q97.5 <= 0, F, T))
 
+# I need to create a data frame that has the coordinates of the rectangles that I wanna create
+interaction_terms <- tibble(
+  shortname = fg_label$ord
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         interaction_fill = 'interaction_fill')
+
+# this leaves me no choice but I need to fill the other blue area with the blue rectangles 
+blue_terms <- tibble(
+  shortname = fg_label$ord
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(!str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         blue_fill = 'blue_fill')
+```
+
+
+```{r} 
 pca_temporal <- cleaned_pca %>% 
   filter(grp == 'temporal') %>% 
   mutate(shortname = factor(shortname, levels = fg_label$ord)) %>% 
   left_join(cross0) %>% 
-  ggplot(aes(x = coeff, y = shortname, col = Cross)) +
-  stat_pointinterval(.width = c(.66, .95)) +
-  #geom_rect( data = cleaned_fg, aes(xmin = -Inf  , xmax = Inf,  ymin = shortname, ymax = shortname), fill = "grey", alpha = 0.8) +
+  ggplot() +
+   stat_pointinterval(aes(x = coeff, y = shortname, col = Cross), .width = c(.66, .95), fatten_point = 1.2) +
+  geom_rect(data = interaction_terms, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = interaction_fill), alpha = .1) +
+  geom_rect(data = blue_terms, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = blue_fill) , alpha = .1) +
+  scale_fill_manual(values=c("interaction_fill" = "lightblue", "blue_fill" = "royalblue")) +
   geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
   labs(x = 'ln(diversity) change', y = '') +
   theme_classic() +
   theme(legend.position = 'none') +
   scale_color_manual(values = c("#EC0000", "black")) +
-  theme(axis.text = element_text( size = 10),panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
+  theme(axis.text = element_text( size = 10),
+        plot.background = element_rect(fill='transparent', color=NA), 
         axis.title=element_text(size=10), 
         aspect.ratio=1.5)    
 pca_temporal
+```
 
 
+```{r} 
 pca_pt <- cleaned_pca %>% 
   filter(grp == 'patient') %>% 
   mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
@@ -390,7 +418,8 @@ pca_pt <- cleaned_pca %>%
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text = element_text( size = 10),
-         panel.background = element_rect(fill = "#d0cccc",colour = "#d0cccc",size = 0.5, linetype = "solid"),axis.title=element_text(size=10), 
+        panel.background = element_rect(fill = "gray95",colour = "gray95",size = 0.5, linetype = "solid"),
+        axis.title=element_text(size=10), 
         aspect.ratio=1/3.1) 
 pca_pt
 ```
@@ -400,6 +429,7 @@ pca_pt
 library(cowplot)
 pca_all <-  plot_grid(pca_temporal,pca_pt,
                 rel_heights = c(2,1),align = 'vh',axis = 'lrtb',
+                labels = c('A','B'),
                  nrow = 2)
 
 title <- ggdraw() + 
@@ -417,7 +447,7 @@ combined <- plot_grid(
   ncol = 1,
   # rel_heights values control vertical title margins
   rel_heights = c(0.1, 1)
-) +theme(plot.margin = unit(c(1,4,1,4), "cm"))
+) +theme(plot.margin = unit(c(1,4,4,4), "cm"))
 
 ggsave('../data/S6_pca_diversity_084.pdf',
       width = 210, height = 297, units = "mm", device = 'pdf', 

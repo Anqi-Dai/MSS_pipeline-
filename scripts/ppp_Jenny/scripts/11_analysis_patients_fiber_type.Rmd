@@ -25,7 +25,7 @@ DTB <- read_csv('../../food_tree/data/152_combined_DTB.csv')
 # join with gvhd info of the patients
 allpt <- read_csv('../../food_tree/data/156_transplant_data.csv') %>% 
   mutate(d100_a_gvhd = if_else(d100_a_gvhd == 'NE', 'N/E', d100_a_gvhd))
-colnames(pts)
+
 pts %>% count(d100_a_gvhd)
 ```
 
@@ -212,7 +212,21 @@ names(color_key) <- c('N','Y')
 all_types %>% 
   distinct(mrn, d100_a_gvhd) %>% 
   count(d100_a_gvhd)
+colnames(pts)
+```
 
+```{r}
+# cleaning the gvhd information
+ptsg <- pts %>% 
+  select(hct, d100_a_gvhd:d100_ibmtr_highest_overall_grade) %>% 
+  mutate(d100_a_gvhd_onset = ymd(d100_a_gvhd_onset),
+         hct = ymd(hct)) %>% 
+  
+ptsg
+```
+
+
+```{r}
 all_soluble %>%  
   filter( fdrt %in% -10:30 & d100_a_gvhd %in% c('Y','N')) %>% 
   ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
