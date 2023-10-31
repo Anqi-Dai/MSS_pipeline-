@@ -105,6 +105,8 @@ exposed_empirical %>% distinct(sampleid)
 exposed_empirical %>% distinct(MRN)
 
 exposed_empirical %>% write_rds('../data/134_743stool_samples_p2d_drug_exposure.rds')
+
+table <- read_rds('../data/134_743stool_samples_p2d_drug_exposure.rds')
 ```
 ```{r}
 # find_exposure %>% 

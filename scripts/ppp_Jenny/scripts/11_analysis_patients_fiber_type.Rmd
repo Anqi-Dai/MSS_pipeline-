@@ -23,18 +23,53 @@ library(ggpubr)
 type <- read_csv('../data/10_patients_foods_fiber_type_all.csv')
 DTB <- read_csv('../../food_tree/data/152_combined_DTB.csv')
 # join with gvhd info of the patients
-allpt <- read_csv('../../food_tree/data/156_transplant_data.csv') %>% 
-  mutate(d100_a_gvhd = if_else(d100_a_gvhd == 'NE', 'N/E', d100_a_gvhd))
+allpt <- read_csv('../../food_tree/data/156_transplant_data.csv') 
+allpt %>% count(source)
 
-pts %>% count(d100_a_gvhd)
+allpt_gvhd <- allpt %>% 
+  mutate(d100_a_gvhd = if_else(d100_a_gvhd == 'NE', 'N/E', d100_a_gvhd),
+         d100_a_gvhd = if_else(d100_a_gvhd == 'N', 'No', d100_a_gvhd),
+         d100_a_gvhd = if_else(d100_a_gvhd == 'Y', 'Yes', d100_a_gvhd)) %>% 
+  filter(d100_a_gvhd %in% c('Yes','No')) 
+
+tcd_pt <- allpt %>% 
+  filter(source == 'TCD') %>% 
+  pull(mrn)
+
+meta <- read_csv('../../food_tree/data/153_combined_META.csv')
+
+allpt_gvhd_all <- allpt_gvhd %>% 
+  filter(source != 'TCD') %>% 
+  mutate(grp = case_when(
+    d100_a_gvhd == 'No' ~ "no_gvhd",
+  d100_a_gvhd == 'Yes' & d100_upper_gi_stage == 0 & d100_lower_gi_stage == 0 ~ "non_gi",
+  d100_a_gvhd == 'Yes' & d100_upper_gi_stage != 0 & d100_lower_gi_stage == 0  ~ "upper_gi",
+  d100_a_gvhd == 'Yes' &  d100_lower_gi_stage != 0  ~ "lower_gi",
+  .default = NA
+  )) %>% 
+  select(mrn, source, grp, hct) %>% 
+  inner_join(meta %>% select(mrn, sampleid, sdrt)) %>% 
+  left_join(fmt_arm_ag %>% select(mrn, fmt_procedure_date)) %>% 
+  mutate(hct = ymd(hct),
+         fmtday = as.numeric(fmt_procedure_date - hct)) %>% 
+  mutate(grp = if_else(grp %in% c('non_gi','upper_gi'), 'exclu_lower_gi', grp))
+
+
+
+allpt_gvhd_all %>% write_csv('../data/11_samples_from_groups.csv')
+allpt_gvhd_all %>% count(grp)
 ```
-
 
 ```{r}
-# new pts
-pts <- read_csv('../data/selected_pts.csv') %>% 
-  filter(!is.na(mrn)) %>% inner_join(allpt)
+# to look at the gvhd info and put them to the 4 groups as Marina suggested
+
+  
 ```
+
+```{r}
+
+```
+
 
 ```{r}
 # to get the patient info of 
@@ -60,6 +95,9 @@ ptbr %>% write_csv('../data/11_ptb_characteristics.csv')
 
 ```{r}
 # calculate daily intake of each food code 
+# 
+
+
 dailycode <- DTB %>%   
   group_by(mrn, fdrt, Food_code) %>% 
   summarise(dcodefiber = sum(Fibers_g)) %>% 
@@ -68,8 +106,61 @@ dailycode <- DTB %>%
   left_join(type, by = "food_code") %>% 
   ungroup() %>% 
   relocate(description, .after = 'soluble') %>% 
-  left_join(pts %>% select(mrn, d100_a_gvhd))
+  inner_join(allpt_gvhd_all)
+```
 
+
+
+```{r}
+
+
+dailycode %>% 
+  filter(fdrt %in% -10:30) %>% 
+  group_by(mrn, fdrt, source) %>% 
+  summarise(dayfiber = sum(dcodefiber)) %>% 
+  ungroup() %>% 
+  inner_join(allpt_gvhd %>% select(mrn, d100_a_gvhd)) %>% distinct(mrn)
+```
+
+```{r}
+dailycode %>% 
+  filter(fdrt %in% -10:30) %>% 
+  group_by(mrn, fdrt, source) %>% 
+  summarise(dayfiber = sum(dcodefiber)) %>% 
+  ungroup() %>% 
+  inner_join(allpt_gvhd_all %>% select(mrn, grp)) %>% 
+  filter(!mrn %in% tcd_pt) %>% 
+  ggscatter(x = 'fdrt', y = 'dayfiber', add = "loess", conf.int = TRUE, alpha = 0.1, shape = 16,
+            add.params = list(color = 'grp'),
+            xlab = 'Transplant day', ylab = 'Daily fiber intake' ) +
+  scale_y_sqrt() +theme(aspect.ratio = 1)
+ggsave('../data/11_daily_all_fiber_without_TCD_gvh.pdf', width = 4, height = 4)
+
+dailycode %>% 
+  filter(fdrt %in% -10:30) %>% 
+  group_by(mrn, fdrt, source) %>% 
+  summarise(dayfiber = sum(dcodefiber)) %>% 
+  ungroup() %>% 
+  inner_join(allpt_gvhd %>% select(mrn, d100_a_gvhd)) %>% distinct(mrn)
+```
+
+```{r}
+# the above but without tcd pt
+dailycode %>% 
+  filter(fdrt %in% -10:30) %>% 
+  group_by(mrn, fdrt, source) %>% 
+  summarise(dayfiber = sum(dcodefiber)) %>% 
+  filter(!mrn %in% tcd_pt) %>% 
+  ggscatter(x = 'fdrt', y = 'dayfiber', add = "loess", conf.int = TRUE, alpha = 0.1, shape = 16,
+            add.params = list(color = 'blue'),
+            xlab = 'Transplant day', ylab = 'Daily fiber intake' ) +
+  scale_y_sqrt() +theme(aspect.ratio = 1)
+
+ggsave('../data/11_daily_all_fiber_without_TCD.pdf', width = 4, height = 4)
+```
+
+
+```{r}
 dailycode %>% write_csv('../data/patients_16s_data/11_pt_daily_fiber_type.csv')
 dailycode %>% write_csv('../data/11_pt_daily_fiber_type.csv')  
 
@@ -136,21 +227,40 @@ all_types <- dailycode %>%
   filter(!is.na(fiber_type)) %>% 
   spread('fiber_type','gram', fill = 0) %>% 
   gather('fiber_type','gram', names(.)[3]:names(.)[ncol(.)])%>% 
-  left_join(pts %>% select(mrn, d100_a_gvhd))
+  inner_join(allpt_gvhd_all %>% select(mrn, source))
 
 all_types %>% write_csv('../data/patients_16s_data/11_patients_fiber_type_intake.csv')
 all_types %>% write_csv('../data/11_patients_fiber_type_intake.csv')
 ```
 
 ```{r}
+
+
 all_types %>% 
-  filter(fdrt %in% -10:30) %>% 
+  filter(fdrt %in% -10:30 & ! mrn %in% tcd_pt) %>% 
   ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, 
             add.params = list(color = 'forestgreen', size = 1)) +
-  facet_grid(~ fiber_type) 
-ggsave('../data/patients_16s_data/11_fiber_all_type_daily_intake.pdf', width = 15, height = 5)
-ggsave('../data/11_fiber_all_type_daily_intake.pdf', width = 15, height = 5)
+  facet_grid(~ fiber_type) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_without_TCD.pdf', width = 15, height = 5)
+```
+
+
+```{r}
+
+
+all_types %>% 
+  inner_join(allpt_gvhd_all) %>% 
+  filter(fdrt %in% -10:30 & ! mrn %in% tcd_pt) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'grp', size = 1)) +
+  facet_grid(~ fiber_type) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_without_TCD_gvh.pdf', width = 15, height = 5)
 ```
 
 ```{r}
@@ -189,20 +299,54 @@ all_soluble <- dailycode %>%
   ungroup() %>% 
   filter(!is.na(soluble)) %>% 
   spread('soluble','gram', fill = 0) %>% 
-  gather('soluble','gram', names(.)[3]:names(.)[ncol(.)])%>% 
-  left_join(pts %>% select(mrn, d100_a_gvhd))
+  gather('soluble','gram', names(.)[3]:names(.)[ncol(.)]) %>% 
+  left_join(allpt %>% select(mrn, source))
 
-all_soluble %>% write_csv('../data/patients_16s_data/11_patients_fiber_soluble_intake.csv')
-all_soluble %>% write_csv('../data/11_patients_fiber_soluble_intake.csv')
 
 all_soluble %>% 
-  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+  filter(fdrt %in% -10:30) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
              add = "loess", conf.int = TRUE, title = 'soluble',
             add.params = list(color = 'brown', size = 1)) +
-  facet_grid(~ soluble) +
+  facet_grid(~ soluble, labeller = 'label_both') +
   scale_y_sqrt()
 ggsave('../data/patients_16s_data/11_fiber_all_soluble_daily_intake.pdf', width = 6, height = 4)
-ggsave('../data/11_fiber_all_soluble_daily_intake.pdf', width = 6, height = 4)
+ggsave('../data/11_fiber_all_soluble_daily_intake_with_TCD.pdf', width = 6, height = 4)
+
+
+all_soluble %>% 
+  filter(fdrt %in% -10:30 & !mrn %in% tcd_pt) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
+             add = "loess", conf.int = TRUE, title = 'soluble',
+            add.params = list(color = 'brown', size = 1)) +
+  facet_grid(~ soluble, labeller = 'label_both') +
+  scale_y_sqrt()
+ggsave('../data/11_fiber_all_soluble_daily_intake_without_TCD.pdf', width = 6, height = 4)
+```
+```{r}
+# gvhd yes and no
+all_soluble %>% 
+  inner_join(allpt_gvhd) %>% 
+  filter(fdrt %in% -10:30) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
+             add = "loess", conf.int = TRUE, title = 'soluble',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+  facet_grid(~ soluble, labeller = 'label_both') +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_soluble_daily_intake_withTCD_gvh.pdf', width = 6, height = 4)
+
+
+all_soluble %>% 
+  inner_join(allpt_gvhd) %>% 
+  filter(fdrt %in% -10:30 & ! mrn %in% tcd_pt) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
+             add = "loess", conf.int = TRUE, title = 'soluble',
+            add.params = list(color = 'd100_a_gvhd', size = 1)) +
+  facet_grid(~ soluble, labeller = 'label_both') +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_soluble_daily_intake_without_TCD_gvh.pdf', width = 6, height = 4)
 ```
 
 ```{r}
@@ -215,15 +359,6 @@ all_types %>%
 colnames(pts)
 ```
 
-```{r}
-# cleaning the gvhd information
-ptsg <- pts %>% 
-  select(hct, d100_a_gvhd:d100_ibmtr_highest_overall_grade) %>% 
-  mutate(d100_a_gvhd_onset = ymd(d100_a_gvhd_onset),
-         hct = ymd(hct)) %>% 
-  
-ptsg
-```
 
 
 ```{r}
@@ -370,13 +505,12 @@ ggsave('../data/11_fiber_all_soluble_daily_intake_one_sample_per_pt.pdf', width 
 ```{r}
 median_now <- median(meta$mean_fiber)
 meta <- read_csv('~/pipeline/scripts/food_tree/data/090_all_samples_meta_p2d_fg9_dietall_genera90.csv') %>% 
-  inner_join( pts)%>% 
-  filter(sdrt %in% 7:21)%>% 
+  filter(sdrt %in% -10:30)%>% 
   group_by(mrn) %>% 
   summarise(ave_div = mean(simpson_reciprocal),
             mean_fiber = mean(ave_fiber)) %>% 
   mutate(mean_fiber = mean_fiber * 100) %>% 
-  mutate(grp = if_else(mean_fiber >= median_now, 'high', 'low'))
+  left_join( allpt %>% select(mrn, source ))
 
 meta  %>% 
   ggscatter(x = 'mean_fiber', y = 'ave_div',
@@ -387,7 +521,23 @@ meta  %>%
            cor.coef = TRUE, # Add correlation coefficient.
            cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
   theme(aspect.ratio=1)
-ggsave('../data/11_alpha_and_fiber.pdf')
+ggsave('../data/11_alpha_and_fiber_withTCD.pdf', width = 5, height = 5)
+meta %>% distinct(mrn)
+
+
+meta  %>% 
+  filter(!mrn %in% tcd_pt) %>% 
+  ggscatter(x = 'mean_fiber', y = 'ave_div',
+            xlab = 'Prior 2 day fiber intake averaged by patient', ylab = 'microbiome alpha diversity averaged by patient',
+            add = "reg.line",  # Add regressin line
+           add.params = list(color = "blue", fill = "lightgray"), # Customize line
+           conf.int = TRUE, # Add confidence interval
+           cor.coef = TRUE, # Add correlation coefficient.
+           cor.coeff.args = list(method = "pearson",  label.sep = "\n")) +
+  theme(aspect.ratio=1)
+ggsave('../data/11_alpha_and_fiber_without_TCD.pdf', width = 5, height = 5)
+meta %>% 
+  filter(!mrn %in% tcd_pt) %>% distinct(mrn)
 ```
 
 ```{r}
@@ -401,6 +551,25 @@ ggsave('../data/11_box_low_and_high.pdf')
 ```
 
 ```{r}
+# figure out the lower gi patients
+allpt_gvhd_all <- allpt_gvhd %>% 
+  mutate(grp = case_when(
+    d100_a_gvhd == 'No' ~ "no_gvhd",
+  d100_a_gvhd == 'Yes' & d100_upper_gi_stage == 0 & d100_lower_gi_stage == 0 ~ "non_gi",
+  d100_a_gvhd == 'Yes' & d100_upper_gi_stage != 0 & d100_lower_gi_stage == 0  ~ "upper_gi",
+  d100_a_gvhd == 'Yes' &  d100_lower_gi_stage != 0  ~ "lower_gi",
+  .default = NA
+  ))
+
+allpt_gvhd_all %>% count(grp)
+```
+```{r}
+library(vdbR)
+connect_database()
+list_table_from_database('fmt')
+get_table_from_database('fmt_arm_ag')
 
 ```
+
+
 

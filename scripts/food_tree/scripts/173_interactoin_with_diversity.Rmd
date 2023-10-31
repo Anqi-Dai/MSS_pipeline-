@@ -226,7 +226,71 @@ model_div_original <- brm( mod_original,
               seed = 123, sample_prior = T, file = '../data/173_interaction_conditional_model')
 ```
 
+```{r}
+ce=conditional_effects(model_div_original)
+str(ce)
+tt_sweets_abx <- ce$`fg_sweets:empirical`
+meta_original %>% summarise(across(everything(), list(mean)))
+pred_dat = tt_sweets_abx %>% 
+  distinct(fg_sweets, empirical) %>% 
+  mutate(intensity = 'nonablative',
+         TPN = F, EN = F, 
+         fg_fruit = mean(meta_original$fg_fruit),
+         fg_meat = mean(meta_original$fg_meat),
+         fg_milk = mean(meta_original$fg_milk),
+         fg_oils = mean(meta_original$fg_oils),
+         fg_egg = mean(meta_original$fg_egg),
+         fg_grain = mean(meta_original$fg_grain),
+         fg_legume = mean(meta_original$fg_legume),
+         fg_veggie = mean(meta_original$fg_veggie),
+         mrn = NA, timebin= NA)
+post.epred = epred_draws(model_div_original, newdata=pred_dat)
 
+```
+```{r}
+post.epred %>% 
+ ggplot(aes(x = fg_sweets, y = .epred, fill = empirical, color = empirical)) +
+  stat_lineribbon(.width = seq(from = .03, to = .95, by = .1),
+                  alpha = .2, size = 0) 
+```
+
+```{r}
+# I wanna make a set of all of these with all the other panels
+
+vars <- tibble(vars = names(ce)) %>% 
+  filter(str_detect(vars, ':'))
+
+res <- vars %>% 
+  pull(vars) %>% 
+  set_names(vars %>% 
+  pull(vars)) %>% 
+  map(function(var){
+    pred_dat = ce %>% pluck(var) %>% 
+      select(names(.)[1]:names(.)[17]) %>% 
+      select(-`log(simpson_reciprocal)`, -simpson_reciprocal) %>% 
+      distinct()
+    post.epred = epred_draws(model_div_original, newdata=pred_dat)
+    
+   g=  ggplot(data = post.epred, aes_string(colnames(post.epred)[1], colnames(post.epred)[20], fill = colnames(post.epred)[2], color = colnames(post.epred)[2])) +
+  stat_lineribbon(.width = seq(from = .03, to = .69, by = .1),
+                  alpha = .2, size = 0) + 
+      scale_fill_manual(values = c('darkgray','maroon')) +
+  scale_colour_manual(values = c('darkgray','maroon')) +
+  #ylim(0, 3) +
+  labs(y = 'Predicted log(diversity)') +
+  theme_classic() +
+  theme(aspect.ratio = 1, legend.position = 'none')
+    return(g)
+  })
+library(cowplot)
+ret <- plot_grid(plotlist = res, nrow = 3)
+ggsave('../data/173_beam_ce.pdf', width = 9, height = 8) 
+```
+
+
+```{r}
+plot(conditional_effects(model_div_original))
+```
 
 ```{r plot_interaction}
 inter <- plot(conditional_effects(model_div_original, effects = 'empirical:fg_sweets'),ask = F ) +

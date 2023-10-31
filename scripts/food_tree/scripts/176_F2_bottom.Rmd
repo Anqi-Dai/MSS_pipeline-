@@ -144,7 +144,7 @@ fg_pt <- cleaned_fg %>%
   mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
   ggplot(aes(x = coeff, y = shortname)) +
   stat_pointinterval(.width = c(.66, .95), fatten_point = 1.2) +
-  labs(x = 'ln(diversity) change', y = '') +
+  labs(x = 'Conditioning intercept [ln(diversity)]', y = '') +
    xlim(0.9, 3) +
   theme_classic() +
   theme(legend.position = 'none') +
@@ -264,15 +264,25 @@ macro_pt <- cleaned_macro %>%
   mutate(shortname = factor(shortname, levels = c('Nonablative','Reduced','Ablative'))) %>% 
   ggplot(aes(x = coeff, y = shortname)) +
   stat_pointinterval(.width = c(.66, .95), fatten_point = 1.2) +
-  labs(x = 'Patient intercept', y = '') +
+  labs(x = 'Conditioning intercept [ln(diversity)]', y = '') +
    xlim(1.5, 2.5) +
+  scale_x_continuous( breaks = seq(1.4, 2.4, 0.2)) + 
   theme_classic() +
   theme(legend.position = 'none') +
   theme(axis.text = element_text( size = 10),
           panel.background = element_rect(fill = "gray96",colour = "gray96",size = 0.5, linetype = "solid"),
         axis.title=element_text(size=10), 
-        aspect.ratio=1/2.5)
+        aspect.ratio=1)
+macro_pt
 
+ggsave('../data/macro_pt_176.pdf',
+      width = 60, height = 60, units = "mm", device = 'pdf', 
+      plot = macro_pt, 
+      dpi = 300)
+```
+
+
+```{r macro_pt}
 macro_side <-  plot_grid(macro_pt,NA, macro_temporal,
                 rel_heights = c(1,-.8, 1.9),align = 'hv',axis = 'lrtb',
                 labels = c('C',NA, 'D'),label_y = .7,
@@ -294,13 +304,17 @@ f2a <- twoscore %>%
   labs(x = 'Number of previous days\nof dietary intake',y = 'Procrustes score') +
   scale_linetype_manual(values = c('solid','dashed')) +
   theme_classic()  +
-  theme(aspect.ratio=1/2,
-        legend.position = c(0.75,0.4),
+  theme(aspect.ratio=1,
+        legend.position = 'none',
         axis.text=element_text(size=axis_text_size), 
         axis.title=element_text(size=axis_text_size),
         legend.title = element_blank(), 
         axis.text.x = element_text(angle=0, hjust=0.5)) 
 f2a
+ggsave('../data/f2a_176.pdf',
+      width = 40, height = 40, units = "mm", device = 'pdf', 
+      plot = f2a, 
+      dpi = 300)
 ```
 
 
@@ -384,6 +398,24 @@ rawsweets <- META %>%
 rawsweets
 
 ```
+
+```{r}
+# the samples and the patients in the two abx groups
+# number of samples
+META %>% 
+  count(empirical)
+```
+
+
+```{r}
+# number of patients
+META %>% 
+  split(.$empirical) %>% 
+  map_df(function(df) {
+    df %>% distinct(mrn) %>% nrow
+  }) %>% gather
+```
+
 ```{r}
 # for the legend
 forlegend <- conditional %>%   

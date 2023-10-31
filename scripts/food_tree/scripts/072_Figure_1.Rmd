@@ -47,8 +47,11 @@ fpalette <- tribble(
 ) 
 library(vdbR)
 connect_database()
+list_table_from_database()
 get_table_from_database('asv_alpha_diversity_ag')
 get_table_from_database('shotgun_lookup_ad')
+get_table_from_database('fmt_arm_ag')
+get_table_from_database('fmt_nutrition_notes_el')
 ```
 
 # fig1 data summaries

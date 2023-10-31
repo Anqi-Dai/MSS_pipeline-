@@ -521,5 +521,8 @@ updated %>% write_csv('../data/156_transplant_data.csv')
 median(transplant_data$ttancday, na.rm = T)
 range(transplant_data$ttancday, na.rm = T)
 summary(transplant_data$ttancday)
+
+cli <- read_csv('../data/156_transplant_data.csv')
+
 ```
 

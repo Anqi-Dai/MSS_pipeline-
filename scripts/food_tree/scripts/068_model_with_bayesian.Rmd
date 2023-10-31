@@ -24,6 +24,7 @@ library(ggridges)
 library(brmstools)
 
 dtb <- read_csv('../data/152_combined_DTB.csv')
+ptb <- read_csv('../data/156_combined_PTB.csv')
 theme_set(theme_tidybayes() + panel_border())
 ncores <- parallel::detectCores()
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
@@ -56,6 +57,14 @@ meta <- read_csv('../data/153_combined_META.csv') %>%
          fg_veggie = fg_veggie/100)
 
 meta %>% summary()
+
+tt <- meta %>% inner_join(ptb ) %>% filter(str_detect( sampleid, 'FMT')) %>% 
+  distinct(mrn, hct) %>% 
+  left_join(fmt_arm_ag) %>% 
+  filter(is.na(lastname)) %>% 
+  inner_join(fmt)
+intersect(tt$mrn, fmt$mrn)
+tt %>% write_csv('../data/FMT_info_needed_26.csv', na = '')
 ```
 
 
