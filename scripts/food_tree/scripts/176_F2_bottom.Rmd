@@ -82,6 +82,13 @@ cleaned_fg <- fg  %>% select(starts_with('b_')) %>%
   )) %>% 
   mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal'))
 
+# find the credible interval of the abx line
+cleaned_fg %>% filter(str_detect(shortname, 'abx')) %>% 
+  group_by(shortname) %>% 
+  tidybayes::median_qi(coeff , .width = c( .95)) %>% 
+  mutate(coeff = round(coeff, 2),
+         .lower = round(.lower, 2),
+         .upper = round(.upper, 2))
 ```
 
 ```{r}
@@ -210,6 +217,14 @@ macro_order <- tibble(
                  "TPN" ,"EN" , 'abx')
 ) %>% inner_join(cleaned_macro %>% distinct(item, shortname)) %>% 
   inner_join(cross0_macro %>% select(item, Cross))
+
+# to find the intervals of those terms
+cleaned_macro %>% filter(str_detect(shortname, 'abx')) %>% 
+  group_by(shortname) %>% 
+  tidybayes::median_qi(coeff , .width = c( .95)) %>% 
+  mutate(coeff = round(coeff, 2),
+         .lower = round(.lower, 2),
+         .upper = round(.upper, 2))
 
 ```
  
@@ -377,7 +392,7 @@ conditional9
 # the raw data 
 rawsweets <- META %>% 
   mutate(log_div = log(simpson_reciprocal)) %>% 
-  mutate(antibiotics = if_else(empirical == 'TRUE', 'exposed', 'not exposed')) %>% 
+  mutate(antibiotics = if_else(empirical == 'FALSE', 'not exposed', 'exposed')) %>% 
   ggscatter(x = 'fg_sweets', y = 'log_div', color = 'antibiotics',
             ylab = 'log(diversity)',xlab = 'Sweets consumed (grams)',
             alpha = 0.1, shape = 16, size = 1,
@@ -388,15 +403,15 @@ rawsweets <- META %>%
            cor.coeff.args = list(method = "spearman",  label.sep = " \\n", cor.coef.name = c("rho"),p.accuracy = 0.01, r.accuracy = 0.01,label.x.npc = "left", label.y.npc = "bottom", size = 3.5)) +
   scale_x_sqrt() +
   scale_y_sqrt() +
-  scale_fill_manual(values = palette) +
-  scale_colour_manual(values = palette) +
-  facet_wrap(~ antibiotics, labeller = 'label_both', dir = 'v') +
-  theme(aspect.ratio = 1, legend.position = 'none',
+  scale_fill_manual('antibiotics', values = palette, labels=c('not exposed', 'exposed')) +
+  scale_colour_manual('antibiotics',values = palette, labels=c('not exposed', 'exposed')) +
+  facet_wrap(~ antibiotics, labeller = 'label_both') +
+  theme(aspect.ratio = 1, 
+        #legend.position = 'none',
           strip.background = element_blank(),
         strip.text.x = element_blank(), 
      axis.text=element_text(size=8), axis.title=element_text(size=8)) 
 rawsweets
-
 ```
 
 ```{r}
