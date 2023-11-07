@@ -210,3 +210,23 @@ ggsave('../data/08_Daily fiber intake from each food groups_top5.pdf')
 ggsave('../data/patients_16s_data/08_Daily fiber intake from each food groups_top5.pdf')
 ```
 
+```{r}
+# to get the patient info of 
+# -Median age
+# -Male/Female distribution
+# -Race and Ethnicity
+# -Hematological diagnosis
+# get the race from the original table
+ptb  <-  read_csv('../data/11_ptb_characteristics.csv')
+library(vdbR)
+connect_database()
+get_table_from_database('patient_allo_ks_20221104')
+race <- patient_allo_ks_20221104 %>% 
+  filter(mrn %in% pts$mrn) 
+
+ptbr <- ptb %>% 
+  left_join(race %>% select(mrn, race_dscrp,ethnicity ))
+  
+ptbr %>% write_csv('../data/11_ptb_characteristics.csv')
+
+```
