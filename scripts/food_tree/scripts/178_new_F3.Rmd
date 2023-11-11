@@ -19,6 +19,46 @@ theme_set(theme_pubr(base_size = 8))
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
 ```
 
+
+```{r}
+library(vdbR)
+connect_database()
+list_table_from_database('blast')
+get_table_from_database('asv_annotation_blast_detailed_ag')
+get_table_from_database('asv_annotation_blast_ag')
+tt <- get_counts_subset(c('FMT.0161O')) %>% 
+  inner_join(asv_annotation_blast_ag %>% select(asv_key, genus))
+S1583C <- get_counts_subset(c('1583C'))%>% 
+  inner_join(asv_annotation_blast_ag %>% select(asv_key, genus))
+
+highs <- g_relab %>% 
+  filter(relab > 10^-4 & genus == 'Loriellopsis')
+
+them <- get_counts_subset(highs %>% pull(sampleid))%>% 
+  inner_join(asv_annotation_blast_ag %>% select(asv_key, genus)) %>% 
+  filter(genus == 'Loriellopsis')
+
+why <- asv_annotation_blast_detailed_ag %>% 
+  filter(asv_key %in% them$asv_key)
+# ok so the annotation is wrong they didn't even pass the alignment
+# so need to find correct ones
+list_table_from_database('asv')
+get_table_from_database('asv_sequences_ag')
+# get the asv sequences
+seqs <- asv_sequences_ag %>% 
+  filter(asv_key %in% why$asv_key)
+library(seqinr)
+write.fasta(sequences = as.list(seqs$asv_sequence), 
+              names = seqs$asv_key,
+              file.out = str_glue('../data/178_Loriellopsis_asv.fasta'))
+# all the blast results don't have pident > 97!
+# so we never knew what these asv are!
+false <- asv_annotation_blast_detailed_ag %>% 
+  filter(passed == FALSE) %>% 
+  distinct(pident_97,passed )
+# so that I can amend them to be NA in annotation
+```
+
 # prep the df for the volcano plot
 
 ```{r}
@@ -26,6 +66,7 @@ key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_
 set.seed(1)
 meta <- read_csv('../data/153_combined_META.csv')
 g_relab <- read_csv('../data/022_ALL173_stool_samples_genus_counts.csv') %>% 
+  mutate(genus = if_else(genus == 'Loriellopsis', NA,genus )) %>% 
   filter(!is.na(genus)) %>% 
   spread('genus','relab', fill = 0) %>% 
   gather('genus','relab', names(.)[2]:names(.)[ncol(.)]) %>% 
@@ -279,72 +320,72 @@ newest <- readxl::read_excel('../data/Sucrose_All Experiments Consolidated .xlsx
 ```
 ```{r}
 # the difference or fold change between day 0 and day 3, day 0 and day 6
-deltas <- newest %>% 
-  spread('Day','Log_CFUs_per_GramStool') %>% 
-  rename(d0 = `0`, d3 = `3`,d6 = `6`) %>% 
-  mutate(d30_diff = d3 - d0,
-         d60_diff = d6 - d0,
-         d30_fc = d3 / d0,
-         d60_fc = d6 / d0)
-
-# the plotting with the difference
-p_diff <- deltas %>% 
-  select(diet_treatment:Mouse_identifier, d30_diff, d60_diff) %>% 
-  gather('grp','diffvalue', d30_diff:d60_diff) %>% 
-  arrange(abx_treatment,diet_treatment,  grp) %>% 
-  mutate(xvar = str_glue('{abx_treatment}__{diet_treatment}__{grp}')) 
-
-p_diff %>% 
-   count(xvar)
-
-p_diff %>% 
-  ggboxplot(x = 'xvar', y = 'diffvalue',add = 'jitter', 
-             xlab = '', ylab = 'difference',
-            width = 0.6,color  = 'grp')+
-   scale_color_manual(values = c('#ffbcdc','deeppink2')) +
-  stat_compare_means(comparisons= list(c('biapenem__sucrose__d30_diff', 'biapenem__vehicle__d30_diff'),
-                                       c('biapenem__sucrose__d30_diff', 'PBS__sucrose__d30_diff'),
-                                       c('biapenem__sucrose__d30_diff', 'PBS__vehicle__d30_diff'),
-                                     
-                                    c('biapenem__sucrose__d60_diff', 'biapenem__vehicle__d60_diff'),
-                                       c('biapenem__sucrose__d60_diff', 'PBS__sucrose__d60_diff'),
-                                       c('biapenem__sucrose__d60_diff', 'PBS__vehicle__d60_diff') ),
-            label= "p.signif", method= 'wilcox.test',tip.length = 0.04,exact=T,correct=T) +
-  scale_y_log10(breaks = c(1 %o% 10^(-1:12)), labels = trans_format("log10", math_format(10^.x))) +
-  theme(axis.text.x = element_text(angle = 90),axis.ticks.x=element_blank(),
-        axis.text =  element_text(size = 10),legend.position = 'none',aspect.ratio=1/1.3)
-
-ggsave('../data/178_mouse_difference.pdf', height = 10)
+# deltas <- newest %>% 
+#   spread('Day','Log_CFUs_per_GramStool') %>% 
+#   rename(d0 = `0`, d3 = `3`,d6 = `6`) %>% 
+#   mutate(d30_diff = d3 - d0,
+#          d60_diff = d6 - d0,
+#          d30_fc = d3 / d0,
+#          d60_fc = d6 / d0)
+# 
+# # the plotting with the difference
+# p_diff <- deltas %>% 
+#   select(diet_treatment:Mouse_identifier, d30_diff, d60_diff) %>% 
+#   gather('grp','diffvalue', d30_diff:d60_diff) %>% 
+#   arrange(abx_treatment,diet_treatment,  grp) %>% 
+#   mutate(xvar = str_glue('{abx_treatment}__{diet_treatment}__{grp}')) 
+# 
+# p_diff %>% 
+#    count(xvar)
+# 
+# p_diff %>% 
+#   ggboxplot(x = 'xvar', y = 'diffvalue',add = 'jitter', 
+#              xlab = '', ylab = 'difference',
+#             width = 0.6,color  = 'grp')+
+#    scale_color_manual(values = c('#ffbcdc','deeppink2')) +
+#   stat_compare_means(comparisons= list(c('biapenem__sucrose__d30_diff', 'biapenem__vehicle__d30_diff'),
+#                                        c('biapenem__sucrose__d30_diff', 'PBS__sucrose__d30_diff'),
+#                                        c('biapenem__sucrose__d30_diff', 'PBS__vehicle__d30_diff'),
+#                                      
+#                                     c('biapenem__sucrose__d60_diff', 'biapenem__vehicle__d60_diff'),
+#                                        c('biapenem__sucrose__d60_diff', 'PBS__sucrose__d60_diff'),
+#                                        c('biapenem__sucrose__d60_diff', 'PBS__vehicle__d60_diff') ),
+#             label= "p.signif", method= 'wilcox.test',tip.length = 0.04,exact=T,correct=T) +
+#   scale_y_log10(breaks = c(1 %o% 10^(-1:12)), labels = trans_format("log10", math_format(10^.x))) +
+#   theme(axis.text.x = element_text(angle = 90),axis.ticks.x=element_blank(),
+#         axis.text =  element_text(size = 10),legend.position = 'none',aspect.ratio=1/1.3)
+# 
+# ggsave('../data/178_mouse_difference.pdf', height = 10)
 ```
 
 ```{r}
 # if I plot in fold change
-p_fc <- deltas %>% 
-  select(diet_treatment:Mouse_identifier, d30_fc, d60_fc) %>% 
-  gather('grp','fcvalue', d30_fc:d60_fc) %>% 
-  arrange(abx_treatment,diet_treatment,  grp) %>% 
-  mutate(xvar = str_glue('{abx_treatment}__{diet_treatment}__{grp}')) %>% 
-  mutate(log10FC = log10(fcvalue))
-
-p_fc %>% 
-   count(xvar)
-
-p_fc_plot <- p_fc %>% 
-  ggboxplot(x = 'xvar', y = 'log10FC',add = 'jitter', 
-             xlab = '', ylab = 'Enterococcal\nLog10(fold change)',
-            width = 0.6,color  = 'grp') +
-   scale_color_manual(values = c('#ffbcdc','deeppink2')) +
-  stat_compare_means(comparisons= list(c('biapenem__sucrose__d30_fc', 'biapenem__vehicle__d30_fc'),
-                                       c('biapenem__sucrose__d30_fc', 'PBS__sucrose__d30_fc'),
-                                       c('biapenem__sucrose__d30_fc', 'PBS__vehicle__d30_fc'),
-                                     
-                                    c('biapenem__sucrose__d60_fc', 'biapenem__vehicle__d60_fc'),
-                                       c('biapenem__sucrose__d60_fc', 'PBS__sucrose__d60_fc'),
-                                       c('biapenem__sucrose__d60_fc', 'PBS__vehicle__d60_fc') ),
-            label= "p.signif", method= 'wilcox.test',tip.length = 0.04,exact=T,correct=T) +
-  scale_y_continuous(breaks=seq(0, 15, 1)) + 
-  theme(axis.text.x = element_text(size = 10, angle = 90),axis.ticks.x=element_blank(),
-        axis.text =  element_text(size = 10),legend.position = 'none',aspect.ratio=1/1.3)
+# p_fc <- deltas %>% 
+#   select(diet_treatment:Mouse_identifier, d30_fc, d60_fc) %>% 
+#   gather('grp','fcvalue', d30_fc:d60_fc) %>% 
+#   arrange(abx_treatment,diet_treatment,  grp) %>% 
+#   mutate(xvar = str_glue('{abx_treatment}__{diet_treatment}__{grp}')) %>% 
+#   mutate(log10FC = log10(fcvalue))
+# 
+# p_fc %>% 
+#    count(xvar)
+# 
+# p_fc_plot <- p_fc %>% 
+#   ggboxplot(x = 'xvar', y = 'log10FC',add = 'jitter', 
+#              xlab = '', ylab = 'Enterococcal\nLog10(fold change)',
+#             width = 0.6,color  = 'grp') +
+#    scale_color_manual(values = c('#ffbcdc','deeppink2')) +
+#   stat_compare_means(comparisons= list(c('biapenem__sucrose__d30_fc', 'biapenem__vehicle__d30_fc'),
+#                                        c('biapenem__sucrose__d30_fc', 'PBS__sucrose__d30_fc'),
+#                                        c('biapenem__sucrose__d30_fc', 'PBS__vehicle__d30_fc'),
+#                                      
+#                                     c('biapenem__sucrose__d60_fc', 'biapenem__vehicle__d60_fc'),
+#                                        c('biapenem__sucrose__d60_fc', 'PBS__sucrose__d60_fc'),
+#                                        c('biapenem__sucrose__d60_fc', 'PBS__vehicle__d60_fc') ),
+#             label= "p.signif", method= 'wilcox.test',tip.length = 0.04,exact=T,correct=T) +
+#   scale_y_continuous(breaks=seq(0, 15, 1)) + 
+#   theme(axis.text.x = element_text(size = 10, angle = 90),axis.ticks.x=element_blank(),
+#         axis.text =  element_text(size = 10),legend.position = 'none',aspect.ratio=1/1.3)
 ```
 
 ```{r}
@@ -407,7 +448,7 @@ plotdf %>% count(xvar)
 ```{r}
 f3_days <- plotdf %>%    
   ggboxplot(x = 'xvar', y = 'CFUs_per_GramStool',add = 'jitter', 
-             xlab = '', ylab = 'Enterococcal\n CFU/gram',
+             xlab = '', ylab = 'Enterococcal\n CFU/gram',, add.params = list(alpha = 0.5, shape = 16),
             width = 0.6,color  = 'grp')+
    scale_color_manual(values = c('gray76','#ffbcdc','gray32','deeppink2')) +
   stat_compare_means(comparisons = list(c('biapenem__vehicle__3','biapenem__sucrose__3'), c('biapenem__vehicle__6','biapenem__sucrose__6')),label= "p.signif", method= 'wilcox.test',tip.length = 0.04,exact=T,correct=T) +
@@ -422,7 +463,7 @@ my_comparisons <- list( c("PBS__vehicle", "biapenem__vehicle"),
 
 f3_AUC <- ggboxplot(dat_entero_wide,
           x="groups",add = 'jitter',
-          y="trap", color  = 'groups') +
+          y="trap", color  = 'groups', add.params = list(alpha = 0.5, shape = 16)) +
   ylab("Trapezoidal\nAUC")+xlab('') +
    scale_color_manual(values = c('gray76','#ffbcdc','gray32','deeppink2')) +
   scale_y_log10(breaks = c(1 %o% 10^(-1:8)),  labels = trans_format("log10", math_format(10^.x))) +

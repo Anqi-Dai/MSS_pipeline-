@@ -44,9 +44,11 @@ med1 <- read_rds('../data/tasks_nutrition_batch1_2022-11-29.rds') %>%
   mutate(drug_name_clean = str_to_lower(drug_name_clean),
          mrn = as.numeric(MRN)) %>% 
   filter(mrn %in% ptb$mrn)
+```
 
 
-  
+
+```{r}
 now <-   med1 %>% count(drug_name_clean) %>% arrange(desc(n))
 
 allpickes <- tibble(picked = picked) %>% 
@@ -139,5 +141,78 @@ new_meta <- meta %>%
 new_meta %>% write_csv('../data/cleaned_stool/all_samples_meta_p2d_fg9_updated.csv')
 
 new_meta %>% summary()
+```
+
+# below is to find the antibiotics usage data in batch 1 patients
+
+```{r}
+# I'm gonnna use the dtb time range as the time range here for tallying the abx data
+DTB <- read_csv('../data/152_combined_DTB.csv')
+PTB <- read_csv('../data/156_combined_PTB.csv')
+range(DTB$fdrt)
+
+med1 <- read_rds('../data/tasks_nutrition_batch1_2022-11-29.rds') %>% 
+  filter(med_class1 == 'anti-infectives') %>% 
+  select(mrn = MRN, start_date, med_class1) %>% 
+  mutate(mrn = as.numeric(mrn)) %>% 
+  inner_join(ptb %>% select(mrn, hct)) %>% 
+  mutate(abx_day = as.numeric(start_date - hct)) %>% 
+  filter(abx_day %in% min(DTB$fdrt):max(DTB$fdrt))
+
+med1 %>% distinct(mrn) %>% nrow
+
+# and repeat the above for the batch 2
+med2 <- read_rds('../data/batch2_medication_exposures.rds') %>% 
+  filter(class %in% c( 'anti.bacterial')) %>% 
+   select(mrn = MRN, start_date, class) %>% 
+  mutate(mrn = as.numeric(mrn)) %>% 
+  inner_join(PTB %>% select(mrn, hct)) %>% 
+  mutate(abx_day = as.numeric(start_date - hct)) %>% 
+  filter(abx_day %in% min(DTB$fdrt):max(DTB$fdrt))
+
+med2 %>% distinct(mrn) %>% nrow
+#All the 173 patients received antibiotics during their diet data collection days. 
+```
+
+```{r}
+# below I calculate what perc also took the empirical abx
+empirical1 <- read_rds('../data/tasks_nutrition_batch1_2022-11-29.rds') %>% 
+  select(MRN, start_date, stop_date, drug_name, route) %>% 
+  mutate(drug_name_clean = str_replace_all(drug_name, '-', '_')) %>% 
+  mutate(drug_name_clean = str_to_lower(drug_name_clean),
+         mrn = as.numeric(MRN)) %>% 
+  filter(mrn %in% ptb$mrn) %>% 
+   filter(drug_name_clean %in% picked) %>% 
+  select(-drug_name) %>% 
+  mutate(together = str_glue('{drug_name_clean}__{route}')) %>%  
+  filter(! together %in% c('vancomycin__IV','vancomycin__IVPB')) %>% 
+  inner_join(PTB %>% select(mrn, hct)) %>% 
+  mutate(abx_day = as.numeric(start_date - hct)) %>% 
+  filter(abx_day %in% min(DTB$fdrt):max(DTB$fdrt))
+empirical1 %>% distinct(mrn) %>% nrow
+```
+
+
+```{r}
+empirical2 <- read_rds('../data/batch2_medication_exposures.rds') %>% 
+  select(MRN:stop_date, drug_name, route) %>% 
+  mutate(drug_name_clean = str_replace_all(drug_name, '-', '_')) %>% 
+  mutate(drug_name_clean = str_to_lower(drug_name_clean)) %>% 
+  mutate(drug_name_clean = case_when(
+    drug_name_clean == 'levofloxacin (levaquin)' ~ 'levofloxacin',
+    drug_name_clean == 'vancomycin invest' ~ 'vancomycin',
+    TRUE ~ drug_name_clean
+  )) %>% 
+  mutate(mrn = as.numeric(MRN)) %>% 
+  filter(drug_name_clean %in% picked) %>% 
+  filter(mrn %in% PTB$mrn) %>% 
+  mutate(together = str_glue('{drug_name_clean}__{route}')) %>% 
+  select(-drug_name) %>% 
+  filter(! together %in% c('vancomycin__IV')) %>% 
+   inner_join(PTB %>% select(mrn, hct)) %>% 
+  mutate(abx_day = as.numeric(start_date - hct)) %>% 
+  filter(abx_day %in% min(DTB$fdrt):max(DTB$fdrt))
+
+empirical2 %>% distinct(mrn) %>% nrow
 ```
 

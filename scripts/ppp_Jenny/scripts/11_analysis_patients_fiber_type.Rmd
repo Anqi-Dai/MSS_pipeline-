@@ -41,7 +41,7 @@ tcd_pt <- allpt %>%
   pull(mrn)
 
 meta <- read_csv('../../food_tree/data/153_combined_META.csv')
-
+ 
 allpt_gvhd_all <- allpt_gvhd %>% 
   filter(source != 'TCD') %>% 
   mutate(grp = case_when(
@@ -78,6 +78,8 @@ dailycode <- DTB %>%
   ungroup() %>% 
   relocate(description, .after = 'soluble') %>% 
   inner_join(allpt_gvhd_all %>% distinct(mrn, source , grp))
+
+dailycode %>% write_csv('../data/11_dailycode.csv')
 ```
 ```{r}
 # the dropping trend
@@ -160,6 +162,8 @@ all_types <- dailycode %>%
   spread('fiber_type','gram', fill = 0) %>% 
   gather('fiber_type','gram', names(.)[3]:names(.)[ncol(.)]) %>% 
   inner_join(allpt_gvhd_all %>% distinct(mrn, source, grp))
+
+all_types %>% write_csv('../data/11_all_types.csv')
 ```
 
 ```{r}
@@ -196,22 +200,168 @@ all_types %>%
              add = "loess", conf.int = TRUE, 
             add.params = list(color = 'grp', size = 1)) +
   facet_grid(~ fiber_type) +
+    scale_colour_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_fill_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
   scale_y_sqrt()
 
-ggsave('../data/11_fiber_all_type_daily_intake_grp3.pdf', width = 15, height = 5)
+ggsave('../data/11_fiber_all_type_daily_intake_grp3.pdf', width = 10, height = 3)
 ```
 
 ```{r}
 # with only the no gvhd and LGI
 all_types %>% 
-  filter(fdrt %in% -10:30 & grp != 'exclu_lower_gi') %>% 
+  filter(fdrt %in% -10:30 & grp != 'Non_LGI') %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'grp', size = 1)) +
+      scale_colour_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_fill_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  facet_grid(~ fiber_type) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_grp2.pdf', width = 10, height = 3)
+```
+
+```{r onsetdays}
+# calculat the onset day for the gvhd patients
+onsetdays <-  allpt %>% distinct(mrn, hct, d100_a_gvhd_onset) %>% 
+  filter(!is.na(d100_a_gvhd_onset)) %>% 
+  mutate(onsetday = as.numeric(d100_a_gvhd_onset - hct))
+
+set.seed(1)
+# randomly draw one onset day from the above with replacement
+pseudodays <- allpt %>% 
+  distinct(mrn, hct, d100_a_gvhd_onset) %>% 
+  filter(is.na(d100_a_gvhd_onset)) %>% 
+  mutate(onsetday = slice_sample(onsetdays %>% select(onsetday),n = nrow(.), replace = T ) %>% pull(onsetday)) %>% 
+  select(mrn, hct, onsetday)
+
+allonset <- bind_rows(pseudodays, onsetdays %>% select(-d100_a_gvhd_onset))
+```
+
+
+```{r}
+# the median and mean of the onset days
+mean(onsetdays$onsetday)
+median(onsetdays$onsetday)
+# the pseudo days for the onset 
+medianonset <- ceiling(median(onsetdays$onsetday))
+```
+
+
+```{r}
+# all types but day relative to onset
+all_types_o <- all_types %>% 
+  inner_join(allpt %>% distinct(mrn, hct, d100_a_gvhd_onset)) %>% 
+  mutate(hct = ymd(hct),
+         f_date = hct + fdrt, 
+         d100_a_gvhd_onset = ymd(d100_a_gvhd_onset)) %>% 
+  inner_join(allonset) %>% 
+  mutate(hct = ymd(hct),
+         d100_a_gvhd_onset = hct + onsetday,
+         d100_a_gvhd_onset = ymd(d100_a_gvhd_onset),
+          fdrO = f_date - d100_a_gvhd_onset,
+        fdrO = as.numeric(fdrO))
+
+all_types_o %>% write_csv('../data/11_all_types_onset.csv')
+```
+
+
+```{r}
+# Any chance you also annotate what the 
+#median onset day would be for each cohort?
+#Non-LGI GVHD
+#LGI GVHD  
+grp_onset <- all_types_o %>% 
+  distinct(grp, hct, d100_a_gvhd_onset) %>% 
+  filter(grp != 'no_gvhd') %>% 
+  mutate(onsetday = as.numeric(d100_a_gvhd_onset - hct)) %>% 
+  group_by(grp) %>% 
+  summarise(medianonset = median(onsetday)) %>% 
+  mutate(medianonset = ceiling(medianonset))
+```
+
+```{r}
+# Same analysis as previous slide, only including all non-TCD patients joined into one group – relative to onset)
+
+all_types_o %>% 
+  filter(fdrt %in% -10:30 ) %>% 
+  ggscatter(x = 'fdrO', y = 'gram', alpha = 0.05, shape = 16,xlab = 'day relative to onset',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'forestgreen', size = 1)) +
+  facet_grid(~ fiber_type) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_onset.pdf', width = 10, height = 3)
+```
+
+```{r}
+# Same analysis as previous slide, but only including the No GVHD and LGI joined into one group – relative to onset)
+
+all_types_o %>% 
+  filter(fdrt %in% -10:30  & grp != 'Non_LGI') %>% 
+  ggscatter(x = 'fdrO', y = 'gram', alpha = 0.05, shape = 16,xlab = 'day relative to onset',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'forestgreen', size = 1)) +
+  facet_grid(~ fiber_type) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_onset_2.pdf', width = 10, height = 3)
+```
+
+```{r}
+all_types_o %>% 
+  filter(fdrt %in% -10:30  ) %>% 
+    mutate(gvhd = if_else(grp == 'no_gvhd', 'No', 'Yes'),
+         gvhd = factor(gvhd, levels = c('Yes','No'))) %>% 
+  ggscatter(x = 'fdrO', y = 'gram', alpha = 0.05, shape = 16,xlab = 'day relative to onset',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'gvhd', size = 1)) +
+  facet_grid(~ fiber_type) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_onset_gvhd.pdf', width = 10, height = 3)
+```
+```{r}
+all_types_o %>% 
+  filter(fdrt %in% -10:30  ) %>% 
+  ggscatter(x = 'fdrO', y = 'gram', alpha = 0.05, shape = 16,xlab = 'day relative to onset',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'grp', size = 1)) +
+  facet_grid(~ fiber_type) +
+        scale_colour_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_fill_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_onset_grp3.pdf', width = 10, height = 3)
+```
+```{r}
+all_types_o %>% 
+  filter(fdrt %in% -10:30 & grp != 'Non_LGI' ) %>% 
+  ggscatter(x = 'fdrO', y = 'gram', alpha = 0.05, shape = 16,xlab = 'day relative to onset',
+             add = "loess", conf.int = TRUE, 
+            add.params = list(color = 'grp', size = 1)) +
+  facet_grid(~ fiber_type) +
+        scale_colour_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_fill_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_type_daily_intake_onset_grp2.pdf', width = 10, height = 3)
+```
+
+
+```{r}
+all_types %>% 
+  filter(fdrt %in% -10:30 ) %>% 
   ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'transplant day',
              add = "loess", conf.int = TRUE, 
             add.params = list(color = 'grp', size = 1)) +
   facet_grid(~ fiber_type) +
+    scale_colour_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_fill_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
   scale_y_sqrt()
 
-ggsave('../data/11_fiber_all_type_daily_intake_grp2.pdf', width = 15, height = 5)
+ggsave('../data/11_fiber_all_type_daily_intake_grp3.pdf', width = 10, height = 3)
 ```
 
 
@@ -258,14 +408,44 @@ all_soluble <- dailycode %>%
 all_soluble %>% 
   filter(fdrt %in% -10:30) %>% 
   ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
-             add = "loess", conf.int = TRUE, title = 'soluble',
+             add = "loess", conf.int = TRUE, title = '',palette = 'jco',
             add.params = list(color = 'soluble', size = 1)) +
-  scale_y_sqrt()
+  scale_y_sqrt() + theme(aspect.ratio = 1)
 
-ggsave('../data/11_fiber_all_soluble_daily_intake.pdf', width = 6, height = 4)
+ggsave('../data/11_fiber_all_soluble_daily_intake.pdf', width = 4, height = 4)
 
 
 ```
+
+```{r}
+# Same analysis as above, but including only the No GVHD and LGI patients (joined into one group)
+
+all_soluble %>% 
+  filter(fdrt %in% -10:30 & grp != 'Non_LGI') %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
+             add = "loess", conf.int = TRUE, title = '',palette = 'jco',
+            add.params = list(color = 'soluble', size = 1)) +
+  scale_y_sqrt() + theme(aspect.ratio = 1)
+
+ggsave('../data/11_fiber_all_soluble_daily_intake_2.pdf', width = 4, height = 4)
+```
+
+```{r}
+# soluble fiber No GVHD vs. GVHD
+all_soluble %>% 
+  mutate(gvhd = if_else(grp == 'no_gvhd', 'No', 'Yes'),
+         gvhd = factor(gvhd, levels = c('Yes','No'))) %>% 
+  filter(fdrt %in% -10:30) %>% 
+  ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
+             add = "loess", conf.int = TRUE, title = 'soluble',
+            add.params = list(color = 'gvhd', size = 1)) +
+  facet_grid(~ soluble, labeller = 'label_both') +
+  scale_y_sqrt()
+
+ggsave('../data/11_fiber_all_soluble_daily_intake_gvhd.pdf', width = 6, height = 4)
+```
+
+
 ```{r}
 # gvhd groups
 all_soluble %>% 
@@ -274,24 +454,28 @@ all_soluble %>%
              add = "loess", conf.int = TRUE, title = 'soluble',
             add.params = list(color = 'grp', size = 1)) +
   facet_grid(~ soluble, labeller = 'label_both') +
+   scale_colour_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_fill_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
   scale_y_sqrt()
 
 ggsave('../data/11_fiber_all_soluble_daily_intake_grp3.pdf', width = 6, height = 4)
+```
 
+
+```{r}
 # with only two groups
 all_soluble %>% 
-  filter(fdrt %in% -10:30 & grp != 'exclu_lower_gi') %>% 
+  filter(fdrt %in% -10:30 & grp != 'Non_LGI') %>% 
   ggscatter(x = 'fdrt', y = 'gram', alpha = 0.05, shape = 16,xlab = 'Transplant day',
              add = "loess", conf.int = TRUE, title = 'soluble',
             add.params = list(color = 'grp', size = 1)) +
   facet_grid(~ soluble, labeller = 'label_both') +
+     scale_colour_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
+  scale_fill_manual(values = cols, breaks = c("LGI", "no_gvhd", "Non_LGI")) +
   scale_y_sqrt()
 
 ggsave('../data/11_fiber_all_soluble_daily_intake_grp2.pdf', width = 6, height = 4)
 ```
-
-
-
 
 
 

@@ -1,31 +1,8 @@
----
-title: "author list and contribution"
-author: "Anqi Dai"
-date: "`r Sys.Date()`"
-output: html_document
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-```{r}
-library(tidyverse)
-```
-
-```{r}
-authors <- tibble(
-  author = c('Anqi Dai',
-             'Peter Adintori',
-             'Tyler Funnell',
-             )
-)
-```
-
-```{r}
 
 # This script will format a beautiful author list for manuscript submission
 
+# install.packages("officer")
+# browseVignettes(package = "officer")    # https://ardata-fr.github.io/officeverse/
 
 library(tidyverse)
 library(readxl)
@@ -48,7 +25,9 @@ library(officer)
 
 ########## Pull in Excel file of author affiliations
 
-author.filename <- "../data/Author_list_diversity_manuscript_2019-06-10.xlsx"
+# author.filename <- "/Volumes/vandenbrinklab/Susan/Human GVHD/authorship_COI/Author_list_TCR_manuscript_fromTsoni.xlsx"
+author.filename <- "/Users/peledj/Desktop/desktop_stuff/Susan Dewolf TCR seqencing/authorship_COI/Author_list_TCR_manuscript_fromTsoni.xlsx"
+author.filename <- "/Users/peledj/Desktop/desktop_stuff/Susan Dewolf TCR seqencing/authorship_COI/Author_list_TCR_2022-01-27.xlsx"
 df <- read_excel(author.filename)
 
 
@@ -171,6 +150,3 @@ read_docx() %>%
 # This is output as a csv that you copy into Word & fix the superscripts in the affiliation list manually
 paste0(affiliations.list$affiliation.id, affiliations.list$affiliation) %>%
 write.csv("institution.list_2022-01-27.csv", row.names=FALSE)
-
-```
-
