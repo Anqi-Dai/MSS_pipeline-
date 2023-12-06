@@ -1,0 +1,142 @@
+---
+title: "Interaction model with diversity"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+set.seed(1)
+library(tidyverse)
+library(brms)   
+library(ggpubr)
+library(tidybayes)
+library(cowplot)
+library(ggridges)
+library(brmstools)
+library(bayesplot)
+options(mc.cores = parallel::detectCores())
+rstan::rstan_options(auto_write = TRUE)
+theme_set(theme_tidybayes() + panel_border())
+ncores <- parallel::detectCores()
+
+```
+
+# the interaction model with diversity
+
+```{r}
+meta <- read_csv('../data/153_combined_META.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(abx = if_else(empirical == 'TRUE', 1, 0),
+         TPN = if_else(TPN == 'TRUE', 1, 0),
+         EN = if_else(EN == 'TRUE', 1, 0)) %>% 
+  mutate(      fg_fruit_e= fg_fruit*abx,  
+                fg_meat_e=fg_meat*abx,
+                fg_milk_e=fg_milk*abx,
+                fg_oils_e=fg_oils*abx,
+                fg_egg_e=fg_egg*abx,
+                fg_grain_e=fg_grain*abx,
+                fg_sweets_e=fg_sweets*abx,
+                fg_legume_e=fg_legume*abx,
+                fg_veggie_e = fg_veggie*abx)
+
+```
+
+
+```{r}
+div_model  <- log(simpson_reciprocal) ~ 0 +
+                intensity+
+               fg_fruit_e+
+                fg_meat_e+
+                fg_milk_e+
+                fg_oils_e+
+                fg_egg_e+
+                fg_grain_e+
+                fg_sweets_e+
+                fg_legume_e+
+                fg_veggie_e+
+                abx+
+               fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+get_prior(div_model,data = meta )
+
+```
+
+```{r}
+div_priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # interaction terms
+            prior(normal(0, 1), class = 'b', coef = "fg_egg_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie_e"),
+            # for the TPN
+            prior(normal(0, 0.1), class = 'b', coef = "TPN"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "EN"),
+            # for the empirical
+            prior(normal(0, 0.5), class = 'b', coef = "abx"),
+            # for the intensity
+            prior(normal( 2, .1), class = 'b', coef = "intensityablative"),
+            prior(normal( 2, .1), class = 'b', coef = "intensityreduced"),
+            prior(normal( 2, .1), class = 'b', coef = "intensitynonablative")
+            )
+```
+
+
+```{r}
+model_div <- brm( div_model,  
+              data = meta, 
+              warmup = 1000, iter = 3000, 
+              prior = div_priors,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T) 
+
+# actually draw samples from the priors 
+samples_prior <- prior_draws(model_div)
+# save it for future use
+post_res <- suppressWarnings(posterior_samples(model_div)) 
+post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
+
+```

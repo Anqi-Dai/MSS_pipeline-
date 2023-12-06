@@ -39,6 +39,7 @@ tpn <- support %>%
 tpn %>% distinct(mrn) %>% nrow
 summary(tpn$liquidday)
 ```
+
 ```{r}
 # EN days
 en <- support %>% 
@@ -51,6 +52,8 @@ en <- support %>%
 # summary of the EN days of the patients
 en %>% distinct(mrn) %>% nrow
 summary(en$liquidday)
+
+all_unique_pt <- bind_rows(en, tpn) %>% distinct(mrn)
 ```
 
 ```{r}
@@ -215,6 +218,7 @@ med_all %>% write_csv('../data/169_all_medication.csv')
 med_all <- read_csv('../data/169_all_medication.csv')
 med1 %>% filter(med_class1 == 'anti-infectives') %>% count(med_class2, sort = T)
 med1 %>% glimpse()
+med1 %>% count(med_class1, sort = T)
 # no: antiviral agents, antifungals, antituberculosis agents, antimalarial agents, amebicides, anthelmintics, leprostatics
 ```
 

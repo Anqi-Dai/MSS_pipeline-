@@ -1,0 +1,374 @@
+---
+title: "Responding to the comments and feedback I got"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+library(lubridate) 
+library(brms)   
+library(tidybayes)
+library(cowplot)
+library(brmstools)
+library(bayesplot)
+options(mc.cores = parallel::detectCores())
+rstan::rstan_options(auto_write = TRUE)
+theme_set(theme_tidybayes() + panel_border())
+ncores <- parallel::detectCores()
+library(vdbR)
+connect_database()
+list_table_from_database('mgx')
+list_table_from_database('isabl')
+get_table_from_database('mgx_metaphlan')
+get_table_from_database('isabl_api_application')
+get_table_from_database('samples_castori_ag')
+```
+
+# what if change the abx exposure from 2 days to 2 weeks
+
+What samples and % will be the same
+
+```{r}
+picked <-  c('vancomycin', 'imipenem_cilastatin','meropenem','ertapenem', 'cefepime', 'linezolid','metronidazole','piperacillin_tazobactam')
+
+meds <- read_csv('../data/169_all_medication.csv') %>% 
+  filter(drug_name_clean %in% picked)
+
+meta <- read_csv('../data/153_combined_META.csv')
+
+p2w_df <- meta %>% 
+  select(sampleid, mrn) %>% 
+  inner_join(samples_castori_ag %>% select(sampleid, datecollection)) %>% 
+  mutate(p1d = datecollection -1,
+         p2w = datecollection -14) %>% 
+  mutate(p2w_int = interval(p2w, p1d)) %>% 
+  select(sampleid, datecollection, mrn, p1d, p2w, p2w_int)
+
+
+exposed_2w <- meds %>% 
+  mutate(drug_int =  interval(start_date, stop_date)) %>% 
+  inner_join(p2w_df, by = "mrn") %>% 
+   mutate(had_drug = int_overlaps(p2w_int, drug_int)) %>% 
+        filter(had_drug == 'TRUE') %>% 
+  distinct(sampleid)
+
+p2d_exposed <- meta %>% filter(empirical == 'TRUE')
+
+length(intersect(exposed_2w$sampleid, p2d_exposed$sampleid))
+nrow(exposed_2w)
+
+
+```
+
+## what if doing the model again with abx 2 week exposure
+
+```{r}
+# I wanna use the original data types for this thing
+meta_2w <- meta %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(empirical = if_else(sampleid %in% exposed_2w$sampleid, T, F))
+
+
+mod_2w <- log(simpson_reciprocal) ~ 0 +        
+                intensity+
+                empirical+
+               fg_fruit:empirical+
+                fg_meat:empirical+
+                fg_milk:empirical+
+                fg_oils:empirical+
+                fg_egg:empirical+
+                fg_grain:empirical+
+                fg_sweets:empirical+
+                fg_legume:empirical+
+                fg_veggie:empirical+
+                TPN+
+                EN+
+               (1 | mrn) +
+                (1 | timebin)
+
+
+
+div_priors_original <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalFALSE:fg_veggie"),
+            # interaction terms
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "empiricalTRUE:fg_veggie"),
+            # for the TPN
+            prior(normal(0, 0.1), class = 'b', coef = "TPNTRUE"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "ENTRUE"),
+            # for the empirical
+            prior(normal(0, 0.5), class = 'b', coef = "empiricalTRUE"),
+            # for the intensity
+            prior(normal( 2, .1), class = 'b', coef = "intensityablative"),
+            prior(normal( 2, .1), class = 'b', coef = "intensityreduced"),
+            prior(normal( 2, .1), class = 'b', coef = "intensitynonablative")
+            )
+
+model_div_original <- brm( mod_2w,  
+              data = meta_2w, 
+              warmup = 1000, iter = 3000, 
+              prior = div_priors_original,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T, file = '../data/186_interaction_conditional_model_2w')
+```
+
+
+
+```{r}
+plot(conditional_effects(model_div_original))
+```
+
+
+# What if using week relative to transplant as fixed effects
+
+```{r}
+meta_ <- read_csv('../data/153_combined_META.csv') %>% 
+  mutate(timebin = cut_width(sdrt, 7, boundary=0, closed = 'left')) %>% 
+  mutate(intensity = factor(intensity, levels = c('nonablative','reduced','ablative'))) %>% 
+  mutate(mrn = factor(mrn)) %>% 
+  mutate(fg_egg = fg_egg/100,
+         fg_fruit = fg_fruit/100,
+         fg_grain = fg_grain/100,
+         fg_legume = fg_legume/100,
+         fg_meat = fg_meat/100,
+         fg_milk = fg_milk/100,
+         fg_oils = fg_oils/100,
+         fg_sweets = fg_sweets/100,
+         fg_veggie = fg_veggie/100) %>% 
+  mutate(abx = if_else(empirical == 'TRUE', 1, 0),
+         TPN = if_else(TPN == 'TRUE', 1, 0),
+         EN = if_else(EN == 'TRUE', 1, 0)) %>% 
+  mutate(      fg_fruit_e= fg_fruit*abx,  
+                fg_meat_e=fg_meat*abx,
+                fg_milk_e=fg_milk*abx,
+                fg_oils_e=fg_oils*abx,
+                fg_egg_e=fg_egg*abx,
+                fg_grain_e=fg_grain*abx,
+                fg_sweets_e=fg_sweets*abx,
+                fg_legume_e=fg_legume*abx,
+                fg_veggie_e = fg_veggie*abx)
+
+mod_w_fix <- log(simpson_reciprocal) ~ 0 +        
+                intensity+
+               fg_fruit_e+
+                fg_meat_e+
+                fg_milk_e+
+                fg_oils_e+
+                fg_egg_e+
+                fg_grain_e+
+                fg_sweets_e+
+                fg_legume_e+
+                fg_veggie_e+
+                abx+
+               fg_fruit+
+                fg_meat+
+                fg_milk+
+                fg_oils+
+                fg_egg+
+                fg_grain+
+                fg_sweets+
+                fg_legume+
+                fg_veggie+
+                TPN+
+                EN+
+                timebin +
+               (1 | mrn)
+
+div_priors <- c(# for the food group variables
+            prior(normal(0, 1), class = 'b', coef = "fg_egg"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie"),
+            # interaction terms
+            prior(normal(0, 1), class = 'b', coef = "fg_egg_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_fruit_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_grain_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_legume_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_meat_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_milk_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_oils_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_sweets_e"),
+            prior(normal(0, 1), class = 'b', coef = "fg_veggie_e"),
+            # for the TPN
+            prior(normal(0, 0.1), class = 'b', coef = "TPN"),
+            # for the EN
+            prior(normal(0, 0.1), class = 'b', coef = "EN"),
+            # for the empirical
+            prior(normal(0, 0.5), class = 'b', coef = "abx"),
+            # for the intensity
+            prior(normal( 2, .1), class = 'b', coef = "intensityablative"),
+            prior(normal( 2, .1), class = 'b', coef = "intensityreduced"),
+            prior(normal( 2, .1), class = 'b', coef = "intensitynonablative")
+            )
+
+get_prior(mod_w_fix,data = meta_original )
+
+model_div_time_fix <- brm( mod_w_fix,  
+              data = meta_, 
+              warmup = 1000, iter = 3000, 
+              prior = div_priors,
+              cores = ncores, 
+              chains = 2, 
+               control = list(adapt_delta = 0.99),
+              seed = 123, sample_prior = T, file = '../data/186_interaction_conditional_model_time_fix_new')
+
+post_res <- suppressWarnings(posterior_samples(model_div_time_fix)) 
+post_res %>%  write_csv('../data/186_div_model_fg_post_interaction_time_fix.csv')
+```
+
+
+```{r}
+# to plot the coeff plot 
+fg <- read_csv('../data/186_div_model_fg_post_interaction_time_fix.csv')
+
+fg_order <- c( 'Vegetables','abx * Vegetables',
+                 'Oils','abx * Oils',
+                 'Fruits','abx * Fruits',
+                 'Meats','abx * Meats',
+                 'Legumes','abx * Legumes',
+                 'Eggs','abx * Eggs',
+                 'Milk','abx * Milk',
+                 'Grains','abx * Grains',
+                 'Sweets','abx * Sweets',
+                 "TPN" ,"EN" , 'abx')
+
+key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+
+fg_label <- tibble(ord = fg_order) %>% 
+  mutate(shortname = str_replace(ord, 'abx \\+ ','')) %>% 
+  left_join(key %>% select(shortname, color)) %>% 
+  mutate(color = if_else(is.na(color), 'black', color))
+
+
+# to clean the y labels in both of the df
+cleaned_fg <- fg  %>% select(starts_with('b_')) %>% 
+  select(-starts_with('b_timebin')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_fg_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+   mutate(fgrp1 = case_when(
+    item ==  'milk' ~ '1',
+    item == 'meat' ~ '2',
+    item ==  'egg' ~ '3',
+    item ==  'legume' ~ '4',
+    item == 'grain' ~ '5',
+    item == 'fruit' ~ '6',
+    item == 'veggie' ~ '7',
+    item ==  'oils' ~ '8', 
+    item ==  'sweets' ~ '9'
+  ))  %>% 
+  left_join(key %>% select(fgrp1, color, shortname)) %>% 
+  mutate(shortname = case_when(
+        item ==  'milk_e' ~ 'abx * Milk',
+    item == 'meat_e' ~ 'abx * Meats',
+    item ==  'egg_e' ~ 'abx * Eggs',
+    item ==  'legume_e' ~ 'abx * Legumes',
+    item == 'grain_e' ~ 'abx * Grains',
+    item == 'fruit_e' ~ 'abx * Fruits',
+    item == 'veggie_e' ~ 'abx * Vegetables',
+    item ==  'oils_e' ~ 'abx * Oils', 
+    item ==  'sweets_e' ~ 'abx * Sweets',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'abx' ~ 'abx',
+    TRUE ~ `shortname`
+  )) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal'))
+
+interaction_terms <- tibble(
+  shortname = fg_label$ord
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         interaction_fill = 'interaction_fill')
+
+# this leaves me no choice but I need to fill the other blue area with the blue rectangles 
+blue_terms <- tibble(
+  shortname = fg_label$ord
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(!str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         blue_fill = 'blue_fill')
+
+cross0 <- cleaned_fg %>%
+   filter(grp == 'temporal') %>% 
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 >= 0 | q97.5 <= 0, F, T))
+
+fg_temporal <- cleaned_fg %>% 
+  filter(grp == 'temporal') %>% 
+  mutate(shortname = factor(shortname, levels = fg_label$ord)) %>% 
+  left_join(cross0) %>% 
+  ggplot() +
+   stat_pointinterval(aes(x = coeff, y = shortname, col = Cross), .width = c(.66, .95), fatten_point = 1.2) +
+  geom_rect(data = interaction_terms, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = interaction_fill), alpha = .1) +
+  geom_rect(data = blue_terms, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = blue_fill) , alpha = .1) +
+  scale_fill_manual(values=c("interaction_fill" = "lightblue", "blue_fill" = "royalblue")) +
+  scale_color_manual(values = c("#EC0000", "black")) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'ln(diversity) change', y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  theme(axis.text = element_text( size = 10),
+        plot.background = element_rect(fill='transparent', color=NA), 
+        axis.title=element_text(size=10), 
+        aspect.ratio=1.5)      
+fg_temporal  
+```
+
+
+```{r}
+conditional_plots <- plot(conditional_effects(model_div_time_fix), ask = F)
+interaction_plots <- plot_grid(plotlist = conditional_plots,
+                              nrow = 4)
+ggsave('../data/186_interaction_diversity_conditional_with_time_fixed.pdf', width = 15, height = 10)
+```
+
+# Can you show a time course of the alpha diversity of the generated quantities from the model? Reviewers are going to want to see that the model recapitulates the drop in alpha diversity around day 0. This could be another panel of figure S3 
+
+
+
+
+

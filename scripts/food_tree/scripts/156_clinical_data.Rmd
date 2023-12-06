@@ -522,7 +522,8 @@ median(transplant_data$ttancday, na.rm = T)
 range(transplant_data$ttancday, na.rm = T)
 summary(transplant_data$ttancday)
 
-cli <- read_csv('../data/156_transplant_data.csv')
-
+clinicaldata <- read_csv('../data/156_transplant_data.csv')
+colnames(clinicaldata)
+clinicaldata %>% count(d100_a_gvhd)
 ```
 

@@ -1,0 +1,99 @@
+---
+title: "the bladder samples path sorting out"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(ggpubr)
+```
+
+```{r}
+samples <- read_csv('../data/preprocess_path.csv', col_names = F) %>% 
+  mutate(cmd = str_glue('cp {X1}/* /home/daia1/my_workdir/samples')) %>% 
+  select(cmd) 
+
+samples %>% write_csv('../data/copy_files.sh', col_names = F)
+```
+
+```{r}
+# to gather the gene id of the following three tabs !
+library(readxl)
+```
+
+
+```{r}
+t2 <- read_excel('~/Downloads/mbo002141784sd1.xlsx', sheet = 2, col_names = F, skip = 1) %>% 
+  gather() %>% 
+  select(value) %>% 
+  filter(!is.na(value))
+```
+
+
+```{r}
+t3 <- read_excel('~/Downloads/mbo002141784sd1.xlsx', sheet = 3, col_names = F, skip = 1) %>% 
+  gather() %>% 
+  select(value) %>% 
+  filter(!is.na(value))
+t3
+
+
+t4 <- read_excel('~/Downloads/mbo002141784sd1.xlsx', sheet = 4, col_names = F, skip = 1) %>% 
+  gather() %>% 
+  select(value) %>% 
+  filter(!is.na(value))
+```
+
+```{r}
+t1 <- read_excel('~/Downloads/mbo002141784sd1.xlsx', sheet = 1, col_names = F, skip = 1) %>% 
+  gather() %>% 
+  select(value) %>% 
+  filter(!is.na(value))
+
+all <- bind_rows(t1, t2, t3, t4) 
+
+
+split <- all %>% group_by(row_number() %/% 1000) %>% group_map(~ .x)
+
+split[[1]] %>% 
+  summarize(allids = str_c(value, collapse = ","))%>% write_tsv('../data/18_all_buty_ID_1.tsv')
+
+split[[2]] %>% 
+  summarize(allids = str_c(value, collapse = ","))%>% write_tsv('../data/18_all_buty_ID_2.tsv')
+
+split[[3]] %>% 
+  summarize(allids = str_c(value, collapse = ","))%>% write_tsv('../data/18_all_buty_ID_3.tsv')
+
+split[[4]] %>% 
+  summarize(allids = str_c(value, collapse = ","))%>% write_tsv('../data/18_all_buty_ID_4.tsv')
+
+```
+
+```{r}
+# the final results
+files <- list.files('../data/buty/', full.names = T)
+
+res <- read_tsv(files[1]) %>% 
+  summarise(total = sum(Count))
+
+res <- files %>% 
+  set_names(files) %>% 
+  map(function(file){
+    read_tsv(file) %>% summarise(total = sum(Count))
+  }) %>% 
+  bind_rows(.id = 'sampleid')
+
+res %>% write_csv('../data/18_buty_bladder.csv')
+
+# the meta data
+res %>% 
+  ggboxplot( y = 'total')
+
+```
+

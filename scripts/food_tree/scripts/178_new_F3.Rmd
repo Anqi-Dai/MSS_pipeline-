@@ -17,6 +17,7 @@ library(tidybayes)
 library(cowplot)
 theme_set(theme_pubr(base_size = 8))
 key <- read_csv('../data/cleaned_diet_data/food_group_color_key_final.csv', col_types = 'ccccc')
+DTB <- read_csv('../data/152_combined_DTB.csv')
 ```
 
 
@@ -313,11 +314,19 @@ newest <- readxl::read_excel('../data/Sucrose_All Experiments Consolidated .xlsx
          diet_treatment = factor(diet_treatment, levels = c('vehicle','sucrose')),
          abx_treatment = factor(abx_treatment, levels = c('PBS','biapenem'))) %>% 
   mutate(CFUs_per_GramStool = (((((Colonies_counted*(100/Plated_volume_ul))/100)/(10^Dilution_factor) )*1000)/Stool_weight_mg)+1) %>% 
-  select(diet_treatment:Mouse_identifier, CFUs_per_GramStool, Log_CFUs_per_GramStool)
+  select(Experiment:Mouse_identifier, CFUs_per_GramStool, Log_CFUs_per_GramStool)
 
 # are the mice paired in each of the treatment group
 
 ```
+
+```{r}
+# N-N mice per group; 2 independent experiments.  for the mouse experiments
+n_per_grp <- newest %>% 
+  count(diet_treatment, abx_treatment)
+range(n_per_grp$n)
+```
+
 ```{r}
 # the difference or fold change between day 0 and day 3, day 0 and day 6
 # deltas <- newest %>% 
@@ -441,9 +450,61 @@ dat_entero_wide <- dat_entero_wide %>%
                          diet_treatment,sep="__")) %>% 
   mutate(groups = factor(groups, levels = c('PBS__vehicle','PBS__sucrose','biapenem__vehicle','biapenem__sucrose')))
 
-plotdf %>% count(xvar)
+grps <- plotdf %>% count(xvar)
+
+df <- dat_entero_wide %>% 
+  filter(Day6 < Day0)
+```
+```{r}
+# the median fold change and the p value for the star in the 3C upper panel
+deltas <- plotdf %>%
+  select(grp, Day, Mouse_identifier, CFUs_per_GramStool) %>% 
+  spread('Day','CFUs_per_GramStool') %>%
+  rename(d0 = `0`, d3 = `3`,d6 = `6`)
 ```
 
+
+```{r}
+# the fold change on day 3
+day3fc <- deltas %>% 
+  filter(str_detect(grp, 'biapenem')) %>% 
+  select(grp, Mouse_identifier, d3) %>% 
+  spread('grp','d3') %>% 
+  filter(!is.na(biapenem__vehicle)) %>% 
+  mutate(fc = round(biapenem__sucrose/biapenem__vehicle, 2)) 
+
+day3fc
+
+median(day3fc$fc)
+
+res <- wilcox.test(d3 ~ grp, data = deltas %>% 
+  filter(str_detect(grp, 'biapenem')) %>% 
+  select(grp, Mouse_identifier, d3),
+                   exact = FALSE)
+res
+```
+
+
+```{r} 
+# the fold change on day 6
+day6fc <- deltas %>% 
+  filter(str_detect(grp, 'biapenem')) %>% 
+  select(grp, Mouse_identifier, d6) %>% 
+  spread('grp','d6') %>% 
+  filter(!is.na(biapenem__vehicle)) %>% 
+  mutate(fc = round(biapenem__sucrose/biapenem__vehicle, 2)) 
+
+
+median(day6fc$fc)
+
+
+
+res <- wilcox.test(d6 ~ grp, data = deltas %>% 
+  filter(str_detect(grp, 'biapenem')) %>% 
+  select(grp, Mouse_identifier, d6),
+                   exact = FALSE)
+res
+```
 
 ```{r}
 f3_days <- plotdf %>%    

@@ -1,0 +1,58 @@
+---
+title: "the 6 comparisons of the genera"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+```
+
+```{r}
+df <- read_csv('../data/genus data_marina_miami_nov2023.csv')
+library(gtools)
+all4 <- df %>% distinct(mouse_group) %>% pull(mouse_group)
+combos <- data.frame(combinations(4, 2, all4)) %>% 
+  rename(group1 = X1, group2 = X2)
+```
+
+
+```{r}
+genus <- df %>% 
+  select(mouse_group, g__Absiella) %>% 
+  filter(mouse_group %in% c('GVHD_IL2','GVHD_TL1A'))
+
+test <- wilcox.test(g__Absiella ~ mouse_group, data = genus)
+p.value = test$p.value
+
+all_genus <- df %>% 
+  gather('genus',  'relab',g__Absiella:g__Turicibacter )
+
+genera <- all_genus %>% distinct(genus) %>% pull(genus)
+
+each_genus_test <- function(group1_, group2_){
+  res = each_genus %>% 
+    filter(mouse_group %in% c(group1_,group2_))
+  p.value= wilcox.test(g__Absiella ~ mouse_group, data = res)
+  return(p.value)
+}
+```
+```{r}
+mean_p2d_diet <-  function(mrn_, p1d_, p2d_){
+  df = total_per_group %>% 
+    filter(mrn == mrn_) %>% 
+    filter(fdrt %in% c(p1d_, p2d_  )) %>% 
+    group_by(fg1_name) %>% 
+    summarise(ave_fg = sum(grp_tol)/2)
+  return(df)
+}
+mean_p2d_df <- pmap(stb_pair, function(mrn, p1d, p2d){
+    mean_p2d_diet(mrn, p1d, p2d)
+  })
+```
+

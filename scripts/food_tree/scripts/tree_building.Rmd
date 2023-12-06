@@ -1,0 +1,96 @@
+---
+title: "building the tree"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(data.tree)
+library(viridisLite)
+library(readxl)
+```
+
+# the food database
+
+```{r}
+### The food database with all the unique food from the diet project
+# need to get rid of the all the special characters, so that you will only see underscores
+# uniq_food is a table with the food_nsc and food code and description
+
+dtball <- read_csv('../data/152_combined_DTB.csv')
+
+uniq_food <- dtball %>% 
+  distinct(Food_code, description)  
+
+food_database <- uniq_food %>% 
+  distinct(Food_code, .keep_all = T)  %>%  
+  rename(FoodID = Food_code) %>% 
+  mutate(description = str_replace_all(description,',| |-|\\(|\\)|%|/|"|;','_')) %>% 
+  mutate(description = str_replace_all(description,"'",""))  
+```
+
+
+# the nodes
+
+```{r}
+nodes_fn <- '../data/source/NodeLabelsMCT.txt'
+
+num.levels <- 7
+```
+
+# the df transformation
+
+```{r}
+fdata <- food_database
+nodes <- read.table(nodes_fn, header = TRUE, sep="\t", fill = TRUE , colClasses="character")
+
+main <- fdata[,c("FoodID", "description")]
+
+
+# if there happen to be duplicate FoodIDs in main, remove them
+main <- main[!duplicated(main$FoodID),]
+
+flevels <- NULL
+for(i in 1:num.levels)
+    flevels <- cbind(flevels, I(substr(main$FoodID, 1, i)))
+colnames(flevels) <- paste0("L",1:num.levels)
+main <- data.frame(main, flevels, stringsAsFactors=F)
+
+
+# melt the data, merge to get the node names, then cast back
+main.melt <- reshape2::melt(main, id.vars = "FoodID", variable.name = "Level", value.name = "Level.code")
+main.merge <- merge(main.melt, nodes, by = "Level.code")
+main.cast <- data.table::dcast(main.merge, FoodID ~ Level, value.var = "Main.food.description")
+
+# prepend level to all level descriptions
+main.cast[is.na(main.cast)] <- ""
+main.cast[,colnames(main.cast)[-1]] <- sapply(colnames(main.cast)[-1], function(colname) paste(colname, main.cast[,colname], sep="_"))
+
+# merge back with original table to grab Food Description
+main.join <- merge(main.cast, main[,c("FoodID","description")], by="FoodID")
+
+# create a proper newick string for the tree
+newickstring <- paste("foodtreeroot", apply(main.join, 1, function(xx) paste(xx[-1], collapse="/")), sep="/")
+# create a proper taxonomy string for QIIME
+taxonomy <- apply(main.join, 1, function(xx) paste(xx[-1], collapse=";"))
+
+final.table <- data.frame(main.join, newickstring, taxonomy, stringsAsFactors=F) %>% 
+  # THE BELOW IS ESSENTIAL, THAT WE WANNA USE FOOD ID INSTEAD OF DESCRIPTION TO REPRESENT THE FOOD
+  mutate(newickstring = str_glue('foodtreeroot/{L1}/{L2}/{L3}/{L4}/{L5}/{L6}/{FoodID}'))
+```
+
+# make the tree in newick
+
+```{r}
+#### Make and export the tree ####
+# the below is the tree that is gonna be used in the procrustes since the food is represented by food_code
+foodTree <- as.Node(final.table, pathName = "newickstring")
+tree <- ToNewick(foodTree)
+cat(tree, file = '../data/cleaned_tree/output_food_tree_datatree.newick')
+```

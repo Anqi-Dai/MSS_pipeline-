@@ -1,0 +1,25 @@
+---
+title: "Misc stuff"
+author: "Anqi Dai"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(vdbR)
+connect_database()
+list_table_from_database('frozen')
+get_table_from_database('frozen_set_ag')
+```
+
+```{r}
+meta <- read_csv('../data/153_combined_META.csv')
+length(intersect(meta$sampleid, frozen_set_ag$sampleid))
+length(intersect(meta$sampleid, frozen_set_ag$sampleid))/nrow(meta)*100
+```
+

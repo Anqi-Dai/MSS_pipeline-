@@ -136,6 +136,19 @@ plot <- bars %>%
         legend.position = 'bottom',
         legend.title= element_blank())
 
+plot_alt <- bars %>% 
+  pivot_wider(names_from = grp, values_from = gram) %>% 
+  mutate(description = factor(description, levels = order_)) %>% 
+  ggbarplot( "description", "Total",
+                  xlab = '',ylab = 'Per meal average consumption (gram)',
+  fill = "Sugar content", color = "Sugar content",
+  width = 0.7, 
+  position = position_dodge(0.8)) +
+  coord_flip() +
+  theme(
+        axis.text.y = element_text(size=10),
+        legend.position = 'bottom',
+        legend.title= element_blank())
 
 combined <- plot_grid(
   title, plot,

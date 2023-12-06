@@ -71,6 +71,8 @@ byday_original2 <- dtb2 %>%
 
 # pooled the two batches together same day match between food and stool
 byday_original <- bind_rows(byday_original1, byday_original2)
+
+byday_original %>% distinct(mrn) 
 ```
 
 ```{r}

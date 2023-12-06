@@ -49,7 +49,7 @@ meta <- read_csv('../data/153_combined_META.csv') %>%
   mutate(abx = if_else(empirical == 'TRUE', 1, 0),
          TPN = if_else(TPN == 'TRUE', 1, 0),
          EN = if_else(EN == 'TRUE', 1, 0)) %>% 
-  mutate(      fg_fruit_e= fg_fruit*abx,
+  mutate(      fg_fruit_e= fg_fruit*abx,  
                 fg_meat_e=fg_meat*abx,
                 fg_milk_e=fg_milk*abx,
                 fg_oils_e=fg_oils*abx,
@@ -143,6 +143,15 @@ samples_prior <- prior_draws(model_div)
 post_res <- suppressWarnings(posterior_samples(model_div)) 
 post_res %>%  write_csv('../data/171_div_model_fg_post_interaction.csv')
 colnames(meta)
+
+get_prior(div_model,  
+              data = meta)
+```
+```{r}
+brms::stancode(model_div)
+
+df <- posterior_predict(model_div, re_formula = ~ (1 | timebin))
+variables(model_div)
 ```
 
 # use their function to see the interaction effects
@@ -451,7 +460,7 @@ post_pred
 # the below is the posterior predictive check 
 post_c <- pp_check(fit, type = "scatter_avg", ndraws = 100)$data
 
-
+panels(fit)
 
 #pp_check(fit) 
 ```

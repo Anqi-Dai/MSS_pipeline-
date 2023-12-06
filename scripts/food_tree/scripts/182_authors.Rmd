@@ -11,25 +11,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ```{r}
 library(tidyverse)
+library(readxl)
+library(officer)
 ```
 
-```{r}
-authors <- tibble(
-  author = c('Anqi Dai',
-             'Peter Adintori',
-             'Tyler Funnell',
-             )
-)
-```
+
 
 ```{r}
 
 # This script will format a beautiful author list for manuscript submission
-
-
-library(tidyverse)
-library(readxl)
-library(officer)
 
 
 ########### If needed, use this to generate a template file to populate manually
@@ -48,7 +38,7 @@ library(officer)
 
 ########## Pull in Excel file of author affiliations
 
-author.filename <- "../data/Author_list_diversity_manuscript_2019-06-10.xlsx"
+author.filename <- "../data/Author_list_nutrition_manuscript_2023-11-13.xlsx"
 df <- read_excel(author.filename)
 
 
@@ -108,24 +98,7 @@ df <- left_join(
   df,author.superscripts, by = "Name_with_middle_initial")
 
 
-#OPTIONAL: Poor Man's Output to Excel
-setwd("~/Desktop/desktop_stuff/"); getwd()
-# List of authors
-# paste0(df$Name_with_middle_initial, ", ", df$Degree.with.periods., df$superscripts) %>% 
-  # write.csv("author.list_2019-10-16.csv")
 
-# List of institutions
-# paste0(affiliations.list$affiliation.id, affiliations.list$affiliation) %>% 
-  # write.csv("institution.list_2019-10-16.csv")
-
-
-############ FANCIER OPTION: generate word document
-
-# Need to generate, on your own, a Word document into which R will write the author list
-# So make a blank word document and save it the appropriate folder, 
-# call it "author_list_1.docx"
-setwd("/Users/peledj/Desktop/desktop_stuff/Susan Dewolf TCR seqencing/authorship_COI")
-getwd()
 
 #define the superscript format
 sup.format <- fp_text_lite(vertical.align = "superscript") 
@@ -164,13 +137,13 @@ formatted_names <- do.call(fpar, fpar_args)
 # Generate the author list paragraph chunk
 read_docx() %>%
   body_add_fpar(formatted_names) %>%
-  print(target = "author_list_2.docx")
+  print(target = "../data/182_author_list_2.docx")
 
 
 # Generate list of institutions: 
 # This is output as a csv that you copy into Word & fix the superscripts in the affiliation list manually
 paste0(affiliations.list$affiliation.id, affiliations.list$affiliation) %>%
-write.csv("institution.list_2022-01-27.csv", row.names=FALSE)
+write.csv("../data/182_institution.list_2023-11-14.csv", row.names=FALSE, col.names = F)
 
 ```
 

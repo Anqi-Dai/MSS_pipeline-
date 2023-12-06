@@ -275,6 +275,127 @@ prior_df %>%
 meta %>% count(empirical) %>% 
   mutate(perc = round(n/sum(n)*100))
 ```
+```{r}
+# !!!!! to put time as fixed effects in the model
+alpha_macro_fat_time_fix <- log(simpson_reciprocal) ~ 0 +
+                ave_fiber_e +
+                ave_fat_e +
+                ave_Sugars_e +
+                ave_fiber +
+                ave_fat +
+                ave_Sugars +
+               abx+
+               intensity +
+                TPN+
+                EN+
+                timebin +
+               (1 | mrn) 
+
+model_alpha_macro_fat_time_fix  <- brm( alpha_macro_fat_time_fix,  
+              data = full, 
+              warmup = 1000, iter = 3000, 
+              prior = priors_alpha_macro_fat,
+               control = list(adapt_delta = 0.99),
+              cores = ncores,
+              chains = 2, 
+              seed = 123, sample_prior = T, file = '../data/090_interaction_conditional_model_macro_time_fix')
+
+
+post_res <- suppressWarnings(posterior_samples(model_alpha_macro_fat_time_fix))
+post_res %>%  write_csv('../data/090_model_alpha_macro_fat_post_interaction_time_fix.csv')
+
+```
+
+```{r}
+macro <- read_csv('../data/090_model_alpha_macro_fat_post_interaction_time_fix.csv')
+cleaned_macro <-  macro %>% select(starts_with('b_')) %>% 
+   select(-starts_with('b_timebin')) %>% 
+  gather('item', 'coeff') %>% 
+  mutate(item = str_replace(item, 'b_ave_',''),
+         item = str_replace(item, 'b_',''),
+         item = str_replace(item, 'intensity','')) %>% 
+  mutate(shortname = case_when(
+        item ==  'fiber_e' ~ 'abx * Fiber',  
+    item == 'fiber' ~ 'Fiber',
+    item ==  'fat_e' ~ 'abx * Fat',
+    item ==  'fat' ~ 'Fat',
+    item == 'Sugars_e' ~ 'abx * Sugars',
+    item == 'Sugars' ~ 'Sugars',
+    item ==  'nonablative' ~ 'Nonablative',
+    item ==  'reduced' ~ 'Reduced',
+    item ==  'ablative' ~ 'Ablative',
+    item ==  'TPN' ~ 'TPN',
+    item ==  'EN' ~ 'EN',
+    item ==  'abx' ~ 'abx'
+  )) %>% 
+  mutate(grp = if_else(item %in% c('nonablative','reduced','ablative'), 'patient', 'temporal')) %>% 
+  mutate(grp = factor(grp, levels = c('temporal','patient')))
+
+cleaned_macro %>% distinct(item) %>% pull(item)
+# sort them by the order of the left side of middle q66
+macro_e_order <- cleaned_macro %>% filter(str_detect(item, '_e$')) %>% 
+  group_by(shortname) %>% 
+  tidybayes::median_qi(coeff , .width = c( .66)) %>% 
+  arrange(.lower) %>% pull(shortname)
+
+cross0_macro <- cleaned_macro %>%
+   filter(grp == 'temporal') %>% 
+  group_by(item) %>% 
+  summarise(q2.5 = quantile(coeff, probs = 0.025),
+            q97.5 = quantile(coeff, probs = 0.975)) %>% 
+  mutate(Cross = if_else(q2.5 >= 0 | q97.5 <= 0, F, T))
+
+
+macro_order <- tibble(
+  shortname = c('Fat','abx * Fat',
+                 'Fiber','abx * Fiber',
+                 'Sugars','abx * Sugars',
+                 "TPN" ,"EN" , 'abx')
+) %>% inner_join(cleaned_macro %>% distinct(item, shortname)) %>% 
+  inner_join(cross0_macro %>% select(item, Cross))
+
+
+interaction_terms_macro <- tibble(
+  shortname = macro_order$shortname
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         interaction_fill = 'interaction_fill')
+
+blue_terms_macro <- tibble(
+  shortname = macro_order$shortname
+) %>% 
+  mutate(ymin = seq(1, nrow(.)) - 0.5,
+         ymax = seq(1, nrow(.)) + 0.5) %>% 
+  filter(!str_detect(shortname, '\\*')) %>% 
+  mutate(xmin = -Inf, xmax = Inf,
+         blue_fill = 'blue_fill')
+
+macro_temporal <- cleaned_macro %>% 
+  filter(grp == 'temporal') %>% 
+  mutate(shortname = factor(shortname, levels = macro_order$shortname)) %>% 
+  left_join(cross0_macro)  %>% 
+  ggplot() +
+  stat_pointinterval(aes(x = coeff, y = shortname, col = Cross),.width = c(.66, .95), fatten_point = 1.2) +
+ geom_rect(data = interaction_terms_macro, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = interaction_fill), alpha = .1) +
+  geom_rect(data = blue_terms_macro, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = blue_fill) , alpha = .1) +
+  scale_fill_manual(values=c("interaction_fill" = "lightblue", "blue_fill" = "royalblue")) +
+  geom_vline(xintercept = 0, col = 'black', linetype = 'dashed') +
+  labs(x = 'ln(diversity) change', y = '') +
+  theme_classic() +
+  theme(legend.position = 'none') +
+  scale_color_manual(values = c("#EC0000", "black")) +
+  theme(axis.text.y = element_text( size = 10),
+        plot.background = element_rect(fill='transparent', color=NA), 
+        axis.title=element_text(size=10), 
+        #panel.background = element_rect(fill = "#d8dcec",colour = "#d8dcec",size = 0.5, linetype = "solid"),
+        aspect.ratio=1/1.5)
+macro_temporal
+```
+
+
 
 ```{r}
 # interaction results visualization
